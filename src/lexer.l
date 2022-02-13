@@ -21,10 +21,12 @@ CMM_IDENT		([a-zA-Z_$][$a-zA-Z_0-9]*)
 CMM_STRING		(\"([^\\"\n]|\\([\\"ntr]|x[0-9a-fA-F][0-9a-fA-F]))*\")
 CMM_CHAR		(\'([^\\'\n]|\\([\\'ntr]|x[0-9a-fA-F][0-9a-fA-F]))\')
 CMM_MLCOMMENT	("/*"([^*]|"*"[^/])*"*/")
+CMM_SLCOMMENT	("//"[^\n]*)
 
 %%
 
 {CMM_MLCOMMENT}	{}
+{CMM_SLCOMMENT}	{}
 [ \t]+			{}
 \n				{cmmLexer.newline();}
 

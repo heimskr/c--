@@ -4,6 +4,7 @@ fn triple_and_add(in: i32, addend: i32): i32 {
 
 fn main(): void {
 	n: i32 = 42;
+	// Functions whose names are "$" followed by a type are built-in print functions.
 	$i32(n);
 	$s(" * 3 + 10 = ");
 	$i32(triple_and_add(n, 10));
