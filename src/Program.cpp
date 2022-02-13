@@ -8,6 +8,7 @@ Program compileRoot(const ASTNode &root) {
 	std::map<std::string, Global> globals;
 	std::vector<std::map<std::string, Global>::iterator> global_order;
 	std::map<std::string, Signature> signatures;
+	std::map<std::string, Function> functions;
 
 	for (const ASTNode *child: root)
 		switch (child->symbol) {
@@ -19,6 +20,7 @@ Program compileRoot(const ASTNode &root) {
 				for (const ASTNode *arg: *child->at(2))
 					args.emplace_back(getType(*arg->front()));
 				signatures.try_emplace(name, std::shared_ptr<Type>(getType(*child->at(1))), std::move(args));
+				functions.try_emplace(name, *child);
 				break;
 			}
 			case CMMTOK_COLON: { // Global variable
@@ -38,5 +40,5 @@ Program compileRoot(const ASTNode &root) {
 					std::string(cmmParser.getName(child->symbol)));
 		}
 
-	return {globals, global_order, signatures};
+	return {globals, global_order, signatures, functions};
 }
