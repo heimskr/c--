@@ -81,6 +81,8 @@ using AN = ASTNode;
 %token CMMTOK_U64 "u64"
 %token CMMTOK_BOOL "bool"
 %token CMMTOK_VOID "void"
+%token CMMTOK_LSHIFT "<<"
+%token CMMTOK_RSHIFT ">>"
 
 %token CMM_LIST CMM_ACCESS CMM_BLOCK
 
@@ -93,7 +95,9 @@ using AN = ASTNode;
 %left "|"
 %left "^"
 %left "&"
-%left "<" "<=" ">" ">=" "=" "!="
+%left "==" "!="
+%left "<" "<=" ">" ">="
+%left "<<" ">>"
 %left "+" "-"
 %left "*" "/"
 %left "["
@@ -104,21 +108,24 @@ using AN = ASTNode;
 
 start: program;
 
-program: superstatement { $$ = cmmParser.root->adopt($1); };
-
-superstatement: superstatement ";" statement { $$ = $2->adopt({$1, $3}); }
-              | statement;
+program: program global       { $$ = $1->adopt($2); }
+       | program function_def { $$ = $1->adopt($2); }
+       | { $$ = cmmParser.root; };
 
 statement: block
          | assignment
          | conditional
          | loop
-         | "fn" ident "(" _arglist ")" ":" type block { $$ = $1->adopt({$2, $7, $4}); D($3, $5, $6, $8); }
          | "return" expr { $$ = $1->adopt($2); };
+
+global: ident ":" type ";" { $$ = $2->adopt({$1, $3}); D($4); }
+      | ident ":" type "=" expr { $$ = $2->adopt({$1, $3, $5}); D($4); };
+
+function_def: "fn" ident "(" _arglist ")" ":" type block { $$ = $1->adopt({$2, $7, $4, $8}); D($3, $5, $6); }
 
 block: "{" statements "}" { $$ = $2; D($1, $3); };
 
-statements: statements statement { $$ = $1->adopt($2); }
+statements: statements statement ";" { $$ = $1->adopt($2); D($3); }
           | { $$ = new ASTNode(cmmParser, CMM_BLOCK); };
 
 assignment: expr "=" expr { $$ = $2->adopt({$1, $3}); };
@@ -132,7 +139,7 @@ expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
     | expr "||" expr { $$ = $2->adopt({$1, $3}); }
     | expr "&"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "|"  expr { $$ = $2->adopt({$1, $3}); }
-    | expr "="  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "==" expr { $$ = $2->adopt({$1, $3}); }
     | expr "!=" expr { $$ = $2->adopt({$1, $3}); }
     | expr "<"  expr { $$ = $2->adopt({$1, $3}); }
     | expr ">"  expr { $$ = $2->adopt({$1, $3}); }

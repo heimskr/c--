@@ -25,6 +25,9 @@ all: $(OUTPUT)
 $(OUTPUT): $(OBJECTS)
 	$(COMPILER) -o $@ $^ $(LDFLAGS)
 
+test: $(OUTPUT)
+	./$(OUTPUT) example.c--
+
 %.o: %.cpp $(PARSERHDR)
 	$(COMPILER) $(CFLAGS) -c $< -o $@
 

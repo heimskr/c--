@@ -37,6 +37,8 @@ CMM_IDENT		([a-zA-Z_][a-zA-Z_0-9]*)
 "&"				{RTOKEN(AND)}
 "|"				{RTOKEN(OR)}
 "!"				{RTOKEN(NOT)}
+"<<"			{RTOKEN(LSHIFT)}
+">>"			{RTOKEN(RSHIFT)}
 "<="			{RTOKEN(LTE)}
 ">="			{RTOKEN(GTE)}
 "<"				{RTOKEN(LT)}
