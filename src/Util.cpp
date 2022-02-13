@@ -1,3 +1,4 @@
+#include <fstream>
 #include <stdexcept>
 
 #include "Util.h"
@@ -43,5 +44,17 @@ namespace Util {
 
 	long parseLong(const char *str, int base) {
 		return parseLong(std::string(str), base);
+	}
+
+	std::string read(const std::string &path) {
+		std::ifstream file(path);
+		if (!file.is_open())
+			throw std::runtime_error("Couldn't open file for reading");
+		std::string out;
+		file.seekg(0, std::ios::end);
+		out.reserve(file.tellg());
+		file.seekg(0, std::ios::beg);
+		out.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+		return out;
 	}
 }

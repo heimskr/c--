@@ -9,8 +9,7 @@
 #include "Parser.h"
 #include "Program.h"
 #include "Type.h"
-
-Program compileRoot(const ASTNode &);
+#include "Util.h"
 
 int main(int argc, char **argv) {
 	if (argc <= 1) {
@@ -18,14 +17,7 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	std::ifstream file(argv[1]);
-	if (!file.is_open())
-		throw std::runtime_error("Couldn't open file for reading");
-	std::string input;
-	file.seekg(0, std::ios::end);
-	input.reserve(file.tellg());
-	file.seekg(0, std::ios::beg);
-	input.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+	std::string input = Util::read(argv[1]);
 
 	cmmParser.in(input);
 	cmmParser.debug(false, false);
