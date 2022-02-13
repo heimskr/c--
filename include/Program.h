@@ -16,7 +16,9 @@ struct Program {
 	std::map<std::string, Signature> signatures;
 	std::map<std::string, Function> functions;
 	std::vector<std::string> lines;
-	Function init {nullptr};
+	Function init {*this, nullptr};
+
+	Program() = default;
 
 	Program(decltype(globals) &&globals_, decltype(globalOrder) &&global_order, decltype(signatures) &&signatures_,
 	decltype(functions) &&functions_):

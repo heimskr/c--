@@ -6,6 +6,8 @@
 #include <vector>
 
 #include "Function.h"
+#include "Util.h"
+#include "Variable.h"
 
 class ASTNode;
 class Function;
@@ -20,9 +22,11 @@ struct Expr {
 	virtual operator std::string() const { return "???"; }
 	virtual bool shouldParenthesize() const { return false; }
 	virtual size_t getSize() const { return 0; } // in bytes
-	static Expr * get(const ASTNode &);
+	static Expr * get(const ASTNode &, Function * = nullptr);
 	/** Attempts to evaluate the expression at compile time. */
 	virtual std::optional<ssize_t> evaluate() const = 0;
+	/** Returns a vector of all variable names referenced by the expression or its children. */
+	virtual std::vector<std::string> references() const { return {}; }
 };
 
 struct AtomicExpr: Expr {
@@ -43,6 +47,10 @@ struct BinaryExpr: Expr {
 	}
 
 	bool shouldParenthesize() const override { return true; }
+	std::vector<std::string> references() const override {
+		return Util::combine(left? left->references() : std::vector<std::string>(),
+			right? right->references() : std::vector<std::string>());
+	}
 };
 
 struct PlusExpr: BinaryExpr<'+'> {
@@ -91,6 +99,21 @@ struct BoolExpr: AtomicExpr {
 	operator std::string() const override { return value? "true" : "false"; }
 	int getValue() const override { return value? 1 : 0; }
 	std::optional<ssize_t> evaluate() const override { return getValue(); }
+};
+
+struct VariableExpr: Expr {
+	Variable variable;
+
+	VariableExpr(const Variable &variable_): variable(variable_) {}
+
+	void compile(VregPtr, Function &) const override {
+
+	}
+
+	operator std::string() const override { return variable.name; }
+	size_t getSize() const override { return variable.getSize(); } // in bytes
+	std::optional<ssize_t> evaluate() const override { return std::nullopt; }
+	std::vector<std::string> references() const override { return {variable.name}; }
 };
 
 using ExprPtr = std::shared_ptr<Expr>;

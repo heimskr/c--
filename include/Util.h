@@ -31,4 +31,13 @@ namespace Util {
 		ss << std::hex << n;
 		return ss.str();
 	}
+
+	template <template <typename...> typename C, typename T>
+	C<T> combine(const C<T> &left, const C<T> &right) {
+		C<T> out;
+		for (const C<T> &container: {left, right})
+			for (const T &item: container)
+				out.push_back(item);
+		return out;
+	}
 }

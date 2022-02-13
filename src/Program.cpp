@@ -7,35 +7,34 @@
 #include "Why.h"
 
 Program compileRoot(const ASTNode &root) {
-	std::map<std::string, Global> globals;
-	std::vector<std::map<std::string, Global>::iterator> global_order;
-	std::map<std::string, Signature> signatures {{"$init", {std::make_shared<VoidType>(), {}}}};
-	std::map<std::string, Function> functions {{"$init", nullptr}};
+	Program out;
 
 	for (const ASTNode *child: root)
 		switch (child->symbol) {
 			case CMMTOK_FN: {
 				const std::string &name = *child->front()->lexerInfo;
-				if (signatures.count(name) != 0)
+				if (out.signatures.count(name) != 0)
 					throw std::runtime_error("Cannot redefine function " + name);
 				decltype(Signature::argumentTypes) args;
 				for (const ASTNode *arg: *child->at(2))
 					args.emplace_back(getType(*arg->front()));
-				signatures.try_emplace(name, std::shared_ptr<Type>(getType(*child->at(1))), std::move(args));
-				functions.try_emplace(name, child);
+				out.signatures.try_emplace(name, std::shared_ptr<Type>(getType(*child->at(1))), std::move(args));
+				out.functions.try_emplace(name, out, child);
 				break;
 			}
 			case CMMTOK_COLON: { // Global variable
 				const std::string &name = *child->front()->lexerInfo;
-				if (globals.count(name) != 0)
+				if (out.globals.count(name) != 0)
 					throw std::runtime_error("Cannot redefine global " + name);
+				auto type = std::shared_ptr<Type>(getType(*child->at(1)));
 				if (child->size() <= 2)
-					global_order.push_back(globals.try_emplace(name, name,
-						std::shared_ptr<Type>(getType(*child->at(1))), nullptr).first);
+					out.globalOrder.push_back(out.globals.try_emplace(name, name,
+						type, nullptr).first);
 				else
-					global_order.push_back(globals.try_emplace(name, name,
-						std::shared_ptr<Type>(getType(*child->at(1))),
-						std::shared_ptr<Expr>(Expr::get(*child->at(2)))).first);
+					out.globalOrder.push_back(out.globals.try_emplace(name, name,
+						type,
+						std::shared_ptr<Expr>(Expr::get(*child->at(2), &out.init))).first);
+				out.init.variables.try_emplace(name, name, type, out.init);
 				break;
 			}
 			default:
@@ -43,7 +42,7 @@ Program compileRoot(const ASTNode &root) {
 					std::string(cmmParser.getName(child->symbol)));
 		}
 
-	return {std::move(globals), std::move(global_order), std::move(signatures), std::move(functions)};
+	return out;
 }
 
 void Program::compile() {
