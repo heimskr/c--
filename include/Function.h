@@ -15,11 +15,11 @@ class Function {
 		std::vector<std::shared_ptr<CmmInstruction>> cmm;
 		std::vector<std::shared_ptr<WhyInstruction>> why;
 
-		const ASTNode &source;
+		const ASTNode *source = nullptr;
 		int nextVariable = 0;
 
-		Function(const ASTNode &source_): source(source_) {}
+		Function(const ASTNode *source_): source(source_) {}
 
-		std::string compile();
-		VariablePtr newVar() { return std::make_shared<Variable>(*this); }
+		std::vector<std::string> compile();
+		VregPtr newVar() { return std::make_shared<VirtualRegister>(*this); }
 };

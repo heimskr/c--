@@ -5,14 +5,14 @@
 
 class Function;
 
-struct Variable {
+struct VirtualRegister {
 	int id;
 	int reg = -1;
 
-	Variable(int id_): id(id_) {}
-	Variable(Function &function);
+	VirtualRegister(int id_): id(id_) {}
+	VirtualRegister(Function &function);
 
 	std::string regOrID() const;
 };
 
-using VariablePtr = std::shared_ptr<Variable>;
+using VregPtr = std::shared_ptr<VirtualRegister>;

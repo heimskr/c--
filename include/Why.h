@@ -2,6 +2,11 @@
 
 #include <set>
 #include <string>
+#include <variant>
+
+using Immediate = std::variant<int, std::string>;
+
+std::string stringify(const Immediate &);
 
 // #define REGISTER_PRESSURE 4
 

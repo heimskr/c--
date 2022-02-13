@@ -31,8 +31,8 @@ Expr * Expr::get(const ASTNode &node) {
 	}
 }
 
-void PlusExpr::compile(VariablePtr destination, Function &function) const {
-	VariablePtr left_var = function.newVar(), right_var = function.newVar();
+void PlusExpr::compile(VregPtr destination, Function &function) const {
+	VregPtr left_var = function.newVar(), right_var = function.newVar();
 	left->compile(left_var, function);
 	right->compile(right_var, function);
 	function.why.emplace_back(new AddRInstruction(left_var, right_var, destination));

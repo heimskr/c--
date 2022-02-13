@@ -15,13 +15,16 @@ std::string stringify(const Expr *);
 
 struct Expr {
 	virtual ~Expr() {}
-	virtual void compile(VariablePtr, Function &) const {}
+	virtual void compile(VregPtr, Function &) const {}
 	virtual operator std::string() const { return "???"; }
 	virtual bool shouldParenthesize() const { return false; }
+	virtual size_t getSize() const { return 0; } // in bytes
 	static Expr * get(const ASTNode &);
 };
 
-struct AtomicExpr: Expr {};
+struct AtomicExpr: Expr {
+	virtual int getValue() const = 0;
+};
 
 template <char O>
 struct BinaryExpr: Expr {
@@ -41,22 +44,25 @@ struct BinaryExpr: Expr {
 
 struct PlusExpr:  BinaryExpr<'+'> {
 	using BinaryExpr::BinaryExpr;
-	void compile(VariablePtr, Function &) const override;
+	void compile(VregPtr, Function &) const override;
+	size_t getSize() const override { return 8; }
 };
 
 struct MinusExpr: BinaryExpr<'-'> { using BinaryExpr::BinaryExpr; };
 struct MultExpr:  BinaryExpr<'*'> { using BinaryExpr::BinaryExpr; };
 
 struct NumberExpr: AtomicExpr {
-	ssize_t value;
-	NumberExpr(ssize_t value_): value(value_) {}
+	int value;
+	NumberExpr(int value_): value(value_) {}
 	operator std::string() const override { return std::to_string(value); }
+	int getValue() const override { return value; }
 };
 
 struct BoolExpr: AtomicExpr {
 	bool value;
 	BoolExpr(bool value_): value(value_) {}
 	operator std::string() const override { return value? "true" : "false"; }
+	int getValue() const override { return value? 1 : 0; }
 };
 
 using ExprPtr = std::shared_ptr<Expr>;

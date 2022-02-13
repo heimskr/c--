@@ -15,10 +15,15 @@ struct Program {
 	std::vector<std::map<std::string, Global>::iterator> globalOrder;
 	std::map<std::string, Signature> signatures;
 	std::map<std::string, Function> functions;
+	std::vector<std::string> lines;
+	Function init {nullptr};
 
-	Program(const decltype(globals) &globals_ = {}, const decltype(globalOrder) &global_order = {},
-	const decltype(signatures) &signatures_ = {}, const decltype(functions) &functions_ = {}):
-		globals(globals_), globalOrder(global_order), signatures(signatures_), functions(functions_) {}
+	Program(decltype(globals) &&globals_, decltype(globalOrder) &&global_order, decltype(signatures) &&signatures_,
+	decltype(functions) &&functions_):
+		globals(std::move(globals_)), globalOrder(std::move(global_order)), signatures(std::move(signatures_)),
+		functions(std::move(functions_)) {}
+
+	void compile();
 };
 
 Program compileRoot(const ASTNode &);
