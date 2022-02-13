@@ -44,4 +44,4 @@ $(PARSERCPP:.cpp=.o): $(PARSERCPP) $(PARSERHDR)
 	$(COMPILER) $(CFLAGS) $(LEXFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(LEXERCPP) $(PARSERCPP) $(PARSERHDR) $(OBJECTS) $(OUTPUT) bison.output
+	rm -f $(LEXERCPP) $(PARSERCPP) $(PARSERHDR) src/*.o src/**/*.o $(OUTPUT) src/bison.output

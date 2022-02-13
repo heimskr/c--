@@ -30,13 +30,13 @@ CMM_IDENT		([a-zA-Z_][a-zA-Z_0-9]*)
 "-"				{RTOKEN(MINUS)}
 "*"				{RTOKEN(TIMES)}
 "/"				{RTOKEN(DIV)}
-"^"				{RTOKEN(POW)}
+"^"				{RTOKEN(XOR)}
 ";"				{RTOKEN(SEMI)}
 "&&"			{RTOKEN(LAND)}
 "||"			{RTOKEN(LOR)}
 "&"				{RTOKEN(AND)}
 "|"				{RTOKEN(OR)}
-"¬"				{RTOKEN(NOT)}
+"!"				{RTOKEN(NOT)}
 "<="			{RTOKEN(LTE)}
 ">="			{RTOKEN(GTE)}
 "<"				{RTOKEN(LT)}
@@ -47,11 +47,8 @@ CMM_IDENT		([a-zA-Z_][a-zA-Z_0-9]*)
 "true"			{RTOKEN(TRUE)}
 "false"			{RTOKEN(FALSE)}
 "if"			{RTOKEN(IF)}
-"then"			{RTOKEN(THEN)}
 "else"			{RTOKEN(ELSE)}
 "while"			{RTOKEN(WHILE)}
-"do"			{RTOKEN(DO)}
-"skip"			{RTOKEN(SKIP)}
 "{"				{RTOKEN(LBRACE)}
 "}"				{RTOKEN(RBRACE)}
 "["				{RTOKEN(LSQUARE)}
@@ -62,11 +59,18 @@ CMM_IDENT		([a-zA-Z_][a-zA-Z_0-9]*)
 "#"				{RTOKEN(HASH)}
 "fn"			{RTOKEN(FN)}
 "return"		{RTOKEN(RETURN)}
-"push"			{RTOKEN(PUSH)}
 "."				{RTOKEN(PERIOD)}
-"pop"			{RTOKEN(POP)}
-"insert"		{RTOKEN(INSERT)}
-"erase"			{RTOKEN(ERASE)}
+"i8"			{RTOKEN(S8)}
+"u8"			{RTOKEN(U8)}
+"i16"			{RTOKEN(S16)}
+"u16"			{RTOKEN(U16)}
+"i32"			{RTOKEN(S32)}
+"u32"			{RTOKEN(U32)}
+"i64"			{RTOKEN(S64)}
+"u64"			{RTOKEN(U64)}
+"bool"			{RTOKEN(BOOL)}
+"void"			{RTOKEN(VOID)}
+
 
 {CMM_DECIMAL}	{RTOKEN(NUMBER)}
 {CMM_IDENT}		{RTOKEN(IDENT)}
