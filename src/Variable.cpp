@@ -5,5 +5,5 @@
 VirtualRegister::VirtualRegister(Function &function): id(function.nextVariable++) {}
 
 std::string VirtualRegister::regOrID() const {
-	return reg == -1? std::to_string(id) : Why::registerName(reg);
+	return reg == -1? "%" + std::to_string(id) : "$" + Why::registerName(reg);
 }

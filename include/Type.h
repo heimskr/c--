@@ -9,12 +9,14 @@ struct Type {
 	virtual Type * copy() const = 0;
 	virtual operator std::string() const = 0;
 	virtual bool isNumber() const { return false; }
+	virtual size_t getSize() const = 0; // in bytes
 	virtual ~Type() {}
 };
 
 struct IntType: Type {
 	size_t width;
 	bool isNumber() const override { return true; }
+	size_t getSize() const override { return width / 8; }
 
 	protected:
 		IntType(size_t width_): width(width_) {}
@@ -35,11 +37,13 @@ struct UnsignedType: IntType {
 struct VoidType: Type {
 	Type * copy() const override { return new VoidType; }
 	operator std::string() const override { return "void"; }
+	size_t getSize() const override { return 0; }
 };
 
 struct BoolType: Type {
 	Type * copy() const override { return new BoolType; }
 	operator std::string() const override { return "bool"; }
+	size_t getSize() const override { return 1; }
 };
 
 Type * getType(const ASTNode &);

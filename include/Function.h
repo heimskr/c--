@@ -20,6 +20,7 @@ class Function {
 
 		Function(const ASTNode *source_): source(source_) {}
 
-		std::vector<std::string> compile();
+		std::vector<std::string> stringify();
+		void compile();
 		VregPtr newVar() { return std::make_shared<VirtualRegister>(*this); }
 };

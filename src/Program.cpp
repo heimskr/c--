@@ -53,17 +53,35 @@ void Program::compile() {
 	for (const auto &iter: globalOrder) {
 		const auto &expr = iter->second.value;
 		lines.push_back("@" + iter->first);
+		auto size = iter->second.type->getSize();
 		if (expr) {
-			lines.push_back("%fill " + std::to_string(expr->getSize()) + " 0");
-			VregPtr vreg = std::make_shared<VirtualRegister>(init);
-			vreg->reg = Why::temporaryOffset;
-			expr->compile(vreg, init);
+			auto value = expr->evaluate();
+			if (value && size == 1) {
+				lines.push_back("%1b " + std::to_string(*value));
+			} else if (value && size == 2) {
+				lines.push_back("%2b " + std::to_string(*value));
+			} else if (value && size == 4) {
+				lines.push_back("%4b " + std::to_string(*value));
+			} else if (value && size == 8) {
+				lines.push_back("%8b " + std::to_string(*value));
+			} else {
+				lines.push_back("%fill " + std::to_string(size) + " 0");
+				VregPtr vreg = std::make_shared<VirtualRegister>(init);
+				vreg->reg = Why::temporaryOffset;
+				expr->compile(vreg, init);
+			}
+		} else if (size == 1) {
+			lines.push_back("%1b 0");
+		} else if (size == 2) {
+			lines.push_back("%2b 0");
+		} else if (size == 4) {
+			lines.push_back("%4b 0");
 		} else {
 			lines.push_back("%8b 0");
 		}
 	}
 
-	const auto init_lines = init.compile();
+	const auto init_lines = init.stringify();
 
 	lines.push_back("%code");
 	if (!init_lines.empty())

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -20,6 +21,8 @@ struct Expr {
 	virtual bool shouldParenthesize() const { return false; }
 	virtual size_t getSize() const { return 0; } // in bytes
 	static Expr * get(const ASTNode &);
+	/** Attempts to evaluate the expression at compile time. */
+	virtual std::optional<ssize_t> evaluate() const = 0;
 };
 
 struct AtomicExpr: Expr {
@@ -42,20 +45,44 @@ struct BinaryExpr: Expr {
 	bool shouldParenthesize() const override { return true; }
 };
 
-struct PlusExpr:  BinaryExpr<'+'> {
+struct PlusExpr: BinaryExpr<'+'> {
 	using BinaryExpr::BinaryExpr;
 	void compile(VregPtr, Function &) const override;
 	size_t getSize() const override { return 8; }
+	std::optional<ssize_t> evaluate() const override {
+		auto left_value = left? left->evaluate() : std::nullopt, right_value = right? right->evaluate() : std::nullopt;
+		if (left_value && right_value)
+			return *left_value + *right_value;
+		return std::nullopt;
+	}
 };
 
-struct MinusExpr: BinaryExpr<'-'> { using BinaryExpr::BinaryExpr; };
-struct MultExpr:  BinaryExpr<'*'> { using BinaryExpr::BinaryExpr; };
+struct MinusExpr: BinaryExpr<'-'> {
+	using BinaryExpr::BinaryExpr;
+	std::optional<ssize_t> evaluate() const override {
+		auto left_value = left? left->evaluate() : std::nullopt, right_value = right? right->evaluate() : std::nullopt;
+		if (left_value && right_value)
+			return *left_value - *right_value;
+		return std::nullopt;
+	}
+};
+
+struct MultExpr: BinaryExpr<'*'> {
+	using BinaryExpr::BinaryExpr;
+	std::optional<ssize_t> evaluate() const override {
+		auto left_value = left? left->evaluate() : std::nullopt, right_value = right? right->evaluate() : std::nullopt;
+		if (left_value && right_value)
+			return *left_value * *right_value;
+		return std::nullopt;
+	}
+};
 
 struct NumberExpr: AtomicExpr {
 	int value;
 	NumberExpr(int value_): value(value_) {}
 	operator std::string() const override { return std::to_string(value); }
 	int getValue() const override { return value; }
+	std::optional<ssize_t> evaluate() const override { return getValue(); }
 };
 
 struct BoolExpr: AtomicExpr {
@@ -63,6 +90,7 @@ struct BoolExpr: AtomicExpr {
 	BoolExpr(bool value_): value(value_) {}
 	operator std::string() const override { return value? "true" : "false"; }
 	int getValue() const override { return value? 1 : 0; }
+	std::optional<ssize_t> evaluate() const override { return getValue(); }
 };
 
 using ExprPtr = std::shared_ptr<Expr>;
