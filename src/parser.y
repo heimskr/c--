@@ -34,7 +34,7 @@ using AN = ASTNode;
     cmmParser.root = new ASTNode(cmmParser, CMMTOK_ROOT, {0, 0}, "");
 }
 
-%token CMMTOK_ROOT CMMTOK_NUMBER CMMTOK_IDENT
+%token CMMTOK_ROOT CMMTOK_NUMBER CMMTOK_IDENT CMMTOK_STRING CMMTOK_CHAR
 %token CMMTOK_LPAREN "("
 %token CMMTOK_RPAREN ")"
 %token CMMTOK_PLUS "+"
@@ -108,7 +108,7 @@ using AN = ASTNode;
 
 start: program;
 
-program: program global       { $$ = $1->adopt($2); }
+program: program decl_or_def ";" { $$ = $1->adopt($2); D($3); }
        | program function_def { $$ = $1->adopt($2); }
        | { $$ = cmmParser.root; };
 
@@ -116,10 +116,13 @@ statement: block
          | assignment
          | conditional
          | loop
+         | decl_or_def
+         | expr
          | "return" expr { $$ = $1->adopt($2); };
 
-global: ident ":" type ";" { $$ = $2->adopt({$1, $3}); D($4); }
-      | ident ":" type "=" expr { $$ = $2->adopt({$1, $3, $5}); D($4); };
+declaration: ident ":" type { $$ = $2->adopt({$1, $3}); }
+definition:  ident ":" type "=" expr { $$ = $2->adopt({$1, $3, $5}); D($4); };
+decl_or_def: declaration | definition;
 
 function_def: "fn" ident "(" _arglist ")" ":" type block { $$ = $1->adopt({$2, $7, $4, $8}); D($3, $5, $6); }
 
@@ -141,6 +144,8 @@ expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
     | expr "|"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "==" expr { $$ = $2->adopt({$1, $3}); }
     | expr "!=" expr { $$ = $2->adopt({$1, $3}); }
+    | expr "<<" expr { $$ = $2->adopt({$1, $3}); }
+    | expr ">>" expr { $$ = $2->adopt({$1, $3}); }
     | expr "<"  expr { $$ = $2->adopt({$1, $3}); }
     | expr ">"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "<=" expr { $$ = $2->adopt({$1, $3}); }
@@ -156,7 +161,11 @@ expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
     | number
     | "-" number %prec UNARY { $$ = $2->adopt($1); }
     | ident
-    | boolean;
+    | boolean
+    | string
+    | CMMTOK_CHAR;
+
+string: CMMTOK_STRING;
 
 boolean: "true" | "false";
 

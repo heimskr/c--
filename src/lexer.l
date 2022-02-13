@@ -17,10 +17,14 @@
 %option warn
 
 CMM_DECIMAL		([0-9]+)
-CMM_IDENT		([a-zA-Z_][a-zA-Z_0-9]*)
+CMM_IDENT		([a-zA-Z_$][$a-zA-Z_0-9]*)
+CMM_STRING		(\"([^\\"\n]|\\([\\"ntr]|x[0-9a-fA-F][0-9a-fA-F]))*\")
+CMM_CHAR		(\'([^\\'\n]|\\([\\'ntr]|x[0-9a-fA-F][0-9a-fA-F]))\')
+CMM_MLCOMMENT	("/*"([^*]|"*"[^/])*"*/")
 
 %%
 
+{CMM_MLCOMMENT}	{}
 [ \t]+			{}
 \n				{cmmLexer.newline();}
 
@@ -73,7 +77,8 @@ CMM_IDENT		([a-zA-Z_][a-zA-Z_0-9]*)
 "bool"			{RTOKEN(BOOL)}
 "void"			{RTOKEN(VOID)}
 
-
+{CMM_CHAR}		{RTOKEN(CHAR)}
+{CMM_STRING}	{RTOKEN(STRING)}
 {CMM_DECIMAL}	{RTOKEN(NUMBER)}
 {CMM_IDENT}		{RTOKEN(IDENT)}
 .				{cmmLexer.badchar(*yytext);}

@@ -1,3 +1,12 @@
+fn triple(in: i32): i32 {
+	return in << 1 + in;
+}
+
 fn main(): void {
+	n: i32 = 42;
+	$i32(n);
+	$s(" * 3 = ");
+	$i32(triple(n));
+	$c('\n');
 	return 0;
 }
