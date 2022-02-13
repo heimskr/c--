@@ -30,25 +30,29 @@ int main(int argc, char **argv) {
 	cmmParser.in(input);
 	cmmParser.debug(false, false);
 	cmmParser.parse();
+
 	Program program = compileRoot(*cmmParser.root);
+
 	for (const auto &iter: program.globalOrder) {
-		std::cerr << iter->first << ": " << std::string(*iter->second.type);
+		std::cerr << "\e[1m" << iter->first << "\e[22;2m:\e[22;36m " << std::string(*iter->second.type) << "\e[39m";
 		if (iter->second.value)
-			std::cerr << " = ...";
-		std::cerr << ";\n";
+			std::cerr << " \e[2m=\e[22m ...";
+		std::cerr << "\e[2m;\e[22m\n";
 	}
+
 	for (const auto &[name, signature]: program.signatures) {
-		std::cerr << "fn " << name << '(';
+		std::cerr << "\e[91mfn\e[39;1m " << name << "\e[22;2m(\e[22m";
 		bool first = true;
 		for (const auto &arg: signature.argumentTypes) {
 			if (first)
 				first = false;
 			else
-				std::cerr << ", ";
-			std::cerr << std::string(*arg);
+				std::cerr << "\e[2m,\e[22m ";
+			std::cerr << "\e[36m" << std::string(*arg) << "\e[39m";
 		}
-		std::cerr << ")" << ": " << std::string(*signature.returnType) << ";\n";
+		std::cerr << "\e[2m):\e[22;36m " << std::string(*signature.returnType) << "\e[39;2m;\e[22m\n";
 	}
+
 	cmmParser.done();
 }
 
