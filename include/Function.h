@@ -4,15 +4,15 @@
 #include <string>
 #include <vector>
 
-#include "Instruction.h"
-
 class ASTNode;
+struct CmmInstruction;
+struct WhyInstruction;
 
 class Function {
-	private:
-		std::vector<std::shared_ptr<Instruction>> instructions;
-
 	public:
+		std::vector<std::shared_ptr<CmmInstruction>> cmm;
+		std::vector<std::shared_ptr<WhyInstruction>> why;
+
 		const ASTNode &source;
 		int nextVariable = 0;
 

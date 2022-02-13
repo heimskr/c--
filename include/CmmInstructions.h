@@ -3,17 +3,19 @@
 #include <memory>
 
 #include "Expr.h"
+#include "Instruction.h"
 #include "Variable.h"
 
+class Function;
 struct WhyInstruction;
 
 struct CmmInstruction: Instruction {
-	virtual std::unique_ptr<WhyInstruction> convert() = 0;
+	virtual void convert(Function &) = 0;
 };
 
 struct AssignInstruction: CmmInstruction {
-	Variable destination;
-	Expr expression;
-	AssignInstruction(const Variable &destination_, const Expr &expression_):
+	VariablePtr destination;
+	ExprPtr expression;
+	AssignInstruction(VariablePtr destination_, ExprPtr expression_):
 		destination(destination_), expression(expression_) {}
 };

@@ -24,4 +24,11 @@ namespace Util {
 		}
 		return ss.str();
 	}
+
+	template <typename T>
+	std::string hex(T n) {
+		std::stringstream ss;
+		ss << std::hex << n;
+		return ss.str();
+	}
 }
