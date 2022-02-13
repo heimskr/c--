@@ -1,12 +1,12 @@
-fn triple(in: i32): i32 {
-	return in << 1 + in;
+fn triple_and_add(in: i32, addend: i32): i32 {
+	return in << 1 + in + addend;
 }
 
 fn main(): void {
 	n: i32 = 42;
 	$i32(n);
-	$s(" * 3 = ");
-	$i32(triple(n));
+	$s(" * 3 + 10 = ");
+	$i32(triple_and_add(n, 10));
 	$c('\n');
 	return 0;
 }

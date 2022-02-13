@@ -48,3 +48,14 @@ $(PARSERCPP:.cpp=.o): $(PARSERCPP) $(PARSERHDR)
 
 clean:
 	rm -f $(LEXERCPP) $(PARSERCPP) $(PARSERHDR) src/*.o src/**/*.o $(OUTPUT) src/bison.output
+
+DEPFILE  = .dep
+DEPTOKEN = "\# MAKEDEPENDS"
+DEPFLAGS = -f $(DEPFILE) -s $(DEPTOKEN)
+
+depend:
+	@ echo $(DEPTOKEN) > $(DEPFILE)
+	makedepend $(DEPFLAGS) -- $(COMPILER) $(CFLAGS) -- $(SOURCES) 2>/dev/null
+	@ rm $(DEPFILE).bak
+
+sinclude $(DEPFILE)

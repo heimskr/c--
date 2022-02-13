@@ -5,3 +5,4 @@ src/bison.output
 include/bison.h
 src/flex.cpp
 src/bison.cpp
+.dep
