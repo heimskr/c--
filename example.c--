@@ -1,4 +1,4 @@
-n: i32 = 38 + 2 + 1 * 2;
+n: i32 = 38 + 4;
 empty: bool;
 
 fn triple_and_add(in: i32, addend: i32): i32 {

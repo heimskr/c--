@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "Variable.h"
+
 class ASTNode;
 struct CmmInstruction;
 struct WhyInstruction;
@@ -19,4 +21,5 @@ class Function {
 		Function(const ASTNode &source_): source(source_) {}
 
 		std::string compile();
+		VariablePtr newVar() { return std::make_shared<Variable>(*this); }
 };

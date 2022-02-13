@@ -8,11 +8,13 @@ class ASTNode;
 struct Type {
 	virtual Type * copy() const = 0;
 	virtual operator std::string() const = 0;
+	virtual bool isNumber() const { return false; }
 	virtual ~Type() {}
 };
 
 struct IntType: Type {
 	size_t width;
+	bool isNumber() const override { return true; }
 
 	protected:
 		IntType(size_t width_): width(width_) {}

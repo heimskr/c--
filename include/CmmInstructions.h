@@ -18,4 +18,5 @@ struct AssignInstruction: CmmInstruction {
 	ExprPtr expression;
 	AssignInstruction(VariablePtr destination_, ExprPtr expression_):
 		destination(destination_), expression(expression_) {}
+	void convert(Function &) override;
 };
