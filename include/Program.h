@@ -7,6 +7,8 @@
 #include "Global.h"
 #include "Signature.h"
 
+class ASTNode;
+
 struct Program {
 	std::map<std::string, Global> globals;
 	std::vector<std::map<std::string, Global>::iterator> globalOrder;
@@ -16,3 +18,5 @@ struct Program {
 	const decltype(signatures) &signatures_):
 		globals(globals_), globalOrder(global_order), signatures(signatures_) {}
 };
+
+Program compileRoot(const ASTNode &);
