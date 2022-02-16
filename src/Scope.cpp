@@ -24,9 +24,22 @@ VariablePtr GlobalScope::lookup(const std::string &name) const {
 	return program.globals.at(name);
 }
 
+Function * GlobalScope::lookupFunction(const std::string &name) const {
+	if (program.functions.count(name) == 0)
+		return nullptr;
+	return &program.functions.at(name);
+}
+
 VariablePtr MultiScope::lookup(const std::string &name) const {
 	for (const auto &scope: scopes)
-		if (VariablePtr var = scope->lookup(name))
+		if (auto var = scope->lookup(name))
 			return var;
+	return nullptr;
+}
+
+Function * MultiScope::lookupFunction(const std::string &name) const {
+	for (const auto &scope: scopes)
+		if (auto function = scope->lookupFunction(name))
+			return function;
 	return nullptr;
 }

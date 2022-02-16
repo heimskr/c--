@@ -14,6 +14,7 @@ struct Program;
 struct Scope {
 	virtual ~Scope() {}
 	virtual VariablePtr lookup(const std::string &) const = 0;
+	virtual Function * lookupFunction(const std::string &) const { return nullptr; }
 };
 
 using ScopePtr = std::shared_ptr<Scope>;
@@ -39,6 +40,7 @@ struct GlobalScope: Scope, Makeable<GlobalScope> {
 	Program &program;
 	GlobalScope(Program &program_): program(program_) {}
 	VariablePtr lookup(const std::string &) const override;
+	Function * lookupFunction(const std::string &) const override;
 };
 
 struct MultiScope: Scope, Makeable<MultiScope> {
@@ -47,5 +49,6 @@ struct MultiScope: Scope, Makeable<MultiScope> {
 	template <typename... Args>
 	MultiScope(Args &&...args): scopes {std::forward<Args>(args)...} {}
 	VariablePtr lookup(const std::string &) const override;
+	Function * lookupFunction(const std::string &) const override;
 };
 
