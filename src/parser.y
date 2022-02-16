@@ -160,6 +160,7 @@ expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
     | "!" expr { $$ = $1->adopt($2); }
     | number
     | "-" number %prec UNARY { $$ = $2->adopt($1); }
+    | "&" expr { $$ = $1->adopt($2); }
     | ident
     | boolean
     | string
@@ -180,7 +181,9 @@ signed_type:   "s8" | "s16" | "s32" | "s64";
 unsigned_type: "u8" | "u16" | "u32" | "u64";
 int_type: signed_type | unsigned_type;
 
-type: "bool" | int_type | "void";
+pointer_type: type "*" { $$ = $2->adopt($1); };
+
+type: "bool" | int_type | "void" | pointer_type;
 
 arg: ident ":" type { $$ = $1->adopt($3); D($2); };
 

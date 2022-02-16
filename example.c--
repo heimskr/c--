@@ -16,3 +16,9 @@ fn main(): void {
 	$c('\n');
 	return 0;
 }
+
+fn ptr_test(): void {
+	ptr: i32* = &n;
+	vptr: void* = ptr;
+	$ptr(vptr);
+}

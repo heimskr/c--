@@ -46,4 +46,12 @@ struct BoolType: Type {
 	size_t getSize() const override { return 1; }
 };
 
+struct PointerType: Type {
+	Type *subtype;
+	PointerType(Type *subtype_): subtype(subtype_) {}
+	Type * copy() const override { return new PointerType(subtype? subtype->copy() : nullptr); }
+	operator std::string() const override { return subtype? std::string(*subtype) + "*" : "???*"; }
+	size_t getSize() const override { return 8; }
+};
+
 Type * getType(const ASTNode &);
