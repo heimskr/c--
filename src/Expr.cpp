@@ -35,6 +35,8 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			return new BoolExpr(true);
 		case CMMTOK_FALSE:
 			return new BoolExpr(false);
+		case CMMTOK_AND:
+			return new AddressOfExpr(Expr::get(*node.front(), function));
 		case CMMTOK_IDENT:
 			if (!function)
 				throw std::runtime_error("Variable expr encountered in functionless context");

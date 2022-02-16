@@ -130,4 +130,6 @@ struct AddressOfExpr: Expr {
 	void compile(VregPtr, Function &, ScopePtr) const override;
 	operator std::string() const override { return "&" + std::string(*subexpr); }
 	size_t getSize(ScopePtr) const override { return 8; }
+	std::optional<ssize_t> evaluate() const override { return std::nullopt; }
+	std::vector<std::string> references() const override { return subexpr->references(); }
 };
