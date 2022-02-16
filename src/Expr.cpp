@@ -223,7 +223,7 @@ CallExpr::CallExpr(const ASTNode &node, Function *function_): name(*node.front()
 }
 
 void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_t multiplier) const {
-	const size_t to_push = std::min(fn.arguments.size(), arguments.size());
+	const size_t to_push = arguments.size();
 	size_t i;
 
 	for (i = 0; i < to_push; ++i)
