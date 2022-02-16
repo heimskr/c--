@@ -26,7 +26,6 @@ using AN = ASTNode;
 %define parse.error verbose
 %token-table
 %verbose
-%glr-parser
 
 %define api.prefix {cmm}
 
@@ -105,7 +104,7 @@ using AN = ASTNode;
 %left "+" "-"
 %left "*" "/"
 %left "["
-%left "!" UNARY
+%left "!"
 %nonassoc "else"
 
 %%
@@ -168,8 +167,9 @@ expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
     | "(" expr ")" { $$ = $2; D($1, $3); }
     | "!" expr { $$ = $1->adopt($2); }
     | number
-    | "-" number %prec UNARY { $$ = $2->adopt($1); }
+    | "-" number { $$ = $2->adopt($1); }
     | "&" expr { $$ = $1->adopt($2); }
+    | "*" expr { $$ = $1->adopt($2); }
     | ident
     | boolean
     | string

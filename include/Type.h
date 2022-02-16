@@ -10,17 +10,22 @@ struct Type {
 	virtual ~Type() {}
 	virtual Type * copy() const = 0;
 	virtual operator std::string() const = 0;
-	virtual bool isNumber() const { return false; }
+	virtual bool isNumber(size_t = 0) const { return false; }
 	virtual size_t getSize() const = 0; // in bytes
 	/** Returns whether this type can be implicitly converted to the given type. Order matters! */
 	virtual bool operator&&(const Type &) const { return false; }
+	virtual bool isInt()  const { return false; }
+	virtual bool isVoid() const { return false; }
+	virtual bool isBool() const { return false; }
+	virtual bool isPointer() const { return false; }
 	static Type * get(const ASTNode &);
 };
 
 struct IntType: Type {
 	size_t width;
-	bool isNumber() const override { return true; }
+	bool isNumber(size_t width_) const override { return width_ == 0 || width_ == width; }
 	size_t getSize() const override { return width / 8; }
+	bool isInt() const override { return true; }
 
 	protected:
 		IntType(size_t width_): width(width_) {}
@@ -44,6 +49,7 @@ struct VoidType: Type {
 	Type * copy() const override { return new VoidType; }
 	operator std::string() const override { return "void"; }
 	size_t getSize() const override { return 0; }
+	bool isVoid() const override { return true; }
 };
 
 struct BoolType: Type {
@@ -51,6 +57,7 @@ struct BoolType: Type {
 	operator std::string() const override { return "bool"; }
 	size_t getSize() const override { return 1; }
 	bool operator&&(const Type &) const override;
+	bool isBool() const override { return true; }
 };
 
 struct PointerType: Type {
@@ -62,6 +69,7 @@ struct PointerType: Type {
 	operator std::string() const override { return subtype? std::string(*subtype) + "*" : "???*"; }
 	size_t getSize() const override { return 8; }
 	bool operator&&(const Type &) const override;
+	bool isPointer() const override { return true; }
 };
 
 using TypePtr = std::shared_ptr<Type>;

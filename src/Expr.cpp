@@ -129,3 +129,25 @@ void StringExpr::compile(VregPtr destination, Function &function, ScopePtr) cons
 std::unique_ptr<Type> StringExpr::getType(ScopePtr) const {
 	return std::make_unique<PointerType>(new UnsignedType(8));
 }
+
+void DerefExpr::compile(VregPtr destination, Function &function, ScopePtr scope) const {
+	// if (auto *var_exp = dynamic_cast<VariableExpr *>(subexpr.get())) {
+	// 	if (auto var = scope->lookup(var_exp->name)) {
+	// 		if (auto global = std::dynamic_pointer_cast<Global>(var))
+	// 			function.why.emplace_back(new SetIInstruction(destination, global->name));
+	// 		else
+	// 			function.why.emplace_back(new AddIInstruction(function.precolored(Why::framePointerOffset),
+	// 				destination, var));
+	// 	} else
+	// 		throw ResolutionError(var_exp->name, scope);
+	// } else
+	// 	throw LvalueError(*subexpr);
+}
+
+size_t DerefExpr::getSize(ScopePtr) const {
+	
+}
+
+std::unique_ptr<Type> DerefExpr::getType(ScopePtr scope) const {
+
+}

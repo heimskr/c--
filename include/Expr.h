@@ -62,7 +62,7 @@ struct BinaryExpr: Expr {
 			right? right->references() : std::vector<std::string>());
 	}
 
-	virtual std::unique_ptr<Type> getType(ScopePtr scope) const override {
+	std::unique_ptr<Type> getType(ScopePtr scope) const override {
 		auto left_type = left->getType(scope), right_type = right->getType(scope);
 		if (!(*left_type && *right_type) || !(*right_type && *left_type))
 			throw ImplicitConversionError(*left_type, *right_type);
@@ -72,24 +72,48 @@ struct BinaryExpr: Expr {
 
 struct PlusExpr: BinaryExpr<'+'> {
 	using BinaryExpr::BinaryExpr;
+
 	void compile(VregPtr, Function &, ScopePtr) const override;
 	size_t getSize(ScopePtr) const override { return 8; }
+
 	std::optional<ssize_t> evaluate() const override {
 		auto left_value = left? left->evaluate() : std::nullopt, right_value = right? right->evaluate() : std::nullopt;
 		if (left_value && right_value)
 			return *left_value + *right_value;
 		return std::nullopt;
 	}
+
+	std::unique_ptr<Type> getType(ScopePtr scope) const override {
+		auto left_type = left->getType(scope), right_type = right->getType(scope);
+		if (left_type->isPointer() && right_type->isInt())
+			return left_type;
+		if (left_type->isInt() && right_type->isPointer())
+			return right_type;
+		if (!(*left_type && *right_type) || !(*right_type && *left_type))
+			throw ImplicitConversionError(*left_type, *right_type);
+		return left_type;
+	}
 };
 
 struct MinusExpr: BinaryExpr<'-'> {
 	using BinaryExpr::BinaryExpr;
+
 	size_t getSize(ScopePtr) const override { return 8; }
+
 	std::optional<ssize_t> evaluate() const override {
 		auto left_value = left? left->evaluate() : std::nullopt, right_value = right? right->evaluate() : std::nullopt;
 		if (left_value && right_value)
 			return *left_value - *right_value;
 		return std::nullopt;
+	}
+
+	std::unique_ptr<Type> getType(ScopePtr scope) const override {
+		auto left_type = left->getType(scope), right_type = right->getType(scope);
+		if (left_type->isPointer() && right_type->isInt())
+			return left_type;
+		if (!(*left_type && *right_type) || !(*right_type && *left_type))
+			throw ImplicitConversionError(*left_type, *right_type);
+		return left_type;
 	}
 };
 
@@ -142,7 +166,6 @@ struct AddressOfExpr: Expr {
 	size_t getSize(ScopePtr) const override { return 8; }
 	std::unique_ptr<Type> getType(ScopePtr) const override;
 	std::vector<std::string> references() const override { return subexpr->references(); }
-
 };
 
 struct StringExpr: Expr {
@@ -152,4 +175,15 @@ struct StringExpr: Expr {
 	operator std::string() const override { return "\"" + Util::escape(contents) + "\""; }
 	size_t getSize(ScopePtr) const override { return 8; }
 	std::unique_ptr<Type> getType(ScopePtr) const override;
+};
+
+struct DerefExpr: Expr {
+	std::unique_ptr<Expr> subexpr;
+	DerefExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
+	DerefExpr(Expr *subexpr_): subexpr(subexpr_) {}
+	void compile(VregPtr, Function &, ScopePtr) const override;
+	operator std::string() const override { return "*" + std::string(*subexpr); }
+	size_t getSize(ScopePtr) const override;
+	std::unique_ptr<Type> getType(ScopePtr) const override;
+	std::vector<std::string> references() const override { return subexpr->references(); }
 };
