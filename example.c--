@@ -46,7 +46,11 @@ fn badfib(x: s64): s64 {
 
 fn conditional(): void {
 	if true {
-		return 1;
+		if false {
+			return 1;
+		} else {
+			return 2;
+		};
 	};
-	return 0;
+	return 3;
 }
