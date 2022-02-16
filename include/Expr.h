@@ -177,13 +177,17 @@ struct StringExpr: Expr {
 	std::unique_ptr<Type> getType(ScopePtr) const override;
 };
 
-struct DerefExpr: Expr {
-	std::unique_ptr<Expr> subexpr;
-	DerefExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
-	DerefExpr(Expr *subexpr_): subexpr(subexpr_) {}
-	void compile(VregPtr, Function &, ScopePtr) const override;
-	operator std::string() const override { return "*" + std::string(*subexpr); }
-	size_t getSize(ScopePtr) const override;
-	std::unique_ptr<Type> getType(ScopePtr) const override;
-	std::vector<std::string> references() const override { return subexpr->references(); }
+class DerefExpr: public Expr {
+	public:
+		std::unique_ptr<Expr> subexpr;
+		DerefExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
+		DerefExpr(Expr *subexpr_): subexpr(subexpr_) {}
+		void compile(VregPtr, Function &, ScopePtr) const override;
+		operator std::string() const override { return "*" + std::string(*subexpr); }
+		size_t getSize(ScopePtr) const override;
+		std::unique_ptr<Type> getType(ScopePtr) const override;
+		std::vector<std::string> references() const override { return subexpr->references(); }
+
+	private:
+		std::unique_ptr<Type> checkType(ScopePtr) const;
 };

@@ -133,29 +133,24 @@ std::unique_ptr<Type> StringExpr::getType(ScopePtr) const {
 }
 
 void DerefExpr::compile(VregPtr destination, Function &function, ScopePtr scope) const {
-	// if (auto *var_exp = dynamic_cast<VariableExpr *>(subexpr.get())) {
-	// 	if (auto var = scope->lookup(var_exp->name)) {
-	// 		if (auto global = std::dynamic_pointer_cast<Global>(var))
-	// 			function.why.emplace_back(new SetIInstruction(destination, global->name));
-	// 		else
-	// 			function.why.emplace_back(new AddIInstruction(function.precolored(Why::framePointerOffset),
-	// 				destination, var));
-	// 	} else
-	// 		throw ResolutionError(var_exp->name, scope);
-	// } else
-	// 	throw LvalueError(*subexpr);
+	checkType(scope);
+	subexpr->compile(destination, function, scope);
+	function.why.emplace_back(new LoadRInstruction(destination, destination));
 }
 
 size_t DerefExpr::getSize(ScopePtr scope) const {
-	auto type = subexpr->getType(scope);
-	if (!type->isPointer())
-		throw NotPointerError(TypePtr(type->copy()));
+	auto type = checkType(scope);
 	return dynamic_cast<PointerType &>(*type).subtype->getSize();
 }
 
 std::unique_ptr<Type> DerefExpr::getType(ScopePtr scope) const {
+	auto type = checkType(scope);
+	return std::unique_ptr<Type>(dynamic_cast<PointerType &>(*type).subtype->copy());
+}
+
+std::unique_ptr<Type> DerefExpr::checkType(ScopePtr scope) const {
 	auto type = subexpr->getType(scope);
 	if (!type->isPointer())
 		throw NotPointerError(TypePtr(type->copy()));
-	return std::unique_ptr<Type>(dynamic_cast<PointerType &>(*type).subtype->copy());
+	return type;
 }

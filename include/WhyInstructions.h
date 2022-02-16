@@ -36,6 +36,10 @@ struct ThreeRegs: WhyInstruction, HasTwoSources, HasDestination {
 		HasTwoSources(left_source, right_source), HasDestination(destination_) {}
 };
 
+struct RType: ThreeRegs {
+	using ThreeRegs::ThreeRegs;
+};
+
 struct IType: TwoRegs, HasImmediate {
 	IType(VregPtr source_, VregPtr destination_, const Immediate &imm_):
 		TwoRegs(source_, destination_), HasImmediate(imm_) {}
@@ -48,8 +52,8 @@ struct MoveInstruction: TwoRegs {
 	}
 };
 
-struct AddRInstruction: ThreeRegs {
-	using ThreeRegs::ThreeRegs;
+struct AddRInstruction: RType {
+	using RType::RType;
 	operator std::vector<std::string>() const override {
 		return {leftSource->regOrID() + " + " + rightSource->regOrID() + " -> " + destination->regOrID()};
 	}
@@ -62,8 +66,8 @@ struct AddIInstruction: IType {
 	}
 };
 
-struct MultRInstruction: ThreeRegs {
-	using ThreeRegs::ThreeRegs;
+struct MultRInstruction: RType {
+	using RType::RType;
 	operator std::vector<std::string>() const override {
 		return {
 			leftSource->regOrID() + " * " + rightSource->regOrID(),
@@ -97,5 +101,12 @@ struct LoadIInstruction: IType {
 	LoadIInstruction(VregPtr destination_, const Immediate &imm_): IType(nullptr, destination_, imm_) {}
 	operator std::vector<std::string>() const override {
 		return {"[" + stringify(imm) + "] -> " + destination->regOrID()};
+	}
+};
+
+struct LoadRInstruction: RType {
+	LoadRInstruction(VregPtr source_, VregPtr destination_): RType(source_, nullptr, destination_) {}
+	operator std::vector<std::string>() const override {
+		return {"[" + leftSource->regOrID() + "] -> " + destination->regOrID()};
 	}
 };
