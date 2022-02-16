@@ -1,5 +1,6 @@
 #pragma once
 
+#include "fixed_string.h"
 #include "Immediate.h"
 #include "Instruction.h"
 #include "Variable.h"
@@ -221,3 +222,16 @@ struct LogicalNotInstruction: RType {
 	}
 };
 
+template <fixstr::fixed_string O>
+struct CompRInstruction: RType {
+	using RType::RType;
+	operator std::vector<std::string>() const override {
+		return {leftSource->regOrID() + " " + O + " " + rightSource->regOrID() + " -> " +
+			destination->regOrID()};
+	}
+};
+
+struct LtRInstruction:  CompRInstruction<"<">  {};
+struct LteRInstruction: CompRInstruction<"<="> {};
+struct GtRInstruction:  CompRInstruction<">">  {};
+struct GteRInstruction: CompRInstruction<">="> {};
