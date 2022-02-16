@@ -14,3 +14,6 @@ ImplicitConversionError::ImplicitConversionError(std::shared_ptr<Type> left_, st
 
 ImplicitConversionError::ImplicitConversionError(const Type &left_, const Type &right_):
 	ImplicitConversionError(TypePtr(left_.copy()), TypePtr(right_.copy())) {}
+
+NotPointerError::NotPointerError(std::shared_ptr<Type> type_):
+	std::runtime_error("Not a pointer: " + std::string(*type_)), type(type_) {}

@@ -27,6 +27,8 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 		case CMMTOK_TIMES:
+			if (node.size() == 1)
+				return new DerefExpr(Expr::get(*node.front(), function));
 			return new MultExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
@@ -40,7 +42,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			return new AddressOfExpr(Expr::get(*node.front(), function));
 		case CMMTOK_IDENT:
 			if (!function)
-				throw std::runtime_error("Variable expr encountered in functionless context");
+				throw std::runtime_error("Variable expression encountered in functionless context");
 			return new VariableExpr(*node.lexerInfo);
 		case CMMTOK_STRING:
 			return new StringExpr(node.unquote());
@@ -144,10 +146,16 @@ void DerefExpr::compile(VregPtr destination, Function &function, ScopePtr scope)
 	// 	throw LvalueError(*subexpr);
 }
 
-size_t DerefExpr::getSize(ScopePtr) const {
-	
+size_t DerefExpr::getSize(ScopePtr scope) const {
+	auto type = subexpr->getType(scope);
+	if (!type->isPointer())
+		throw NotPointerError(TypePtr(type->copy()));
+	return dynamic_cast<PointerType &>(*type).subtype->getSize();
 }
 
 std::unique_ptr<Type> DerefExpr::getType(ScopePtr scope) const {
-
+	auto type = subexpr->getType(scope);
+	if (!type->isPointer())
+		throw NotPointerError(TypePtr(type->copy()));
+	return std::unique_ptr<Type>(dynamic_cast<PointerType &>(*type).subtype->copy());
 }

@@ -32,3 +32,8 @@ struct ImplicitConversionError: std::runtime_error {
 	ImplicitConversionError(std::shared_ptr<Type> left_, std::shared_ptr<Type> right_);
 	ImplicitConversionError(const Type &left_, const Type &right_);
 };
+
+struct NotPointerError: std::runtime_error {
+	std::shared_ptr<Type> type;
+	NotPointerError(std::shared_ptr<Type> type_);
+};
