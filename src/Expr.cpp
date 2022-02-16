@@ -127,5 +127,5 @@ void StringExpr::compile(VregPtr destination, Function &function, ScopePtr) cons
 }
 
 std::unique_ptr<Type> StringExpr::getType(ScopePtr) const {
-	return std::make_unique<PointerType>(new UnsignedType(1));
+	return std::make_unique<PointerType>(new UnsignedType(8));
 }
