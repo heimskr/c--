@@ -6,6 +6,7 @@
 n: i32 = 38 + 5;
 empty: bool;
 dependent: i32 = n * 2;
+global_addr: i32* = &dependent;
 
 fn triple_and_add(in: i32, addend: i32): i32 {
 	return in << 1 + in + addend;

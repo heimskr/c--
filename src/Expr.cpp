@@ -87,8 +87,11 @@ size_t VariableExpr::getSize(ScopePtr scope) const {
 void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr scope) const {
 	if (auto *var_exp = dynamic_cast<VariableExpr *>(subexpr.get())) {
 		if (auto var = scope->lookup(var_exp->name)) {
-			function.why.emplace_back(new AddIInstruction(function.precolored(Why::framePointerOffset),
-				destination, var));
+			if (auto global = std::dynamic_pointer_cast<Global>(var))
+				function.why.emplace_back(new SetIInstruction(destination, global->name));
+			else
+				function.why.emplace_back(new AddIInstruction(function.precolored(Why::framePointerOffset),
+					destination, var));
 		} else
 			throw ResolutionError(var_exp->name, scope);
 	} else
