@@ -4,6 +4,7 @@
 #include "Function.h"
 #include "Global.h"
 #include "Lexer.h"
+#include "Program.h"
 #include "Scope.h"
 #include "WhyInstructions.h"
 
@@ -41,6 +42,8 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			if (!function)
 				throw std::runtime_error("Variable expr encountered in functionless context");
 			return new VariableExpr(*node.lexerInfo);
+		case CMMTOK_STRING:
+			return new StringExpr(node.unquote());
 		default:
 			return nullptr;
 	}
@@ -61,7 +64,14 @@ void MultExpr::compile(VregPtr destination, Function &function, ScopePtr scope) 
 }
 
 void NumberExpr::compile(VregPtr destination, Function &function, ScopePtr) const {
-	function.why.emplace_back(new SetIInstruction(destination, value));
+	if (Util::inRange(value)) {
+		function.why.emplace_back(new SetIInstruction(destination, int(value)));
+	} else {
+		const size_t high = size_t(value) >> 32;
+		const size_t low = size_t(value) & 0xff'ff'ff'ff;
+		function.why.emplace_back(new SetIInstruction(destination, int(low)));
+		function.why.emplace_back(new LuiIInstruction(destination, int(high)));
+	}
 }
 
 void BoolExpr::compile(VregPtr destination, Function &function, ScopePtr) const {
@@ -96,4 +106,8 @@ void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr sc
 			throw ResolutionError(var_exp->name, scope);
 	} else
 		throw LvalueError(*subexpr);
+}
+
+void StringExpr::compile(VregPtr destination, Function &function, ScopePtr) const {
+	function.why.emplace_back(new SetIInstruction(destination, std::to_string(function.program.getStringID(contents))));
 }

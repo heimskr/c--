@@ -86,6 +86,13 @@ struct SetIInstruction: IType {
 	}
 };
 
+struct LuiIInstruction: IType {
+	LuiIInstruction(VregPtr destination_, const Immediate &imm_): IType(nullptr, destination_, imm_) {}
+	operator std::vector<std::string>() const override {
+		return {"lui: " + stringify(imm) + " -> " + destination->regOrID()};
+	}
+};
+
 struct LoadIInstruction: IType {
 	LoadIInstruction(VregPtr destination_, const Immediate &imm_): IType(nullptr, destination_, imm_) {}
 	operator std::vector<std::string>() const override {

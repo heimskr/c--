@@ -10,6 +10,9 @@ namespace Util {
 	long parseLong(const std::string *, int base = 10);
 	long parseLong(const char *, int base = 10);
 	std::string read(const std::string &path);
+	std::string escape(const std::string &);
+	bool inRange(ssize_t);
+	std::string unescape(const std::string &);
 
 	template <template <typename...> typename C, typename T, typename D>
 	std::string join(const C<T> &container, D &&delimiter) {

@@ -133,3 +133,9 @@ void Program::compile() {
 			lines.push_back("\t" + line);
 	}
 }
+
+size_t Program::getStringID(const std::string &str) {
+	if (stringIDs.count(str) != 0)
+		return stringIDs.at(str);
+	return stringIDs[str] = stringIDs.size();
+}

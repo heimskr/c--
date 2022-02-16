@@ -56,6 +56,7 @@ class ASTNode {
 		ASTNode * locate(const ASTLocation &);
 		long atoi() const;
 		long atoi(int offset) const;
+		std::string unquote(bool unescape = true) const;
 		const char * getName() const;
 		void debug(int indent = 0, bool is_last = false, bool suppress_line = false) const;
 		virtual std::string debugExtra() const;

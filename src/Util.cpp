@@ -1,4 +1,6 @@
+#include <climits>
 #include <fstream>
+#include <sstream>
 #include <stdexcept>
 
 #include "Util.h"
@@ -56,5 +58,59 @@ namespace Util {
 		file.seekg(0, std::ios::beg);
 		out.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 		return out;
+	}
+
+	std::string escape(const std::string &str) {
+		std::stringstream out;
+		for (char ch: str) {
+			if (ch == '"' || ch == '\\')
+				out << '\\' << ch;
+			else if (ch == '\t')
+				out << "\\t";
+			else if (ch == '\n')
+				out << "\\n";
+			else if (ch == '\r')
+				out << "\\r";
+			else
+				out << ch;
+		}
+		return out.str();
+	}
+
+	bool inRange(ssize_t value) {
+		return INT_MIN <= value && value <= INT_MAX;
+	}
+
+	std::string unescape(const std::string &str) {
+		const size_t size = str.size();
+		if (size == 0)
+			return "";
+		std::stringstream out;
+		for (size_t i = 0; i < size; ++i) {
+			char ch = str[i];
+			if (ch == '\\') {
+				if (i == size - 1)
+					throw std::runtime_error("Backslash at end of string");
+				switch (str[++i]) {
+					case 'n':  out << '\n'; break;
+					case 'r':  out << '\r'; break;
+					case 't':  out << '\t'; break;
+					case '\\': out << '\\'; break;
+					case '"':  out << '"';  break;
+					case 'x': {
+						if (size <= i + 2)
+							throw std::runtime_error("Hexadecimal escape is too close to end of string");
+						const char first = str[++i], second = str[++i];
+						if (!isxdigit(first) || !isxdigit(second))
+							throw std::runtime_error(std::string("Invalid hexadecimal escape: \\x") + first + second);
+						out << static_cast<char>(strtol((std::string(1, first) + second).c_str(), nullptr, 16));
+						break;
+					}
+					default: throw std::runtime_error("Unrecognized character: \\" + std::string(1, str[i]));
+				}
+			} else
+				out << ch;
+		}
+		return out.str();
 	}
 }

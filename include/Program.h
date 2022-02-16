@@ -15,6 +15,7 @@ struct Program {
 	std::vector<decltype(globals)::iterator> globalOrder;
 	std::map<std::string, Signature> signatures;
 	std::map<std::string, Function> functions;
+	std::map<std::string, size_t> stringIDs;
 	std::vector<std::string> lines;
 	Function init {*this, nullptr};
 
@@ -28,6 +29,7 @@ struct Program {
 		functions(std::move(functions_)) {}
 
 	void compile();
+	size_t getStringID(const std::string &);
 };
 
 Program compileRoot(const ASTNode &);
