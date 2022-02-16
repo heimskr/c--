@@ -25,7 +25,7 @@ bool PointerType::operator&&(const Type &other) const {
 	return false;
 }
 
-Type * getType(const ASTNode &node) {
+Type * Type::get(const ASTNode &node) {
 	switch (node.symbol) {
 		case CMMTOK_VOID:
 			return new VoidType;
@@ -48,7 +48,7 @@ Type * getType(const ASTNode &node) {
 		case CMMTOK_U64:
 			return new UnsignedType(64);
 		case CMMTOK_TIMES:
-			return new PointerType(getType(*node.front()));
+			return new PointerType(Type::get(*node.front()));
 		case CMMTOK_STRING:
 			return new PointerType(new UnsignedType(8));
 		default:

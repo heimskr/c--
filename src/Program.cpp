@@ -19,8 +19,8 @@ Program compileRoot(const ASTNode &root) {
 					throw std::runtime_error("Cannot redefine function " + name);
 				decltype(Signature::argumentTypes) args;
 				for (const ASTNode *arg: *child->at(2))
-					args.emplace_back(getType(*arg->front()));
-				out.signatures.try_emplace(name, std::shared_ptr<Type>(getType(*child->at(1))), std::move(args));
+					args.emplace_back(Type::get(*arg->front()));
+				out.signatures.try_emplace(name, std::shared_ptr<Type>(Type::get(*child->at(1))), std::move(args));
 				out.functions.try_emplace(name, out, child);
 				break;
 			}
@@ -28,7 +28,7 @@ Program compileRoot(const ASTNode &root) {
 				const std::string &name = *child->front()->lexerInfo;
 				if (out.globals.count(name) != 0)
 					throw std::runtime_error("Cannot redefine global " + name);
-				auto type = std::shared_ptr<Type>(getType(*child->at(1)));
+				auto type = std::shared_ptr<Type>(Type::get(*child->at(1)));
 				if (child->size() <= 2)
 					out.globalOrder.push_back(out.globals.try_emplace(name,
 						std::make_shared<Global>(name, type, nullptr)).first);

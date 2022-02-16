@@ -16,7 +16,7 @@ Function::Function(Program &program_, const ASTNode *source_): program(program_)
 				if (variables.count(var_name) != 0)
 					throw std::runtime_error("Cannot redefine variable " + var_name + " in function " + name);
 				variables.insert({var_name,
-					Variable::make(var_name, std::shared_ptr<Type>(getType(*child->at(1))), this)});
+					Variable::make(var_name, std::shared_ptr<Type>(Type::get(*child->at(1))), this)});
 			}
 		}
 	}

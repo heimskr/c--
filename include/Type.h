@@ -14,6 +14,7 @@ struct Type {
 	virtual size_t getSize() const = 0; // in bytes
 	/** Returns whether this type can be implicitly converted to the given type. Order matters! */
 	virtual bool operator&&(const Type &) const { return false; }
+	static Type * get(const ASTNode &);
 };
 
 struct IntType: Type {
@@ -62,7 +63,5 @@ struct PointerType: Type {
 	size_t getSize() const override { return 8; }
 	bool operator&&(const Type &) const override;
 };
-
-Type * getType(const ASTNode &);
 
 using TypePtr = std::shared_ptr<Type>;
