@@ -155,6 +155,17 @@ void Function::compile(const ASTNode &node) {
 	}
 }
 
+std::set<VregPtr> Function::gatherVariables() const {
+	std::set<VregPtr> out;
+	for (const auto &instruction: why) {
+		for (const auto &read: instruction->getRead())
+			out.insert(read);
+		for (const auto &written: instruction->getWritten())
+			out.insert(written);
+	}
+	return out;
+}
+
 void Function::addComment(const std::string &comment) {
 	add<Comment>(comment);
 }

@@ -3,6 +3,7 @@
 #include <deque>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -45,6 +46,7 @@ class Function {
 		VregPtr newVar();
 		VregPtr precolored(int reg);
 		void addToStack(VariablePtr);
+		std::set<VregPtr> gatherVariables() const;
 
 		bool isBuiltin() const { return !name.empty() && name.front() == '.'; }
 
