@@ -35,7 +35,6 @@ Program compileRoot(const ASTNode &root) {
 				else
 					out.globalOrder.push_back(out.globals.try_emplace(name, std::make_shared<Global>(name, type,
 						std::shared_ptr<Expr>(Expr::get(*child->at(2), &out.init)))).first);
-				out.init.variables.emplace(name, Variable::make(name, type, &out.init));
 				break;
 			}
 			default:
@@ -50,7 +49,7 @@ void Program::compile() {
 	lines.clear();
 	lines.push_back("#text");
 	lines.push_back("%data");
-	auto init_scope = std::make_shared<FunctionScope>(init);
+	auto init_scope = std::make_shared<GlobalScope>(*this);
 	for (const auto &iter: globalOrder) {
 		const auto &expr = iter->second->value;
 		lines.push_back("@" + iter->first);
