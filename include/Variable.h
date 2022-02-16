@@ -18,13 +18,14 @@ struct VirtualRegister {
 	std::string regOrID() const;
 };
 
-struct Variable: std::enable_shared_from_this<Variable>, Makeable<Variable> {
+struct Variable: VirtualRegister, Makeable<Variable> {
 	Function *function;
 	std::string name;
 	std::shared_ptr<Type> type;
 
-	Variable(const std::string &name_, std::shared_ptr<Type> type_, Function *function_):
-		function(function_), name(name_), type(type_) {}
+	Variable(const std::string &name_, std::shared_ptr<Type>, Function *);
+
+	virtual ~Variable() {}
 
 	size_t getSize() const {
 		return type->getSize();

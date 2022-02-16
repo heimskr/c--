@@ -2,6 +2,7 @@
 #include "Errors.h"
 #include "Expr.h"
 #include "Function.h"
+#include "Global.h"
 #include "Lexer.h"
 #include "Scope.h"
 #include "WhyInstructions.h"
@@ -66,12 +67,17 @@ void BoolExpr::compile(VregPtr destination, Function &function, ScopePtr) const 
 }
 
 void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr scope) const {
-	// if (Variable *var = scope.lookup(
+	if (VariablePtr var = scope->lookup(name)) {
+		if (auto global = std::dynamic_pointer_cast<Global>(var))
+			function.why.emplace_back(new LoadIInstruction(destination, global->name));
+		else
+			function.why.emplace_back(new MoveInstruction(var, destination));
+	} else
+		throw ResolutionError(name, scope);
 }
 
 size_t VariableExpr::getSize(ScopePtr scope) const {
-	VariablePtr var = scope->lookup(name);
-	if (var)
+	if (VariablePtr var = scope->lookup(name))
 		return var->getSize();
 	throw ResolutionError(name, scope);
 }
