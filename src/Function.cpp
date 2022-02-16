@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "ASTNode.h"
 #include "CmmInstructions.h"
 #include "Function.h"
@@ -30,7 +32,7 @@ std::vector<std::string> Function::stringify() {
 }
 
 void Function::compile() {
-
+	std::cerr << "Compiling " << name << "\n";
 }
 
 VregPtr Function::newVar() {

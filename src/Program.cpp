@@ -82,18 +82,27 @@ void Program::compile() {
 		}
 	}
 
+	for (auto &[name, function]: functions)
+		function.compile();
+
 	const auto init_lines = init.stringify();
 
-	lines.push_back("%code");
+	lines.push_back("\n%code");
 	if (!init_lines.empty())
 		lines.push_back(":: $init");
 	lines.push_back(":: main");
 	lines.push_back("<halt>");
 
 	if (!init_lines.empty()) {
-		lines.push_back("@init");
+		lines.push_back("\n@init");
 		for (const std::string &line: init_lines)
 			lines.push_back("\t" + line);
 		lines.push_back("\t: $rt");
+	}
+
+	for (auto &[name, function]: functions) {
+		lines.push_back("\n@" + function.name);
+		for (const std::string &line: function.stringify())
+			lines.push_back("\t" + line);
 	}
 }

@@ -11,6 +11,7 @@
 class ASTNode;
 struct CmmInstruction;
 struct Program;
+struct Scope;
 struct WhyInstruction;
 
 class Function {
@@ -23,6 +24,7 @@ class Function {
 		/** Offsets are relative to the value in the frame pointer right after the stack pointer is written to it in the
 		 *  prologue. */
 		std::map<VariablePtr, size_t> stackOffsets;
+		std::map<const ASTNode *, std::shared_ptr<Scope>> scopes;
 
 		const ASTNode *source = nullptr;
 		int nextVariable = 0;
