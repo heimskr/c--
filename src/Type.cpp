@@ -49,6 +49,8 @@ Type * getType(const ASTNode &node) {
 			return new UnsignedType(64);
 		case CMMTOK_TIMES:
 			return new PointerType(getType(*node.front()));
+		case CMMTOK_STRING:
+			return new PointerType(new UnsignedType(8));
 		default:
 			throw std::invalid_argument("Invalid token in getType: " + std::string(cmmParser.getName(node.symbol)));
 	}

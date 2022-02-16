@@ -54,6 +54,7 @@ struct BoolType: Type {
 
 struct PointerType: Type {
 	Type *subtype;
+	/** Takes ownership of the subtype pointer! */
 	PointerType(Type *subtype_): subtype(subtype_) {}
 	~PointerType() { if (subtype) delete subtype; }
 	Type * copy() const override { return new PointerType(subtype? subtype->copy() : nullptr); }
