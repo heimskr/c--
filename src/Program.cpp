@@ -54,6 +54,18 @@ Program compileRoot(const ASTNode &root) {
 					std::string(cmmParser.getName(child->symbol)));
 		}
 
+	// TODO: implement functions
+	auto add_dummy = [&](const std::string &function_name) {
+		out.functions.try_emplace("." + function_name, out, nullptr).first->second.name = "." + function_name;
+	};
+	add_dummy("s");
+	add_dummy("c");
+	add_dummy("ptr");
+	for (size_t i = 8; i <= 64; i *= 2) {
+		add_dummy("s" + std::to_string(i));
+		add_dummy("u" + std::to_string(i));
+	}
+
 	return out;
 }
 

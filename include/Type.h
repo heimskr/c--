@@ -4,6 +4,8 @@
 #include <memory>
 #include <string>
 
+#include "Makeable.h"
+
 class ASTNode;
 
 struct Type {
@@ -45,7 +47,7 @@ struct UnsignedType: IntType {
 	bool operator&&(const Type &) const override;
 };
 
-struct VoidType: Type {
+struct VoidType: Type, Makeable<VoidType> {
 	Type * copy() const override { return new VoidType; }
 	operator std::string() const override { return "void"; }
 	size_t getSize() const override { return 0; }

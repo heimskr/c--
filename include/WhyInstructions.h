@@ -45,6 +45,11 @@ struct IType: TwoRegs, HasImmediate {
 		TwoRegs(source_, destination_), HasImmediate(imm_) {}
 };
 
+struct JType: WhyInstruction, HasSource, HasImmediate {
+	JType(const Immediate &imm_, VregPtr source_ = nullptr):
+		HasSource(source_), HasImmediate(imm_) {}
+};
+
 struct MoveInstruction: TwoRegs {
 	using TwoRegs::TwoRegs;
 	operator std::vector<std::string>() const override {
@@ -160,5 +165,13 @@ struct SizedStackPopInstruction: IType {
 	SizedStackPopInstruction(VregPtr destination_, const Immediate &imm_): IType(nullptr, destination_, imm_) {}
 	operator std::vector<std::string>() const override {
 		return {"]:" + stringify(imm) + " " + destination->regOrID()};
+	}
+};
+
+struct JumpInstruction: JType {
+	bool link;
+	JumpInstruction(const Immediate &addr, bool link_): JType(addr), link(link_) {}
+	operator std::vector<std::string>() const override {
+		return {std::string(link? "::" : ":") + " " + stringify(imm)};
 	}
 };

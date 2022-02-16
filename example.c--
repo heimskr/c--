@@ -14,18 +14,18 @@ fn triple_and_add(in: s64, addend: s64): s64 {
 }
 
 fn main(argc: u32): void {
-	// Functions whose names are "$" followed by a type are built-in print functions.
+	// Functions whose names are "." followed by a type are built-in print functions.
 	val: s64 = n - 1;
 	wow: s64;
-	$s64(val);
-	$s(" * 3 + 10 = ");
-	$s64(triple_and_add(val, 10));
-	$c('\n');
+	.s64(val);
+	.s(" * 3 + 10 = ");
+	.s64(triple_and_add(triple_and_add(val, 10), triple_and_add(0, 0)));
+	.c('\n');
 	return 0;
 }
 
 fn ptr_test(): void {
 	ptr: s64* = &n;
 	vptr: void* = ptr;
-	$ptr(vptr);
+	.ptr(vptr);
 }

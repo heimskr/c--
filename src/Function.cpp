@@ -11,8 +11,11 @@
 Function::Function(Program &program_, const ASTNode *source_):
 program(program_), source(source_),
 selfScope(MultiScope::make(GlobalScope::make(program), FunctionScope::make(*this))) {
-	if (source)
+	if (source) {
 		name = *source->at(0)->lexerInfo;
+		returnType = TypePtr(Type::get(*source->at(1)));
+	} else
+		returnType = VoidType::make();
 	scopes.emplace(source, selfScope);
 }
 
@@ -25,6 +28,9 @@ std::vector<std::string> Function::stringify() {
 }
 
 void Function::compile() {
+	if (isBuiltin())
+		return;
+
 	if (!source)
 		throw std::runtime_error("Can't compile " + name + ": no source node");
 
@@ -33,8 +39,6 @@ void Function::compile() {
 			std::to_string(source->size()));
 
 	std::cerr << "\n\e[32mCompiling " << name << "\e[39m\n\n";
-
-	returnType = TypePtr(Type::get(*source->at(1)));
 
 	int i = 0;
 	for (const ASTNode *child: *source->at(2)) {

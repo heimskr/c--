@@ -44,6 +44,8 @@ class Function {
 		VregPtr precolored(int reg);
 		void addToStack(VariablePtr);
 
+		bool isBuiltin() const { return !name.empty() && name.front() == '.'; }
+
 		template <typename T, typename... Args>
 		void add(Args &&...args) {
 			why.emplace_back(new T(std::forward<Args>(args)...));

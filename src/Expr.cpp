@@ -218,10 +218,8 @@ std::unique_ptr<Type> DerefExpr::checkType(ScopePtr scope) const {
 CallExpr::CallExpr(const ASTNode &node, Function *function_): name(*node.front()->lexerInfo), function(function_) {
 	if (!function)
 		throw std::runtime_error("CallExpr needs a nonnull function");
-	for (const ASTNode *child: *node.back()) {
-		std::cerr << "!(((\n"; child->debug(); std::cerr << ")))!\n";
+	for (const ASTNode *child: *node.back())
 		arguments.emplace_back(Expr::get(*child, function));
-	}
 }
 
 void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_t multiplier) const {
@@ -235,8 +233,17 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 	for (const auto &argument: arguments)
 		argument->compile(fn.precolored(Why::argumentOffset + i++), fn, scope);
 
+	fn.add<JumpInstruction>(name, true);
+
+	Function *found = scope->lookupFunction(name);
+	if (!found)
+		throw std::runtime_error("Function not found: " + name);
+
 	for (i = to_push; 0 < i; --i)
 		fn.add<StackPopInstruction>(fn.precolored(Why::argumentOffset + i - 1));
+
+	if (!found->returnType->isVoid())
+		fn.add<MoveInstruction>(fn.precolored(Why::returnValueOffset), destination);
 }
 
 CallExpr::operator std::string() const {
