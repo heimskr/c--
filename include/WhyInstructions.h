@@ -77,3 +77,10 @@ struct SetIInstruction: IType {
 		return {stringify(imm) + " -> " + destination->regOrID()};
 	}
 };
+
+struct LoadIInstruction: IType {
+	LoadIInstruction(VregPtr destination_, const Immediate &imm_): IType(nullptr, destination_, imm_) {}
+	operator std::vector<std::string>() const override {
+		return {"[" + stringify(imm) + "] -> " + destination->regOrID()};
+	}
+};
