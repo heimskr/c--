@@ -66,6 +66,7 @@ void Function::compile() {
 	// TODO: push all used temporaries here
 	addFront<StackPushInstruction>(fp);
 	addFront<StackPushInstruction>(rt);
+	add<Label>("." + name + "$e");
 	// TODO: pop all used temporaries here
 	add<StackPopInstruction>(fp);
 	add<StackPopInstruction>(rt);
@@ -105,6 +106,7 @@ void Function::compile(const ASTNode &node) {
 		case CMMTOK_RETURN:
 			ExprPtr(Expr::get(*node.front(), this))->compile(precolored(Why::returnValueOffset), *this,
 				selfScope);
+			add<JumpInstruction>("." + name + "$e");
 			break;
 		case CMMTOK_LPAREN:
 			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, selfScope);
