@@ -130,25 +130,23 @@ void Function::compile(const ASTNode &node) {
 				compile(*child);
 			break;
 		case CMMTOK_IF: {
+			const std::string end_label = "." + name + "." + std::to_string(nextBlock++) + "end";
 			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
 			auto m0 = mx(0);
 			condition->compile(m0, *this, selfScope);
 			add<LogicalNotInstruction>(m0);
 			if (node.size() == 3) {
 				const std::string else_label = "." + name + "." + std::to_string(nextBlock++) + "e";
-				const std::string end_label = else_label + "nd";
 				add<JumpConditionalInstruction>(else_label, m0);
 				compile(*node.at(1));
 				add<JumpInstruction>(end_label);
 				add<Label>(else_label);
 				compile(*node.at(2));
-				add<Label>(end_label);
 			} else {
-				const std::string end_label = "." + name + "." + std::to_string(nextBlock++) + "end";
 				add<JumpConditionalInstruction>(end_label, m0);
 				compile(*node.at(1));
-				add<Label>(end_label);
 			}
+			add<Label>(end_label);
 			break;
 		}
 		default:

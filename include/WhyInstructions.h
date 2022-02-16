@@ -6,7 +6,10 @@
 #include "Variable.h"
 #include "Why.h"
 
-struct WhyInstruction: Instruction {};
+struct WhyInstruction: Instruction {
+	virtual std::vector<VregPtr> getRead() { return {}; }
+	virtual std::vector<VregPtr> getWritten() { return {}; }
+};
 
 struct HasDestination {
 	VregPtr destination;
@@ -39,23 +42,51 @@ struct ThreeRegs: WhyInstruction, HasTwoSources, HasDestination {
 
 struct RType: ThreeRegs {
 	using ThreeRegs::ThreeRegs;
+	std::vector<VregPtr> getRead() override {
+		std::vector<VregPtr> out;
+		if (leftSource)
+			out.push_back(leftSource);
+		if (rightSource)
+			out.push_back(rightSource);
+		return out;
+	}
+	std::vector<VregPtr> getWritten() override {
+		if (destination)
+			return {destination};
+		return {};
+	}
 };
 
 struct IType: TwoRegs, HasImmediate {
 	IType(VregPtr source_, VregPtr destination_, const Immediate &imm_):
 		TwoRegs(source_, destination_), HasImmediate(imm_) {}
+	std::vector<VregPtr> getRead() override {
+		if (source)
+			return {source};
+		return {};
+	}
+	std::vector<VregPtr> getWritten() override {
+		if (destination)
+			return {destination};
+		return {};
+	}
 };
 
 struct JType: WhyInstruction, HasSource, HasImmediate {
 	bool link;
 	JType(const Immediate &imm_, bool link_ = false, VregPtr source_ = nullptr):
 		HasSource(source_), HasImmediate(imm_), link(link_) {}
+	std::vector<VregPtr> getRead() override {
+		if (source)
+			return {source};
+		return {};
+	}
 };
 
-struct MoveInstruction: TwoRegs {
-	using TwoRegs::TwoRegs;
+struct MoveInstruction: RType {
+	MoveInstruction(VregPtr source_, VregPtr destination_): RType(source_, nullptr, destination_) {}
 	operator std::vector<std::string>() const override {
-		return {source->regOrID() + " -> " + destination->regOrID()};
+		return {leftSource->regOrID() + " -> " + destination->regOrID()};
 	}
 };
 
@@ -142,15 +173,15 @@ struct LoadRInstruction: RType {
 	}
 };
 
-struct StackPushInstruction: WhyInstruction, HasSource {
-	using HasSource::HasSource;
+struct StackPushInstruction: RType {
+	StackPushInstruction(VregPtr source_): RType(source_, nullptr, nullptr) {}
 	operator std::vector<std::string>() const override {
-		return {"[ " + source->regOrID()};
+		return {"[ " + leftSource->regOrID()};
 	}
 };
 
-struct StackPopInstruction: WhyInstruction, HasDestination {
-	using HasDestination::HasDestination;
+struct StackPopInstruction: RType {
+	StackPopInstruction(VregPtr destination_): RType(nullptr, nullptr, destination_) {}
 	operator std::vector<std::string>() const override {
 		return {"] " + destination->regOrID()};
 	}
