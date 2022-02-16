@@ -48,3 +48,7 @@ struct NameConflictError: std::runtime_error {
 			name_), name(name_),
 		location(location_) {}
 };
+
+struct UncolorableError: public std::runtime_error {
+	UncolorableError(): std::runtime_error("Unable to color graph: not enough colors") {}
+};
