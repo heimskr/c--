@@ -66,7 +66,7 @@ void Function::compile() {
 	// TODO: push all used temporaries here
 	addFront<StackPushInstruction>(fp);
 	addFront<StackPushInstruction>(rt);
-	add<Label>("." + name + "$e");
+	add<Label>("." + name + ".e");
 	// TODO: pop all used temporaries here
 	add<StackPopInstruction>(fp);
 	add<StackPopInstruction>(rt);
@@ -106,14 +106,14 @@ void Function::compile(const ASTNode &node) {
 		case CMMTOK_RETURN:
 			ExprPtr(Expr::get(*node.front(), this))->compile(precolored(Why::returnValueOffset), *this,
 				selfScope);
-			add<JumpInstruction>("." + name + "$e");
+			add<JumpInstruction>("." + name + ".e");
 			break;
 		case CMMTOK_LPAREN:
 			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, selfScope);
 			break;
 		case CMMTOK_WHILE: {
 			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
-			const std::string label = "." + name + "$" + std::to_string(nextBlock++);
+			const std::string label = "." + name + "." + std::to_string(nextBlock++);
 			const std::string start = label + "s", end = label + "e";
 			add<Label>(start);
 			auto m0 = mx(0);
@@ -130,21 +130,25 @@ void Function::compile(const ASTNode &node) {
 				compile(*child);
 			break;
 		case CMMTOK_IF: {
-			addComment("<if>");
-			node.debug();
 			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
-			const std::string else_label = "." + name + "$" + std::to_string(nextBlock++) + "e";
-			const std::string end_label = else_label + "nd";
 			auto m0 = mx(0);
 			condition->compile(m0, *this, selfScope);
 			add<LogicalNotInstruction>(m0);
-			add<JumpConditionalInstruction>(else_label, m0);
-			compile(*node.at(1));
-			add<JumpInstruction>(end_label);
-			add<Label>(else_label);
-			compile(*node.at(2));
-			add<Label>(end_label);
-			addComment("</if>");
+			if (node.size() == 3) {
+				const std::string else_label = "." + name + "." + std::to_string(nextBlock++) + "e";
+				const std::string end_label = else_label + "nd";
+				add<JumpConditionalInstruction>(else_label, m0);
+				compile(*node.at(1));
+				add<JumpInstruction>(end_label);
+				add<Label>(else_label);
+				compile(*node.at(2));
+				add<Label>(end_label);
+			} else {
+				const std::string end_label = "." + name + "." + std::to_string(nextBlock++) + "end";
+				add<JumpConditionalInstruction>(end_label, m0);
+				compile(*node.at(1));
+				add<Label>(end_label);
+			}
 			break;
 		}
 		default:

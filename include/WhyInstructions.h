@@ -222,10 +222,7 @@ struct JumpConditionalInstruction: JType {
 struct LogicalNotInstruction: RType {
 	LogicalNotInstruction(VregPtr reg): RType(reg, nullptr, reg) {}
 	LogicalNotInstruction(VregPtr source_, VregPtr destination_): RType(source_, nullptr, destination_) {}
-
 	operator std::vector<std::string>() const override {
-		if (0 < leftSource->reg && leftSource->reg == destination->reg)
-			return {"!" + leftSource->regOrID() + "."};
 		return {"!" + leftSource->regOrID() + " -> " + destination->regOrID()};
 	}
 };
