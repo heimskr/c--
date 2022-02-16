@@ -169,6 +169,16 @@ std::string ASTNode::unquote(bool unescape) const {
 	return unescape? Util::unescape(out) : out;
 }
 
+char ASTNode::getChar() const {
+	if (lexerInfo->size() < 2 || lexerInfo->front() != '\'' || lexerInfo->back() != '\'')
+		throw std::runtime_error("Not a quoted character: " + *lexerInfo);
+	const std::string out = lexerInfo->substr(1, lexerInfo->size() - 2);
+	if (out == "\\n") return '\n';
+	if (out == "\\r") return '\r';
+	if (out == "\\t") return '\t';
+	return out.front();
+}
+
 const char * ASTNode::getName() const {
 	return parser->getName(symbol);
 }

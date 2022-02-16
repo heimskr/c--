@@ -9,10 +9,11 @@ dependent: s64 = n * 2;
 global_addr: s64* = &dependent;
 
 fn triple_and_add(in: s64, addend: s64): s64 {
-	return in << 1 + in + addend;
+	// return in << 1 + in + addend;
+	return in * 2 + in + addend;
 }
 
-fn main(): void {
+fn main(argc: u32): void {
 	// Functions whose names are "$" followed by a type are built-in print functions.
 	val: s64 = n - 1;
 	wow: s64;

@@ -92,7 +92,7 @@ void Program::compile() {
 				VregPtr vreg = std::make_shared<VirtualRegister>(init);
 				vreg->reg = Why::temporaryOffset;
 				expr->compile(vreg, init, init_scope);
-				init.why.emplace_back(new StoreIInstruction(vreg, iter->first));
+				init.add<StoreIInstruction>(vreg, iter->first);
 			}
 		} else if (size == 1) {
 			lines.push_back("\t%1b 0");

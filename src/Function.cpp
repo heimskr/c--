@@ -61,16 +61,26 @@ void Function::compile() {
 				VariablePtr variable = Variable::make(var_name, TypePtr(Type::get(*child->at(1))), this);
 				variables.emplace(var_name, variable);
 				addToStack(variable);
-				// if (
-				// child->debug();
-				if (child->size() == 3) {
-					ExprPtr expr = ExprPtr(Expr::get(*child->at(2), this));
-					expr->compile(variable, *this, selfScope);
-				}
+				if (child->size() == 3)
+					ExprPtr(Expr::get(*child->at(2), this))->compile(variable, *this, selfScope);
 				break;
 			}
+			case CMMTOK_RETURN: {
+				VregPtr return_value = precolored(Why::returnValueOffset);
+				ExprPtr(Expr::get(*child->front(), this))->compile(return_value, *this, selfScope);
+				break;
+			}
+			// case CMMTOK_LPAREN: {
+
+				// const std::string &fn_name = *child->front()->lexerInfo;
+				// const size_t to_push = std::min(arguments.size(), child->back()->size());
+				// break;
+			// }
+			case CMMTOK_LPAREN:
+				ExprPtr(Expr::get(*child, this))->compile(precolored(Why::assemblerOffset), *this, selfScope);
+				break;
 			default:
-				// child->debug();
+				child->debug();
 				break;
 		}
 	}

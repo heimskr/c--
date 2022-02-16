@@ -1,9 +1,13 @@
+#include <iostream>
+#include <sstream>
+
 #include "ASTNode.h"
 #include "Errors.h"
 #include "Expr.h"
 #include "Function.h"
 #include "Global.h"
 #include "Lexer.h"
+#include "Parser.h"
 #include "Program.h"
 #include "Scope.h"
 #include "WhyInstructions.h"
@@ -46,10 +50,17 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			if (!function)
 				throw std::runtime_error("Variable expression encountered in functionless context");
 			return new VariableExpr(*node.lexerInfo);
+		case CMMTOK_LPAREN:
+			if (!function)
+				throw std::runtime_error("Function call expression encountered in functionless context");
+			return new CallExpr(node, function);
 		case CMMTOK_STRING:
 			return new StringExpr(node.unquote());
+		case CMMTOK_CHAR:
+			return new NumberExpr(ssize_t(node.getChar()));
 		default:
-			return nullptr;
+			throw std::invalid_argument("Unrecognized symbol in Expr::get: " +
+				std::string(cmmParser.getName(node.symbol)));
 	}
 }
 
@@ -76,7 +87,7 @@ void PlusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 		right->compile(right_var, function, scope);
 	}
 
-	function.why.emplace_back(new AddRInstruction(left_var, right_var, destination));
+	function.add<AddRInstruction>(left_var, right_var, destination);
 }
 
 void MinusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
@@ -98,40 +109,40 @@ void MinusExpr::compile(VregPtr destination, Function &function, ScopePtr scope,
 		right->compile(right_var, function, scope);
 	}
 
-	function.why.emplace_back(new SubRInstruction(left_var, right_var, destination));
+	function.add<SubRInstruction>(left_var, right_var, destination);
 }
 
 void MultExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
 	VregPtr left_var = function.newVar(), right_var = function.newVar();
 	left->compile(left_var, function, scope, 1);
 	right->compile(right_var, function, scope, multiplier); // TODO: verify
-	function.why.emplace_back(new MultRInstruction(left_var, right_var, destination));
+	function.add<MultRInstruction>(left_var, right_var, destination);
 }
 
 void NumberExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) const {
 	const ssize_t multiplied = value * multiplier;
 	if (Util::inRange(multiplied)) {
-		function.why.emplace_back(new SetIInstruction(destination, int(multiplied)));
+		function.add<SetIInstruction>(destination, int(multiplied));
 	} else {
 		const size_t high = size_t(multiplied) >> 32;
 		const size_t low  = size_t(multiplied) & 0xff'ff'ff'ff;
-		function.why.emplace_back(new SetIInstruction(destination, int(low)));
-		function.why.emplace_back(new LuiIInstruction(destination, int(high)));
+		function.add<SetIInstruction>(destination, int(low));
+		function.add<LuiIInstruction>(destination, int(high));
 	}
 }
 
 void BoolExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) const {
-	function.why.emplace_back(new SetIInstruction(destination, value? int(multiplier) : 0));
+	function.add<SetIInstruction>(destination, value? int(multiplier) : 0);
 }
 
 void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
 	if (VariablePtr var = scope->lookup(name)) {
 		if (auto global = std::dynamic_pointer_cast<Global>(var))
-			function.why.emplace_back(new LoadIInstruction(destination, global->name));
+			function.add<LoadIInstruction>(destination, global->name);
 		else
-			function.why.emplace_back(new MoveInstruction(var, destination));
+			function.add<MoveInstruction>(var, destination);
 		if (multiplier != 1)
-			function.why.emplace_back(new MultIInstruction(destination, destination, int(multiplier)));
+			function.add<MultIInstruction>(destination, destination, int(multiplier));
 	} else
 		throw ResolutionError(name, scope);
 }
@@ -154,10 +165,9 @@ void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr sc
 	if (auto *var_exp = dynamic_cast<VariableExpr *>(subexpr.get())) {
 		if (auto var = scope->lookup(var_exp->name)) {
 			if (auto global = std::dynamic_pointer_cast<Global>(var))
-				function.why.emplace_back(new SetIInstruction(destination, global->name));
+				function.add<SetIInstruction>(destination, global->name);
 			else
-				function.why.emplace_back(new AddIInstruction(function.precolored(Why::framePointerOffset),
-					destination, var));
+				function.add<AddIInstruction>(function.precolored(Why::framePointerOffset), destination, var);
 		} else
 			throw ResolutionError(var_exp->name, scope);
 	} else
@@ -175,7 +185,7 @@ std::unique_ptr<Type> AddressOfExpr::getType(ScopePtr scope) const {
 void StringExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) const {
 	if (multiplier != 1)
 		throw std::invalid_argument("Cannot multiply in StringExpr");
-	function.why.emplace_back(new SetIInstruction(destination, std::to_string(function.program.getStringID(contents))));
+	function.add<SetIInstruction>(destination, "$str" + std::to_string(function.program.getStringID(contents)));
 }
 
 std::unique_ptr<Type> StringExpr::getType(ScopePtr) const {
@@ -185,7 +195,7 @@ std::unique_ptr<Type> StringExpr::getType(ScopePtr) const {
 void DerefExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
 	checkType(scope);
 	subexpr->compile(destination, function, scope, multiplier);
-	function.why.emplace_back(new LoadRInstruction(destination, destination));
+	function.add<LoadRInstruction>(destination, destination);
 }
 
 size_t DerefExpr::getSize(ScopePtr scope) const {
@@ -203,4 +213,51 @@ std::unique_ptr<Type> DerefExpr::checkType(ScopePtr scope) const {
 	if (!type->isPointer())
 		throw NotPointerError(TypePtr(type->copy()));
 	return type;
+}
+
+CallExpr::CallExpr(const ASTNode &node, Function *function_): name(*node.front()->lexerInfo), function(function_) {
+	if (!function)
+		throw std::runtime_error("CallExpr needs a nonnull function");
+	for (const ASTNode *child: *node.back()) {
+		std::cerr << "!(((\n"; child->debug(); std::cerr << ")))!\n";
+		arguments.emplace_back(Expr::get(*child, function));
+	}
+}
+
+void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_t multiplier) const {
+	const size_t to_push = std::min(fn.arguments.size(), arguments.size());
+	size_t i;
+
+	for (i = 0; i < to_push; ++i)
+		fn.add<StackPushInstruction>(fn.precolored(Why::argumentOffset + i));
+
+	i = 0;
+	for (const auto &argument: arguments)
+		argument->compile(fn.precolored(Why::argumentOffset + i++), fn, scope);
+
+	for (i = to_push; 0 < i; --i)
+		fn.add<StackPopInstruction>(fn.precolored(Why::argumentOffset + i - 1));
+}
+
+CallExpr::operator std::string() const {
+	std::stringstream out;
+	out << name << '(';
+	bool first = true;
+	for (const auto &argument: arguments) {
+		if (first)
+			first = false;
+		else
+			out << ", ";
+		out << std::string(*argument);
+	}
+	out << ')';
+	return out.str();
+}
+
+size_t CallExpr::getSize(ScopePtr) const {
+	return 0;
+}
+
+std::unique_ptr<Type> CallExpr::getType(ScopePtr) const {
+	return nullptr;
 }

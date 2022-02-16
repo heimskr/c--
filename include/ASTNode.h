@@ -57,6 +57,7 @@ class ASTNode {
 		long atoi() const;
 		long atoi(int offset) const;
 		std::string unquote(bool unescape = true) const;
+		char getChar() const;
 		const char * getName() const;
 		void debug(int indent = 0, bool is_last = false, bool suppress_line = false) const;
 		virtual std::string debugExtra() const;

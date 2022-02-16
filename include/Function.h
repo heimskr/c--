@@ -43,4 +43,9 @@ class Function {
 		VregPtr newVar();
 		VregPtr precolored(int reg);
 		void addToStack(VariablePtr);
+
+		template <typename T, typename... Args>
+		void add(Args &&...args) {
+			why.emplace_back(new T(std::forward<Args>(args)...));
+		}
 };

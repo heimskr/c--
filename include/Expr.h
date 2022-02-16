@@ -195,3 +195,14 @@ class DerefExpr: public Expr {
 	private:
 		std::unique_ptr<Type> checkType(ScopePtr) const;
 };
+
+struct CallExpr: Expr {
+	std::string name;
+	Function *function;
+	std::vector<ExprPtr> arguments;
+	CallExpr(const ASTNode &, Function *);
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
+	operator std::string() const override;
+	size_t getSize(ScopePtr) const override;
+	std::unique_ptr<Type> getType(ScopePtr) const override;
+};
