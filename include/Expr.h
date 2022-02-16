@@ -13,6 +13,7 @@ class ASTNode;
 class Function;
 struct Expr;
 struct Scope;
+struct Type;
 struct WhyInstruction;
 
 using ScopePtr = std::shared_ptr<Scope>;
@@ -30,6 +31,8 @@ struct Expr {
 	virtual std::optional<ssize_t> evaluate() const = 0;
 	/** Returns a vector of all variable names referenced by the expression or its children. */
 	virtual std::vector<std::string> references() const { return {}; }
+	/** This function both performs type checking and returns a type. */
+	virtual std::unique_ptr<Type> getType() const { return nullptr; }
 };
 
 using ExprPtr = std::shared_ptr<Expr>;
