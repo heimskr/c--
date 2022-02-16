@@ -120,3 +120,17 @@ struct LoadRInstruction: RType {
 		return {"[" + leftSource->regOrID() + "] -> " + destination->regOrID()};
 	}
 };
+
+struct StackPushInstruction: WhyInstruction, HasSource {
+	using HasSource::HasSource;
+	operator std::vector<std::string>() const override {
+		return {"[ " + source->regOrID()};
+	}
+};
+
+struct StackPopInstruction: WhyInstruction, HasSource {
+	using HasSource::HasSource;
+	operator std::vector<std::string>() const override {
+		return {"] " + source->regOrID()};
+	}
+};
