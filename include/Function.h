@@ -57,4 +57,7 @@ class Function {
 		void addFront(Args &&...args) {
 			why.emplace_front(new T(std::forward<Args>(args)...));
 		}
+
+		void addComment(const std::string &);
+		VregPtr mx(int = 0);
 };

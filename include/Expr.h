@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "Errors.h"
+#include "fixed_string.h"
 #include "Function.h"
 #include "Type.h"
 #include "Util.h"
@@ -43,7 +44,7 @@ struct AtomicExpr: Expr {
 	virtual ssize_t getValue() const = 0;
 };
 
-template <char O>
+template <fixstr::fixed_string O>
 struct BinaryExpr: Expr {
 	std::unique_ptr<Expr> left, right;
 
@@ -53,10 +54,11 @@ struct BinaryExpr: Expr {
 	BinaryExpr(Expr *left_, Expr *right_): left(left_), right(right_) {}
 
 	operator std::string() const override {
-		return stringify(left.get()) + " " + std::string(1, O) + " " + stringify(right.get());
+		return stringify(left.get()) + " " + std::string(O) + " " + stringify(right.get());
 	}
 
 	bool shouldParenthesize() const override { return true; }
+
 	std::vector<std::string> references() const override {
 		return Util::combine(left? left->references() : std::vector<std::string>(),
 			right? right->references() : std::vector<std::string>());
@@ -71,7 +73,7 @@ struct BinaryExpr: Expr {
 };
 
 // TODO: signedness
-template <char O, typename CompFn, typename R>
+template <fixstr::fixed_string O, template <typename T> typename CompFn, typename R>
 struct CompExpr: BinaryExpr<O> {
 	using BinaryExpr<O>::BinaryExpr;
 
@@ -102,7 +104,21 @@ struct CompExpr: BinaryExpr<O> {
 	}
 };
 
-struct PlusExpr: BinaryExpr<'+'> {
+struct LtRInstruction;
+struct LteRInstruction;
+struct GtRInstruction;
+struct GteRInstruction;
+struct EqRInstruction;
+struct NeqRInstruction;
+
+struct LtExpr:   CompExpr<"<",  std::less,          LtRInstruction>  { using CompExpr::CompExpr; };
+struct LteExpr:  CompExpr<"<=", std::less_equal,    LteRInstruction> { using CompExpr::CompExpr; };
+struct GtExpr:   CompExpr<">",  std::greater,       GtRInstruction>  { using CompExpr::CompExpr; };
+struct GteExpr:  CompExpr<">=", std::greater_equal, GteRInstruction> { using CompExpr::CompExpr; };
+struct EqExpr:   CompExpr<"==", std::greater_equal, GteRInstruction> { using CompExpr::CompExpr; };
+struct NeqExpr:  CompExpr<"<=", std::greater_equal, GteRInstruction> { using CompExpr::CompExpr; };
+
+struct PlusExpr: BinaryExpr<"+"> {
 	using BinaryExpr::BinaryExpr;
 
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
@@ -127,7 +143,7 @@ struct PlusExpr: BinaryExpr<'+'> {
 	}
 };
 
-struct MinusExpr: BinaryExpr<'-'> {
+struct MinusExpr: BinaryExpr<"-"> {
 	using BinaryExpr::BinaryExpr;
 
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
@@ -150,7 +166,7 @@ struct MinusExpr: BinaryExpr<'-'> {
 	}
 };
 
-struct MultExpr: BinaryExpr<'*'> {
+struct MultExpr: BinaryExpr<"*"> {
 	using BinaryExpr::BinaryExpr;
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 	size_t getSize(ScopePtr) const override { return 8; }

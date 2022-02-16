@@ -112,12 +112,11 @@ void Function::compile(const ASTNode &node) {
 			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, selfScope);
 			break;
 		case CMMTOK_WHILE: {
-			const int blockID = nextBlock++;
-			ExprPtr condition = ExprPtr(Expr::get(*node.front()));
-			const std::string label = "." + name + "$" + std::to_string(blockID);
+			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
+			const std::string label = "." + name + "$" + std::to_string(nextBlock++);
 			const std::string start = label + "s", end = label + "e";
 			add<Label>(start);
-			auto m0 = precolored(Why::assemblerOffset);
+			auto m0 = mx(0);
 			condition->compile(m0, *this, selfScope);
 			add<LogicalNotInstruction>(m0);
 			add<JumpConditionalInstruction>(end, m0);
@@ -130,8 +129,34 @@ void Function::compile(const ASTNode &node) {
 			for (const ASTNode *child: node)
 				compile(*child);
 			break;
+		case CMMTOK_IF: {
+			addComment("<if>");
+			node.debug();
+			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
+			const std::string else_label = "." + name + "$" + std::to_string(nextBlock++) + "e";
+			const std::string end_label = else_label + "nd";
+			auto m0 = mx(0);
+			condition->compile(m0, *this, selfScope);
+			add<LogicalNotInstruction>(m0);
+			add<JumpConditionalInstruction>(else_label, m0);
+			compile(*node.at(1));
+			add<JumpInstruction>(end_label);
+			add<Label>(else_label);
+			compile(*node.at(2));
+			add<Label>(end_label);
+			addComment("</if>");
+			break;
+		}
 		default:
 			node.debug();
 			break;
 	}
+}
+
+void Function::addComment(const std::string &comment) {
+	add<Comment>(comment);
+}
+
+VregPtr Function::mx(int n) {
+	return precolored(Why::assemblerOffset + n);
 }

@@ -58,6 +58,30 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			return new StringExpr(node.unquote());
 		case CMMTOK_CHAR:
 			return new NumberExpr(ssize_t(node.getChar()));
+		case CMMTOK_LT:
+			return new LtExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+		case CMMTOK_LTE:
+			return new LteExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+		case CMMTOK_GT:
+			return new GtExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+		case CMMTOK_GTE:
+			return new GteExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+		case CMMTOK_DEQ:
+			return new EqExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+		case CMMTOK_NEQ:
+			return new NeqExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 		default:
 			throw std::invalid_argument("Unrecognized symbol in Expr::get: " +
 				std::string(cmmParser.getName(node.symbol)));
@@ -265,10 +289,16 @@ CallExpr::operator std::string() const {
 	return out.str();
 }
 
-size_t CallExpr::getSize(ScopePtr) const {
-	return 0;
+size_t CallExpr::getSize(ScopePtr scope) const {
+	if (auto fn = scope->lookupFunction(name)) {
+		return fn->returnType->getSize();
+	} else
+		throw ResolutionError(name, scope);
 }
 
-std::unique_ptr<Type> CallExpr::getType(ScopePtr) const {
-	return nullptr;
+std::unique_ptr<Type> CallExpr::getType(ScopePtr scope) const {
+	if (auto fn = scope->lookupFunction(name)) {
+		return std::unique_ptr<Type>(fn->returnType->copy());
+	} else
+		throw ResolutionError(name, scope);
 }

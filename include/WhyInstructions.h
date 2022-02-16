@@ -185,6 +185,14 @@ struct Label: WhyInstruction {
 	}
 };
 
+struct Comment: WhyInstruction {
+	std::string comment;
+	Comment(const std::string &comment_): comment(comment_) {}
+	operator std::vector<std::string>() const override {
+		return {"// " + comment};
+	}
+};
+
 struct JumpRegisterInstruction: RType {
 	bool link;
 	JumpRegisterInstruction(VregPtr target, bool link_ = false):
@@ -226,12 +234,14 @@ template <fixstr::fixed_string O>
 struct CompRInstruction: RType {
 	using RType::RType;
 	operator std::vector<std::string>() const override {
-		return {leftSource->regOrID() + " " + O + " " + rightSource->regOrID() + " -> " +
+		return {leftSource->regOrID() + " " + std::string(O) + " " + rightSource->regOrID() + " -> " +
 			destination->regOrID()};
 	}
 };
 
-struct LtRInstruction:  CompRInstruction<"<">  {};
-struct LteRInstruction: CompRInstruction<"<="> {};
-struct GtRInstruction:  CompRInstruction<">">  {};
-struct GteRInstruction: CompRInstruction<">="> {};
+struct LtRInstruction:  CompRInstruction<"<">  { using CompRInstruction::CompRInstruction; };
+struct LteRInstruction: CompRInstruction<"<="> { using CompRInstruction::CompRInstruction; };
+struct GtRInstruction:  CompRInstruction<">">  { using CompRInstruction::CompRInstruction; };
+struct GteRInstruction: CompRInstruction<">="> { using CompRInstruction::CompRInstruction; };
+struct EqRInstruction:  CompRInstruction<"=="> { using CompRInstruction::CompRInstruction; };
+struct NeqRInstruction: CompRInstruction<"!="> { using CompRInstruction::CompRInstruction; };

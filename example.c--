@@ -40,6 +40,6 @@ fn badfib(x: s64): s64 {
 	if x < 2 {
 		return 1;
 	} else {
-		return fib(x - 2) + fib(x - 1);
+		return badfib(x - 2) + badfib(x - 1);
 	};
 }
