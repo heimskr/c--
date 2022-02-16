@@ -29,3 +29,9 @@ fn ptr_test(): void {
 	vptr: void* = ptr;
 	.ptr(vptr);
 }
+
+fn forever(): void {
+	while true {
+		.s("Hello!\n");
+	};
+}

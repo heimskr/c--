@@ -242,7 +242,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 	for (i = to_push; 0 < i; --i)
 		fn.add<StackPopInstruction>(fn.precolored(Why::argumentOffset + i - 1));
 
-	if (!found->returnType->isVoid()) {
+	if (!found->returnType->isVoid() && destination) {
 		if (multiplier == 1)
 			fn.add<MoveInstruction>(fn.precolored(Why::returnValueOffset), destination);
 		else

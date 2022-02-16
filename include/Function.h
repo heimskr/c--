@@ -1,5 +1,6 @@
 #pragma once
 
+#include <deque>
 #include <map>
 #include <memory>
 #include <string>
@@ -16,13 +17,13 @@ struct WhyInstruction;
 
 class Function {
 	private:
-		// int nextBlock = 0;
+		int nextBlock = 0;
 
 	public:
 		Program &program;
 		std::string name = "???";
 		// std::vector<std::shared_ptr<CmmInstruction>> cmm;
-		std::vector<std::shared_ptr<WhyInstruction>> why;
+		std::deque<std::shared_ptr<WhyInstruction>> why;
 		std::map<std::string, VariablePtr> variables;
 		/** Offsets are relative to the value in the frame pointer right after the stack pointer is written to it in the
 		 *  prologue. */
@@ -49,5 +50,10 @@ class Function {
 		template <typename T, typename... Args>
 		void add(Args &&...args) {
 			why.emplace_back(new T(std::forward<Args>(args)...));
+		}
+
+		template <typename T, typename... Args>
+		void addFront(Args &&...args) {
+			why.emplace_front(new T(std::forward<Args>(args)...));
 		}
 };

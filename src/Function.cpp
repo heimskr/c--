@@ -1,7 +1,8 @@
 #include <iostream>
 
 #include "ASTNode.h"
-#include "CmmInstructions.h"
+#include "Errors.h"
+#include "Expr.h"
 #include "Function.h"
 #include "Lexer.h"
 #include "Scope.h"
@@ -69,19 +70,34 @@ void Function::compile() {
 					ExprPtr(Expr::get(*child->at(2), this))->compile(variable, *this, selfScope);
 				break;
 			}
-			case CMMTOK_RETURN: {
-				VregPtr return_value = precolored(Why::returnValueOffset);
-				ExprPtr(Expr::get(*child->front(), this))->compile(return_value, *this, selfScope);
+			case CMMTOK_RETURN:
+				ExprPtr(Expr::get(*child->front(), this))->compile(precolored(Why::returnValueOffset), *this,
+					selfScope);
 				break;
-			}
 			case CMMTOK_LPAREN:
-				ExprPtr(Expr::get(*child, this))->compile(precolored(Why::assemblerOffset), *this, selfScope);
+				ExprPtr(Expr::get(*child, this))->compile(nullptr, *this, selfScope);
 				break;
+			case CMMTOK_WHILE: {
+				const int blockID = nextBlock++;
+				add<Label>("." + name + "$" + std::to_string(blockID));
+				// break;
+			}
 			default:
 				child->debug();
 				break;
 		}
 	}
+
+	auto fp = precolored(Why::framePointerOffset), rt = precolored(Why::returnAddressOffset);
+	auto sp = precolored(Why::stackPointerOffset);
+	addFront<MoveInstruction>(sp, fp);
+	// TODO: push all used temporaries here
+	addFront<StackPushInstruction>(fp);
+	addFront<StackPushInstruction>(rt);
+	// TODO: pop all used temporaries here
+	add<StackPopInstruction>(fp);
+	add<StackPopInstruction>(rt);
+	add<JumpRegisterInstruction>(rt, false);
 }
 
 VregPtr Function::newVar() {

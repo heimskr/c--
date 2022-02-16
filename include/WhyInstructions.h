@@ -46,8 +46,9 @@ struct IType: TwoRegs, HasImmediate {
 };
 
 struct JType: WhyInstruction, HasSource, HasImmediate {
-	JType(const Immediate &imm_, VregPtr source_ = nullptr):
-		HasSource(source_), HasImmediate(imm_) {}
+	bool link;
+	JType(const Immediate &imm_, bool link_ = false, VregPtr source_ = nullptr):
+		HasSource(source_), HasImmediate(imm_), link(link_) {}
 };
 
 struct MoveInstruction: TwoRegs {
@@ -169,9 +170,24 @@ struct SizedStackPopInstruction: IType {
 };
 
 struct JumpInstruction: JType {
-	bool link;
-	JumpInstruction(const Immediate &addr, bool link_): JType(addr), link(link_) {}
+	JumpInstruction(const Immediate &addr, bool link_): JType(addr, link_) {}
 	operator std::vector<std::string>() const override {
 		return {std::string(link? "::" : ":") + " " + stringify(imm)};
+	}
+};
+
+struct Label: WhyInstruction {
+	std::string name;
+	Label(const std::string &name_): name(name_) {}
+	operator std::vector<std::string>() const override {
+		return {"@" + name};
+	}
+};
+
+struct JumpRegisterInstruction: RType {
+	bool link;
+	JumpRegisterInstruction(VregPtr source_, bool link_): RType(source_, nullptr, nullptr), link(link_) {}
+	operator std::vector<std::string>() const override {
+		return {std::string(link? "::" : ":") + " " + leftSource->regOrID()};
 	}
 };
