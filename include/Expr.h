@@ -70,6 +70,38 @@ struct BinaryExpr: Expr {
 	}
 };
 
+// TODO: signedness
+template <char O, typename CompFn, typename R>
+struct CompExpr: BinaryExpr<O> {
+	using BinaryExpr<O>::BinaryExpr;
+
+	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const override {
+		if (multiplier != 1)
+			throw std::runtime_error("Cannot multiply in CompExpr");
+		VregPtr left_var = function.newVar(), right_var = function.newVar();
+		this->left->compile(left_var, function, scope, 1);
+		this->right->compile(right_var, function, scope, multiplier);
+		function.add<R>(left_var, right_var, destination);
+	}
+
+	size_t getSize(ScopePtr) const override { return 1; }
+
+	std::optional<ssize_t> evaluate() const override {
+		auto left_value  = this->left?  this->left->evaluate()  : std::nullopt,
+		     right_value = this->right? this->right->evaluate() : std::nullopt;
+		if (left_value && right_value)
+			return CompFn()(*left_value, *right_value)? 1 : 0;
+		return std::nullopt;
+	}
+
+	std::unique_ptr<Type> getType(ScopePtr scope) const override {
+		auto left_type = this->left->getType(scope), right_type = this->right->getType(scope);
+		if (!(*left_type && *right_type) || !(*right_type && *left_type))
+			throw ImplicitConversionError(*left_type, *right_type);
+		return std::make_unique<BoolType>();
+	}
+};
+
 struct PlusExpr: BinaryExpr<'+'> {
 	using BinaryExpr::BinaryExpr;
 
