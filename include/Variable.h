@@ -16,7 +16,7 @@ struct VirtualRegister {
 	std::string regOrID() const;
 };
 
-struct Variable {
+struct Variable: std::enable_shared_from_this<Variable> {
 	Function *function;
 	std::string name;
 	std::shared_ptr<Type> type;

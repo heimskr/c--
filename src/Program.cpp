@@ -3,6 +3,7 @@
 #include "Lexer.h"
 #include "Parser.h"
 #include "Program.h"
+#include "Scope.h"
 #include "Type.h"
 #include "Why.h"
 #include "WhyInstructions.h"
@@ -50,6 +51,7 @@ void Program::compile() {
 	lines.clear();
 	lines.push_back("#text");
 	lines.push_back("%data");
+	auto init_scope = std::make_shared<FunctionScope>(init);
 	for (const auto &iter: globalOrder) {
 		const auto &expr = iter->second.value;
 		lines.push_back("@" + iter->first);
@@ -68,7 +70,7 @@ void Program::compile() {
 				lines.push_back("%fill " + std::to_string(size) + " 0");
 				VregPtr vreg = std::make_shared<VirtualRegister>(init);
 				vreg->reg = Why::temporaryOffset;
-				expr->compile(vreg, init);
+				expr->compile(vreg, init, init_scope);
 				init.why.emplace_back(new StoreIInstruction(vreg, iter->first));
 			}
 		} else if (size == 1) {

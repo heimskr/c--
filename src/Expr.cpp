@@ -1,7 +1,9 @@
 #include "ASTNode.h"
+#include "Errors.h"
 #include "Expr.h"
 #include "Function.h"
 #include "Lexer.h"
+#include "Scope.h"
 #include "WhyInstructions.h"
 
 std::string stringify(const Expr *expr) {
@@ -35,22 +37,41 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 		case CMMTOK_IDENT:
 			if (!function)
 				throw std::runtime_error("Variable expr encountered in functionless context");
-			return new VariableExpr(function->variables.at(*node.lexerInfo));
+			return new VariableExpr(*node.lexerInfo);
 		default:
 			return nullptr;
 	}
 }
 
-void PlusExpr::compile(VregPtr destination, Function &function) const {
+void PlusExpr::compile(VregPtr destination, Function &function, ScopePtr scope) const {
 	VregPtr left_var = function.newVar(), right_var = function.newVar();
-	left->compile(left_var, function);
-	right->compile(right_var, function);
+	left->compile(left_var, function, scope);
+	right->compile(right_var, function, scope);
 	function.why.emplace_back(new AddRInstruction(left_var, right_var, destination));
 }
 
-void MultExpr::compile(VregPtr destination, Function &function) const {
+void MultExpr::compile(VregPtr destination, Function &function, ScopePtr scope) const {
 	VregPtr left_var = function.newVar(), right_var = function.newVar();
-	left->compile(left_var, function);
-	right->compile(right_var, function);
+	left->compile(left_var, function, scope);
+	right->compile(right_var, function, scope);
 	function.why.emplace_back(new MultRInstruction(left_var, right_var, destination));
+}
+
+void NumberExpr::compile(VregPtr destination, Function &function, ScopePtr) const {
+	function.why.emplace_back(new SetIInstruction(destination, value));
+}
+
+void BoolExpr::compile(VregPtr destination, Function &function, ScopePtr) const {
+	function.why.emplace_back(new SetIInstruction(destination, value? 1 : 0));
+}
+
+void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr scope) const {
+	// if (Variable *var = scope.lookup(
+}
+
+size_t VariableExpr::getSize(ScopePtr scope) const {
+	VariablePtr var = scope->lookup(name);
+	if (var)
+		return var->getSize();
+	throw ResolutionError(name, scope);
 }

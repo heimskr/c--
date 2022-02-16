@@ -12,22 +12,27 @@
 class ASTNode;
 class Function;
 struct Expr;
+struct Scope;
 struct WhyInstruction;
+
+using ScopePtr = std::shared_ptr<Scope>;
 
 std::string stringify(const Expr *);
 
 struct Expr {
 	virtual ~Expr() {}
-	virtual void compile(VregPtr, Function &) const {}
+	virtual void compile(VregPtr, Function &, ScopePtr) const {}
 	virtual operator std::string() const { return "???"; }
 	virtual bool shouldParenthesize() const { return false; }
-	virtual size_t getSize() const { return 0; } // in bytes
+	virtual size_t getSize(ScopePtr) const { return 0; } // in bytes
 	static Expr * get(const ASTNode &, Function * = nullptr);
 	/** Attempts to evaluate the expression at compile time. */
 	virtual std::optional<ssize_t> evaluate() const = 0;
 	/** Returns a vector of all variable names referenced by the expression or its children. */
 	virtual std::vector<std::string> references() const { return {}; }
 };
+
+using ExprPtr = std::shared_ptr<Expr>;
 
 struct AtomicExpr: Expr {
 	virtual int getValue() const = 0;
@@ -55,8 +60,8 @@ struct BinaryExpr: Expr {
 
 struct PlusExpr: BinaryExpr<'+'> {
 	using BinaryExpr::BinaryExpr;
-	void compile(VregPtr, Function &) const override;
-	size_t getSize() const override { return 8; }
+	void compile(VregPtr, Function &, ScopePtr) const override;
+	size_t getSize(ScopePtr) const override { return 8; }
 	std::optional<ssize_t> evaluate() const override {
 		auto left_value = left? left->evaluate() : std::nullopt, right_value = right? right->evaluate() : std::nullopt;
 		if (left_value && right_value)
@@ -67,6 +72,7 @@ struct PlusExpr: BinaryExpr<'+'> {
 
 struct MinusExpr: BinaryExpr<'-'> {
 	using BinaryExpr::BinaryExpr;
+	size_t getSize(ScopePtr) const override { return 8; }
 	std::optional<ssize_t> evaluate() const override {
 		auto left_value = left? left->evaluate() : std::nullopt, right_value = right? right->evaluate() : std::nullopt;
 		if (left_value && right_value)
@@ -77,8 +83,8 @@ struct MinusExpr: BinaryExpr<'-'> {
 
 struct MultExpr: BinaryExpr<'*'> {
 	using BinaryExpr::BinaryExpr;
-	void compile(VregPtr, Function &) const override;
-	size_t getSize() const override { return 8; }
+	void compile(VregPtr, Function &, ScopePtr) const override;
+	size_t getSize(ScopePtr) const override { return 8; }
 	std::optional<ssize_t> evaluate() const override {
 		auto left_value = left? left->evaluate() : std::nullopt, right_value = right? right->evaluate() : std::nullopt;
 		if (left_value && right_value)
@@ -93,6 +99,7 @@ struct NumberExpr: AtomicExpr {
 	operator std::string() const override { return std::to_string(value); }
 	int getValue() const override { return value; }
 	std::optional<ssize_t> evaluate() const override { return getValue(); }
+	void compile(VregPtr, Function &, ScopePtr) const override;
 };
 
 struct BoolExpr: AtomicExpr {
@@ -101,21 +108,15 @@ struct BoolExpr: AtomicExpr {
 	operator std::string() const override { return value? "true" : "false"; }
 	int getValue() const override { return value? 1 : 0; }
 	std::optional<ssize_t> evaluate() const override { return getValue(); }
+	void compile(VregPtr, Function &, ScopePtr) const override;
 };
 
 struct VariableExpr: Expr {
-	Variable variable;
-
-	VariableExpr(const Variable &variable_): variable(variable_) {}
-
-	void compile(VregPtr, Function &) const override {
-
-	}
-
-	operator std::string() const override { return variable.name; }
-	size_t getSize() const override { return variable.getSize(); } // in bytes
+	std::string name;
+	VariableExpr(const std::string &name_): name(name_) {}
+	void compile(VregPtr, Function &, ScopePtr) const override;
+	operator std::string() const override { return name; }
+	size_t getSize(ScopePtr) const override;
 	std::optional<ssize_t> evaluate() const override { return std::nullopt; }
-	std::vector<std::string> references() const override { return {variable.name}; }
+	std::vector<std::string> references() const override { return {name}; }
 };
-
-using ExprPtr = std::shared_ptr<Expr>;
