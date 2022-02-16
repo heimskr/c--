@@ -3,12 +3,6 @@
 #include "Why.h"
 #include "Util.h"
 
-std::string stringify(const Immediate &imm) {
-	if (std::holds_alternative<int>(imm))
-		return std::to_string(std::get<int>(imm));
-	return std::get<std::string>(imm);
-}
-
 std::set<int> Why::makeRegisterPool() {
 	std::set<int> out;
 	for (int i = temporaryOffset, max = temporaryOffset + temporaryCount; i < max; ++i)

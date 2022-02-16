@@ -20,6 +20,9 @@ class Function {
 		std::vector<std::shared_ptr<CmmInstruction>> cmm;
 		std::vector<std::shared_ptr<WhyInstruction>> why;
 		std::map<std::string, VariablePtr> variables;
+		/** Offsets are relative to the value in the frame pointer right after the stack pointer is written to it in the
+		 *  prologue. */
+		std::map<VariablePtr, size_t> stackOffsets;
 
 		const ASTNode *source = nullptr;
 		int nextVariable = 0;
@@ -28,5 +31,6 @@ class Function {
 
 		std::vector<std::string> stringify();
 		void compile();
-		VregPtr newVar() { return std::make_shared<VirtualRegister>(*this); }
+		VregPtr newVar();
+		VregPtr precolored(int reg);
 };

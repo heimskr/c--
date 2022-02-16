@@ -32,3 +32,13 @@ std::vector<std::string> Function::stringify() {
 void Function::compile() {
 
 }
+
+VregPtr Function::newVar() {
+	return std::make_shared<VirtualRegister>(*this);
+}
+
+VregPtr Function::precolored(int reg) {
+	auto out = std::make_shared<VirtualRegister>(*this);
+	out->reg = reg;
+	return out;
+}

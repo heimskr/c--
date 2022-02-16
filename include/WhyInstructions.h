@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Immediate.h"
 #include "Instruction.h"
 #include "Variable.h"
 #include "Why.h"
@@ -51,6 +52,13 @@ struct AddRInstruction: ThreeRegs {
 	using ThreeRegs::ThreeRegs;
 	operator std::vector<std::string>() const override {
 		return {leftSource->regOrID() + " + " + rightSource->regOrID() + " -> " + destination->regOrID()};
+	}
+};
+
+struct AddIInstruction: IType {
+	using IType::IType;
+	operator std::vector<std::string>() const override {
+		return {source->regOrID() + " + " + stringify(imm) + " -> " + destination->regOrID()};
 	}
 };
 

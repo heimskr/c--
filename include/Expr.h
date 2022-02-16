@@ -120,3 +120,14 @@ struct VariableExpr: Expr {
 	std::optional<ssize_t> evaluate() const override { return std::nullopt; }
 	std::vector<std::string> references() const override { return {name}; }
 };
+
+struct AddressOfExpr: Expr {
+	std::unique_ptr<Expr> subexpr;
+
+	AddressOfExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
+	AddressOfExpr(Expr *subexpr_): subexpr(subexpr_) {}
+
+	void compile(VregPtr, Function &, ScopePtr) const override;
+	operator std::string() const override { return "&" + std::string(*subexpr); }
+	size_t getSize(ScopePtr) const override { return 8; }
+};

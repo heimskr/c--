@@ -49,6 +49,7 @@ struct BoolType: Type {
 struct PointerType: Type {
 	Type *subtype;
 	PointerType(Type *subtype_): subtype(subtype_) {}
+	~PointerType() { if (subtype) delete subtype; }
 	Type * copy() const override { return new PointerType(subtype? subtype->copy() : nullptr); }
 	operator std::string() const override { return subtype? std::string(*subtype) + "*" : "???*"; }
 	size_t getSize() const override { return 8; }

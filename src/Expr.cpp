@@ -81,3 +81,14 @@ size_t VariableExpr::getSize(ScopePtr scope) const {
 		return var->getSize();
 	throw ResolutionError(name, scope);
 }
+
+void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr scope) const {
+	if (auto *var_exp = dynamic_cast<VariableExpr *>(subexpr.get())) {
+		if (auto var = scope->lookup(var_exp->name)) {
+			function.why.emplace_back(new AddIInstruction(function.precolored(Why::framePointerOffset),
+				destination, var));
+		} else
+			throw ResolutionError(var_exp->name, scope);
+	} else
+		throw LvalueError(*subexpr);
+}
