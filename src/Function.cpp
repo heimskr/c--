@@ -74,12 +74,6 @@ void Function::compile() {
 				ExprPtr(Expr::get(*child->front(), this))->compile(return_value, *this, selfScope);
 				break;
 			}
-			// case CMMTOK_LPAREN: {
-
-				// const std::string &fn_name = *child->front()->lexerInfo;
-				// const size_t to_push = std::min(arguments.size(), child->back()->size());
-				// break;
-			// }
 			case CMMTOK_LPAREN:
 				ExprPtr(Expr::get(*child, this))->compile(precolored(Why::assemblerOffset), *this, selfScope);
 				break;

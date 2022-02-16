@@ -242,8 +242,12 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 	for (i = to_push; 0 < i; --i)
 		fn.add<StackPopInstruction>(fn.precolored(Why::argumentOffset + i - 1));
 
-	if (!found->returnType->isVoid())
-		fn.add<MoveInstruction>(fn.precolored(Why::returnValueOffset), destination);
+	if (!found->returnType->isVoid()) {
+		if (multiplier == 1)
+			fn.add<MoveInstruction>(fn.precolored(Why::returnValueOffset), destination);
+		else
+			fn.add<MultIInstruction>(fn.precolored(Why::returnValueOffset), destination, int(multiplier));
+	}
 }
 
 CallExpr::operator std::string() const {
