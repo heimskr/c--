@@ -26,8 +26,11 @@ class Function {
 		std::map<VariablePtr, size_t> stackOffsets;
 		std::map<const ASTNode *, std::shared_ptr<Scope>> scopes;
 
+		TypePtr returnType;
+		std::vector<std::string> arguments;
 		const ASTNode *source = nullptr;
 		int nextVariable = 0;
+		std::shared_ptr<Scope> selfScope;
 
 		Function(Program &, const ASTNode *);
 

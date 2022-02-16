@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "Makeable.h"
 #include "Variable.h"
 
 class Function;
@@ -17,32 +18,34 @@ struct Scope {
 
 using ScopePtr = std::shared_ptr<Scope>;
 
-struct EmptyScope: Scope {
+struct EmptyScope: Scope, Makeable<EmptyScope> {
 	EmptyScope() = default;
 	VariablePtr lookup(const std::string &) const override;
 };
 
-struct BasicScope: Scope {
+struct BasicScope: Scope, Makeable<BasicScope> {
 	std::map<std::string, VariablePtr> variables;
 	BasicScope() = default;
 	VariablePtr lookup(const std::string &) const override;
 };
 
-struct FunctionScope: Scope {
+struct FunctionScope: Scope, Makeable<FunctionScope> {
 	Function &function;
 	FunctionScope(Function &function_): function(function_) {}
 	VariablePtr lookup(const std::string &) const override;
 };
 
-struct GlobalScope: Scope {
+struct GlobalScope: Scope, Makeable<GlobalScope> {
 	Program &program;
 	GlobalScope(Program &program_): program(program_) {}
 	VariablePtr lookup(const std::string &) const override;
 };
 
-struct MultiScope: Scope {
+struct MultiScope: Scope, Makeable<MultiScope> {
 	std::vector<ScopePtr> scopes;
 	MultiScope(const std::vector<ScopePtr> &scopes_): scopes(scopes_) {}
+	template <typename... Args>
+	MultiScope(Args &&...args): scopes {std::forward<Args>(args)...} {}
 	VariablePtr lookup(const std::string &) const override;
 };
 

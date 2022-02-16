@@ -37,3 +37,9 @@ struct NotPointerError: std::runtime_error {
 	std::shared_ptr<Type> type;
 	NotPointerError(std::shared_ptr<Type> type_);
 };
+
+struct NameConflictError: std::runtime_error {
+	std::string name;
+	NameConflictError(const std::string &name_):
+		std::runtime_error("Name collision encountered: " + name_), name(name_) {}
+};
