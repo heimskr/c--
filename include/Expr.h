@@ -24,7 +24,7 @@ std::string stringify(const Expr *);
 
 struct Expr {
 	virtual ~Expr() {}
-	virtual void compile(VregPtr, Function &, ScopePtr) const {}
+	virtual void compile(VregPtr destination, Function &, ScopePtr, ssize_t multiplier = 1) const;
 	virtual operator std::string() const { return "???"; }
 	virtual bool shouldParenthesize() const { return false; }
 	virtual size_t getSize(ScopePtr) const { return 0; } // in bytes
@@ -73,7 +73,7 @@ struct BinaryExpr: Expr {
 struct PlusExpr: BinaryExpr<'+'> {
 	using BinaryExpr::BinaryExpr;
 
-	void compile(VregPtr, Function &, ScopePtr) const override;
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 	size_t getSize(ScopePtr) const override { return 8; }
 
 	std::optional<ssize_t> evaluate() const override {
@@ -98,6 +98,7 @@ struct PlusExpr: BinaryExpr<'+'> {
 struct MinusExpr: BinaryExpr<'-'> {
 	using BinaryExpr::BinaryExpr;
 
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 	size_t getSize(ScopePtr) const override { return 8; }
 
 	std::optional<ssize_t> evaluate() const override {
@@ -119,7 +120,7 @@ struct MinusExpr: BinaryExpr<'-'> {
 
 struct MultExpr: BinaryExpr<'*'> {
 	using BinaryExpr::BinaryExpr;
-	void compile(VregPtr, Function &, ScopePtr) const override;
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 	size_t getSize(ScopePtr) const override { return 8; }
 	std::optional<ssize_t> evaluate() const override {
 		auto left_value = left? left->evaluate() : std::nullopt, right_value = right? right->evaluate() : std::nullopt;
@@ -135,7 +136,7 @@ struct NumberExpr: AtomicExpr {
 	operator std::string() const override { return std::to_string(value); }
 	ssize_t getValue() const override { return value; }
 	std::optional<ssize_t> evaluate() const override { return getValue(); }
-	void compile(VregPtr, Function &, ScopePtr) const override;
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 };
 
 struct BoolExpr: AtomicExpr {
@@ -144,13 +145,13 @@ struct BoolExpr: AtomicExpr {
 	operator std::string() const override { return value? "true" : "false"; }
 	ssize_t getValue() const override { return value? 1 : 0; }
 	std::optional<ssize_t> evaluate() const override { return getValue(); }
-	void compile(VregPtr, Function &, ScopePtr) const override;
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 };
 
 struct VariableExpr: Expr {
 	std::string name;
 	VariableExpr(const std::string &name_): name(name_) {}
-	void compile(VregPtr, Function &, ScopePtr) const override;
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 	operator std::string() const override { return name; }
 	size_t getSize(ScopePtr) const override;
 	std::vector<std::string> references() const override { return {name}; }
@@ -161,7 +162,7 @@ struct AddressOfExpr: Expr {
 	std::unique_ptr<Expr> subexpr;
 	AddressOfExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
 	AddressOfExpr(Expr *subexpr_): subexpr(subexpr_) {}
-	void compile(VregPtr, Function &, ScopePtr) const override;
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 	operator std::string() const override { return "&" + std::string(*subexpr); }
 	size_t getSize(ScopePtr) const override { return 8; }
 	std::unique_ptr<Type> getType(ScopePtr) const override;
@@ -171,7 +172,7 @@ struct AddressOfExpr: Expr {
 struct StringExpr: Expr {
 	std::string contents;
 	StringExpr(const std::string &contents_): contents(contents_) {}
-	void compile(VregPtr, Function &, ScopePtr) const override;
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 	operator std::string() const override { return "\"" + Util::escape(contents) + "\""; }
 	size_t getSize(ScopePtr) const override { return 8; }
 	std::unique_ptr<Type> getType(ScopePtr) const override;
@@ -182,7 +183,7 @@ class DerefExpr: public Expr {
 		std::unique_ptr<Expr> subexpr;
 		DerefExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
 		DerefExpr(Expr *subexpr_): subexpr(subexpr_) {}
-		void compile(VregPtr, Function &, ScopePtr) const override;
+		void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 		operator std::string() const override { return "*" + std::string(*subexpr); }
 		size_t getSize(ScopePtr) const override;
 		std::unique_ptr<Type> getType(ScopePtr) const override;

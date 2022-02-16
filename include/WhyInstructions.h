@@ -76,6 +76,16 @@ struct MultRInstruction: RType {
 	}
 };
 
+struct MultIInstruction: IType {
+	using IType::IType;
+	operator std::vector<std::string>() const override {
+		return {
+			source->regOrID() + " * " + stringify(imm),
+			"$lo -> " + destination->regOrID()
+		};
+	}
+};
+
 struct StoreIInstruction: IType {
 	StoreIInstruction(VregPtr source_, const Immediate &imm_): IType(source_, nullptr, imm_) {}
 	operator std::vector<std::string>() const override {

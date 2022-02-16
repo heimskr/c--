@@ -16,6 +16,8 @@ std::string stringify(const Expr *expr) {
 	return std::string(*expr);
 }
 
+void Expr::compile(VregPtr, Function &, ScopePtr, ssize_t) const {}
+
 Expr * Expr::get(const ASTNode &node, Function *function) {
 	switch (node.symbol) {
 		case CMMTOK_PLUS:
@@ -51,41 +53,85 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 	}
 }
 
-void PlusExpr::compile(VregPtr destination, Function &function, ScopePtr scope) const {
+void PlusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
 	VregPtr left_var = function.newVar(), right_var = function.newVar();
-	left->compile(left_var, function, scope);
-	right->compile(right_var, function, scope);
+	auto left_type = left->getType(scope), right_type = right->getType(scope);
+
+	if (left_type->isPointer() && right_type->isInt()) {
+		if (multiplier != 1)
+			throw std::invalid_argument("Cannot multiply in pointer arithmetic PlusExpr");
+		auto *left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
+		left->compile(left_var, function, scope, 1);
+		right->compile(right_var, function, scope, left_subtype->getSize());
+	} else if (left_type->isInt() && right_type->isPointer()) {
+		if (multiplier != 1)
+			throw std::invalid_argument("Cannot multiply in pointer arithmetic PlusExpr");
+		auto *right_subtype = dynamic_cast<PointerType &>(*right_type).subtype;
+		left->compile(left_var, function, scope, right_subtype->getSize());
+		right->compile(right_var, function, scope, 1);
+	} else if (!(*left_type && *right_type)) {
+		throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()));
+	} else {
+		left->compile(left_var, function, scope);
+		right->compile(right_var, function, scope);
+	}
+
 	function.why.emplace_back(new AddRInstruction(left_var, right_var, destination));
 }
 
-void MultExpr::compile(VregPtr destination, Function &function, ScopePtr scope) const {
+void MinusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
 	VregPtr left_var = function.newVar(), right_var = function.newVar();
-	left->compile(left_var, function, scope);
-	right->compile(right_var, function, scope);
+	auto left_type = left->getType(scope), right_type = right->getType(scope);
+
+	if (left_type->isPointer() && right_type->isInt()) {
+		if (multiplier != 1)
+			throw std::invalid_argument("Cannot multiply in pointer arithmetic MinusExpr");
+		auto *left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
+		left->compile(left_var, function, scope, 1);
+		right->compile(right_var, function, scope, left_subtype->getSize());
+	} else if (left_type->isInt() && right_type->isPointer()) {
+		throw std::runtime_error("Cannot subtract " + std::string(*right_type) + " from " + std::string(*left_type));
+	} else if (!(*left_type && *right_type)) {
+		throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()));
+	} else {
+		left->compile(left_var, function, scope);
+		right->compile(right_var, function, scope);
+	}
+
+	function.why.emplace_back(new AddRInstruction(left_var, right_var, destination));
+}
+
+void MultExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+	VregPtr left_var = function.newVar(), right_var = function.newVar();
+	left->compile(left_var, function, scope, 1);
+	right->compile(right_var, function, scope, multiplier); // TODO: verify
 	function.why.emplace_back(new MultRInstruction(left_var, right_var, destination));
 }
 
-void NumberExpr::compile(VregPtr destination, Function &function, ScopePtr) const {
-	if (Util::inRange(value)) {
-		function.why.emplace_back(new SetIInstruction(destination, int(value)));
+void NumberExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) const {
+	const ssize_t multiplied = value * multiplier;
+	if (Util::inRange(multiplied)) {
+		function.why.emplace_back(new SetIInstruction(destination, int(multiplied)));
 	} else {
-		const size_t high = size_t(value) >> 32;
-		const size_t low = size_t(value) & 0xff'ff'ff'ff;
+		const size_t high = size_t(multiplied) >> 32;
+		const size_t low  = size_t(multiplied) & 0xff'ff'ff'ff;
 		function.why.emplace_back(new SetIInstruction(destination, int(low)));
 		function.why.emplace_back(new LuiIInstruction(destination, int(high)));
 	}
 }
 
-void BoolExpr::compile(VregPtr destination, Function &function, ScopePtr) const {
-	function.why.emplace_back(new SetIInstruction(destination, value? 1 : 0));
+void BoolExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) const {
+	function.why.emplace_back(new SetIInstruction(destination, value? int(multiplier) : 0));
 }
 
-void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr scope) const {
+void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
 	if (VariablePtr var = scope->lookup(name)) {
 		if (auto global = std::dynamic_pointer_cast<Global>(var))
 			function.why.emplace_back(new LoadIInstruction(destination, global->name));
 		else
 			function.why.emplace_back(new MoveInstruction(var, destination));
+		if (multiplier != 1)
+			function.why.emplace_back(new MultIInstruction(destination, destination, int(multiplier)));
 	} else
 		throw ResolutionError(name, scope);
 }
@@ -102,7 +148,9 @@ std::unique_ptr<Type> VariableExpr::getType(ScopePtr scope) const {
 	throw ResolutionError(name, scope);
 }
 
-void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr scope) const {
+void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+	if (multiplier != 1)
+		throw std::invalid_argument("Cannot multiply in AddressOfExpr");
 	if (auto *var_exp = dynamic_cast<VariableExpr *>(subexpr.get())) {
 		if (auto var = scope->lookup(var_exp->name)) {
 			if (auto global = std::dynamic_pointer_cast<Global>(var))
@@ -124,7 +172,9 @@ std::unique_ptr<Type> AddressOfExpr::getType(ScopePtr scope) const {
 		throw LvalueError(*subexpr);
 }
 
-void StringExpr::compile(VregPtr destination, Function &function, ScopePtr) const {
+void StringExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) const {
+	if (multiplier != 1)
+		throw std::invalid_argument("Cannot multiply in StringExpr");
 	function.why.emplace_back(new SetIInstruction(destination, std::to_string(function.program.getStringID(contents))));
 }
 
@@ -132,9 +182,9 @@ std::unique_ptr<Type> StringExpr::getType(ScopePtr) const {
 	return std::make_unique<PointerType>(new UnsignedType(8));
 }
 
-void DerefExpr::compile(VregPtr destination, Function &function, ScopePtr scope) const {
+void DerefExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
 	checkType(scope);
-	subexpr->compile(destination, function, scope);
+	subexpr->compile(destination, function, scope, multiplier);
 	function.why.emplace_back(new LoadRInstruction(destination, destination));
 }
 
