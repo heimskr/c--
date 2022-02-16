@@ -83,6 +83,10 @@ using AN = ASTNode;
 %token CMMTOK_VOID "void"
 %token CMMTOK_LSHIFT "<<"
 %token CMMTOK_RSHIFT ">>"
+%token CMMTOK_META_NAME "#name"
+%token CMMTOK_META_AUTHOR "#author"
+%token CMMTOK_META_VERSION "#version"
+%token CMMTOK_META_ORCID "#orcid"
 
 %token CMM_LIST CMM_ACCESS CMM_BLOCK
 
@@ -110,7 +114,12 @@ start: program;
 
 program: program decl_or_def ";" { $$ = $1->adopt($2); D($3); }
        | program function_def { $$ = $1->adopt($2); }
+       | program meta { $$ = $1->adopt($2); }
        | { $$ = cmmParser.root; };
+
+meta_start: "#name" | "#author" | "#orcid" | "#version";
+
+meta: meta_start string { $$ = $1->adopt($2); };
 
 statement: block
          | assignment

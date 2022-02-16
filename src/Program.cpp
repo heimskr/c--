@@ -37,6 +37,18 @@ Program compileRoot(const ASTNode &root) {
 						std::shared_ptr<Expr>(Expr::get(*child->at(2), &out.init)))).first);
 				break;
 			}
+			case CMMTOK_META_NAME:
+				out.name = *child->front()->lexerInfo;
+				break;
+			case CMMTOK_META_AUTHOR:
+				out.author = *child->front()->lexerInfo;
+				break;
+			case CMMTOK_META_ORCID:
+				out.orcid = *child->front()->lexerInfo;
+				break;
+			case CMMTOK_META_VERSION:
+				out.version = *child->front()->lexerInfo;
+				break;
 			default:
 				throw std::runtime_error("Unexpected token under root: " +
 					std::string(cmmParser.getName(child->symbol)));
@@ -46,39 +58,50 @@ Program compileRoot(const ASTNode &root) {
 }
 
 void Program::compile() {
-	lines.clear();
+	lines = {"#meta"};
+	if (!name.empty())
+		lines.push_back("name: " + name);
+	if (!author.empty())
+		lines.push_back("author: " + author);
+	if (!orcid.empty())
+		lines.push_back("orcid: " + orcid);
+	if (!version.empty())
+		lines.push_back("version: " + version);
+	lines.push_back("");
 	lines.push_back("#text");
+	lines.push_back("");
 	lines.push_back("%data");
 	auto init_scope = std::make_shared<GlobalScope>(*this);
 	for (const auto &iter: globalOrder) {
 		const auto &expr = iter->second->value;
+		lines.push_back("");
 		lines.push_back("@" + iter->first);
 		auto size = iter->second->type->getSize();
 		if (expr) {
 			auto value = expr->evaluate();
 			if (value && size == 1) {
-				lines.push_back("%1b " + std::to_string(*value));
+				lines.push_back("\t%1b " + std::to_string(*value));
 			} else if (value && size == 2) {
-				lines.push_back("%2b " + std::to_string(*value));
+				lines.push_back("\t%2b " + std::to_string(*value));
 			} else if (value && size == 4) {
-				lines.push_back("%4b " + std::to_string(*value));
+				lines.push_back("\t%4b " + std::to_string(*value));
 			} else if (value && size == 8) {
-				lines.push_back("%8b " + std::to_string(*value));
+				lines.push_back("\t%8b " + std::to_string(*value));
 			} else {
-				lines.push_back("%fill " + std::to_string(size) + " 0");
+				lines.push_back("\t%fill " + std::to_string(size) + " 0");
 				VregPtr vreg = std::make_shared<VirtualRegister>(init);
 				vreg->reg = Why::temporaryOffset;
 				expr->compile(vreg, init, init_scope);
 				init.why.emplace_back(new StoreIInstruction(vreg, iter->first));
 			}
 		} else if (size == 1) {
-			lines.push_back("%1b 0");
+			lines.push_back("\t%1b 0");
 		} else if (size == 2) {
-			lines.push_back("%2b 0");
+			lines.push_back("\t%2b 0");
 		} else if (size == 4) {
-			lines.push_back("%4b 0");
+			lines.push_back("\t%4b 0");
 		} else {
-			lines.push_back("%8b 0");
+			lines.push_back("\t%8b 0");
 		}
 	}
 
@@ -87,21 +110,25 @@ void Program::compile() {
 
 	const auto init_lines = init.stringify();
 
-	lines.push_back("\n%code");
+	lines.push_back("");
+	lines.push_back("%code");
+	lines.push_back("");
 	if (!init_lines.empty())
 		lines.push_back(":: $init");
 	lines.push_back(":: main");
 	lines.push_back("<halt>");
 
 	if (!init_lines.empty()) {
-		lines.push_back("\n@init");
+		lines.push_back("");
+		lines.push_back("@init");
 		for (const std::string &line: init_lines)
 			lines.push_back("\t" + line);
 		lines.push_back("\t: $rt");
 	}
 
 	for (auto &[name, function]: functions) {
-		lines.push_back("\n@" + function.name);
+		lines.push_back("");
+		lines.push_back("@" + function.name);
 		for (const std::string &line: function.stringify())
 			lines.push_back("\t" + line);
 	}

@@ -64,6 +64,10 @@ CMM_SLCOMMENT	("//"[^\n]*)
 ","				{RTOKEN(COMMA)}
 "?"				{RTOKEN(QUESTION)}
 ":"				{RTOKEN(COLON)}
+"#name"			{RTOKEN(META_NAME)}
+"#author"		{RTOKEN(META_AUTHOR)}
+"#version"		{RTOKEN(META_VERSION)}
+"#orcid"		{RTOKEN(META_ORCID)}
 "#"				{RTOKEN(HASH)}
 "fn"			{RTOKEN(FN)}
 "return"		{RTOKEN(RETURN)}

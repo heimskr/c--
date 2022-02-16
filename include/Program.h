@@ -18,6 +18,8 @@ struct Program {
 	std::vector<std::string> lines;
 	Function init {*this, nullptr};
 
+	std::string name, author, orcid, version;
+
 	Program() = default;
 
 	Program(decltype(globals) &&globals_, decltype(globalOrder) &&global_order, decltype(signatures) &&signatures_,
