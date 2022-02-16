@@ -77,6 +77,8 @@ struct MinusExpr: BinaryExpr<'-'> {
 
 struct MultExpr: BinaryExpr<'*'> {
 	using BinaryExpr::BinaryExpr;
+	void compile(VregPtr, Function &) const override;
+	size_t getSize() const override { return 8; }
 	std::optional<ssize_t> evaluate() const override {
 		auto left_value = left? left->evaluate() : std::nullopt, right_value = right? right->evaluate() : std::nullopt;
 		if (left_value && right_value)

@@ -5,6 +5,7 @@
 #include "Program.h"
 #include "Type.h"
 #include "Why.h"
+#include "WhyInstructions.h"
 
 Program compileRoot(const ASTNode &root) {
 	Program out;
@@ -68,6 +69,7 @@ void Program::compile() {
 				VregPtr vreg = std::make_shared<VirtualRegister>(init);
 				vreg->reg = Why::temporaryOffset;
 				expr->compile(vreg, init);
+				init.why.emplace_back(new StoreIInstruction(vreg, iter->first));
 			}
 		} else if (size == 1) {
 			lines.push_back("%1b 0");

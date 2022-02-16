@@ -47,3 +47,10 @@ void PlusExpr::compile(VregPtr destination, Function &function) const {
 	right->compile(right_var, function);
 	function.why.emplace_back(new AddRInstruction(left_var, right_var, destination));
 }
+
+void MultExpr::compile(VregPtr destination, Function &function) const {
+	VregPtr left_var = function.newVar(), right_var = function.newVar();
+	left->compile(left_var, function);
+	right->compile(right_var, function);
+	function.why.emplace_back(new MultRInstruction(left_var, right_var, destination));
+}

@@ -16,6 +16,11 @@ struct HasSource {
 	HasSource(VregPtr source_): source(source_) {}
 };
 
+struct HasTwoSources {
+	VregPtr leftSource, rightSource;
+	HasTwoSources(VregPtr left_source, VregPtr right_source): leftSource(left_source), rightSource(right_source) {}
+};
+
 struct HasImmediate {
 	Immediate imm;
 	HasImmediate(const Immediate &imm_): imm(imm_) {}
@@ -25,10 +30,14 @@ struct TwoRegs: WhyInstruction, HasSource, HasDestination {
 	TwoRegs(VregPtr source_, VregPtr destination_): HasSource(source_), HasDestination(destination_) {}
 };
 
-struct ThreeRegs: WhyInstruction, HasDestination {
-	VregPtr leftSource, rightSource;
+struct ThreeRegs: WhyInstruction, HasTwoSources, HasDestination {
 	ThreeRegs(VregPtr left_source, VregPtr right_source, VregPtr destination_):
-		HasDestination(destination_), leftSource(left_source), rightSource(right_source) {}
+		HasTwoSources(left_source, right_source), HasDestination(destination_) {}
+};
+
+struct IType: TwoRegs, HasImmediate {
+	IType(VregPtr source_, VregPtr destination_, const Immediate &imm_):
+		TwoRegs(source_, destination_), HasImmediate(imm_) {}
 };
 
 struct MoveInstruction: TwoRegs {
@@ -45,9 +54,26 @@ struct AddRInstruction: ThreeRegs {
 	}
 };
 
-struct StoreIInstruction: WhyInstruction, HasSource, HasImmediate {
-	StoreIInstruction(VregPtr source_, const Immediate &imm_): HasSource(source_), HasImmediate(imm_) {}
+struct MultRInstruction: ThreeRegs {
+	using ThreeRegs::ThreeRegs;
+	operator std::vector<std::string>() const override {
+		return {
+			leftSource->regOrID() + " * " + rightSource->regOrID(),
+			"$lo -> " + destination->regOrID()
+		};
+	}
+};
+
+struct StoreIInstruction: IType {
+	StoreIInstruction(VregPtr source_, const Immediate &imm_): IType(source_, nullptr, imm_) {}
 	operator std::vector<std::string>() const override {
 		return {source->regOrID() + " -> [" + stringify(imm) + "]"};
+	}
+};
+
+struct SetIInstruction: IType {
+	SetIInstruction(VregPtr destination_, const Immediate &imm_): IType(nullptr, destination_, imm_) {}
+	operator std::vector<std::string>() const override {
+		return {stringify(imm) + " -> " + destination->regOrID()};
 	}
 };

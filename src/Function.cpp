@@ -20,6 +20,7 @@ Function::Function(Program &program_, const ASTNode *source_): program(program_)
 }
 
 std::vector<std::string> Function::stringify() {
+	// std::vector<std::string> out {std::to_string(cmm.size()) + ", " + std::to_string(why.size())};
 	std::vector<std::string> out;
 	for (const auto &instruction: why)
 		for (const std::string &line: std::vector<std::string>(*instruction))
@@ -28,5 +29,5 @@ std::vector<std::string> Function::stringify() {
 }
 
 void Function::compile() {
-
+	
 }
