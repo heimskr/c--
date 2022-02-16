@@ -18,6 +18,7 @@ struct WhyInstruction;
 class Function {
 	private:
 		int nextBlock = 0;
+		void compile(const ASTNode &);
 
 	public:
 		Program &program;

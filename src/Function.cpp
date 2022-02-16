@@ -57,36 +57,8 @@ void Function::compile() {
 		++i;
 	}
 
-	for (const ASTNode *child: *source->at(3)) {
-		switch (child->symbol) {
-			case CMMTOK_COLON: {
-				const std::string &var_name = *child->front()->lexerInfo;
-				if (selfScope->lookup(var_name))
-					throw NameConflictError(var_name, child->front()->location);
-				VariablePtr variable = Variable::make(var_name, TypePtr(Type::get(*child->at(1))), this);
-				variables.emplace(var_name, variable);
-				addToStack(variable);
-				if (child->size() == 3)
-					ExprPtr(Expr::get(*child->at(2), this))->compile(variable, *this, selfScope);
-				break;
-			}
-			case CMMTOK_RETURN:
-				ExprPtr(Expr::get(*child->front(), this))->compile(precolored(Why::returnValueOffset), *this,
-					selfScope);
-				break;
-			case CMMTOK_LPAREN:
-				ExprPtr(Expr::get(*child, this))->compile(nullptr, *this, selfScope);
-				break;
-			case CMMTOK_WHILE: {
-				const int blockID = nextBlock++;
-				add<Label>("." + name + "$" + std::to_string(blockID));
-				// break;
-			}
-			default:
-				child->debug();
-				break;
-		}
-	}
+	for (const ASTNode *child: *source->at(3))
+		compile(*child);
 
 	auto fp = precolored(Why::framePointerOffset), rt = precolored(Why::returnAddressOffset);
 	auto sp = precolored(Why::stackPointerOffset);
@@ -115,4 +87,49 @@ void Function::addToStack(VariablePtr variable) {
 		throw std::runtime_error("Variable already on the stack in function " + name + ": " + variable->name);
 	stackOffsets.emplace(variable, stackUsage);
 	stackUsage += variable->type->getSize();
+}
+
+void Function::compile(const ASTNode &node) {
+	switch (node.symbol) {
+		case CMMTOK_COLON: {
+			const std::string &var_name = *node.front()->lexerInfo;
+			if (selfScope->lookup(var_name))
+				throw NameConflictError(var_name, node.front()->location);
+			VariablePtr variable = Variable::make(var_name, TypePtr(Type::get(*node.at(1))), this);
+			variables.emplace(var_name, variable);
+			addToStack(variable);
+			if (node.size() == 3)
+				ExprPtr(Expr::get(*node.at(2), this))->compile(variable, *this, selfScope);
+			break;
+		}
+		case CMMTOK_RETURN:
+			ExprPtr(Expr::get(*node.front(), this))->compile(precolored(Why::returnValueOffset), *this,
+				selfScope);
+			break;
+		case CMMTOK_LPAREN:
+			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, selfScope);
+			break;
+		case CMMTOK_WHILE: {
+			const int blockID = nextBlock++;
+			ExprPtr condition = ExprPtr(Expr::get(*node.front()));
+			const std::string label = "." + name + "$" + std::to_string(blockID);
+			const std::string start = label + "s", end = label + "e";
+			add<Label>(start);
+			auto m0 = precolored(Why::assemblerOffset);
+			condition->compile(m0, *this, selfScope);
+			add<LogicalNotInstruction>(m0);
+			add<JumpConditionalInstruction>(end, m0);
+			compile(*node.at(1));
+			add<JumpInstruction>(start);
+			add<Label>(end);
+			break;
+		}
+		case CMM_BLOCK:
+			for (const ASTNode *child: node)
+				compile(*child);
+			break;
+		default:
+			node.debug();
+			break;
+	}
 }

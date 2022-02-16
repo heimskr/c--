@@ -170,7 +170,7 @@ struct SizedStackPopInstruction: IType {
 };
 
 struct JumpInstruction: JType {
-	JumpInstruction(const Immediate &addr, bool link_): JType(addr, link_) {}
+	JumpInstruction(const Immediate &addr, bool link_ = false): JType(addr, link_) {}
 	operator std::vector<std::string>() const override {
 		return {std::string(link? "::" : ":") + " " + stringify(imm)};
 	}
@@ -186,8 +186,38 @@ struct Label: WhyInstruction {
 
 struct JumpRegisterInstruction: RType {
 	bool link;
-	JumpRegisterInstruction(VregPtr source_, bool link_): RType(source_, nullptr, nullptr), link(link_) {}
+	JumpRegisterInstruction(VregPtr target, bool link_ = false):
+		RType(target, nullptr, nullptr), link(link_) {}
 	operator std::vector<std::string>() const override {
 		return {std::string(link? "::" : ":") + " " + leftSource->regOrID()};
 	}
 };
+
+struct JumpRegisterConditionalInstruction: RType {
+	bool link;
+	JumpRegisterConditionalInstruction(VregPtr target, VregPtr condition, bool link_ = false):
+		RType(target, condition, nullptr), link(link_) {}
+	operator std::vector<std::string>() const override {
+		return {std::string(link? "::" : ":") + " " + leftSource->regOrID() + " if " + rightSource->regOrID()};
+	}
+};
+
+struct JumpConditionalInstruction: JType {
+	JumpConditionalInstruction(const Immediate &addr, VregPtr condition, bool link_ = false):
+		JType(addr, link_, condition) {}
+	operator std::vector<std::string>() const override {
+		return {std::string(link? "::" : ":") + " " + stringify(imm) + " if " + source->regOrID()};
+	}
+};
+
+struct LogicalNotInstruction: RType {
+	LogicalNotInstruction(VregPtr reg): RType(reg, nullptr, reg) {}
+	LogicalNotInstruction(VregPtr source_, VregPtr destination_): RType(source_, nullptr, destination_) {}
+
+	operator std::vector<std::string>() const override {
+		if (0 < leftSource->reg && leftSource->reg == destination->reg)
+			return {"!" + leftSource->regOrID() + "."};
+		return {"!" + leftSource->regOrID() + " -> " + destination->regOrID()};
+	}
+};
+
