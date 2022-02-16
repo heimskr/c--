@@ -18,6 +18,8 @@ BISONFLAGS      := --color=always
 SOURCES         := $(shell find src/**/*.cpp src/*.cpp) $(LEXERCPP) $(PARSERCPP)
 OBJECTS         := $(SOURCES:.cpp=.o)
 
+CLOC_OPTIONS    := --exclude-dir=.vscode --not-match-f='^(flex|bison)'
+
 .PHONY: all test clean
 
 all: $(OUTPUT)
@@ -48,6 +50,12 @@ $(PARSERCPP:.cpp=.o): $(PARSERCPP) $(PARSERHDR)
 
 clean:
 	rm -f $(LEXERCPP) $(PARSERCPP) $(PARSERHDR) src/*.o src/**/*.o $(OUTPUT) src/bison.output
+
+count:
+	cloc . $(CLOC_OPTIONS)
+
+countbf:
+	cloc --by-file . $(CLOC_OPTIONS)
 
 DEPFILE  = .dep
 DEPTOKEN = "\# MAKEDEPENDS"
