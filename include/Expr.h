@@ -5,7 +5,9 @@
 #include <string>
 #include <vector>
 
+#include "Errors.h"
 #include "Function.h"
+#include "Type.h"
 #include "Util.h"
 #include "Variable.h"
 
@@ -58,6 +60,13 @@ struct BinaryExpr: Expr {
 	std::vector<std::string> references() const override {
 		return Util::combine(left? left->references() : std::vector<std::string>(),
 			right? right->references() : std::vector<std::string>());
+	}
+
+	virtual std::unique_ptr<Type> getType() const override {
+		auto left_type = left->getType(), right_type = right->getType();
+		if (!(*left_type && *right_type) || !(*right_type && *left_type))
+			throw ImplicitConversionError(*left_type, *right_type);
+		return left_type;
 	}
 };
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <memory>
 #include <string>
 
 class ASTNode;
@@ -62,3 +63,5 @@ struct PointerType: Type {
 };
 
 Type * getType(const ASTNode &);
+
+using TypePtr = std::shared_ptr<Type>;
