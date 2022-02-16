@@ -30,13 +30,12 @@ Program compileRoot(const ASTNode &root) {
 					throw std::runtime_error("Cannot redefine global " + name);
 				auto type = std::shared_ptr<Type>(getType(*child->at(1)));
 				if (child->size() <= 2)
-					out.globalOrder.push_back(out.globals.try_emplace(name, name,
-						type, nullptr).first);
+					out.globalOrder.push_back(out.globals.try_emplace(name,
+						std::make_shared<Global>(name, type, nullptr)).first);
 				else
-					out.globalOrder.push_back(out.globals.try_emplace(name, name,
-						type,
-						std::shared_ptr<Expr>(Expr::get(*child->at(2), &out.init))).first);
-				out.init.variables.try_emplace(name, name, type, out.init);
+					out.globalOrder.push_back(out.globals.try_emplace(name, std::make_shared<Global>(name, type,
+						std::shared_ptr<Expr>(Expr::get(*child->at(2), &out.init)))).first);
+				out.init.variables.emplace(name, Variable::make(name, type, &out.init));
 				break;
 			}
 			default:
@@ -53,9 +52,9 @@ void Program::compile() {
 	lines.push_back("%data");
 	auto init_scope = std::make_shared<FunctionScope>(init);
 	for (const auto &iter: globalOrder) {
-		const auto &expr = iter->second.value;
+		const auto &expr = iter->second->value;
 		lines.push_back("@" + iter->first);
-		auto size = iter->second.type->getSize();
+		auto size = iter->second->type->getSize();
 		if (expr) {
 			auto value = expr->evaluate();
 			if (value && size == 1) {

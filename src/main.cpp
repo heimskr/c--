@@ -27,9 +27,9 @@ int main(int argc, char **argv) {
 	Program program = compileRoot(*cmmParser.root);
 
 	for (const auto &iter: program.globalOrder) {
-		std::cerr << "\e[1m" << iter->first << "\e[22;2m:\e[22;36m " << std::string(*iter->second.type) << "\e[39m";
-		if (iter->second.value)
-			std::cerr << " \e[2m=\e[22m " << std::string(*iter->second.value);
+		std::cerr << "\e[1m" << iter->first << "\e[22;2m:\e[22;36m " << std::string(*iter->second->type) << "\e[39m";
+		if (iter->second->value)
+			std::cerr << " \e[2m=\e[22m " << std::string(*iter->second->value);
 		std::cerr << "\e[2m;\e[22m\n";
 	}
 

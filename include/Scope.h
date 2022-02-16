@@ -8,6 +8,7 @@
 #include "Variable.h"
 
 class Function;
+struct Program;
 
 struct Scope {
 	virtual ~Scope() {}
@@ -30,6 +31,12 @@ struct BasicScope: Scope {
 struct FunctionScope: Scope {
 	Function &function;
 	FunctionScope(Function &function_): function(function_) {}
+	VariablePtr lookup(const std::string &) const override;
+};
+
+struct GlobalScope: Scope {
+	Program &program;
+	GlobalScope(Program &program_): program(program_) {}
 	VariablePtr lookup(const std::string &) const override;
 };
 

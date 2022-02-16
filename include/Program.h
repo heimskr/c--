@@ -11,8 +11,8 @@
 class ASTNode;
 
 struct Program {
-	std::map<std::string, Global> globals;
-	std::vector<std::map<std::string, Global>::iterator> globalOrder;
+	std::map<std::string, GlobalPtr> globals;
+	std::vector<decltype(globals)::iterator> globalOrder;
 	std::map<std::string, Signature> signatures;
 	std::map<std::string, Function> functions;
 	std::vector<std::string> lines;

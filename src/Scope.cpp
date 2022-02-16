@@ -1,4 +1,5 @@
 #include "Function.h"
+#include "Program.h"
 #include "Scope.h"
 
 VariablePtr EmptyScope::lookup(const std::string &) const {
@@ -14,7 +15,13 @@ VariablePtr BasicScope::lookup(const std::string &name) const {
 VariablePtr FunctionScope::lookup(const std::string &name) const {
 	if (function.variables.count(name) == 0)
 		return nullptr;
-	return function.variables.at(name).shared_from_this();
+	return function.variables.at(name);
+}
+
+VariablePtr GlobalScope::lookup(const std::string &name) const {
+	if (program.globals.count(name) == 0)
+		return nullptr;
+	return program.globals.at(name);
 }
 
 VariablePtr MultiScope::lookup(const std::string &name) const {

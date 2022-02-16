@@ -3,15 +3,17 @@
 #include <memory>
 #include <string>
 
+#include "Variable.h"
+
 class ASTNode;
 struct Expr;
 struct Type;
 
-struct Global {
-	std::string name;
-	std::shared_ptr<Type> type;
+struct Global: Variable {
 	std::shared_ptr<Expr> value;
 
 	Global(const std::string &name_, std::shared_ptr<Type> type_, std::shared_ptr<Expr> value_):
-		name(name_), type(type_), value(value_) {}
+		Variable(name_, type_, nullptr), value(value_) {}
 };
+
+using GlobalPtr = std::shared_ptr<Global>;

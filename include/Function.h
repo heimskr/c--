@@ -19,7 +19,7 @@ class Function {
 		std::string name = "???";
 		std::vector<std::shared_ptr<CmmInstruction>> cmm;
 		std::vector<std::shared_ptr<WhyInstruction>> why;
-		std::map<std::string, Variable> variables;
+		std::map<std::string, VariablePtr> variables;
 
 		const ASTNode *source = nullptr;
 		int nextVariable = 0;
