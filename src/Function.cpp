@@ -11,22 +11,12 @@
 Function::Function(Program &program_, const ASTNode *source_):
 program(program_), source(source_),
 selfScope(MultiScope::make(GlobalScope::make(program), FunctionScope::make(*this))) {
-	if (source) {
+	if (source)
 		name = *source->at(0)->lexerInfo;
-		for (const ASTNode *child: *source->at(3)) {
-			if (child->symbol == CMMTOK_COLON) {
-				const std::string &var_name = *child->at(0)->lexerInfo;
-				if (variables.count(var_name) != 0)
-					throw std::runtime_error("Cannot redefine variable " + var_name + " in function " + name);
-				variables.insert({var_name,
-					Variable::make(var_name, TypePtr(Type::get(*child->at(1))), this)});
-			}
-		}
-	}
+	scopes.emplace(source, selfScope);
 }
 
 std::vector<std::string> Function::stringify() {
-	// std::vector<std::string> out {std::to_string(cmm.size()) + ", " + std::to_string(why.size())};
 	std::vector<std::string> out;
 	for (const auto &instruction: why)
 		for (const std::string &line: std::vector<std::string>(*instruction))
@@ -56,7 +46,7 @@ void Function::compile() {
 		} else
 			throw std::runtime_error("Functions with greater than " + std::to_string(Why::argumentCount) + " arguments "
 				"are currently unsupported.");
-		if (variables.count(argument_name) != 0)
+		if (selfScope->lookup(argument_name))
 			throw NameConflictError(argument_name);
 		variables.emplace(argument_name, argument);
 		++i;
@@ -65,10 +55,23 @@ void Function::compile() {
 	for (const ASTNode *child: *source->at(3)) {
 		switch (child->symbol) {
 			case CMMTOK_COLON: {
+				const std::string &var_name = *child->front()->lexerInfo;
+				if (selfScope->lookup(var_name))
+					throw NameConflictError(var_name, child->front()->location);
+				VariablePtr variable = Variable::make(var_name, TypePtr(Type::get(*child->at(1))), this);
+				variables.emplace(var_name, variable);
+				addToStack(variable);
+				// if (
+				// child->debug();
+				if (child->size() == 3) {
+					ExprPtr expr = ExprPtr(Expr::get(*child->at(2), this));
+					expr->compile(variable, *this, selfScope);
+				}
 				break;
 			}
 			default:
-				child->debug();
+				// child->debug();
+				break;
 		}
 	}
 }
@@ -81,4 +84,11 @@ VregPtr Function::precolored(int reg) {
 	auto out = std::make_shared<VirtualRegister>(*this);
 	out->reg = reg;
 	return out;
+}
+
+void Function::addToStack(VariablePtr variable) {
+	if (stackOffsets.count(variable) != 0)
+		throw std::runtime_error("Variable already on the stack in function " + name + ": " + variable->name);
+	stackOffsets.emplace(variable, stackUsage);
+	stackUsage += variable->type->getSize();
 }

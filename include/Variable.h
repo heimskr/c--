@@ -30,6 +30,8 @@ struct Variable: VirtualRegister, Makeable<Variable> {
 	size_t getSize() const {
 		return type->getSize();
 	}
+
+	operator std::string() const;
 };
 
 using VregPtr = std::shared_ptr<VirtualRegister>;

@@ -98,7 +98,7 @@ void MinusExpr::compile(VregPtr destination, Function &function, ScopePtr scope,
 		right->compile(right_var, function, scope);
 	}
 
-	function.why.emplace_back(new AddRInstruction(left_var, right_var, destination));
+	function.why.emplace_back(new SubRInstruction(left_var, right_var, destination));
 }
 
 void MultExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {

@@ -72,13 +72,13 @@ CMM_SLCOMMENT	("//"[^\n]*)
 "fn"			{RTOKEN(FN)}
 "return"		{RTOKEN(RETURN)}
 "."				{RTOKEN(PERIOD)}
-"i8"			{RTOKEN(S8)}
+"s8"			{RTOKEN(S8)}
 "u8"			{RTOKEN(U8)}
-"i16"			{RTOKEN(S16)}
+"s16"			{RTOKEN(S16)}
 "u16"			{RTOKEN(U16)}
-"i32"			{RTOKEN(S32)}
+"s32"			{RTOKEN(S32)}
 "u32"			{RTOKEN(U32)}
-"i64"			{RTOKEN(S64)}
+"s64"			{RTOKEN(S64)}
 "u64"			{RTOKEN(U64)}
 "bool"			{RTOKEN(BOOL)}
 "void"			{RTOKEN(VOID)}

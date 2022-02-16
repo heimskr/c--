@@ -66,6 +66,20 @@ struct AddIInstruction: IType {
 	}
 };
 
+struct SubRInstruction: RType {
+	using RType::RType;
+	operator std::vector<std::string>() const override {
+		return {leftSource->regOrID() + " - " + rightSource->regOrID() + " -> " + destination->regOrID()};
+	}
+};
+
+struct SubIInstruction: IType {
+	using IType::IType;
+	operator std::vector<std::string>() const override {
+		return {source->regOrID() + " - " + stringify(imm) + " -> " + destination->regOrID()};
+	}
+};
+
 struct MultRInstruction: RType {
 	using RType::RType;
 	operator std::vector<std::string>() const override {
@@ -128,9 +142,23 @@ struct StackPushInstruction: WhyInstruction, HasSource {
 	}
 };
 
-struct StackPopInstruction: WhyInstruction, HasSource {
-	using HasSource::HasSource;
+struct StackPopInstruction: WhyInstruction, HasDestination {
+	using HasDestination::HasDestination;
 	operator std::vector<std::string>() const override {
-		return {"] " + source->regOrID()};
+		return {"] " + destination->regOrID()};
+	}
+};
+
+struct SizedStackPushInstruction: IType {
+	SizedStackPushInstruction(VregPtr source_, const Immediate &imm_): IType(source_, nullptr, imm_) {}
+	operator std::vector<std::string>() const override {
+		return {"[:" + stringify(imm) + " " + source->regOrID()};
+	}
+};
+
+struct SizedStackPopInstruction: IType {
+	SizedStackPopInstruction(VregPtr destination_, const Immediate &imm_): IType(nullptr, destination_, imm_) {}
+	operator std::vector<std::string>() const override {
+		return {"]:" + stringify(imm) + " " + destination->regOrID()};
 	}
 };

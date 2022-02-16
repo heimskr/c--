@@ -4,6 +4,8 @@
 #include <stdexcept>
 #include <string>
 
+#include "ASTNode.h"
+
 class Function;
 struct Scope;
 struct Type;
@@ -40,6 +42,9 @@ struct NotPointerError: std::runtime_error {
 
 struct NameConflictError: std::runtime_error {
 	std::string name;
-	NameConflictError(const std::string &name_):
-		std::runtime_error("Name collision encountered: " + name_), name(name_) {}
+	ASTLocation location;
+	NameConflictError(const std::string &name_, const ASTLocation &location_ = {0, 0}):
+		std::runtime_error("Name collision encountered" + (location_.line? " at " + std::string(location_): "") + ": " +
+			name_), name(name_),
+		location(location_) {}
 };

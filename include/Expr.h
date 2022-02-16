@@ -33,7 +33,7 @@ struct Expr {
 	/** Returns a vector of all variable names referenced by the expression or its children. */
 	virtual std::vector<std::string> references() const { return {}; }
 	/** This function both performs type checking and returns a type. */
-	virtual std::unique_ptr<Type> getType(ScopePtr) const { return nullptr; }
+	virtual std::unique_ptr<Type> getType(ScopePtr) const = 0;
 	static Expr * get(const ASTNode &, Function * = nullptr);
 };
 
@@ -137,6 +137,8 @@ struct NumberExpr: AtomicExpr {
 	ssize_t getValue() const override { return value; }
 	std::optional<ssize_t> evaluate() const override { return getValue(); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
+	// TODO: support unsigned literals and literals of other widths
+	std::unique_ptr<Type> getType(ScopePtr) const override { return std::make_unique<SignedType>(64); }
 };
 
 struct BoolExpr: AtomicExpr {
@@ -146,6 +148,7 @@ struct BoolExpr: AtomicExpr {
 	ssize_t getValue() const override { return value? 1 : 0; }
 	std::optional<ssize_t> evaluate() const override { return getValue(); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
+	std::unique_ptr<Type> getType(ScopePtr) const override { return std::make_unique<BoolType>(); }
 };
 
 struct VariableExpr: Expr {

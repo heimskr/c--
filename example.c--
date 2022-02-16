@@ -3,28 +3,28 @@
 #orcid "0000-0001-7405-6654"
 #version "1.0"
 
-n: i32 = 38 + 5;
+n: s64 = 38 + 5;
 empty: bool;
-dependent: i32 = n * 2;
-global_addr: i32* = &dependent;
+dependent: s64 = n * 2;
+global_addr: s64* = &dependent;
 
-fn triple_and_add(in: i32, addend: i32): i32 {
+fn triple_and_add(in: s64, addend: s64): s64 {
 	return in << 1 + in + addend;
 }
 
 fn main(): void {
 	// Functions whose names are "$" followed by a type are built-in print functions.
-	val: i32 = n - 1;
-	wow: i32;
-	$i32(val);
+	val: s64 = n - 1;
+	wow: s64;
+	$s64(val);
 	$s(" * 3 + 10 = ");
-	$i32(triple_and_add(val, 10));
+	$s64(triple_and_add(val, 10));
 	$c('\n');
 	return 0;
 }
 
 fn ptr_test(): void {
-	ptr: i32* = &n;
+	ptr: s64* = &n;
 	vptr: void* = ptr;
 	$ptr(vptr);
 }
