@@ -94,6 +94,12 @@ size_t VariableExpr::getSize(ScopePtr scope) const {
 	throw ResolutionError(name, scope);
 }
 
+std::unique_ptr<Type> VariableExpr::getType(ScopePtr scope) const {
+	if (VariablePtr var = scope->lookup(name))
+		return std::unique_ptr<Type>(var->type->copy());
+	throw ResolutionError(name, scope);
+}
+
 void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr scope) const {
 	if (auto *var_exp = dynamic_cast<VariableExpr *>(subexpr.get())) {
 		if (auto var = scope->lookup(var_exp->name)) {
@@ -108,6 +114,18 @@ void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr sc
 		throw LvalueError(*subexpr);
 }
 
+std::unique_ptr<Type> AddressOfExpr::getType(ScopePtr scope) const {
+	if (auto *var_exp = dynamic_cast<VariableExpr *>(subexpr.get())) {
+		auto subtype = var_exp->getType(scope);
+		return std::make_unique<PointerType>(subtype->copy());
+	} else
+		throw LvalueError(*subexpr);
+}
+
 void StringExpr::compile(VregPtr destination, Function &function, ScopePtr) const {
 	function.why.emplace_back(new SetIInstruction(destination, std::to_string(function.program.getStringID(contents))));
+}
+
+std::unique_ptr<Type> StringExpr::getType(ScopePtr) const {
+	return std::make_unique<PointerType>(new UnsignedType(1));
 }

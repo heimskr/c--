@@ -33,7 +33,7 @@ struct Expr {
 	/** Returns a vector of all variable names referenced by the expression or its children. */
 	virtual std::vector<std::string> references() const { return {}; }
 	/** This function both performs type checking and returns a type. */
-	virtual std::unique_ptr<Type> getType() const { return nullptr; }
+	virtual std::unique_ptr<Type> getType(ScopePtr) const { return nullptr; }
 	static Expr * get(const ASTNode &, Function * = nullptr);
 };
 
@@ -62,8 +62,8 @@ struct BinaryExpr: Expr {
 			right? right->references() : std::vector<std::string>());
 	}
 
-	virtual std::unique_ptr<Type> getType() const override {
-		auto left_type = left->getType(), right_type = right->getType();
+	virtual std::unique_ptr<Type> getType(ScopePtr scope) const override {
+		auto left_type = left->getType(scope), right_type = right->getType(scope);
 		if (!(*left_type && *right_type) || !(*right_type && *left_type))
 			throw ImplicitConversionError(*left_type, *right_type);
 		return left_type;
@@ -130,6 +130,7 @@ struct VariableExpr: Expr {
 	operator std::string() const override { return name; }
 	size_t getSize(ScopePtr) const override;
 	std::vector<std::string> references() const override { return {name}; }
+	std::unique_ptr<Type> getType(ScopePtr) const override;
 };
 
 struct AddressOfExpr: Expr {
@@ -139,7 +140,9 @@ struct AddressOfExpr: Expr {
 	void compile(VregPtr, Function &, ScopePtr) const override;
 	operator std::string() const override { return "&" + std::string(*subexpr); }
 	size_t getSize(ScopePtr) const override { return 8; }
+	std::unique_ptr<Type> getType(ScopePtr) const override;
 	std::vector<std::string> references() const override { return subexpr->references(); }
+
 };
 
 struct StringExpr: Expr {
@@ -148,4 +151,5 @@ struct StringExpr: Expr {
 	void compile(VregPtr, Function &, ScopePtr) const override;
 	operator std::string() const override { return "\"" + Util::escape(contents) + "\""; }
 	size_t getSize(ScopePtr) const override { return 8; }
+	std::unique_ptr<Type> getType(ScopePtr) const override;
 };
