@@ -140,5 +140,4 @@ class Function {
 		void debug() const;
 
 		Graph & makeCFG();
-		// void walkCFG(size_t walks = 1, unsigned seed = 0, size_t inner_limit = 1000);
 };
