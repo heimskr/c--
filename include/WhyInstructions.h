@@ -7,10 +7,20 @@
 #include "Variable.h"
 #include "Why.h"
 
-struct WhyInstruction: Instruction, Checkable {
+struct WhyInstruction: Instruction, Checkable, std::enable_shared_from_this<WhyInstruction> {
 	virtual std::vector<VregPtr> getRead() { return {}; }
 	virtual std::vector<VregPtr> getWritten() { return {}; }
 	virtual bool isTerminal() const { return false; }
+
+	template <typename T>
+	std::shared_ptr<T> ptrcast() {
+		return std::dynamic_pointer_cast<T>(shared_from_this());
+	}
+
+	template <typename T>
+	std::shared_ptr<const T> ptrcast() const {
+		return std::dynamic_pointer_cast<const T>(shared_from_this());
+	}
 };
 
 struct HasDestination {

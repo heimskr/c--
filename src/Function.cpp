@@ -205,25 +205,54 @@ std::vector<BasicBlockPtr> Function::extractBlocks(std::map<std::string, BasicBl
 
 	BasicBlockPtr current = BasicBlock::make(name);
 	bool waiting = false;
+	bool at_first = true;
+	bool label_found = false;
 	int anons = 0;
 
+	std::vector<std::pair<std::string, std::string>> extra_connections;
+
 	for (const auto &instruction: why) {
+		std::cerr << "\e[33m" << instruction->joined() << "\e[39m\n";
 		if (waiting) {
-			if (auto label = std::dynamic_pointer_cast<Label>(instruction))
+			if (auto label = instruction->ptrcast<Label>())
 				current = BasicBlock::make(label->name);
 			else
 				current = BasicBlock::make("." + name + ".anon." + std::to_string(anons++));
+			std::cerr << "Waiting! " << current->label << '\n';
 			waiting = false;
+		} else
+			std::cerr << "\e[2mNot waiting.\e[22m\n";
+
+		const bool is_label = instruction->is<Label>();
+
+		if (is_label) {
+			const auto &label = instruction->ptrcast<Label>();
+			std::cerr << "Wow, found " << label->name << " (" << label_found << ")\n";
+			if (label_found) {
+				extra_connections.emplace_back(current->label, label->name);
+				out.push_back(current);
+				map.emplace(current->label, current);
+				current = BasicBlock::make(label->name);
+				*current += label;
+				at_first = true;
+				label_found = false;
+				continue;
+			}
+			label_found = true;
 		}
+
 		*current += instruction;
+
 		if (instruction->isTerminal()) {
 			out.push_back(current);
 			map.emplace(current->label, current);
-			waiting = true;
-		}
+			at_first = waiting = true;
+			label_found = false;
+		} else
+			at_first = false;
 	}
 
-	if (*current) {
+	if (*current && map.count(current->label) == 0) {
 		out.push_back(current);
 		map.emplace(current->label, current);
 	}
