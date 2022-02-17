@@ -1,4 +1,5 @@
 #include "Function.h"
+#include "Type.h"
 #include "Variable.h"
 #include "Why.h"
 
@@ -10,6 +11,10 @@ std::string VirtualRegister::regOrID() const {
 
 Variable::Variable(const std::string &name_, std::shared_ptr<Type> type_, Function *function_):
 	VirtualRegister(function_? function_->nextVariable++ : -1), function(function_), name(name_), type(type_) {}
+
+size_t Variable::getSize() const {
+	return type->getSize();
+}
 
 Variable::operator std::string() const {
 	return name + ": " + std::string(*type);

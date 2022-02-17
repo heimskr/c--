@@ -7,6 +7,7 @@
 #include "Makeable.h"
 #include "WeakSet.h"
 
+struct VirtualRegister;
 struct WhyInstruction;
 
 struct BasicBlock: Makeable<BasicBlock> {
@@ -19,6 +20,11 @@ struct BasicBlock: Makeable<BasicBlock> {
 		return *this;
 	}
 	operator bool() const { return !instructions.empty(); }
+	/** Returns a set of all variables (excluding globals and register-allocated/precolored) referenced in the block. */
+	std::set<std::shared_ptr<VirtualRegister>> gatherVariables() const;
+	/** Returns the number of unique variables (excluding globals and register-allocated/precolored) referenced in the
+	 *  block. */
+	size_t countVariables() const;
 };
 
 using BasicBlockPtr = std::shared_ptr<BasicBlock>;

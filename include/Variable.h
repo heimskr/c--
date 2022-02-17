@@ -9,7 +9,7 @@
 class Function;
 struct Type;
 
-struct VirtualRegister {
+struct VirtualRegister: Checkable {
 	int id;
 	int reg = -1;
 
@@ -19,7 +19,7 @@ struct VirtualRegister {
 	std::string regOrID() const;
 };
 
-struct Variable: VirtualRegister, Makeable<Variable>, Checkable {
+struct Variable: VirtualRegister, Makeable<Variable> {
 	Function *function;
 	std::string name;
 	std::shared_ptr<Type> type;
@@ -28,10 +28,7 @@ struct Variable: VirtualRegister, Makeable<Variable>, Checkable {
 
 	virtual ~Variable() {}
 
-	size_t getSize() const {
-		return type->getSize();
-	}
-
+	size_t getSize() const;
 	operator std::string() const;
 };
 

@@ -25,7 +25,6 @@ fn main(argc: u32): void {
 	return 0;
 }
 
-
 fn ptr_test(): void {
 	ptr: s64* = &n;
 	vptr: void* = ptr;

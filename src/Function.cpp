@@ -88,7 +88,7 @@ void Function::compile() {
 			for (const auto &succ: block->successors)
 				std::cerr << ' ' << succ.lock()->label;
 		}
-		std::cerr << "\e[0m\n";
+		std::cerr << "\e[0m (" << block->countVariables() << ")\n";
 		for (const auto &instruction: block->instructions)
 			for (const std::string &str: std::vector<std::string>(*instruction))
 				std::cerr << "\t\e[1m" << str << "\e[0m\n";
@@ -202,17 +202,6 @@ void Function::compile(const ASTNode &node) {
 			break;
 	}
 }
-
-// std::set<VregPtr> Function::gatherVariables() const {
-// 	std::set<VregPtr> out;
-// 	for (const auto &instruction: why) {
-// 		for (const auto &read: instruction->getRead())
-// 			out.insert(read);
-// 		for (const auto &written: instruction->getWritten())
-// 			out.insert(written);
-// 	}
-// 	return out;
-// }
 
 std::vector<BasicBlockPtr> Function::extractBlocks(std::map<std::string, BasicBlockPtr> *map_out) {
 	std::map<std::string, BasicBlockPtr> map;

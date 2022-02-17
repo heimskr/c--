@@ -48,7 +48,6 @@ class Function {
 		std::shared_ptr<Scope> newScope(int *id_out = nullptr);
 		VregPtr precolored(int reg);
 		size_t addToStack(VariablePtr);
-		// std::set<VregPtr> gatherVariables() const;
 		std::vector<BasicBlockPtr> extractBlocks(std::map<std::string, BasicBlockPtr> * = nullptr);
 
 		bool isBuiltin() const { return !name.empty() && name.front() == '.'; }
