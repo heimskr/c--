@@ -1,5 +1,7 @@
 #pragma once
 
+#include <csignal>
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -53,4 +55,24 @@ namespace Util {
 				return false;
 		return true;
 	}
+}
+
+inline std::ostream & warn(bool cout = false) {
+	return (cout? std::cout : std::cerr) << "\e[2m[\e[22;33m!\e[39;2m]\e[22;33m Warning: \e[39m";
+}
+
+inline std::ostream & error(bool cout = false) {
+	return (cout? std::cout : std::cerr) << "\e[2m[\e[22;31m!\e[39;2m]\e[22;31m Error: \e[39m";
+}
+
+inline std::ostream & info(bool cout = false) {
+	return (cout? std::cout : std::cerr) << "\e[2m[\e[22;36mi\e[39;2m]\e[22m ";
+}
+
+inline std::ostream & success(bool cout = false) {
+	return (cout? std::cout : std::cerr) << "\e[2m[\e[22;32m🗸\e[39;2m]\e[22m ";
+}
+
+inline void debugger() {
+	raise(SIGTRAP);
 }

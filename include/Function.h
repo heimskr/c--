@@ -44,19 +44,34 @@ class Function {
 		Function(Program &, const ASTNode *);
 
 		std::vector<std::string> stringify();
+
 		void compile();
+
 		VregPtr newVar();
+
 		std::shared_ptr<Scope> newScope(int *id_out = nullptr);
+
 		VregPtr precolored(int reg);
+
 		size_t addToStack(VariablePtr);
+
 		std::list<BasicBlockPtr> & extractBlocks(std::map<std::string, BasicBlockPtr> * = nullptr);
+
 		void relinearize(const std::list<BasicBlockPtr> &);
+
 		void relinearize();
+
 		/** If any blocks have more unique variables than the number of temporary registers supported by the ISA, this
 		 *  function will split the blocks until all blocks can fit their variables in temporary registers. Returns
 		 *  whether any blocks were split. */
 		bool split(std::map<std::string, BasicBlockPtr> * = nullptr);
+
 		void computeLiveness();
+
+		/** Tries to spill a variable. Returns true if any instructions were inserted. */
+		bool spill(VregPtr, bool doDebug = false);
+
+		bool canSpill(VariablePtr);
 
 		bool isBuiltin() const { return !name.empty() && name.front() == '.'; }
 
