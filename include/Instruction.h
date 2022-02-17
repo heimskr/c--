@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 
 #include "Util.h"
@@ -13,3 +14,5 @@ struct Instruction {
 	}
 	virtual std::vector<std::string> colored() const { return std::vector<std::string>(*this); }
 };
+
+using InstructionPtr = std::shared_ptr<Instruction>;

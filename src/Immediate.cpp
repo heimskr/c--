@@ -19,3 +19,7 @@ std::string stringify(const Immediate &imm, bool colored) {
 	const std::string &str = std::get<std::string>(imm);
 	return colored? "\e[38;5;202m" + str + "\e[39m" : str;
 }
+
+bool operator==(const Immediate &imm, const std::string &str) {
+	return std::holds_alternative<std::string>(imm) && std::get<std::string>(imm) == str;
+}

@@ -1,9 +1,77 @@
 #include "CFG.h"
 #include "Function.h"
+#include "Util.h"
+#include "WhyInstructions.h"
 
 Graph makeCFG(Function &function) {
 	Graph cfg;
-	
+	cfg.name = "CFG for " + function.name;
+
+	// First pass: add all the nodes.
+	for (BasicBlockPtr &block: function.blocks) {
+		const std::string &label = block->label;
+		cfg += label;
+		Node &node = cfg[label];
+		node.data = std::weak_ptr<BasicBlock>(block);
+		block->node = &node;
+	}
+
+	cfg += "exit";
+
+	bool exit_linked = false;
+
+	// Second pass: connect all the nodes.
+	for (BasicBlockPtr &block: function.blocks) {
+		const std::string &label = block->label;
+		for (const auto &weak_pred: block->predecessors) {
+			auto pred = weak_pred.lock();
+			if (!pred)
+				throw std::runtime_error("Couldn't lock predecessor of " + label);
+			if (cfg.hasLabel(pred->label)) {
+				cfg.link(pred->label, label);
+			} else {
+				warn() << "Predicate \e[1m" << pred->label << "\e[22m doesn't correspond to any CFG node in "
+							"function \e[1m" << function.name << "\e[22m\n";
+				for (const auto &pair: cfg)
+					std::cerr << "- " << pair.first << '\n';
+			}
+		}
+
+		if (!block->instructions.empty()) {
+			auto &back = block->instructions.back();
+			// if (back->isTerminal()) {
+			// 	cfg.link(*label, "exit");
+			// 	exit_linked = true;
+			// } else
+			if (auto *jump = back->cast<JumpInstruction>()) {
+				if (jump->imm == label) {
+					// The block unconditionally branches to itself, meaning it's an infinite loop.
+					// Let's pretend for the sake of the DTree algorithms that it's connected to the exit.
+					cfg.link(label, "exit");
+					exit_linked = true;
+				}
+			}
+		}
+	}
+
+	if (!exit_linked)
+		// Sometimes there's an infinite loop without a block unconditionally branching to itself. The CFG might
+		// look like ([Start, A, B, C, Exit] : [Start -> A, A -> B, B -> C, C -> A]). In this case, we just pretend
+		// that the final block links to the exit node.
+		cfg.link(function.blocks.back()->label, "exit");
+
+	// try {
+	// 	function.dTree.emplace(cfg, cfg[0]);
+	// } catch (std::exception &err) {
+	// 	error() << "Constructing DTree failed in function " << *function.name << " for start node "
+	// 	        << cfg[0].label() << ": " << err.what() << std::endl;
+	// 	cfg.renderTo("cfg_error.png");
+	// 	throw;
+	// }
+	// function.dTree->name = "DTree";
+	// function.djGraph.emplace(cfg, cfg[0]);
+	// function.djGraph->name = "DJ Graph";
+	// walkCFG(function, cfg, 1000, 0, 1000);
 	return cfg;
 }
 

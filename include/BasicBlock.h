@@ -8,6 +8,7 @@
 #include "Makeable.h"
 #include "WeakSet.h"
 
+class Node;
 struct VirtualRegister;
 struct WhyInstruction;
 
@@ -16,6 +17,7 @@ struct BasicBlock: Makeable<BasicBlock> {
 	std::list<std::shared_ptr<WhyInstruction>> instructions;
 	WeakSet<BasicBlock> predecessors, successors;
 	std::set<std::shared_ptr<VirtualRegister>> liveIn, liveOut, readCache, writtenCache;
+	Node *node = nullptr;
 	// size_t estimatedExecutions = 0;
 
 	BasicBlock(const std::string &label_): label(label_) {}
