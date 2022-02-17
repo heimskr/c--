@@ -19,7 +19,7 @@ struct WhyInstruction;
 
 class Function {
 	private:
-		int nextBlock = 0;
+		int nextBlock = 0, anons = 0;
 		void compile(const ASTNode &);
 
 	public:
@@ -32,7 +32,7 @@ class Function {
 		 *  prologue. */
 		std::map<VariablePtr, size_t> stackOffsets;
 		std::map<int, std::shared_ptr<Scope>> scopes;
-		std::vector<BasicBlockPtr> blocks;
+		std::list<BasicBlockPtr> blocks;
 
 		TypePtr returnType;
 		std::vector<std::string> arguments;
@@ -49,9 +49,13 @@ class Function {
 		std::shared_ptr<Scope> newScope(int *id_out = nullptr);
 		VregPtr precolored(int reg);
 		size_t addToStack(VariablePtr);
-		std::vector<BasicBlockPtr> & extractBlocks(std::map<std::string, BasicBlockPtr> * = nullptr);
-		void relinearize(const std::vector<BasicBlockPtr> &);
+		std::list<BasicBlockPtr> & extractBlocks(std::map<std::string, BasicBlockPtr> * = nullptr);
+		void relinearize(const std::list<BasicBlockPtr> &);
 		void relinearize();
+		/** If any blocks have more unique variables than the number of temporary registers supported by the ISA, this
+		 *  function will split the blocks until all blocks can fit their variables in temporary registers. Returns
+		 *  whether any blocks were split. */
+		bool split(std::map<std::string, BasicBlockPtr> * = nullptr);
 
 		bool isBuiltin() const { return !name.empty() && name.front() == '.'; }
 

@@ -74,7 +74,8 @@ void Function::compile() {
 
 	std::cerr << "<BasicBlocks>\n";
 	std::map<std::string, BasicBlockPtr> block_map;
-	auto blocks = extractBlocks(&block_map);
+	extractBlocks(&block_map);
+	std::cerr << "Split: " << split(&block_map) << '\n';
 	std::cerr << "Names:"; for (const auto &[name, block]: block_map) std::cerr << ' ' << name; std::cerr << '\n';
 	for (const auto &block: blocks) {
 		std::cerr << "\e[1;32m@" << block->label;
@@ -95,6 +96,7 @@ void Function::compile() {
 		std::cerr << '\n';
 	}
 	std::cerr << "</BasicBlocks>\n";
+
 }
 
 VregPtr Function::newVar() {
@@ -203,15 +205,15 @@ void Function::compile(const ASTNode &node) {
 	}
 }
 
-std::vector<BasicBlockPtr> & Function::extractBlocks(std::map<std::string, BasicBlockPtr> *map_out) {
+std::list<BasicBlockPtr> & Function::extractBlocks(std::map<std::string, BasicBlockPtr> *map_out) {
 	std::map<std::string, BasicBlockPtr> map;
 	blocks.clear();
+	anons = 0;
 
 	BasicBlockPtr current = BasicBlock::make(name);
 	bool waiting = false;
 	bool at_first = true;
 	bool label_found = false;
-	int anons = 0;
 
 	std::vector<std::pair<std::string, std::string>> extra_connections;
 
@@ -290,7 +292,7 @@ std::vector<BasicBlockPtr> & Function::extractBlocks(std::map<std::string, Basic
 	return blocks;
 }
 
-void Function::relinearize(const std::vector<BasicBlockPtr> &block_vec) {
+void Function::relinearize(const std::list<BasicBlockPtr> &block_vec) {
 	why.clear();
 	for (const auto &block: block_vec)
 		for (const auto &instruction: block->instructions)
@@ -299,6 +301,35 @@ void Function::relinearize(const std::vector<BasicBlockPtr> &block_vec) {
 
 void Function::relinearize() {
 	relinearize(blocks);
+}
+
+bool Function::split(std::map<std::string, BasicBlockPtr> *map) {
+	bool changed, any_split = false;
+	do {
+		changed = false;
+		for (auto iter = blocks.begin(), end = blocks.end(); iter != end; ++iter) {
+			auto &block = *iter;
+			if (Why::generalPurposeRegisters < block->countVariables()) {
+				// It would be better to split at the point where the unique variable count begins to exceed the
+				// maximum, but it's probably more efficient to simply split in the middle.
+				BasicBlockPtr new_block = BasicBlock::make("." + name + ".anon." + std::to_string(anons++));
+
+				for (size_t i = 0, to_remove = block->instructions.size() / 2; i < to_remove; ++i) {
+					new_block->instructions.push_front(block->instructions.back());
+					block->instructions.pop_back();
+				}
+
+				if (map)
+					map->emplace(new_block->label, new_block);
+
+				blocks.insert(++iter, new_block);
+				changed = any_split = true;
+				break;
+			}
+		}
+	} while (changed);
+
+	return any_split;
 }
 
 void Function::addComment(const std::string &comment) {
