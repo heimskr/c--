@@ -212,22 +212,18 @@ std::vector<BasicBlockPtr> Function::extractBlocks(std::map<std::string, BasicBl
 	std::vector<std::pair<std::string, std::string>> extra_connections;
 
 	for (const auto &instruction: why) {
-		std::cerr << "\e[33m" << instruction->joined() << "\e[39m\n";
 		if (waiting) {
 			if (auto label = instruction->ptrcast<Label>())
 				current = BasicBlock::make(label->name);
 			else
 				current = BasicBlock::make("." + name + ".anon." + std::to_string(anons++));
-			std::cerr << "Waiting! " << current->label << '\n';
 			waiting = false;
-		} else
-			std::cerr << "\e[2mNot waiting.\e[22m\n";
+		}
 
 		const bool is_label = instruction->is<Label>();
 
 		if (is_label) {
 			const auto &label = instruction->ptrcast<Label>();
-			std::cerr << "Wow, found " << label->name << " (" << label_found << ")\n";
 			if (label_found) {
 				extra_connections.emplace_back(current->label, label->name);
 				out.push_back(current);
