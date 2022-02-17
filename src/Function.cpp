@@ -22,7 +22,7 @@ selfScope(MultiScope::make(GlobalScope::make(program), FunctionScope::make(*this
 
 std::vector<std::string> Function::stringify() {
 	std::vector<std::string> out;
-	for (const auto &instruction: why)
+	for (const auto &instruction: instructions)
 		// for (const std::string &line: std::vector<std::string>(*instruction))
 		for (const std::string &line: instruction->colored())
 			out.push_back(line);
@@ -225,7 +225,7 @@ std::list<BasicBlockPtr> & Function::extractBlocks(std::map<std::string, BasicBl
 
 	std::vector<std::pair<std::string, std::string>> extra_connections;
 
-	for (const auto &instruction: why) {
+	for (const auto &instruction: instructions) {
 		if (waiting) {
 			if (auto label = instruction->ptrcast<Label>())
 				current = BasicBlock::make(label->name);
@@ -303,14 +303,23 @@ std::list<BasicBlockPtr> & Function::extractBlocks(std::map<std::string, BasicBl
 }
 
 void Function::relinearize(const std::list<BasicBlockPtr> &block_vec) {
-	why.clear();
+	instructions.clear();
+	int last_index = -1;
 	for (const auto &block: block_vec)
-		for (const auto &instruction: block->instructions)
-			why.push_back(instruction);
+		for (auto &instruction: block->instructions) {
+			instructions.push_back(instruction);
+			instruction->index = ++last_index;
+		}
 }
 
 void Function::relinearize() {
 	relinearize(blocks);
+}
+
+void Function::reindex() {
+	int last_index = -1;
+	for (auto &instruction: instructions)
+		instruction->index = ++last_index;
 }
 
 int Function::split(std::map<std::string, BasicBlockPtr> *map) {
@@ -355,6 +364,7 @@ int Function::split(std::map<std::string, BasicBlockPtr> *map) {
 		int last_index = -1;
 		for (auto &block: blocks)
 			block->index = ++last_index;
+		relinearize();
 	}
 
 	return count;
@@ -406,139 +416,145 @@ void Function::computeLiveness() {
 	}
 }
 
-// bool Function::spill(VregPtr variable, bool doDebug) {
-// 	bool out = false;
-// 	// Right after the definition of the variable to be spilled, store its value onto the stack in the proper
-// 	// location. For each use of the original variable, replace the original variable with a new variable, and right
-// 	// before the use insert a definition for the variable by loading it from the stack.
-// 	if (variable->definitions.empty()) {
-// 		debug();
-// 		variable->debug();
-// 		throw std::runtime_error("Can't spill variable: no definitions");
-// 	}
+bool Function::spill(VregPtr variable, bool doDebug) {
+	// Right after the definition of the variable to be spilled, store its value onto the stack in the proper
+	// location. For each use of the original variable, replace the original variable with a new variable, and right
+	// before the use insert a definition for the variable by loading it from the stack.
 
-// 	const StackLocation &location = getSpill(variable, true);
+	if (variable->writers.empty()) {
+		// debug();
+		// variable->debug();
+		throw std::runtime_error("Can't spill variable " + variable->regOrID() + " in function " + name +
+			": no definitions");
+	}
 
-// 	for (std::weak_ptr<Instruction> weak_definition: variable->definitions) {
-// 		InstructionPtr definition = weak_definition.lock();
-// 		// Because ϕ-instructions are eventually removed after aliasing the variables, they don't count as a real
-// 		// definition here.
-// 		if (definition->isPhi())
-// 			continue;
-// #ifdef DEBUG_SPILL
-// 		std::cerr << "  Trying to spill " << *variable << " (definition: " << definition->debugExtra() << " at "
-// 					<< definition->index << ", OID: " << variable->originalID << ")\n";
-// #endif
-// 		auto store = std::make_shared<StackStoreInstruction>(location, variable);
-// 		auto next = after(definition);
-// 		bool should_insert = true;
+	bool out = false;
+	const size_t location = getSpill(variable, true);
 
-// 		// Skip comments.
-// 		while (next && dynamic_cast<Comment *>(next.get()) != nullptr)
-// 			next = after(next);
+	for (std::weak_ptr<WhyInstruction> weak_definition: variable->writers) {
+		WhyPtr definition = weak_definition.lock();
+#ifdef DEBUG_SPILL
+		std::cerr << "  Trying to spill " << *variable << " (definition: " << definition->debugExtra() << " at "
+		          << definition->index << ", OID: " << variable->originalID << ")\n";
+#endif
+		auto store = std::make_shared<StackStoreInstruction>(variable, int(location));
+		auto next = after(definition);
+		bool should_insert = true;
 
-// 		if (next) {
-// 			auto other_store = std::dynamic_pointer_cast<StackStoreInstruction>(next);
-// 			if (other_store && *other_store == *store) {
-// 				should_insert = false;
-// #ifdef DEBUG_SPILL
-// 				std::cerr << "    A stack store already exists: " << next->debugExtra() << "\n";
-// #endif
-// 			}
-// 		}
+		// Skip comments.
+		while (next && dynamic_cast<Comment *>(next.get()) != nullptr)
+			next = after(next);
 
-// 		if (should_insert) {
-// 			insertAfter(definition, store, false);
-// 			insertBefore(store, std::make_shared<Comment>("Spill: stack store for " + variable->plainString() +
-// 				" into location=" + std::to_string(location.offset)));
-// 			VariablePtr new_var = mx(6, definition);
-// 			definition->replaceWritten(variable, new_var);
-// 			store->variable = new_var;
-// 			store->extract();
-// 			out = true;
-// #ifdef DEBUG_SPILL
-// 			std::cerr << "    Inserting a stack store after definition: " << store->debugExtra() << "\n";
-// #endif
-// 		} else {
-// 			comment(after(definition), "Spill: no store inserted here for " + variable->plainString());
-// #ifdef DEBUG_SPILL
-// 			std::cerr << "    \e[1mNot\e[22m inserting a stack store after definition: " << store->debugExtra()
-// 						<< "\n";
-// #endif
-// 		}
-// 	}
+		if (next) {
+			auto other_store = std::dynamic_pointer_cast<StackStoreInstruction>(next);
+			if (other_store && *other_store == *store) {
+				should_insert = false;
+#ifdef DEBUG_SPILL
+				std::cerr << "    A stack store already exists: " << next->debugExtra() << "\n";
+#endif
+			}
+		}
 
-// #ifdef DEBUG_SPILL
-// 	if (!out)
-// 		std::cerr << "  No stores inserted for " << *variable << ".\n";
-// #endif
+		if (should_insert) {
+			insertAfter(definition, store, false);
+			insertBefore(store, std::make_shared<Comment>("Spill: stack store for " + variable->regOrID() +
+				" into location=" + std::to_string(location)));
+			VregPtr new_var = mx(6, definition);
+			definition->replaceWritten(variable, new_var);
+			store->setSource(new_var);
+			out = true;
+#ifdef DEBUG_SPILL
+			std::cerr << "    Inserting a stack store after definition: " << store->debugExtra() << "\n";
+#endif
+		} else {
+			addComment(after(definition), "Spill: no store inserted here for " + variable->regOrID());
+#ifdef DEBUG_SPILL
+			std::cerr << "    \e[1mNot\e[22m inserting a stack store after definition: " << store->debugExtra()
+			          << "\n";
+#endif
+		}
+	}
 
-// 	if (doDebug)
-// 		debug();
+#ifdef DEBUG_SPILL
+	if (!out)
+		std::cerr << "  No stores inserted for " << *variable << ".\n";
+#endif
 
-// 	for (auto iter = linearInstructions.begin(), end = linearInstructions.end(); iter != end; ++iter) {
-// 		InstructionPtr &instruction = *iter;
-// #ifdef STRICT_READ_CHECK
-// 		if (std::shared_ptr<Variable> read = instruction->doesRead(variable)) {
-// #else
-// 		if (instruction->read.count(variable) != 0) {
-// #endif
-// 			VariablePtr new_var = newVariable(variable->type, instruction->parent.lock());
-// 			const std::string old_extra = instruction->debugExtra();
-// #ifdef STRICT_READ_CHECK
-// 			const bool replaced = instruction->replaceRead(read, new_var);
-// #else
-// 			const bool replaced = instruction->replaceRead(variable, new_var);
-// #endif
-// #ifdef DEBUG_SPILL
-// 			BasicBlockPtr par = instruction->parent.lock();
-// 			std::cerr << "    Creating new variable: " << *new_var << "\n";
-// 			std::cerr << "    " << (replaced? "Replaced" : "Didn't replace")
-// 						<< " in " << old_extra;
-// 			if (par)
-// 				std::cerr << " in block " << *par->label;
-// 			if (replaced)
-// 				std::cerr << " (now " << instruction->debugExtra() << ")";
-// 			std::cerr << "\n";
-// #endif
-// 			if (replaced) {
-// #ifdef STRICT_READ_CHECK
-// 				instruction->read.erase(read);
-// #else
-// 				instruction->read.erase(variable);
-// #endif
-// 				instruction->read.insert(new_var);
-// 				auto load = std::make_shared<StackLoadInstruction>(new_var, location, -1);
-// 				insertBefore(instruction, load, "Spill: stack load: location=" + std::to_string(location.offset));
-// 				load->extract();
-// 				out = true;
-// #ifdef DEBUG_SPILL
-// 			std::cerr << "      Inserting a stack load before " << instruction->debugExtra() << ": "
-// 						<< load->debugExtra() << "\n";
-// #endif
-// 				markSpilled(new_var);
-// 			} else {
-// #ifdef DEBUG_SPILL
-// 				std::cerr << "      Removing variable " << *new_var << "\n";
-// #endif
-// 				variableStore.erase(new_var->id);
-// 			}
-// 		}
-// 	}
-// #ifdef DEBUG_SPILL
-// 	std::cerr << "\n";
-// #endif
+	// if (doDebug)
+	// 	debug();
 
-// 	// TODO: can some of this be targeted to just the spilled variable?
-// 	reindexInstructions();
-// 	resetLiveness();
-// 	for (BasicBlockPtr &block: blocks)
-// 		block->extract(true);
-// 	extractVariables(true); // Reset stale use/define data.
-// 	computeLiveness();
-// 	markSpilled(variable);
-// 	return out;
-// }
+	for (auto iter = instructions.begin(), end = instructions.end(); iter != end; ++iter) {
+		WhyPtr &instruction = *iter;
+		if (instruction->doesRead(variable)) {
+			VregPtr new_vreg = newVar();
+#ifdef DEBUG_SPILL
+			const std::string old_extra = instruction->joined(true, "; ");
+#endif
+			const bool replaced = instruction->replaceRead(variable, new_vreg);
+#ifdef DEBUG_SPILL
+			BasicBlockPtr par = instruction->parent.lock();
+			std::cerr << "    Creating new variable: " << *new_var << "\n"
+			          << "    " << (replaced? "Replaced" : "Didn't replace")
+			          << " in " << old_extra;
+			if (par)
+				std::cerr << " in block " << *par->label;
+			if (replaced)
+				std::cerr << " (now " << instruction->debugExtra() << ")";
+			std::cerr << '\n';
+#endif
+			if (replaced) {
+				auto load = std::make_shared<StackLoadInstruction>(new_vreg, location, -1);
+				insertBefore(instruction, load);
+				addComment(load, "Spill: stack load: location=" + std::to_string(location));
+				out = true;
+#ifdef DEBUG_SPILL
+			std::cerr << "      Inserting a stack load before " << *instruction << ": "
+			          << load->debugExtra() << "\n";
+#endif
+				markSpilled(new_vreg);
+			} else {
+#ifdef DEBUG_SPILL
+				std::cerr << "      Removing variable " << *new_vreg << "\n";
+#endif
+				virtualRegisters.erase(new_vreg);
+			}
+		}
+	}
+#ifdef DEBUG_SPILL
+	std::cerr << "\n";
+#endif
+
+	// TODO: can some of this be targeted to just the spilled variable?
+	// reindexInstructions();
+	// resetLiveness();
+	// for (BasicBlockPtr &block: blocks)
+	// 	block->extract(true);
+	// extractVariables(true); // Reset stale use/define data.
+
+	computeLiveness();
+	markSpilled(variable);
+	return out;
+}
+
+size_t Function::getSpill(VregPtr variable, bool create, bool *created) {
+	if (created)
+		*created = false;
+	if (spillLocations.count(variable) != 0)
+		return spillLocations.at(variable);
+	if (create) {
+		if (created)
+			*created = true;
+		// return addToStack(variable, StackLocation::Purpose::Spill);
+		const size_t out = spillLocations[variable] = stackUsage;
+		stackUsage += Why::wordSize;
+		return out;
+	}
+	throw std::out_of_range("Couldn't find a spill location for " + variable->regOrID());
+}
+
+void Function::markSpilled(VregPtr vreg) {
+	spilledVregs.insert(vreg);
+}
 
 std::set<std::shared_ptr<BasicBlock>> Function::getLive(VregPtr var,
 std::function<std::set<VregPtr> &(const std::shared_ptr<BasicBlock> &)> getter) const {
@@ -561,10 +577,147 @@ std::set<std::shared_ptr<BasicBlock>> Function::getLiveOut(VregPtr var) const {
 	});
 }
 
+void Function::updateVregs() {
+	for (auto &var: virtualRegisters) {
+		var->readingBlocks.clear();
+		var->writingBlocks.clear();
+		var->readers.clear();
+		var->writers.clear();
+	}
+
+	for (const auto &block: blocks)
+		for (const auto &instruction: block->instructions) {
+			for (auto &var: instruction->getRead()) {
+				var->readingBlocks.insert(block);
+				var->readers.insert(instruction);
+			}
+			for (auto &var: instruction->getWritten()) {
+				var->writingBlocks.insert(block);
+				var->writers.insert(instruction);
+			}
+		}
+}
+
+WhyPtr Function::after(WhyPtr instruction) {
+	auto iter = std::find(instructions.begin(), instructions.end(), instruction);
+	return ++iter == instructions.end()? nullptr : *iter;
+}
+
+WhyPtr Function::insertAfter(WhyPtr base, WhyPtr new_instruction, bool reindex) {
+	BasicBlockPtr block = base->parent.lock();
+	if (!block) {
+		std::cerr << "\e[31;1m!\e[0m " << base->joined(true, "; ") << '\n';
+		throw std::runtime_error("Couldn't lock instruction's parent block");
+	}
+
+	// if (new_instruction->debugIndex == -1)
+	// 	new_instruction->debugIndex = base->debugIndex;
+
+	if (reindex)
+		// There used to be a + 1 here, but I removed it because I believe it gets incremented in the loop shortly
+		// before the end of this function anyway.
+		new_instruction->index = base->index;
+	new_instruction->parent = base->parent;
+	std::list<WhyPtr>::iterator iter;
+
+	if (base == instructions.back()) {
+		instructions.push_back(new_instruction);
+		block->instructions.push_back(new_instruction);
+	} else {
+		if (base == block->instructions.back()) {
+			block->instructions.push_back(new_instruction);
+		} else {
+			iter = std::find(block->instructions.begin(), block->instructions.end(), base);
+			++iter;
+			block->instructions.insert(iter, new_instruction);
+		}
+
+		iter = std::find(instructions.begin(), instructions.end(), base);
+		++iter;
+		instructions.insert(iter, new_instruction);
+
+		if (reindex) {
+			for (auto end = instructions.end(); iter != end; ++iter)
+				++(*iter)->index;
+		}
+	}
+
+	return new_instruction;
+}
+
+WhyPtr Function::insertBefore(WhyPtr base, WhyPtr new_instruction, bool reindex,
+										bool linear_warn, bool *should_relinearize_out) {
+	BasicBlockPtr block = base->parent.lock();
+	if (!block) {
+		error() << base->debugExtra() << "\n";
+		throw std::runtime_error("Couldn't lock instruction's parent block");
+	}
+
+	if (block->parent != this)
+		throw std::runtime_error("Block parent isn't equal to this in Function::insertBefore");
+
+	if (new_instruction->debugIndex == -1)
+		new_instruction->debugIndex = base->debugIndex;
+
+	new_instruction->parent = base->parent;
+
+	auto linearIter = std::find(instructions.begin(), instructions.end(), base);
+	if (linear_warn && linearIter == instructions.end()) {
+		warn() << "Couldn't find instruction in instructions in " << *name << ": " << base->debugExtra()
+				<< '\n';
+		throw std::runtime_error("youch");
+	}
+	auto blockIter = std::find(block->instructions.begin(), block->instructions.end(), base);
+	if (blockIter == block->instructions.end()) {
+		warn() << "Couldn't find instruction in block " << *block->label << " of function " << *name << ": "
+				<< base->debugExtra() << '\n';
+		std::cerr << "Index: " << block->index << '\n';
+		for (const auto &subblock: blocks)
+			std::cerr << *subblock->label << '[' << subblock->index << "] ";
+		std::cerr << '\n';
+		for (const auto &block_instruction: block->instructions)
+			std::cerr << "    " << block_instruction->debugExtra() << '\n';
+		throw std::runtime_error("Instruction not found in block");
+	}
+
+	const bool can_insert_linear = linearIter != instructions.end();
+	if (can_insert_linear) {
+		instructions.insert(linearIter, new_instruction);
+		if (should_relinearize_out)
+			*should_relinearize_out = false;
+	} else if (should_relinearize_out)
+		*should_relinearize_out = true;
+
+	block->instructions.insert(blockIter, new_instruction);
+
+	if (reindex && can_insert_linear) {
+		new_instruction->index = base->index;
+		for (auto end = instructions.end(); linearIter != end; ++linearIter)
+			++(*linearIter)->index;
+	}
+
+	return new_instruction;
+}
+
 void Function::addComment(const std::string &comment) {
 	add<Comment>(comment);
 }
 
-VregPtr Function::mx(int n) {
-	return precolored(Why::assemblerOffset + n);
+void Function::addComment(WhyPtr base, const std::string &comment) {
+	insertBefore(base, Comment::make(comment));
+}
+
+VregPtr Function::mx(int n, BasicBlockPtr writer) {
+	auto out = precolored(Why::assemblerOffset + n);
+	if (writer)
+		out->writingBlocks.insert(writer);
+	return out;
+}
+
+VregPtr Function::mx(int n, InstructionPtr writer) {
+	return mx(n, writer->parent.lock());
+}
+
+VregPtr Function::mx(InstructionPtr writer) {
+	return mx(0, writer->parent.lock());
 }

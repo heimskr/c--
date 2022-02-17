@@ -103,40 +103,10 @@ ColoringAllocator::Result ColoringAllocator::attempt() {
 		std::cerr << '\n';
 #endif
 		if (ptr->reg == -1)
-			ptr->reg == *pair.second->colors.begin();
+			ptr->reg = *pair.second->colors.begin();
 	}
 
 	return Result::Success;
-}
-
-VregPtr ColoringAllocator::selectHighestDegree(int *degree_out) const {
-	const Node *highest_node = nullptr;
-	int highest = -1;
-	// std::cerr << "Avoid["; for (const std::string &s: triedLabels) std::cerr << " " << s; std::cerr << " ]\n";
-	for (const Node *node: interference.nodes()) {
-		const int degree = node->degree();
-		// if (highest < degree && triedLabels.count(node->label()) == 0) {
-		// if (highest < degree && function.canSpill(node->get<VregPtr>())) {
-		if (highest < degree && triedLabels.count(node->label()) == 0
-				&& function.canSpill(node->get<VregPtr>())) {
-			highest_node = node;
-			highest = degree;
-		}
-	}
-
-	if (!highest_node)
-		throw NoChoiceError("Couldn't find node with highest degree out of " +
-			std::to_string(interference.nodes().size()) + " node(s)");
-
-	std::vector<const Node *> all_highest;
-	for (const Node *node: interference.nodes())
-		if (node->degree() == static_cast<size_t>(highest))
-			all_highest.push_back(node);
-
-	if (degree_out)
-		*degree_out = highest;
-
-	return highest_node->get<VregPtr>();
 }
 
 VregPtr ColoringAllocator::selectMostLive(int *liveness_out) const {
@@ -147,7 +117,7 @@ VregPtr ColoringAllocator::selectMostLive(int *liveness_out) const {
 		if (Why::isSpecialPurpose(var->reg) || !function.canSpill(var))
 			continue;
 		const int sum = function.getLiveIn(var).size() + function.getLiveOut(var).size();
-		if (highest < sum && triedIDs.count(var->originalID) == 0) {
+		if (highest < sum && triedIDs.count(var->id) == 0) {
 			highest = sum;
 			ptr = var;
 		}
@@ -162,34 +132,9 @@ VregPtr ColoringAllocator::selectMostLive(int *liveness_out) const {
 		*liveness_out = highest;
 
 	if (!function.canSpill(ptr))
-		warn() << "Impossibility detected: can't spill " << *ptr << "\n";
+		warn() << "Impossibility detected: can't spill " << ptr->regOrID(true) << "\n";
 
 	return ptr;
-}
-
-VregPtr ColoringAllocator::selectChaitin() const {
-	VregPtr out;
-	long lowest = LONG_MAX;
-	for (const Node *node: interference.nodes()) {
-		VregPtr var = node->get<VregPtr>();
-		if (var->allRegistersSpecial() || !function.canSpill(var))
-			continue;
-		var->clearSpillCost();
-		const int cost = var->spillCost();
-		if (cost == INT_MAX)
-			continue;
-		const int degree = node->degree();
-		const long chaitin = cost * 10000L / degree;
-		if (chaitin < lowest) {
-			lowest = chaitin;
-			out = var;
-		}
-	}
-
-	if (!out)
-		throw NoChoiceError("Couldn't select a variable in ColoringAllocator::selectChaitin.");
-
-	return out;
 }
 
 // #undef DEBUG_COLORING
@@ -239,14 +184,14 @@ void ColoringAllocator::makeInterferenceGraph() {
 		const int id = var->id;
 		if (var->reg != -1)
 			continue;
-		for (const std::weak_ptr<BasicBlock> &bptr: var->definingBlocks) {
+		for (const std::weak_ptr<BasicBlock> &bptr: var->writingBlocks) {
 			const auto index = bptr.lock()->index;
 			if (sets[index].count(id) == 0) {
 				vecs[index].push_back(id);
 				sets[index].insert(id);
 			}
 		}
-		for (const std::weak_ptr<BasicBlock> &bptr: var->usingBlocks) {
+		for (const std::weak_ptr<BasicBlock> &bptr: var->readingBlocks) {
 			const auto index = bptr.lock()->index;
 			if (sets[index].count(id) == 0) {
 				vecs[index].push_back(id);

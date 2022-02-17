@@ -25,6 +25,34 @@ struct WhyInstruction: Instruction, Checkable, std::enable_shared_from_this<WhyI
 	std::shared_ptr<const T> ptrcast() const {
 		return std::dynamic_pointer_cast<const T>(shared_from_this());
 	}
+
+	/** Attempts to replace a variable read by the instruction with another variable. Should be overridden by any
+	 *  instruction that reads from a variable. */
+	virtual bool replaceRead(VregPtr, VregPtr) {
+		return false;
+	}
+
+	virtual bool canReplaceRead(VregPtr) const {
+		return false;
+	}
+
+	/** Attempts to replace a variable written by the instruction with another variable. Should be overridden by any
+	 *  instruction that writes to a variable. */
+	virtual bool replaceWritten(VregPtr, VregPtr) {
+		return false;
+	}
+
+	virtual bool canReplaceWritten(VregPtr) const {
+		return false;
+	}
+
+	virtual bool doesRead(VregPtr) const {
+		return false;
+	}
+
+	virtual bool doesWrite(VregPtr) const {
+		return false;
+	}
 };
 
 struct HasDestination {
@@ -49,11 +77,74 @@ struct HasImmediate {
 
 struct TwoRegs: WhyInstruction, HasSource, HasDestination {
 	TwoRegs(VregPtr source_, VregPtr destination_): HasSource(source_), HasDestination(destination_) {}
+
+	bool replaceRead(VregPtr from, VregPtr to) override {
+		if (source != from)
+			return false;
+		source = to;
+		return true;
+	}
+
+	bool canReplaceRead(VregPtr var) const override {
+		return var == source;
+	}
+
+	bool replaceWritten(VregPtr from, VregPtr to) override {
+		if (destination != from)
+			return false;
+		destination = to;
+		return true;
+	}
+
+	bool canReplaceWritten(VregPtr var) const override {
+		return destination == var;
+	}
+
+	bool doesRead(VregPtr var) const override {
+		return source == var;
+	}
+
+	bool doesWrite(VregPtr var) const override {
+		return destination == var;
+	}
 };
 
 struct ThreeRegs: WhyInstruction, HasTwoSources, HasDestination {
 	ThreeRegs(VregPtr left_source, VregPtr right_source, VregPtr destination_):
 		HasTwoSources(left_source, right_source), HasDestination(destination_) {}
+
+	bool replaceRead(VregPtr from, VregPtr to) override {
+		if (leftSource != from && rightSource != from)
+			return false;
+		if (leftSource == from)
+			leftSource = to;
+		if (rightSource == from)
+			rightSource = to;
+		return true;
+	}
+
+	bool canReplaceRead(VregPtr var) const override {
+		return var == leftSource || var == rightSource;
+	}
+
+	bool replaceWritten(VregPtr from, VregPtr to) override {
+		if (destination != from)
+			return false;
+		destination = to;
+		return true;
+	}
+
+	bool canReplaceWritten(VregPtr var) const override {
+		return destination == var;
+	}
+
+	bool doesRead(VregPtr var) const override {
+		return leftSource == var || rightSource == var;
+	}
+
+	bool doesWrite(VregPtr var) const override {
+		return destination == var;
+	}
 };
 
 struct RType: ThreeRegs {
@@ -261,6 +352,68 @@ struct StackPopInstruction: RType {
 	}
 };
 
+struct StackStoreInstruction: RType {
+	int offset;
+	StackStoreInstruction(VregPtr source_, int offset_): RType(source_, nullptr, nullptr), offset(offset_) {}
+	operator std::vector<std::string>() const override {
+		if (offset == 0)
+			return {leftSource->regOrID() + " -> [$fp]"};
+		return {
+			"$fp - " + std::to_string(offset) + " -> $m1",
+			leftSource->regOrID() + " -> [$m1]"
+		};
+	}
+	std::vector<std::string> colored() const override {
+		if (offset == 0)
+			return {
+				leftSource->regOrID() + " \e[2m-> [\e[22m" + Why::coloredRegister(Why::framePointerOffset) +
+					"\e[2m]\e[22m"
+			};
+		return {
+			Why::coloredRegister(Why::framePointerOffset) + o("-") + stringify(offset, true) + o("->") +
+				Why::coloredRegister(Why::assemblerOffset + 1),
+			leftSource->regOrID(true) + " \e[2m-> [\e[22m" + Why::coloredRegister(Why::assemblerOffset + 1) +
+				"\e[2m]\e[22m",
+		};
+	}
+	bool operator==(const StackStoreInstruction &other) const {
+		return leftSource == other.leftSource && offset == other.offset;
+	}
+	StackStoreInstruction & setSource(VregPtr new_source) {
+		leftSource = new_source;
+		return *this;
+	}
+};
+
+struct StackLoadInstruction: RType {
+	int offset;
+	StackLoadInstruction(VregPtr destination_, int offset_): RType(nullptr, nullptr, destination_), offset(offset_) {}
+	operator std::vector<std::string>() const override {
+		if (offset == 0)
+			return {"[$fp] -> " + destination->regOrID()};
+		return {
+			"$fp - " + std::to_string(offset) + " -> $m1",
+			"[$m1] -> " + destination->regOrID()
+		};
+	}
+	std::vector<std::string> colored() const override {
+		if (offset == 0)
+			return {
+				"\e[2m[\e[22m" + Why::coloredRegister(Why::framePointerOffset) + "\e[2m] ->\e[22m " +
+					destination->regOrID(true)
+			};
+		return {
+			Why::coloredRegister(Why::framePointerOffset) + o("-") + stringify(offset, true) + o("->") +
+				Why::coloredRegister(Why::assemblerOffset + 1),
+			"\e[2m[\e[22m" + Why::coloredRegister(Why::assemblerOffset + 1) + "\e[2m] ->\e[22m " +
+				destination->regOrID(true),
+		};
+	}
+	bool operator==(const StackStoreInstruction &other) const {
+		return destination == other.destination && offset == other.offset;
+	}
+};
+
 struct SizedStackPushInstruction: IType {
 	SizedStackPushInstruction(VregPtr source_, const Immediate &imm_): IType(source_, nullptr, imm_) {}
 	operator std::vector<std::string>() const override {
@@ -303,7 +456,7 @@ struct Label: WhyInstruction {
 	}
 };
 
-struct Comment: WhyInstruction {
+struct Comment: WhyInstruction, Makeable<Comment> {
 	std::string comment;
 	Comment(const std::string &comment_): comment(comment_) {}
 	operator std::vector<std::string>() const override {
