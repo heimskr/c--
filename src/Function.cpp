@@ -311,8 +311,9 @@ void Function::relinearize() {
 	relinearize(blocks);
 }
 
-bool Function::split(std::map<std::string, BasicBlockPtr> *map) {
-	bool changed, any_split = false;
+int Function::split(std::map<std::string, BasicBlockPtr> *map) {
+	bool changed;
+	int count = 0;
 	do {
 		changed = false;
 		for (auto iter = blocks.begin(), end = blocks.end(); iter != end; ++iter) {
@@ -341,13 +342,14 @@ bool Function::split(std::map<std::string, BasicBlockPtr> *map) {
 					}
 
 				blocks.insert(++iter, new_block);
-				changed = any_split = true;
+				changed = true;
+				++count;
 				break;
 			}
 		}
 	} while (changed);
 
-	return any_split;
+	return count;
 }
 
 void Function::computeLiveness() {
@@ -357,6 +359,8 @@ void Function::computeLiveness() {
 	for (auto &block: blocks) {
 		goes_to.try_emplace(block->label);
 		block->cacheReadWritten();
+		block->liveIn.clear();
+		block->liveOut.clear();
 		for (auto &other: blocks)
 			if (other->predecessors.count(block) != 0)
 				goes_to[block->label].push_back(other);

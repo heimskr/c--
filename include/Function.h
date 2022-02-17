@@ -40,6 +40,7 @@ class Function {
 		const ASTNode *source = nullptr;
 		int nextVariable = 0;
 		size_t stackUsage = 0;
+		// size_t walkCount = 0;
 		std::shared_ptr<Scope> selfScope;
 
 		Function(Program &, const ASTNode *);
@@ -64,8 +65,8 @@ class Function {
 
 		/** If any blocks have more unique variables than the number of temporary registers supported by the ISA, this
 		 *  function will split the blocks until all blocks can fit their variables in temporary registers. Returns
-		 *  whether any blocks were split. */
-		bool split(std::map<std::string, BasicBlockPtr> * = nullptr);
+		 *  the number of new blocks created. */
+		int split(std::map<std::string, BasicBlockPtr> * = nullptr);
 
 		void computeLiveness();
 
@@ -88,5 +89,4 @@ class Function {
 
 		void addComment(const std::string &);
 		VregPtr mx(int = 0);
-
 };
