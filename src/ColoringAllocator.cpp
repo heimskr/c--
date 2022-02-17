@@ -9,8 +9,6 @@
 #include "WhyInstructions.h"
 #include "Variable.h"
 #include "Errors.h"
-// #include "pass/MakeCFG.h"
-// #include "pass/SplitBlocks.h"
 // #include "util/Timer.h"
 #include "Util.h"
 #include "Why.h"
@@ -47,13 +45,11 @@ ColoringAllocator::Result ColoringAllocator::attempt() {
 		std::cerr << "Can spill: " << std::boolalpha << function.canSpill(to_spill) << "\n";
 #endif
 		triedIDs.insert(to_spill->id);
-		// triedLabels.insert(*to_spill->id);
 #ifdef DEBUG_COLORING
 		info() << "Variable to spill: " << *to_spill << " (ID: " << to_spill->id << ")\n";
 #endif
 		lastSpillAttempt = to_spill;
 		triedIDs.insert(to_spill->id);
-		// triedLabels.insert(*to_spill->id);
 
 		if (function.spill(to_spill)) {
 #ifdef DEBUG_COLORING
@@ -62,18 +58,13 @@ ColoringAllocator::Result ColoringAllocator::attempt() {
 #endif
 			lastSpill = to_spill;
 			++spillCount;
-			// int split = Passes::splitBlocks(*function);
 			int split = function.split();
 			if (0 < split) {
 #ifdef DEBUG_COLORING
 				std::cerr << split << " block" << (split == 1? " was" : "s were") << " split.\n";
 #endif
 				for (BasicBlockPtr &block: function.blocks)
-					// block->extract();
 					block->cacheReadWritten();
-				// Passes::makeCFG(*function);
-				// function.makeCFG();
-				// function.extractVariables(true);
 				function.computeLiveness();
 			}
 #ifdef DEBUG_COLORING
@@ -114,17 +105,8 @@ VregPtr ColoringAllocator::selectMostLive(int *liveness_out) const {
 	VregPtr ptr;
 	int highest = -1;
 	for (const auto &var: function.virtualRegisters) {
-		// if (Why::isSpecialPurpose(var->reg) || !function.canSpill(var))
-		// 	continue;
-		if (Why::isSpecialPurpose(var->reg)) {
-			// std::cerr << "Can't spill " << *var << ": special purpose\n";
+		if (Why::isSpecialPurpose(var->reg) || !function.canSpill(var))
 			continue;
-		}
-
-		if (!function.canSpill(var)) {
-			// std::cerr << "Can't select " << *var << ": can't spill\n";
-			continue;
-		}
 
 		const int sum = function.getLiveIn(var).size() + function.getLiveOut(var).size();
 		if (highest < sum && triedIDs.count(var->id) == 0) {
@@ -137,10 +119,6 @@ VregPtr ColoringAllocator::selectMostLive(int *liveness_out) const {
 		function.debug();
 		throw std::runtime_error("Couldn't select variable with highest liveness");
 	}
-
-	info() << "highest = " << *ptr << ": " << highest << '\n';
-	std::cerr << "In: "; for (const auto &block: function.getLiveIn(ptr)) std::cerr << ' ' << block->label; std::cerr << '\n';
-	std::cerr << "Out:"; for (const auto &block: function.getLiveOut(ptr)) std::cerr << ' ' << block->label; std::cerr << '\n';
 
 	if (liveness_out)
 		*liveness_out = highest;

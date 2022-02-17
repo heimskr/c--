@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "BasicBlock.h"
+#include "Graph.h"
 #include "Type.h"
 #include "Variable.h"
 
@@ -39,6 +40,7 @@ class Function {
 		std::set<VregPtr> spilledVregs;
 		std::map<int, std::shared_ptr<Scope>> scopes;
 		std::list<BasicBlockPtr> blocks;
+		Graph cfg;
 
 		TypePtr returnType;
 		std::vector<std::string> arguments;
@@ -48,6 +50,8 @@ class Function {
 		size_t stackUsage = 0;
 		// size_t walkCount = 0;
 		std::shared_ptr<Scope> selfScope;
+		/** Maps basic blocks to their corresponding CFG nodes. */
+		std::unordered_map<const BasicBlock *, Node *> bbNodeMap;
 
 		Function(Program &, const ASTNode *);
 
@@ -77,6 +81,8 @@ class Function {
 		int split(std::map<std::string, BasicBlockPtr> * = nullptr);
 
 		void computeLiveness();
+
+		void upAndMark(BasicBlockPtr, VregPtr);
 
 		/** Tries to spill a variable. Returns true if any instructions were inserted. */
 		bool spill(VregPtr, bool doDebug = false);
@@ -132,4 +138,7 @@ class Function {
 		VregPtr mx(std::shared_ptr<Instruction> writer);
 
 		void debug() const;
+
+		Graph & makeCFG();
+		// void walkCFG(size_t walks = 1, unsigned seed = 0, size_t inner_limit = 1000);
 };

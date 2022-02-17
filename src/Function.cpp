@@ -84,6 +84,7 @@ void Function::compile() {
 	std::cerr << "Split: " << split(&block_map) << '\n';
 	std::cerr << "Names:"; for (const auto &[name, block]: block_map) std::cerr << ' ' << name; std::cerr << '\n';
 	updateVregs();
+	makeCFG();
 	computeLiveness();
 	ColoringAllocator allocator(*this);
 	//*
@@ -389,46 +390,36 @@ int Function::split(std::map<std::string, BasicBlockPtr> *map) {
 }
 
 void Function::computeLiveness() {
-	// https://www.classes.cs.uchicago.edu/archive/2004/spring/22620-1/docs/liveness.pdf, page 9
-	std::map<std::string, std::set<VregPtr>> in, out, in_, out_;
-
 	for (auto &block: blocks) {
 		block->cacheReadWritten();
-		block->liveIn.clear();
-		block->liveOut.clear();
-		// std::cerr << block->label << "->readCache:   "; for (const auto &ptr: block->readCache) std::cerr << ' ' << ptr->id; std::cerr << '\n';
-		// std::cerr << block->label << "->writtenCache:"; for (const auto &ptr: block->readCache) std::cerr << ' ' << ptr->id; std::cerr << '\n';
+		for (auto vreg: block->readCache)
+			upAndMark(block, vreg);
 	}
+}
 
-	bool working;
-	do {
-		for (const auto &block: blocks) {
-			const auto &n = block->label;
-			in_[n]  = in[n];
-			out_[n] = out[n];
-			in[n] = block->readCache;
-			for (auto &var: out[n])
-				if (block->writtenCache.count(var) == 0)
-					in[n].insert(var);
-			out[n].clear();
-			for (const auto &succ: block->successors)
-				for (const auto &var: in[succ.lock()->label])
-					out[n].insert(var);
+void Function::upAndMark(BasicBlockPtr block, VregPtr vreg) {
+	for (const auto &instruction: block->instructions)
+		if (instruction->doesWrite(vreg))
+			return;
+
+	if (block->liveIn.count(vreg) != 0)
+		return;
+
+	block->liveIn.insert(vreg);
+
+	try {
+		for (const Node *node: bbNodeMap.at(block.get())->in()) {
+			BasicBlockPtr p = node->get<std::weak_ptr<BasicBlock>>().lock();
+			p->liveOut.insert(vreg);
+			upAndMark(p, vreg);
 		}
-
-		working = false;
-		for (const auto &block: blocks) {
-			const auto &n = block->label;
-			if (!(Util::equal(in_[n], in[n]) && Util::equal(out_[n], out[n]))) {
-				working = true;
-				break;
-			}
-		}
-	} while (working);
-
-	for (auto &block: blocks) {
-		block->liveIn = in[block->label];
-		block->liveOut = out[block->label];
+	} catch (std::out_of_range &) {
+		std::cerr << "Couldn't find block " << block->label << ".";
+		for (const auto &pair: bbNodeMap)
+			std::cerr << " " << pair.first->label;
+		std::cerr << "\n";
+		debug();
+		throw;
 	}
 }
 
@@ -836,3 +827,92 @@ void Function::debug() const {
 		std::cerr << "\e[0m\n\n";
 	}
 }
+
+Graph & Function::makeCFG() {
+	cfg.name = "CFG for " + name;
+	bbNodeMap.clear();
+
+	// First pass: add all the nodes.
+	for (BasicBlockPtr &block: blocks) {
+		const std::string &label = block->label;
+		cfg += label;
+		Node &node = cfg[label];
+		node.data = std::weak_ptr<BasicBlock>(block);
+		block->node = &node;
+		bbNodeMap.emplace(block.get(), &node);
+	}
+
+	cfg += "exit";
+
+	bool exit_linked = false;
+
+	// Second pass: connect all the nodes.
+	for (BasicBlockPtr &block: blocks) {
+		const std::string &label = block->label;
+		for (const auto &weak_pred: block->predecessors) {
+			auto pred = weak_pred.lock();
+			if (!pred)
+				throw std::runtime_error("Couldn't lock predecessor of " + label);
+			if (cfg.hasLabel(pred->label)) {
+				cfg.link(pred->label, label);
+			} else {
+				warn() << "Predicate \e[1m" << pred->label << "\e[22m doesn't correspond to any CFG node in "
+							"function \e[1m" << name << "\e[22m\n";
+				for (const auto &pair: cfg)
+					std::cerr << "- " << pair.first << '\n';
+			}
+		}
+
+		if (!block->instructions.empty()) {
+			auto &back = block->instructions.back();
+			// if (back->isTerminal()) {
+			// 	cfg.link(*label, "exit");
+			// 	exit_linked = true;
+			// } else
+			if (auto *jump = back->cast<JumpInstruction>()) {
+				if (jump->imm == label) {
+					// The block unconditionally branches to itself, meaning it's an infinite loop.
+					// Let's pretend for the sake of the DTree algorithms that it's connected to the exit.
+					cfg.link(label, "exit");
+					exit_linked = true;
+				}
+			}
+		}
+	}
+
+	if (!exit_linked)
+		// Sometimes there's an infinite loop without a block unconditionally branching to itself. The CFG might
+		// look like ([Start, A, B, C, Exit] : [Start -> A, A -> B, B -> C, C -> A]). In this case, we just pretend
+		// that the final block links to the exit node.
+		cfg.link(blocks.back()->label, "exit");
+
+	return cfg;
+}
+
+// void walkCFG(Function &function, Graph &cfg, size_t walks = 1, unsigned seed = 0, size_t inner_limit = 1000) {
+// 	srand(seed == 0? time(NULL) : seed);
+
+// 	for (size_t walk = 0; walk < walks; ++walk) {
+// 		Node *node = &cfg[0], *end = &cfg["exit"];
+// 		size_t count = 0;
+// 		// End the walk once we reach the exit or until we've reached the maximum number of moves allowed per walk.
+// 		while (node != end && ++count <= inner_limit) {
+// 			// Increase the estimated execution count of the node we just walked to.
+// 			++node->get<std::weak_ptr<BasicBlock>>().lock()->estimatedExecutions;
+// 			// Check the number of outward edges.
+// 			size_t out_count = node->out().size();
+// 			if (out_count == 0) {
+// 				// If it's somehow zero, the walk is over.
+// 				break;
+// 			} else if (out_count == 1) {
+// 				// If it's just one, simply go to the next node.
+// 				node = *node->out().begin();
+// 			} else {
+// 				// Otherwise, if there are multiple options, choose one randomly.
+// 				node = *std::next(node->out().begin(), rand() % out_count);
+// 			}
+// 		}
+// 	}
+
+// 	function.walkCount += walks;
+// }
