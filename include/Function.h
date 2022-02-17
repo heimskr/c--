@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "BasicBlock.h"
 #include "Type.h"
 #include "Variable.h"
 
@@ -30,7 +31,7 @@ class Function {
 		/** Offsets are relative to the value in the frame pointer right after the stack pointer is written to it in the
 		 *  prologue. */
 		std::map<VariablePtr, size_t> stackOffsets;
-		std::map<const ASTNode *, std::shared_ptr<Scope>> scopes;
+		std::map<int, std::shared_ptr<Scope>> scopes;
 
 		TypePtr returnType;
 		std::vector<std::string> arguments;
@@ -44,9 +45,11 @@ class Function {
 		std::vector<std::string> stringify();
 		void compile();
 		VregPtr newVar();
+		std::shared_ptr<Scope> newScope(int *id_out = nullptr);
 		VregPtr precolored(int reg);
 		void addToStack(VariablePtr);
-		std::set<VregPtr> gatherVariables() const;
+		// std::set<VregPtr> gatherVariables() const;
+		std::vector<BasicBlockPtr> extractBlocks(std::map<std::string, BasicBlockPtr> * = nullptr);
 
 		bool isBuiltin() const { return !name.empty() && name.front() == '.'; }
 
@@ -62,4 +65,5 @@ class Function {
 
 		void addComment(const std::string &);
 		VregPtr mx(int = 0);
+
 };

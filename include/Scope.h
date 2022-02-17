@@ -52,3 +52,10 @@ struct MultiScope: Scope, Makeable<MultiScope> {
 	Function * lookupFunction(const std::string &) const override;
 };
 
+struct BlockScope: Scope, Makeable<BlockScope> {
+	std::map<std::string, VariablePtr> variables;
+	ScopePtr parent;
+	BlockScope(ScopePtr parent_): parent(parent_) {}
+	VariablePtr lookup(const std::string &) const override;
+	Function * lookupFunction(const std::string &) const override;
+};

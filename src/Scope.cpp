@@ -43,3 +43,13 @@ Function * MultiScope::lookupFunction(const std::string &name) const {
 			return function;
 	return nullptr;
 }
+
+VariablePtr BlockScope::lookup(const std::string &name) const {
+	if (variables.count(name) != 0)
+		return variables.at(name);
+	return parent->lookup(name);
+}
+
+Function * BlockScope::lookupFunction(const std::string &name) const {
+	return parent->lookupFunction(name);
+}

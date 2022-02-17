@@ -162,7 +162,7 @@ expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
     | expr "-"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "*"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "/"  expr { $$ = $2->adopt({$1, $3}); }
-    | expr "[" expr "]" { ($$ = $2->adopt({$1, $3}))->symbol = CMM_ACCESS; D($4); }
+    // | expr "[" expr "]" { ($$ = $2->adopt({$1, $3}))->symbol = CMM_ACCESS; D($4); }
     | function_call
     | "(" expr ")" { $$ = $2; D($1, $3); }
     | "!" expr { $$ = $1->adopt($2); }

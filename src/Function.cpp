@@ -17,7 +17,7 @@ selfScope(MultiScope::make(GlobalScope::make(program), FunctionScope::make(*this
 		returnType = TypePtr(Type::get(*source->at(1)));
 	} else
 		returnType = VoidType::make();
-	scopes.emplace(source, selfScope);
+	scopes.emplace(0, selfScope);
 }
 
 std::vector<std::string> Function::stringify() {
@@ -60,6 +60,30 @@ void Function::compile() {
 	for (const ASTNode *child: *source->at(3))
 		compile(*child);
 
+	std::cerr << "<BasicBlocks>\n";
+	std::map<std::string, BasicBlockPtr> block_map;
+	auto blocks = extractBlocks(&block_map);
+	std::cerr << "Names:"; for (const auto &[name, block]: block_map) std::cerr << ' ' << name; std::cerr << '\n';
+	for (const auto &block: blocks) {
+		std::cerr << "\e[1;32m@" << block->label;
+		if (!block->predecessors.empty()) {
+			std::cerr << " <-";
+			for (const auto &pred: block->predecessors)
+				std::cerr << ' ' << pred.lock()->label;
+		}
+		if (!block->successors.empty()) {
+			std::cerr << " ->";
+			for (const auto &succ: block->successors)
+				std::cerr << ' ' << succ.lock()->label;
+		}
+		std::cerr << "\e[0m\n";
+		for (const auto &instruction: block->instructions)
+			for (const std::string &str: std::vector<std::string>(*instruction))
+				std::cerr << "\t\e[1m" << str << "\e[0m\n";
+		std::cerr << '\n';
+	}
+	std::cerr << "</BasicBlocks>\n";
+
 	auto fp = precolored(Why::framePointerOffset), rt = precolored(Why::returnAddressOffset);
 	auto sp = precolored(Why::stackPointerOffset);
 	addFront<MoveInstruction>(sp, fp);
@@ -75,6 +99,15 @@ void Function::compile() {
 
 VregPtr Function::newVar() {
 	return std::make_shared<VirtualRegister>(*this);
+}
+
+ScopePtr Function::newScope(int *id_out) {
+	const int new_id = ++nextBlock;
+	auto new_scope = std::make_shared<BlockScope>(selfScope);
+	scopes.try_emplace(new_id, new_scope);
+	if (id_out)
+		*id_out = new_id;
+	return new_scope;
 }
 
 VregPtr Function::precolored(int reg) {
@@ -155,14 +188,65 @@ void Function::compile(const ASTNode &node) {
 	}
 }
 
-std::set<VregPtr> Function::gatherVariables() const {
-	std::set<VregPtr> out;
+// std::set<VregPtr> Function::gatherVariables() const {
+// 	std::set<VregPtr> out;
+// 	for (const auto &instruction: why) {
+// 		for (const auto &read: instruction->getRead())
+// 			out.insert(read);
+// 		for (const auto &written: instruction->getWritten())
+// 			out.insert(written);
+// 	}
+// 	return out;
+// }
+
+std::vector<BasicBlockPtr> Function::extractBlocks(std::map<std::string, BasicBlockPtr> *map_out) {
+	std::map<std::string, BasicBlockPtr> map;
+	std::vector<BasicBlockPtr> out;
+
+	BasicBlockPtr current = BasicBlock::make(name);
+	bool waiting = false;
+	int anons = 0;
+
 	for (const auto &instruction: why) {
-		for (const auto &read: instruction->getRead())
-			out.insert(read);
-		for (const auto &written: instruction->getWritten())
-			out.insert(written);
+		if (waiting) {
+			if (auto label = std::dynamic_pointer_cast<Label>(instruction))
+				current = BasicBlock::make(label->name);
+			else
+				current = BasicBlock::make("." + name + ".anon." + std::to_string(anons++));
+			waiting = false;
+		}
+		*current += instruction;
+		if (instruction->isTerminal()) {
+			out.push_back(current);
+			map.emplace(current->label, current);
+			waiting = true;
+		}
 	}
+
+	if (*current) {
+		out.push_back(current);
+		map.emplace(current->label, current);
+	}
+
+	for (const auto &block: out) {
+		if (!*block)
+			continue;
+		const auto last = block->instructions.back();
+		if (auto *jtype = last->cast<JType>()) {
+			if (std::holds_alternative<std::string>(jtype->imm)) {
+				const std::string &target_name = std::get<std::string>(jtype->imm);
+				if (map.count(target_name) != 0) {
+					auto &target = map.at(target_name);
+					target->predecessors.insert(block);
+					block->successors.insert(target);
+				}
+			}
+		}
+	}
+
+	if (map_out)
+		*map_out = std::move(map);
+
 	return out;
 }
 

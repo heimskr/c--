@@ -18,7 +18,7 @@ BISONFLAGS      := --color=always
 SOURCES         := $(shell find src/**/*.cpp src/*.cpp) $(LEXERCPP) $(PARSERCPP)
 OBJECTS         := $(SOURCES:.cpp=.o)
 
-CLOC_OPTIONS    := --exclude-dir=.vscode --not-match-f='^(flex|bison)'
+CLOC_OPTIONS    := --exclude-dir=.vscode,fixed_string --not-match-f='^(flex|bison|fixed_string)'
 
 .PHONY: all test clean
 

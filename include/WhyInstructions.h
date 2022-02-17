@@ -1,14 +1,16 @@
 #pragma once
 
+#include "Checkable.h"
 #include "fixed_string.h"
 #include "Immediate.h"
 #include "Instruction.h"
 #include "Variable.h"
 #include "Why.h"
 
-struct WhyInstruction: Instruction {
+struct WhyInstruction: Instruction, Checkable {
 	virtual std::vector<VregPtr> getRead() { return {}; }
 	virtual std::vector<VregPtr> getWritten() { return {}; }
+	virtual bool isTerminal() const { return false; }
 };
 
 struct HasDestination {
@@ -81,6 +83,7 @@ struct JType: WhyInstruction, HasSource, HasImmediate {
 			return {source};
 		return {};
 	}
+	bool isTerminal() const override { return !link; }
 };
 
 struct MoveInstruction: RType {
@@ -231,6 +234,7 @@ struct JumpRegisterInstruction: RType {
 	operator std::vector<std::string>() const override {
 		return {std::string(link? "::" : ":") + " " + leftSource->regOrID()};
 	}
+	bool isTerminal() const override { return !link; }
 };
 
 struct JumpRegisterConditionalInstruction: RType {
@@ -240,6 +244,7 @@ struct JumpRegisterConditionalInstruction: RType {
 	operator std::vector<std::string>() const override {
 		return {std::string(link? "::" : ":") + " " + leftSource->regOrID() + " if " + rightSource->regOrID()};
 	}
+	bool isTerminal() const override { return !link; }
 };
 
 struct JumpConditionalInstruction: JType {
