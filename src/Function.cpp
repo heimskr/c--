@@ -203,9 +203,9 @@ void Function::compile(const ASTNode &node) {
 	}
 }
 
-std::vector<BasicBlockPtr> Function::extractBlocks(std::map<std::string, BasicBlockPtr> *map_out) {
+std::vector<BasicBlockPtr> & Function::extractBlocks(std::map<std::string, BasicBlockPtr> *map_out) {
 	std::map<std::string, BasicBlockPtr> map;
-	std::vector<BasicBlockPtr> out;
+	blocks.clear();
 
 	BasicBlockPtr current = BasicBlock::make(name);
 	bool waiting = false;
@@ -230,7 +230,7 @@ std::vector<BasicBlockPtr> Function::extractBlocks(std::map<std::string, BasicBl
 			const auto &label = instruction->ptrcast<Label>();
 			if (label_found) {
 				extra_connections.emplace_back(current->label, label->name);
-				out.push_back(current);
+				blocks.push_back(current);
 				map.emplace(current->label, current);
 				current = BasicBlock::make(label->name);
 				*current += label;
@@ -244,7 +244,7 @@ std::vector<BasicBlockPtr> Function::extractBlocks(std::map<std::string, BasicBl
 		*current += instruction;
 
 		if (instruction->isTerminal()) {
-			out.push_back(current);
+			blocks.push_back(current);
 			map.emplace(current->label, current);
 			at_first = waiting = true;
 			label_found = false;
@@ -253,11 +253,11 @@ std::vector<BasicBlockPtr> Function::extractBlocks(std::map<std::string, BasicBl
 	}
 
 	if (*current && map.count(current->label) == 0) {
-		out.push_back(current);
+		blocks.push_back(current);
 		map.emplace(current->label, current);
 	}
 
-	for (const auto &block: out) {
+	for (const auto &block: blocks) {
 		if (!*block)
 			continue;
 		const auto last = block->instructions.back();
@@ -287,7 +287,18 @@ std::vector<BasicBlockPtr> Function::extractBlocks(std::map<std::string, BasicBl
 	if (map_out)
 		*map_out = std::move(map);
 
-	return out;
+	return blocks;
+}
+
+void Function::relinearize(const std::vector<BasicBlockPtr> &block_vec) {
+	why.clear();
+	for (const auto &block: block_vec)
+		for (const auto &instruction: block->instructions)
+			why.push_back(instruction);
+}
+
+void Function::relinearize() {
+	relinearize(blocks);
 }
 
 void Function::addComment(const std::string &comment) {

@@ -32,6 +32,7 @@ class Function {
 		 *  prologue. */
 		std::map<VariablePtr, size_t> stackOffsets;
 		std::map<int, std::shared_ptr<Scope>> scopes;
+		std::vector<BasicBlockPtr> blocks;
 
 		TypePtr returnType;
 		std::vector<std::string> arguments;
@@ -48,7 +49,9 @@ class Function {
 		std::shared_ptr<Scope> newScope(int *id_out = nullptr);
 		VregPtr precolored(int reg);
 		size_t addToStack(VariablePtr);
-		std::vector<BasicBlockPtr> extractBlocks(std::map<std::string, BasicBlockPtr> * = nullptr);
+		std::vector<BasicBlockPtr> & extractBlocks(std::map<std::string, BasicBlockPtr> * = nullptr);
+		void relinearize(const std::vector<BasicBlockPtr> &);
+		void relinearize();
 
 		bool isBuiltin() const { return !name.empty() && name.front() == '.'; }
 
