@@ -140,7 +140,7 @@ void Program::compile() {
 
 	for (auto &[name, function]: functions) {
 		lines.push_back("");
-		lines.push_back("@" + function.name);
+		lines.push_back("\e[36m@\e[38;5;202m" + function.name + "\e[39m");
 		for (const std::string &line: function.stringify())
 			lines.push_back("\t" + line);
 	}

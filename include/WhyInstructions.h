@@ -7,6 +7,10 @@
 #include "Variable.h"
 #include "Why.h"
 
+static inline std::string o(const std::string &str) {
+	return " \e[2m" + str + "\e[22m ";
+}
+
 struct WhyInstruction: Instruction, Checkable, std::enable_shared_from_this<WhyInstruction> {
 	virtual std::vector<VregPtr> getRead() { return {}; }
 	virtual std::vector<VregPtr> getWritten() { return {}; }
@@ -100,12 +104,18 @@ struct MoveInstruction: RType {
 	operator std::vector<std::string>() const override {
 		return {leftSource->regOrID() + " -> " + destination->regOrID()};
 	}
+	std::vector<std::string> colored() const override {
+		return {leftSource->regOrID(true) + o("->") + destination->regOrID(true)};
+	}
 };
 
 struct AddRInstruction: RType {
 	using RType::RType;
 	operator std::vector<std::string>() const override {
 		return {leftSource->regOrID() + " + " + rightSource->regOrID() + " -> " + destination->regOrID()};
+	}
+	std::vector<std::string> colored() const override {
+		return {leftSource->regOrID(true) + o("+") + rightSource->regOrID(true) + o("->") + destination->regOrID(true)};
 	}
 };
 
@@ -114,6 +124,9 @@ struct AddIInstruction: IType {
 	operator std::vector<std::string>() const override {
 		return {source->regOrID() + " + " + stringify(imm) + " -> " + destination->regOrID()};
 	}
+	std::vector<std::string> colored() const override {
+		return {source->regOrID(true) + o("+") + stringify(imm, true) + o("->") + destination->regOrID(true)};
+	}
 };
 
 struct SubRInstruction: RType {
@@ -121,12 +134,18 @@ struct SubRInstruction: RType {
 	operator std::vector<std::string>() const override {
 		return {leftSource->regOrID() + " - " + rightSource->regOrID() + " -> " + destination->regOrID()};
 	}
+	std::vector<std::string> colored() const override {
+		return {leftSource->regOrID(true) + o("-") + rightSource->regOrID(true) + o("->") + destination->regOrID(true)};
+	}
 };
 
 struct SubIInstruction: IType {
 	using IType::IType;
 	operator std::vector<std::string>() const override {
 		return {source->regOrID() + " - " + stringify(imm) + " -> " + destination->regOrID()};
+	}
+	std::vector<std::string> colored() const override {
+		return {source->regOrID(true) + o("-") + stringify(imm, true) + o("->") + destination->regOrID(true)};
 	}
 };
 
@@ -136,6 +155,12 @@ struct MultRInstruction: RType {
 		return {
 			leftSource->regOrID() + " * " + rightSource->regOrID(),
 			"$lo -> " + destination->regOrID()
+		};
+	}
+	std::vector<std::string> colored() const override {
+		return {
+			leftSource->regOrID(true) + o("*") + rightSource->regOrID(true),
+			Why::coloredRegister(Why::loOffset) + o("->") + destination->regOrID(true)
 		};
 	}
 };
@@ -148,12 +173,21 @@ struct MultIInstruction: IType {
 			"$lo -> " + destination->regOrID()
 		};
 	}
+	std::vector<std::string> colored() const override {
+		return {
+			source->regOrID(true) + o("*") + stringify(imm, true),
+			Why::coloredRegister(Why::loOffset) + o("->") + destination->regOrID(true)
+		};
+	}
 };
 
 struct StoreIInstruction: IType {
 	StoreIInstruction(VregPtr source_, const Immediate &imm_): IType(source_, nullptr, imm_) {}
 	operator std::vector<std::string>() const override {
 		return {source->regOrID() + " -> [" + stringify(imm) + "]"};
+	}
+	std::vector<std::string> colored() const override {
+		return {source->regOrID(true) + " \e[2m-> [\e[22m" + stringify(imm, true) + "\e[2m]\e[22m"};
 	}
 };
 
@@ -162,12 +196,18 @@ struct StoreRInstruction: RType {
 	operator std::vector<std::string>() const override {
 		return {leftSource->regOrID() + " -> [" + destination->regOrID() + "]"};
 	}
+	std::vector<std::string> colored() const override {
+		return {leftSource->regOrID(true) + " \e[2m-> [\e[22m" + destination->regOrID(true) + "\e[2m]\e[22m"};
+	}
 };
 
 struct SetIInstruction: IType {
 	SetIInstruction(VregPtr destination_, const Immediate &imm_): IType(nullptr, destination_, imm_) {}
 	operator std::vector<std::string>() const override {
 		return {stringify(imm) + " -> " + destination->regOrID()};
+	}
+	std::vector<std::string> colored() const override {
+		return {stringify(imm, true) + o("->") + destination->regOrID(true)};
 	}
 };
 
@@ -176,12 +216,18 @@ struct LuiIInstruction: IType {
 	operator std::vector<std::string>() const override {
 		return {"lui: " + stringify(imm) + " -> " + destination->regOrID()};
 	}
+	std::vector<std::string> colored() const override {
+		return {"lui: " + stringify(imm, true) + o("->") + destination->regOrID(true)};
+	}
 };
 
 struct LoadIInstruction: IType {
 	LoadIInstruction(VregPtr destination_, const Immediate &imm_): IType(nullptr, destination_, imm_) {}
 	operator std::vector<std::string>() const override {
 		return {"[" + stringify(imm) + "] -> " + destination->regOrID()};
+	}
+	std::vector<std::string> colored() const override {
+		return {"\e[2m[\e[22m" + stringify(imm, true) + "\e[2m] ->\e[22m " + destination->regOrID(true)};
 	}
 };
 
@@ -190,12 +236,18 @@ struct LoadRInstruction: RType {
 	operator std::vector<std::string>() const override {
 		return {"[" + leftSource->regOrID() + "] -> " + destination->regOrID()};
 	}
+	std::vector<std::string> colored() const override {
+		return {"\e[2m[\e[22m" + leftSource->regOrID(true) + "\e[2m] ->\e[22m " + destination->regOrID(true)};
+	}
 };
 
 struct StackPushInstruction: RType {
 	StackPushInstruction(VregPtr source_): RType(source_, nullptr, nullptr) {}
 	operator std::vector<std::string>() const override {
 		return {"[ " + leftSource->regOrID()};
+	}
+	std::vector<std::string> colored() const override {
+		return {"\e[2;1m[\e[22m " + leftSource->regOrID(true)};
 	}
 };
 
@@ -204,12 +256,18 @@ struct StackPopInstruction: RType {
 	operator std::vector<std::string>() const override {
 		return {"] " + destination->regOrID()};
 	}
+	std::vector<std::string> colored() const override {
+		return {"\e[2;1m]\e[22m " + destination->regOrID(true)};
+	}
 };
 
 struct SizedStackPushInstruction: IType {
 	SizedStackPushInstruction(VregPtr source_, const Immediate &imm_): IType(source_, nullptr, imm_) {}
 	operator std::vector<std::string>() const override {
 		return {"[:" + stringify(imm) + " " + source->regOrID()};
+	}
+	std::vector<std::string> colored() const override {
+		return {"\e[2;1m[:" + stringify(imm) + "\e[22m " + source->regOrID(true)};
 	}
 };
 
@@ -218,14 +276,20 @@ struct SizedStackPopInstruction: IType {
 	operator std::vector<std::string>() const override {
 		return {"]:" + stringify(imm) + " " + destination->regOrID()};
 	}
+	std::vector<std::string> colored() const override {
+		return {"\e[2;1m]:" + stringify(imm) + "\e[22m " + destination->regOrID(true)};
+	}
 };
 
 struct JumpInstruction: JType {
 	JumpInstruction(const Immediate &addr, bool link_ = false): JType(addr, link_) {}
+	bool isTerminal() const override { return !link; }
 	operator std::vector<std::string>() const override {
 		return {std::string(link? "::" : ":") + " " + stringify(imm)};
 	}
-	bool isTerminal() const override { return !link; }
+	std::vector<std::string> colored() const override {
+		return {"\e[1;2m" + std::string(link? "::" : ":") + "\e[22m " + stringify(imm, true)};
+	}
 };
 
 struct Label: WhyInstruction {
@@ -233,6 +297,9 @@ struct Label: WhyInstruction {
 	Label(const std::string &name_): name(name_) {}
 	operator std::vector<std::string>() const override {
 		return {"@" + name};
+	}
+	std::vector<std::string> colored() const override {
+		return {"\e[36m@\e[39m\e[38;5;202m" + name + "\e[39m"};
 	}
 };
 
@@ -242,16 +309,22 @@ struct Comment: WhyInstruction {
 	operator std::vector<std::string>() const override {
 		return {"// " + comment};
 	}
+	std::vector<std::string> colored() const override {
+		return {"\e[32;2;1m// " + comment + "\e[39;22m"};
+	}
 };
 
 struct JumpRegisterInstruction: RType {
 	bool link;
 	JumpRegisterInstruction(VregPtr target, bool link_ = false):
 		RType(target, nullptr, nullptr), link(link_) {}
+	bool isTerminal() const override { return !link; }
 	operator std::vector<std::string>() const override {
 		return {std::string(link? "::" : ":") + " " + leftSource->regOrID()};
 	}
-	bool isTerminal() const override { return !link; }
+	std::vector<std::string> colored() const override {
+		return {"\e[1;2m" + std::string(link? "::" : ":") + "\e[22m " + leftSource->regOrID(true)};
+	}
 };
 
 struct JumpRegisterConditionalInstruction: RType {
@@ -261,6 +334,12 @@ struct JumpRegisterConditionalInstruction: RType {
 	operator std::vector<std::string>() const override {
 		return {std::string(link? "::" : ":") + " " + leftSource->regOrID() + " if " + rightSource->regOrID()};
 	}
+	std::vector<std::string> colored() const override {
+		return {
+			"\e[2m" + std::string(link? "::" : ":") + "\e[22m " + leftSource->regOrID(true) + " \e[91mif\e[39m " +
+				rightSource->regOrID(true)
+		};
+	}
 };
 
 struct JumpConditionalInstruction: JType {
@@ -268,6 +347,12 @@ struct JumpConditionalInstruction: JType {
 		JType(addr, link_, condition) {}
 	operator std::vector<std::string>() const override {
 		return {std::string(link? "::" : ":") + " " + stringify(imm) + " if " + source->regOrID()};
+	}
+	std::vector<std::string> colored() const override {
+		return {
+			"\e[2m" + std::string(link? "::" : ":") + "\e[22m " + stringify(imm, true) + " \e[91mif\e[39m " +
+				source->regOrID(true)
+		};
 	}
 };
 
@@ -277,14 +362,25 @@ struct LogicalNotInstruction: RType {
 	operator std::vector<std::string>() const override {
 		return {"!" + leftSource->regOrID() + " -> " + destination->regOrID()};
 	}
+	std::vector<std::string> colored() const override {
+		return {"\e[2m!\e[22m" + leftSource->regOrID(true) + o("->") + destination->regOrID(true)};
+	}
 };
 
 template <fixstr::fixed_string O>
 struct CompRInstruction: RType {
 	using RType::RType;
 	operator std::vector<std::string>() const override {
-		return {leftSource->regOrID() + " " + std::string(O) + " " + rightSource->regOrID() + " -> " +
-			destination->regOrID()};
+		return {
+			leftSource->regOrID() + " " + std::string(O) + " " + rightSource->regOrID() + " -> " +
+				destination->regOrID()
+		};
+	}
+	std::vector<std::string> colored() const override {
+		return {
+			leftSource->regOrID(true) + o(std::string(O)) + rightSource->regOrID(true) + o("->") +
+				destination->regOrID(true)
+		};
 	}
 };
 

@@ -9,4 +9,4 @@ struct Variable;
 
 using Immediate = std::variant<int, std::shared_ptr<Variable>, std::string>;
 
-std::string stringify(const Immediate &);
+std::string stringify(const Immediate &, bool colored = false);

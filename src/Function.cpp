@@ -23,7 +23,8 @@ selfScope(MultiScope::make(GlobalScope::make(program), FunctionScope::make(*this
 std::vector<std::string> Function::stringify() {
 	std::vector<std::string> out;
 	for (const auto &instruction: why)
-		for (const std::string &line: std::vector<std::string>(*instruction))
+		// for (const std::string &line: std::vector<std::string>(*instruction))
+		for (const std::string &line: instruction->colored())
 			out.push_back(line);
 	return out;
 }

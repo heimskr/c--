@@ -5,7 +5,9 @@
 
 VirtualRegister::VirtualRegister(Function &function): id(function.nextVariable++) {}
 
-std::string VirtualRegister::regOrID() const {
+std::string VirtualRegister::regOrID(bool colored) const {
+	if (colored)
+		return reg == -1? "\e[1m%" + std::to_string(id) + "\e[22m" : Why::coloredRegister(reg);
 	return reg == -1? "%" + std::to_string(id) : "$" + Why::registerName(reg);
 }
 

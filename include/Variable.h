@@ -17,7 +17,7 @@ struct VirtualRegister: Checkable {
 	VirtualRegister(int id_): id(id_) {}
 	VirtualRegister(Function &function);
 
-	std::string regOrID() const;
+	std::string regOrID(bool colored = false) const;
 };
 
 struct Variable: VirtualRegister, Makeable<Variable> {

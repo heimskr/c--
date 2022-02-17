@@ -38,4 +38,5 @@ struct Why {
 	static bool isSpecialPurpose(int);
 	static bool isArgumentRegister(int);
 	static std::string registerName(int);
+	static std::string coloredRegister(int);
 };

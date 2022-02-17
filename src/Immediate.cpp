@@ -3,9 +3,11 @@
 #include "Immediate.h"
 #include "Variable.h"
 
-std::string stringify(const Immediate &imm) {
-	if (std::holds_alternative<int>(imm))
-		return std::to_string(std::get<int>(imm));
+std::string stringify(const Immediate &imm, bool colored) {
+	if (std::holds_alternative<int>(imm)) {
+		const std::string str = std::to_string(std::get<int>(imm));
+		return colored? "\e[36m" + str + "\e[39m" : str;
+	}
 	if (std::holds_alternative<VariablePtr>(imm)) {
 		const auto &var = std::get<VariablePtr>(imm);
 		if (!var->function)
@@ -14,5 +16,6 @@ std::string stringify(const Immediate &imm) {
 			throw NotOnStackError(var);
 		return std::to_string(var->function->stackOffsets.at(var));
 	}
-	return std::get<std::string>(imm);
+	const std::string &str = std::get<std::string>(imm);
+	return colored? "\e[38;5;202m" + str + "\e[39m" : str;
 }
