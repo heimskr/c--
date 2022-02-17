@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 
+#include "Checkable.h"
 #include "Makeable.h"
 
 class Function;
@@ -18,7 +19,7 @@ struct VirtualRegister {
 	std::string regOrID() const;
 };
 
-struct Variable: VirtualRegister, Makeable<Variable> {
+struct Variable: VirtualRegister, Makeable<Variable>, Checkable {
 	Function *function;
 	std::string name;
 	std::shared_ptr<Type> type;

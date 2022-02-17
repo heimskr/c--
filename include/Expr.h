@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "Checkable.h"
 #include "Errors.h"
 #include "fixed_string.h"
 #include "Function.h"
@@ -23,7 +24,20 @@ using ScopePtr = std::shared_ptr<Scope>;
 
 std::string stringify(const Expr *);
 
-struct Expr {
+// struct Pointer {
+// 	VariablePtr variable;
+// 	ssize_t offset;
+// 	Pointer(VariablePtr variable_ = nullptr, ssize_t offset_ = 0): variable(variable_), offset(offset_) {}
+// 	Pointer & operator+=(ssize_t offset_offset) {
+// 		offset += offset_offset;
+// 		return *this;
+// 	}
+// 	Pointer operator+(ssize_t offset_offset) {
+// 		return {variable, offset + offset_offset};
+// 	}
+// };
+
+struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 	virtual ~Expr() {}
 	virtual void compile(VregPtr destination, Function &, ScopePtr, ssize_t multiplier = 1) const;
 	virtual operator std::string() const { return "???"; }
@@ -35,7 +49,19 @@ struct Expr {
 	virtual std::vector<std::string> references() const { return {}; }
 	/** This function both performs type checking and returns a type. */
 	virtual std::unique_ptr<Type> getType(ScopePtr) const = 0;
+	// /** Attempts to return a variable address + offset if the expression is a pointer. */
+	// virtual Pointer getPointer() const { return {}; }
 	static Expr * get(const ASTNode &, Function * = nullptr);
+
+	template <typename T>
+	std::shared_ptr<T> ptrcast() {
+		return std::dynamic_pointer_cast<T>(shared_from_this());
+	}
+
+	template <typename T>
+	std::shared_ptr<const T> ptrcast() const {
+		return std::dynamic_pointer_cast<const T>(shared_from_this());
+	}
 };
 
 using ExprPtr = std::shared_ptr<Expr>;
@@ -123,24 +149,9 @@ struct PlusExpr: BinaryExpr<"+"> {
 
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 	size_t getSize(ScopePtr) const override { return 8; }
-
-	std::optional<ssize_t> evaluate() const override {
-		auto left_value = left? left->evaluate() : std::nullopt, right_value = right? right->evaluate() : std::nullopt;
-		if (left_value && right_value)
-			return *left_value + *right_value;
-		return std::nullopt;
-	}
-
-	std::unique_ptr<Type> getType(ScopePtr scope) const override {
-		auto left_type = left->getType(scope), right_type = right->getType(scope);
-		if (left_type->isPointer() && right_type->isInt())
-			return left_type;
-		if (left_type->isInt() && right_type->isPointer())
-			return right_type;
-		if (!(*left_type && *right_type) || !(*right_type && *left_type))
-			throw ImplicitConversionError(*left_type, *right_type);
-		return left_type;
-	}
+	std::optional<ssize_t> evaluate() const override;
+	std::unique_ptr<Type> getType(ScopePtr scope) const override;
+	// Lvalue getLvalue() const override;
 };
 
 struct MinusExpr: BinaryExpr<"-"> {
@@ -229,19 +240,16 @@ struct StringExpr: Expr {
 	std::unique_ptr<Type> getType(ScopePtr) const override;
 };
 
-class DerefExpr: public Expr {
-	public:
-		std::unique_ptr<Expr> subexpr;
-		DerefExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
-		DerefExpr(Expr *subexpr_): subexpr(subexpr_) {}
-		void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
-		operator std::string() const override { return "*" + std::string(*subexpr); }
-		size_t getSize(ScopePtr) const override;
-		std::unique_ptr<Type> getType(ScopePtr) const override;
-		std::vector<std::string> references() const override { return subexpr->references(); }
-
-	private:
-		std::unique_ptr<Type> checkType(ScopePtr) const;
+struct DerefExpr: Expr {
+	std::unique_ptr<Expr> subexpr;
+	DerefExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
+	DerefExpr(Expr *subexpr_): subexpr(subexpr_) {}
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
+	operator std::string() const override { return "*" + std::string(*subexpr); }
+	size_t getSize(ScopePtr) const override;
+	std::unique_ptr<Type> getType(ScopePtr) const override;
+	std::vector<std::string> references() const override { return subexpr->references(); }
+	std::unique_ptr<Type> checkType(ScopePtr) const;
 };
 
 struct CallExpr: Expr {
@@ -253,4 +261,13 @@ struct CallExpr: Expr {
 	operator std::string() const override;
 	size_t getSize(ScopePtr) const override;
 	std::unique_ptr<Type> getType(ScopePtr) const override;
+};
+
+struct AssignExpr: BinaryExpr<"="> {
+	using BinaryExpr::BinaryExpr;
+	bool shouldParenthesize() const override { return false; }
+	std::unique_ptr<Type> getType(ScopePtr scope) const override;
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
+	size_t getSize(ScopePtr) const override;
+	std::optional<ssize_t> evaluate() const override;
 };

@@ -157,6 +157,13 @@ struct StoreIInstruction: IType {
 	}
 };
 
+struct StoreRInstruction: RType {
+	StoreRInstruction(VregPtr source_, VregPtr destination_): RType(source_, nullptr, destination_) {}
+	operator std::vector<std::string>() const override {
+		return {leftSource->regOrID() + " -> [" + destination->regOrID() + "]"};
+	}
+};
+
 struct SetIInstruction: IType {
 	SetIInstruction(VregPtr destination_, const Immediate &imm_): IType(nullptr, destination_, imm_) {}
 	operator std::vector<std::string>() const override {

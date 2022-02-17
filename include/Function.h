@@ -47,20 +47,20 @@ class Function {
 		VregPtr newVar();
 		std::shared_ptr<Scope> newScope(int *id_out = nullptr);
 		VregPtr precolored(int reg);
-		void addToStack(VariablePtr);
+		size_t addToStack(VariablePtr);
 		// std::set<VregPtr> gatherVariables() const;
 		std::vector<BasicBlockPtr> extractBlocks(std::map<std::string, BasicBlockPtr> * = nullptr);
 
 		bool isBuiltin() const { return !name.empty() && name.front() == '.'; }
 
 		template <typename T, typename... Args>
-		void add(Args &&...args) {
-			why.emplace_back(new T(std::forward<Args>(args)...));
+		std::shared_ptr<T> add(Args &&...args) {
+			return std::dynamic_pointer_cast<T>(why.emplace_back(new T(std::forward<Args>(args)...)));
 		}
 
 		template <typename T, typename... Args>
-		void addFront(Args &&...args) {
-			why.emplace_front(new T(std::forward<Args>(args)...));
+		std::shared_ptr<T> addFront(Args &&...args) {
+			return std::dynamic_pointer_cast<T>(why.emplace_front(new T(std::forward<Args>(args)...)));
 		}
 
 		void addComment(const std::string &);

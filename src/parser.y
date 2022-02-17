@@ -92,7 +92,7 @@ using AN = ASTNode;
 %start start
 
 %left ";"
-%right "?"
+%right "?" "="
 %left "||"
 %left "&&"
 %left "|"
@@ -121,7 +121,6 @@ meta_start: "#name" | "#author" | "#orcid" | "#version";
 meta: meta_start string { $$ = $1->adopt($2); };
 
 statement: block
-         | assignment
          | conditional
          | loop
          | decl_or_def
@@ -138,8 +137,6 @@ block: "{" statements "}" { $$ = $2; D($1, $3); };
 
 statements: statements statement ";" { $$ = $1->adopt($2); D($3); }
           | { $$ = new ASTNode(cmmParser, CMM_BLOCK); };
-
-assignment: expr "=" expr { $$ = $2->adopt({$1, $3}); };
 
 conditional: "if" expr block "else" block { $$ = $1->adopt({$2, $3, $5}); D($4); }
            | "if" expr block { $$ = $1->adopt({$2, $3}); };
@@ -162,6 +159,7 @@ expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
     | expr "-"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "*"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "/"  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "="  expr { $$ = $2->adopt({$1, $3}); }
     // | expr "[" expr "]" { ($$ = $2->adopt({$1, $3}))->symbol = CMM_ACCESS; D($4); }
     | function_call
     | "(" expr ")" { $$ = $2; D($1, $3); }

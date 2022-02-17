@@ -4,6 +4,7 @@
 #version "1.0"
 
 n: s64 = 38 + 5;
+
 empty: bool;
 dependent: s64 = n * 2;
 global_addr: s64* = &dependent;
@@ -24,10 +25,16 @@ fn main(argc: u32): void {
 	return 0;
 }
 
+
 fn ptr_test(): void {
 	ptr: s64* = &n;
 	vptr: void* = ptr;
 	.ptr(vptr);
+	val: s64 = 12;
+	valptr: s64* = &val;
+	zero: s64;
+	*(valptr + (zero = 0)) = 16;
+	.s64(val);
 }
 
 fn forever(): void {

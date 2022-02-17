@@ -116,11 +116,13 @@ VregPtr Function::precolored(int reg) {
 	return out;
 }
 
-void Function::addToStack(VariablePtr variable) {
+size_t Function::addToStack(VariablePtr variable) {
 	if (stackOffsets.count(variable) != 0)
 		throw std::runtime_error("Variable already on the stack in function " + name + ": " + variable->name);
 	stackOffsets.emplace(variable, stackUsage);
+	size_t out = stackUsage;
 	stackUsage += variable->type->getSize();
+	return out;
 }
 
 void Function::compile(const ASTNode &node) {
@@ -131,9 +133,18 @@ void Function::compile(const ASTNode &node) {
 				throw NameConflictError(var_name, node.front()->location);
 			VariablePtr variable = Variable::make(var_name, TypePtr(Type::get(*node.at(1))), this);
 			variables.emplace(var_name, variable);
-			addToStack(variable);
-			if (node.size() == 3)
+			size_t offset = addToStack(variable);
+			if (node.size() == 3) {
 				ExprPtr(Expr::get(*node.at(2), this))->compile(variable, *this, selfScope);
+				VregPtr fp = precolored(Why::framePointerOffset);
+				if (offset == 0) {
+					add<StoreRInstruction>(variable, fp);
+				} else {
+					VregPtr m0 = mx(0);
+					add<AddIInstruction>(fp, m0, int(offset));
+					add<StoreRInstruction>(variable, m0);
+				}
+			}
 			break;
 		}
 		case CMMTOK_RETURN:
@@ -180,6 +191,10 @@ void Function::compile(const ASTNode &node) {
 				compile(*node.at(1));
 			}
 			add<Label>(end_label);
+			break;
+		}
+		case CMMTOK_ASSIGN: {
+			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, selfScope);
 			break;
 		}
 		default:

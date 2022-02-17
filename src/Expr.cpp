@@ -82,6 +82,10 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			return new NeqExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+		case CMMTOK_ASSIGN:
+			return new AssignExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 		default:
 			throw std::invalid_argument("Unrecognized symbol in Expr::get: " +
 				std::string(cmmParser.getName(node.symbol)));
@@ -113,6 +117,34 @@ void PlusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 
 	function.add<AddRInstruction>(left_var, right_var, destination);
 }
+
+std::optional<ssize_t> PlusExpr::evaluate() const {
+	auto left_value = left? left->evaluate() : std::nullopt, right_value = right? right->evaluate() : std::nullopt;
+	if (left_value && right_value)
+		return *left_value + *right_value;
+	return std::nullopt;
+}
+
+std::unique_ptr<Type> PlusExpr::getType(ScopePtr scope) const {
+	auto left_type = left->getType(scope), right_type = right->getType(scope);
+	if (left_type->isPointer() && right_type->isInt())
+		return left_type;
+	if (left_type->isInt() && right_type->isPointer())
+		return right_type;
+	if (!(*left_type && *right_type) || !(*right_type && *left_type))
+		throw ImplicitConversionError(*left_type, *right_type);
+	return left_type;
+}
+
+// Pointer PlusExpr::getPointer() const {
+// 	auto left_type = left->getType(scope), right_type = right->getType(scope);
+
+// 	if (left_type->isPointer() && right_type->isInt()) {
+// 		return left->getPointer() + right->
+// 	}
+
+// 	return {};
+// }
 
 void MinusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
 	VregPtr left_var = function.newVar(), right_var = function.newVar();
@@ -301,4 +333,52 @@ std::unique_ptr<Type> CallExpr::getType(ScopePtr scope) const {
 		return std::unique_ptr<Type>(fn->returnType->copy());
 	} else
 		throw ResolutionError(name, scope);
+}
+
+void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+	if (auto *var_expr = left->cast<VariableExpr>()) {
+		if (auto var = scope->lookup(var_expr->name)) {
+			if (!destination)
+				destination = function.mx(1);
+			right->compile(destination, function, scope, multiplier);
+			if (auto *global = var->cast<Global>()) {
+				function.add<StoreIInstruction>(destination, global->name);
+			} else {
+				auto fp = function.precolored(Why::framePointerOffset);
+				auto offset = function.stackOffsets.at(var);
+				if (offset == 0) {
+					function.add<StoreRInstruction>(destination, fp);
+				} else {
+					auto m0 = function.mx(0);
+					function.add<AddIInstruction>(fp, m0, int(offset));
+					function.add<StoreRInstruction>(destination, m0);
+				}
+			}
+		} else
+			throw ResolutionError(var_expr->name, scope);
+	} else if (auto *deref_expr = left->cast<DerefExpr>()) {
+		deref_expr->checkType(scope);
+		auto m0 = function.mx(0);
+		if (!destination)
+			destination = function.mx(1);
+		right->compile(destination, function, scope, multiplier);
+		deref_expr->subexpr->compile(m0, function, scope);
+		function.add<StoreRInstruction>(destination, m0);
+	} else
+		throw LvalueError(*left->getType(scope));
+}
+
+std::unique_ptr<Type> AssignExpr::getType(ScopePtr scope) const {
+	auto left_type = left->getType(scope), right_type = right->getType(scope);
+	if (!(*right_type && *left_type))
+			throw ImplicitConversionError(*right_type, *left_type);
+	return left_type;
+}
+
+size_t AssignExpr::getSize(ScopePtr scope) const {
+	return left->getSize(scope);
+}
+
+std::optional<ssize_t> AssignExpr::evaluate() const {
+	return right? right->evaluate() : std::nullopt;
 }
