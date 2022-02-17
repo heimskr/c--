@@ -3,6 +3,7 @@
 #include <list>
 #include <memory>
 #include <set>
+#include <string>
 
 #include "Makeable.h"
 #include "WeakSet.h"

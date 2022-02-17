@@ -46,6 +46,7 @@ void Function::compile() {
 		const std::string &argument_name = *child->lexerInfo;
 		arguments.push_back(argument_name);
 		VariablePtr argument = Variable::make(argument_name, TypePtr(Type::get(*child->front())), this);
+		argumentMap.emplace(argument_name, argument);
 		if (i < Why::argumentCount) {
 			argument->reg = Why::argumentOffset + i;
 		} else
@@ -392,139 +393,139 @@ void Function::computeLiveness() {
 	}
 }
 
-bool Function::spill(VregPtr variable, bool doDebug) {
-	bool out = false;
-	// Right after the definition of the variable to be spilled, store its value onto the stack in the proper
-	// location. For each use of the original variable, replace the original variable with a new variable, and right
-	// before the use insert a definition for the variable by loading it from the stack.
-	if (variable->definitions.empty()) {
-		debug();
-		variable->debug();
-		throw std::runtime_error("Can't spill variable: no definitions");
-	}
+// bool Function::spill(VregPtr variable, bool doDebug) {
+// 	bool out = false;
+// 	// Right after the definition of the variable to be spilled, store its value onto the stack in the proper
+// 	// location. For each use of the original variable, replace the original variable with a new variable, and right
+// 	// before the use insert a definition for the variable by loading it from the stack.
+// 	if (variable->definitions.empty()) {
+// 		debug();
+// 		variable->debug();
+// 		throw std::runtime_error("Can't spill variable: no definitions");
+// 	}
 
-	const StackLocation &location = getSpill(variable, true);
+// 	const StackLocation &location = getSpill(variable, true);
 
-	for (std::weak_ptr<Instruction> weak_definition: variable->definitions) {
-		InstructionPtr definition = weak_definition.lock();
-		// Because ϕ-instructions are eventually removed after aliasing the variables, they don't count as a real
-		// definition here.
-		if (definition->isPhi())
-			continue;
-#ifdef DEBUG_SPILL
-		std::cerr << "  Trying to spill " << *variable << " (definition: " << definition->debugExtra() << " at "
-					<< definition->index << ", OID: " << variable->originalID << ")\n";
-#endif
-		auto store = std::make_shared<StackStoreInstruction>(location, variable);
-		auto next = after(definition);
-		bool should_insert = true;
+// 	for (std::weak_ptr<Instruction> weak_definition: variable->definitions) {
+// 		InstructionPtr definition = weak_definition.lock();
+// 		// Because ϕ-instructions are eventually removed after aliasing the variables, they don't count as a real
+// 		// definition here.
+// 		if (definition->isPhi())
+// 			continue;
+// #ifdef DEBUG_SPILL
+// 		std::cerr << "  Trying to spill " << *variable << " (definition: " << definition->debugExtra() << " at "
+// 					<< definition->index << ", OID: " << variable->originalID << ")\n";
+// #endif
+// 		auto store = std::make_shared<StackStoreInstruction>(location, variable);
+// 		auto next = after(definition);
+// 		bool should_insert = true;
 
-		// Skip comments.
-		while (next && dynamic_cast<Comment *>(next.get()) != nullptr)
-			next = after(next);
+// 		// Skip comments.
+// 		while (next && dynamic_cast<Comment *>(next.get()) != nullptr)
+// 			next = after(next);
 
-		if (next) {
-			auto other_store = std::dynamic_pointer_cast<StackStoreInstruction>(next);
-			if (other_store && *other_store == *store) {
-				should_insert = false;
-#ifdef DEBUG_SPILL
-				std::cerr << "    A stack store already exists: " << next->debugExtra() << "\n";
-#endif
-			}
-		}
+// 		if (next) {
+// 			auto other_store = std::dynamic_pointer_cast<StackStoreInstruction>(next);
+// 			if (other_store && *other_store == *store) {
+// 				should_insert = false;
+// #ifdef DEBUG_SPILL
+// 				std::cerr << "    A stack store already exists: " << next->debugExtra() << "\n";
+// #endif
+// 			}
+// 		}
 
-		if (should_insert) {
-			insertAfter(definition, store, false);
-			insertBefore(store, std::make_shared<Comment>("Spill: stack store for " + variable->plainString() +
-				" into location=" + std::to_string(location.offset)));
-			VariablePtr new_var = mx(6, definition);
-			definition->replaceWritten(variable, new_var);
-			store->variable = new_var;
-			store->extract();
-			out = true;
-#ifdef DEBUG_SPILL
-			std::cerr << "    Inserting a stack store after definition: " << store->debugExtra() << "\n";
-#endif
-		} else {
-			comment(after(definition), "Spill: no store inserted here for " + variable->plainString());
-#ifdef DEBUG_SPILL
-			std::cerr << "    \e[1mNot\e[22m inserting a stack store after definition: " << store->debugExtra()
-						<< "\n";
-#endif
-		}
-	}
+// 		if (should_insert) {
+// 			insertAfter(definition, store, false);
+// 			insertBefore(store, std::make_shared<Comment>("Spill: stack store for " + variable->plainString() +
+// 				" into location=" + std::to_string(location.offset)));
+// 			VariablePtr new_var = mx(6, definition);
+// 			definition->replaceWritten(variable, new_var);
+// 			store->variable = new_var;
+// 			store->extract();
+// 			out = true;
+// #ifdef DEBUG_SPILL
+// 			std::cerr << "    Inserting a stack store after definition: " << store->debugExtra() << "\n";
+// #endif
+// 		} else {
+// 			comment(after(definition), "Spill: no store inserted here for " + variable->plainString());
+// #ifdef DEBUG_SPILL
+// 			std::cerr << "    \e[1mNot\e[22m inserting a stack store after definition: " << store->debugExtra()
+// 						<< "\n";
+// #endif
+// 		}
+// 	}
 
-#ifdef DEBUG_SPILL
-	if (!out)
-		std::cerr << "  No stores inserted for " << *variable << ".\n";
-#endif
+// #ifdef DEBUG_SPILL
+// 	if (!out)
+// 		std::cerr << "  No stores inserted for " << *variable << ".\n";
+// #endif
 
-	if (doDebug)
-		debug();
+// 	if (doDebug)
+// 		debug();
 
-	for (auto iter = linearInstructions.begin(), end = linearInstructions.end(); iter != end; ++iter) {
-		InstructionPtr &instruction = *iter;
-#ifdef STRICT_READ_CHECK
-		if (std::shared_ptr<Variable> read = instruction->doesRead(variable)) {
-#else
-		if (instruction->read.count(variable) != 0) {
-#endif
-			VariablePtr new_var = newVariable(variable->type, instruction->parent.lock());
-			const std::string old_extra = instruction->debugExtra();
-#ifdef STRICT_READ_CHECK
-			const bool replaced = instruction->replaceRead(read, new_var);
-#else
-			const bool replaced = instruction->replaceRead(variable, new_var);
-#endif
-#ifdef DEBUG_SPILL
-			BasicBlockPtr par = instruction->parent.lock();
-			std::cerr << "    Creating new variable: " << *new_var << "\n";
-			std::cerr << "    " << (replaced? "Replaced" : "Didn't replace")
-						<< " in " << old_extra;
-			if (par)
-				std::cerr << " in block " << *par->label;
-			if (replaced)
-				std::cerr << " (now " << instruction->debugExtra() << ")";
-			std::cerr << "\n";
-#endif
-			if (replaced) {
-#ifdef STRICT_READ_CHECK
-				instruction->read.erase(read);
-#else
-				instruction->read.erase(variable);
-#endif
-				instruction->read.insert(new_var);
-				auto load = std::make_shared<StackLoadInstruction>(new_var, location, -1);
-				insertBefore(instruction, load, "Spill: stack load: location=" + std::to_string(location.offset));
-				load->extract();
-				out = true;
-#ifdef DEBUG_SPILL
-			std::cerr << "      Inserting a stack load before " << instruction->debugExtra() << ": "
-						<< load->debugExtra() << "\n";
-#endif
-				markSpilled(new_var);
-			} else {
-#ifdef DEBUG_SPILL
-				std::cerr << "      Removing variable " << *new_var << "\n";
-#endif
-				variableStore.erase(new_var->id);
-			}
-		}
-	}
-#ifdef DEBUG_SPILL
-	std::cerr << "\n";
-#endif
+// 	for (auto iter = linearInstructions.begin(), end = linearInstructions.end(); iter != end; ++iter) {
+// 		InstructionPtr &instruction = *iter;
+// #ifdef STRICT_READ_CHECK
+// 		if (std::shared_ptr<Variable> read = instruction->doesRead(variable)) {
+// #else
+// 		if (instruction->read.count(variable) != 0) {
+// #endif
+// 			VariablePtr new_var = newVariable(variable->type, instruction->parent.lock());
+// 			const std::string old_extra = instruction->debugExtra();
+// #ifdef STRICT_READ_CHECK
+// 			const bool replaced = instruction->replaceRead(read, new_var);
+// #else
+// 			const bool replaced = instruction->replaceRead(variable, new_var);
+// #endif
+// #ifdef DEBUG_SPILL
+// 			BasicBlockPtr par = instruction->parent.lock();
+// 			std::cerr << "    Creating new variable: " << *new_var << "\n";
+// 			std::cerr << "    " << (replaced? "Replaced" : "Didn't replace")
+// 						<< " in " << old_extra;
+// 			if (par)
+// 				std::cerr << " in block " << *par->label;
+// 			if (replaced)
+// 				std::cerr << " (now " << instruction->debugExtra() << ")";
+// 			std::cerr << "\n";
+// #endif
+// 			if (replaced) {
+// #ifdef STRICT_READ_CHECK
+// 				instruction->read.erase(read);
+// #else
+// 				instruction->read.erase(variable);
+// #endif
+// 				instruction->read.insert(new_var);
+// 				auto load = std::make_shared<StackLoadInstruction>(new_var, location, -1);
+// 				insertBefore(instruction, load, "Spill: stack load: location=" + std::to_string(location.offset));
+// 				load->extract();
+// 				out = true;
+// #ifdef DEBUG_SPILL
+// 			std::cerr << "      Inserting a stack load before " << instruction->debugExtra() << ": "
+// 						<< load->debugExtra() << "\n";
+// #endif
+// 				markSpilled(new_var);
+// 			} else {
+// #ifdef DEBUG_SPILL
+// 				std::cerr << "      Removing variable " << *new_var << "\n";
+// #endif
+// 				variableStore.erase(new_var->id);
+// 			}
+// 		}
+// 	}
+// #ifdef DEBUG_SPILL
+// 	std::cerr << "\n";
+// #endif
 
-	// TODO: can some of this be targeted to just the spilled variable?
-	reindexInstructions();
-	resetLiveness();
-	for (BasicBlockPtr &block: blocks)
-		block->extract(true);
-	extractVariables(true); // Reset stale use/define data.
-	computeLiveness();
-	markSpilled(variable);
-	return out;
-}
+// 	// TODO: can some of this be targeted to just the spilled variable?
+// 	reindexInstructions();
+// 	resetLiveness();
+// 	for (BasicBlockPtr &block: blocks)
+// 		block->extract(true);
+// 	extractVariables(true); // Reset stale use/define data.
+// 	computeLiveness();
+// 	markSpilled(variable);
+// 	return out;
+// }
 
 void Function::addComment(const std::string &comment) {
 	add<Comment>(comment);

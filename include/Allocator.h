@@ -4,7 +4,7 @@
 #include <string>
 
 class Function;
-class VirtualRegister;
+struct VirtualRegister;
 
 class Allocator {
 	protected:

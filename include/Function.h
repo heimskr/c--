@@ -36,6 +36,7 @@ class Function {
 
 		TypePtr returnType;
 		std::vector<std::string> arguments;
+		std::map<std::string, VariablePtr> argumentMap;
 		const ASTNode *source = nullptr;
 		int nextVariable = 0;
 		size_t stackUsage = 0;

@@ -193,10 +193,19 @@ void BoolExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_
 
 void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
 	if (VariablePtr var = scope->lookup(name)) {
-		if (auto global = std::dynamic_pointer_cast<Global>(var))
+		if (auto global = std::dynamic_pointer_cast<Global>(var)) {
 			function.add<LoadIInstruction>(destination, global->name);
-		else
-			function.add<MoveInstruction>(var, destination);
+		} else if (function.argumentMap.count(name) != 0) {
+			function.addComment("Load argument " + name);
+			function.add<MoveInstruction>(function.argumentMap.at(name), destination);
+		} else if (function.stackOffsets.count(var) == 0) {
+			throw NotOnStackError(var);
+		} else {
+			const size_t offset = function.stackOffsets.at(var);
+			function.addComment("Load variable " + name);
+			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, int(offset));
+			function.add<LoadRInstruction>(destination, destination);
+		}
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, int(multiplier));
 	} else
