@@ -56,6 +56,7 @@ class Function {
 		 *  function will split the blocks until all blocks can fit their variables in temporary registers. Returns
 		 *  whether any blocks were split. */
 		bool split(std::map<std::string, BasicBlockPtr> * = nullptr);
+		void computeLiveness();
 
 		bool isBuiltin() const { return !name.empty() && name.front() == '.'; }
 

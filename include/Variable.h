@@ -12,6 +12,7 @@ struct Type;
 struct VirtualRegister: Checkable {
 	int id;
 	int reg = -1;
+	bool precolored = false;
 
 	VirtualRegister(int id_): id(id_) {}
 	VirtualRegister(Function &function);

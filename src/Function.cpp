@@ -77,6 +77,7 @@ void Function::compile() {
 	extractBlocks(&block_map);
 	std::cerr << "Split: " << split(&block_map) << '\n';
 	std::cerr << "Names:"; for (const auto &[name, block]: block_map) std::cerr << ' ' << name; std::cerr << '\n';
+	computeLiveness();
 	for (const auto &block: blocks) {
 		std::cerr << "\e[1;32m@" << block->label;
 		if (!block->predecessors.empty()) {
@@ -93,7 +94,11 @@ void Function::compile() {
 		for (const auto &instruction: block->instructions)
 			for (const std::string &str: std::vector<std::string>(*instruction))
 				std::cerr << "\t\e[1m" << str << "\e[0m\n";
-		std::cerr << '\n';
+		std::cerr << "\e[36mLive-in: \e[1m";
+		for (const auto &var: block->liveIn) std::cerr << ' ' << var->id;
+		std::cerr << "\e[22m\nLive-out:\e[1m";
+		for (const auto &var: block->liveOut) std::cerr << ' ' << var->id;
+		std::cerr << "\e[0m\n\n";
 	}
 	std::cerr << "</BasicBlocks>\n";
 
@@ -115,6 +120,7 @@ ScopePtr Function::newScope(int *id_out) {
 VregPtr Function::precolored(int reg) {
 	auto out = std::make_shared<VirtualRegister>(*this);
 	out->reg = reg;
+	out->precolored = true;
 	return out;
 }
 
@@ -340,6 +346,50 @@ bool Function::split(std::map<std::string, BasicBlockPtr> *map) {
 	} while (changed);
 
 	return any_split;
+}
+
+void Function::computeLiveness() {
+	// https://www.classes.cs.uchicago.edu/archive/2004/spring/22620-1/docs/liveness.pdf, page 9
+	std::map<std::string, std::set<VregPtr>> in, out, in_, out_;
+	std::map<std::string, std::vector<BasicBlockPtr>> goes_to;
+	for (auto &block: blocks) {
+		goes_to.try_emplace(block->label);
+		block->cacheReadWritten();
+		for (auto &other: blocks)
+			if (other->predecessors.count(block) != 0)
+				goes_to[block->label].push_back(other);
+	}
+
+	bool working;
+	do {
+		for (auto &block: blocks) {
+			const auto &n = block->label;
+			in_[n]  = in[n];
+			out_[n] = out[n];
+			in[n] = block->readCache;
+			for (auto &var: out[n])
+				if (block->writtenCache.count(var) == 0)
+					in[n].insert(var);
+			out[n].clear();
+			for (auto &succ: goes_to.at(n))
+				for (auto &var: in[succ->label])
+					out[n].insert(var);
+		}
+
+		working = false;
+		for (auto &block: blocks) {
+			auto n = block->label;
+			if (!(Util::equal(in_[n], in[n]) && Util::equal(out_[n], out[n]))) {
+				working = true;
+				break;
+			}
+		}
+	} while (working);
+
+	for (auto &block: blocks) {
+		block->liveIn = in[block->label];
+		block->liveOut = out[block->label];
+	}
 }
 
 void Function::addComment(const std::string &comment) {

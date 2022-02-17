@@ -61,6 +61,7 @@ fn conditional(): void {
 	return 3;
 }
 
+/*
 fn z_split(): void {
 	var0: s64 = 0;
 	var1: s64 = 1;
@@ -293,3 +294,4 @@ fn z_split(): void {
 	var228: s64 = 228;
 	var229: s64 = 229;
 }
+*/

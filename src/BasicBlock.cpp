@@ -21,3 +21,16 @@ std::set<VregPtr> BasicBlock::gatherVariables() const {
 size_t BasicBlock::countVariables() const {
 	return gatherVariables().size();
 }
+
+void BasicBlock::cacheReadWritten() {
+	readCache.clear();
+	writtenCache.clear();
+	for (const auto &instruction: instructions) {
+		for (const auto &var: instruction->getRead())
+			if (!var->precolored)
+				readCache.insert(var);
+		for (const auto &var: instruction->getWritten())
+			if (!var->precolored)
+				readCache.insert(var);
+	}
+}

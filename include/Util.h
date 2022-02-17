@@ -43,4 +43,14 @@ namespace Util {
 				out.push_back(item);
 		return out;
 	}
+
+	template <typename T, template <typename...> typename C>
+	bool equal(const C<T> &first, const C<T> &second) {
+		if (first.size() != second.size())
+			return false;
+		for (const T &item: first)
+			if (second.count(item) == 0)
+				return false;
+		return true;
+	}
 }
