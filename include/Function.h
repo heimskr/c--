@@ -85,7 +85,7 @@ class Function {
 		void upAndMark(BasicBlockPtr, VregPtr);
 
 		/** Tries to spill a variable. Returns true if any instructions were inserted. */
-		bool spill(VregPtr, bool doDebug = false);
+		bool spill(VregPtr);
 
 		/** Finds a spill stack location for a variable. */
 		size_t getSpill(VregPtr, bool create = false, bool *created = nullptr);

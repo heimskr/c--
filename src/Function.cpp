@@ -423,28 +423,24 @@ void Function::upAndMark(BasicBlockPtr block, VregPtr vreg) {
 	}
 }
 
-bool Function::spill(VregPtr variable, bool doDebug) {
-	// Right after the definition of the variable to be spilled, store its value onto the stack in the proper
-	// location. For each use of the original variable, replace the original variable with a new variable, and right
-	// before the use insert a definition for the variable by loading it from the stack.
+bool Function::spill(VregPtr vreg) {
+	// Right after the definition of the vreg to be spilled, store its value onto the stack in the proper location.
+	// For each use of the original vreg, replace the original vreg with a new vreg, and right before the use insert a
+	// definition for the vreg by loading it from the stack.
 
-	if (variable->writers.empty()) {
-		// debug();
-		// variable->debug();
-		throw std::runtime_error("Can't spill variable " + variable->regOrID() + " in function " + name +
+	if (vreg->writers.empty()) {
+		debug();
+		warn() << *vreg;
+		throw std::runtime_error("Can't spill vreg " + vreg->regOrID() + " in function " + name +
 			": no definitions");
 	}
 
 	bool out = false;
-	const size_t location = getSpill(variable, true);
+	const size_t location = getSpill(vreg, true);
 
-	for (std::weak_ptr<WhyInstruction> weak_definition: variable->writers) {
+	for (std::weak_ptr<WhyInstruction> weak_definition: vreg->writers) {
 		WhyPtr definition = weak_definition.lock();
-#ifdef DEBUG_SPILL
-		std::cerr << "  Trying to spill " << *variable << " (definition: " << *definition << " at "
-		          << definition->index << ", ID: " << variable->id << ")\n";
-#endif
-		auto store = std::make_shared<StackStoreInstruction>(variable, int(location));
+		auto store = std::make_shared<StackStoreInstruction>(vreg, int(location));
 		auto next = after(definition);
 		bool should_insert = true;
 
@@ -454,91 +450,39 @@ bool Function::spill(VregPtr variable, bool doDebug) {
 
 		if (next) {
 			auto other_store = std::dynamic_pointer_cast<StackStoreInstruction>(next);
-			if (other_store && *other_store == *store) {
+			if (other_store && *other_store == *store)
 				should_insert = false;
-#ifdef DEBUG_SPILL
-				std::cerr << "    A stack store already exists: " << *next << "\n";
-#endif
-			}
 		}
 
 		if (should_insert) {
 			insertAfter(definition, store, false);
-			insertBefore(store, std::make_shared<Comment>("Spill: stack store for " + variable->regOrID() +
+			insertBefore(store, std::make_shared<Comment>("Spill: stack store for " + vreg->regOrID() +
 				" into location=" + std::to_string(location)));
 			VregPtr new_var = mx(6, definition);
-			definition->replaceWritten(variable, new_var);
+			definition->replaceWritten(vreg, new_var);
 			store->setSource(new_var);
 			out = true;
-#ifdef DEBUG_SPILL
-			std::cerr << "    Inserting a stack store after definition: " << *store << "\n";
-#endif
-		} else {
-			addComment(after(definition), "Spill: no store inserted here for " + variable->regOrID());
-#ifdef DEBUG_SPILL
-			std::cerr << "    \e[1mNot\e[22m inserting a stack store after definition: " << *store
-			          << "\n";
-#endif
-		}
+		} else
+			addComment(after(definition), "Spill: no store inserted here for " + vreg->regOrID());
 	}
-
-#ifdef DEBUG_SPILL
-	if (!out)
-		std::cerr << "  No stores inserted for " << *variable << ".\n";
-#endif
-
-	// if (doDebug)
-	// 	debug();
 
 	for (auto iter = instructions.begin(), end = instructions.end(); iter != end; ++iter) {
 		WhyPtr &instruction = *iter;
-		if (instruction->doesRead(variable)) {
+		if (instruction->doesRead(vreg)) {
 			VregPtr new_vreg = newVar();
-#ifdef DEBUG_SPILL
-			const std::string old_extra = instruction->joined(true, "; ");
-#endif
-			const bool replaced = instruction->replaceRead(variable, new_vreg);
-#ifdef DEBUG_SPILL
-			BasicBlockPtr par = instruction->parent.lock();
-			std::cerr << "    Creating new variable: " << *new_vreg << "\n"
-			          << "    " << (replaced? "Replaced" : "Didn't replace")
-			          << " in " << old_extra;
-			if (par)
-				std::cerr << " in block " << par->label;
-			if (replaced)
-				std::cerr << " (now " << *instruction << ")";
-			std::cerr << '\n';
-#endif
+			const bool replaced = instruction->replaceRead(vreg, new_vreg);
 			if (replaced) {
 				auto load = std::make_shared<StackLoadInstruction>(new_vreg, location);
 				insertBefore(instruction, load);
 				addComment(load, "Spill: stack load: location=" + std::to_string(location));
 				out = true;
-#ifdef DEBUG_SPILL
-				std::cerr << "      Inserting a stack load before " << *instruction << ": "
-				          << *load << "\n";
-#endif
 				markSpilled(new_vreg);
-			} else {
-// #ifdef DEBUG_SPILL
-				std::cerr << "      Removing variable " << *new_vreg << "\n";
-// #endif
+			} else
 				virtualRegisters.erase(new_vreg);
-			}
 		}
 	}
-#ifdef DEBUG_SPILL
-	std::cerr << "\n";
-#endif
 
-	// TODO: can some of this be targeted to just the spilled variable?
-	// reindexInstructions();
-	// resetLiveness();
-	// for (BasicBlockPtr &block: blocks)
-	// 	block->extract(true);
-	// extractVariables(true); // Reset stale use/define data.
-
-	markSpilled(variable);
+	markSpilled(vreg);
 	split();
 	computeLiveness();
 	return out;
@@ -814,8 +758,6 @@ void Function::debug() const {
 		std::cerr << "\e[0m (" << block->countVariables() << ")\n";
 		for (const auto &instruction: block->instructions)
 			std::cerr << '\t' << instruction->joined() << '\n';
-			// for (const std::string &str: std::vector<std::string>(*instruction))
-			// 	std::cerr << "\t\e[1m" << str << "\e[0m\n";
 		std::cerr << "\e[36mLive-in: \e[1m";
 		std::set<int> in, out;
 		for (const auto &var: block->liveIn) in.insert(var->id);
@@ -823,7 +765,6 @@ void Function::debug() const {
 		std::cerr << "\e[22m\nLive-out:\e[1m";
 		for (const auto &var: block->liveOut) out.insert(var->id);
 		for (int id: out) std::cerr << ' ' << id;
-		// for (const auto &var: block->liveOut) std::cerr << ' ' << var->id;
 		std::cerr << "\e[0m\n\n";
 	}
 }
@@ -868,7 +809,7 @@ Graph & Function::makeCFG() {
 			if (auto *jump = back->cast<JumpInstruction>()) {
 				if (jump->imm == label) {
 					// The block unconditionally branches to itself, meaning it's an infinite loop.
-					// Let's pretend for the sake of the DTree algorithms that it's connected to the exit.
+					// Let's pretend that it's connected to the exit.
 					cfg.link(label, "exit");
 					exit_linked = true;
 				}

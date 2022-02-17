@@ -88,7 +88,7 @@ void ColoringAllocator::makeInterferenceGraph() {
 	for (const auto &var: function.virtualRegisters) {
 		if (var->reg == -1) {
 			const std::string id = std::to_string(var->id);
-			if (!interference.hasLabel(id)) { // Use only one variable from a set of aliases.
+			if (!interference.hasLabel(id)) {
 				Node &node = interference.addNode(id);
 				node.data = var;
 				node.colorsNeeded = 1; // TODO: update if variables can span more than one register

@@ -36,6 +36,7 @@ struct Why {
 #endif
 	static std::set<int> makeRegisterPool();
 	static bool isSpecialPurpose(int);
+	static bool isGeneralPurpose(int);
 	static bool isArgumentRegister(int);
 	static std::string registerName(int);
 	static std::string coloredRegister(int);

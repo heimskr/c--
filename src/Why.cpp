@@ -16,6 +16,10 @@ bool Why::isSpecialPurpose(int reg) {
 	return 0 <= reg && reg < 128 && (reg < temporaryOffset || savedOffset + savedCount <= reg);
 }
 
+bool Why::isGeneralPurpose(int reg) {
+	return temporaryOffset <= reg && reg < savedOffset + savedCount;
+}
+
 bool Why::isArgumentRegister(int reg) {
 	return argumentOffset <= reg && reg < argumentOffset + argumentCount;
 }
