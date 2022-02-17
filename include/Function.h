@@ -86,6 +86,8 @@ class Function {
 
 		void markSpilled(VregPtr);
 
+		bool isSpilled(VregPtr) const;
+
 		bool canSpill(VregPtr);
 
 		std::set<std::shared_ptr<BasicBlock>> getLive(VregPtr,

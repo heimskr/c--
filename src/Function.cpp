@@ -508,8 +508,8 @@ bool Function::spill(VregPtr variable, bool doDebug) {
 				addComment(load, "Spill: stack load: location=" + std::to_string(location));
 				out = true;
 #ifdef DEBUG_SPILL
-			std::cerr << "      Inserting a stack load before " << *instruction << ": "
-			          << load->debugExtra() << "\n";
+				std::cerr << "      Inserting a stack load before " << *instruction << ": "
+				          << load->debugExtra() << "\n";
 #endif
 				markSpilled(new_vreg);
 			} else {
@@ -546,6 +546,7 @@ size_t Function::getSpill(VregPtr variable, bool create, bool *created) {
 			*created = true;
 		// return addToStack(variable, StackLocation::Purpose::Spill);
 		const size_t out = spillLocations[variable] = stackUsage;
+		spilledVregs.insert(variable);
 		stackUsage += Why::wordSize;
 		return out;
 	}
@@ -554,6 +555,65 @@ size_t Function::getSpill(VregPtr variable, bool create, bool *created) {
 
 void Function::markSpilled(VregPtr vreg) {
 	spilledVregs.insert(vreg);
+}
+
+bool Function::isSpilled(VregPtr vreg) const {
+	return spilledVregs.count(vreg) != 0;
+}
+
+bool Function::canSpill(VregPtr vreg) {
+	if (vreg->writers.empty() || isSpilled(vreg))
+		return false;
+
+	// If the only definition is a stack store, the variable can't be spilled.
+	if (vreg->writers.size() == 1) {
+		auto single_def = vreg->writers.begin()->lock();
+		if (single_def) {
+			warn() << *vreg << '\n';
+			throw std::runtime_error("Can't lock single writer of instruction");
+		}
+		auto *store = dynamic_cast<StackStoreInstruction *>(single_def.get());
+		if (store && store->leftSource == vreg)
+			return false;
+	}
+
+	for (auto weak_definition: vreg->writers) {
+		auto definition = weak_definition.lock();
+
+		bool created;
+		const size_t location = getSpill(vreg, true, &created);
+		auto store = std::make_shared<StackStoreInstruction>(vreg, int(location));
+		auto next = after(definition);
+		bool should_insert = true;
+
+		// Skip comments.
+		while (next && next->is<Comment>())
+			next = after(next);
+
+		if (next) {
+			auto other_store = next->ptrcast<StackStoreInstruction>();
+			if (other_store && *other_store == *store)
+				should_insert = false;
+		}
+
+		if (created) {
+			// Undo addition to stack.
+			stackUsage -= Why::wordSize;
+			spillLocations.erase(vreg);
+			spilledVregs.erase(vreg);
+		}
+
+		if (should_insert)
+			return true;
+	}
+
+	for (auto iter = instructions.begin(), end = instructions.end(); iter != end; ++iter) {
+		const auto &instruction = *iter;
+		if (instruction->doesRead(vreg) && instruction->canReplaceRead(vreg))
+			return true;
+	}
+
+	return false;
 }
 
 std::set<std::shared_ptr<BasicBlock>> Function::getLive(VregPtr var,
