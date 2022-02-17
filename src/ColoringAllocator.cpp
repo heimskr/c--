@@ -114,8 +114,18 @@ VregPtr ColoringAllocator::selectMostLive(int *liveness_out) const {
 	VregPtr ptr;
 	int highest = -1;
 	for (const auto &var: function.virtualRegisters) {
-		if (Why::isSpecialPurpose(var->reg) || !function.canSpill(var))
+		// if (Why::isSpecialPurpose(var->reg) || !function.canSpill(var))
+		// 	continue;
+		if (Why::isSpecialPurpose(var->reg)) {
+			// std::cerr << "Can't spill " << *var << ": special purpose\n";
 			continue;
+		}
+
+		if (!function.canSpill(var)) {
+			// std::cerr << "Can't select " << *var << ": can't spill\n";
+			continue;
+		}
+
 		const int sum = function.getLiveIn(var).size() + function.getLiveOut(var).size();
 		if (highest < sum && triedIDs.count(var->id) == 0) {
 			highest = sum;
@@ -124,9 +134,13 @@ VregPtr ColoringAllocator::selectMostLive(int *liveness_out) const {
 	}
 
 	if (!ptr) {
-		// function.debug();
+		function.debug();
 		throw std::runtime_error("Couldn't select variable with highest liveness");
 	}
+
+	info() << "highest = " << *ptr << ": " << highest << '\n';
+	std::cerr << "In: "; for (const auto &block: function.getLiveIn(ptr)) std::cerr << ' ' << block->label; std::cerr << '\n';
+	std::cerr << "Out:"; for (const auto &block: function.getLiveOut(ptr)) std::cerr << ' ' << block->label; std::cerr << '\n';
 
 	if (liveness_out)
 		*liveness_out = highest;

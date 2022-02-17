@@ -10,6 +10,8 @@
 #include "Util.h"
 #include "WhyInstructions.h"
 
+#define DEBUG_SPILL
+
 Function::Function(Program &program_, const ASTNode *source_):
 program(program_), source(source_),
 selfScope(MultiScope::make(GlobalScope::make(program), FunctionScope::make(*this))) {
@@ -81,6 +83,7 @@ void Function::compile() {
 	extractBlocks(&block_map);
 	std::cerr << "Split: " << split(&block_map) << '\n';
 	std::cerr << "Names:"; for (const auto &[name, block]: block_map) std::cerr << ' ' << name; std::cerr << '\n';
+	updateVregs();
 	computeLiveness();
 	ColoringAllocator allocator(*this);
 	//*
@@ -297,6 +300,7 @@ std::list<BasicBlockPtr> & Function::extractBlocks(std::map<std::string, BasicBl
 		}
 
 		for (const auto &instruction: block->instructions) {
+			instruction->parent = block;
 			if (const auto *conditional = instruction->cast<JumpConditionalInstruction>()) {
 				const std::string &target_name = std::get<std::string>(conditional->imm);
 				if (map.count(target_name) != 0) {
@@ -320,6 +324,7 @@ void Function::relinearize(const std::list<BasicBlockPtr> &block_vec) {
 	for (const auto &block: block_vec)
 		for (auto &instruction: block->instructions) {
 			instructions.push_back(instruction);
+			instruction->parent = block;
 			instruction->index = ++last_index;
 		}
 }
@@ -364,6 +369,7 @@ int Function::split(std::map<std::string, BasicBlockPtr> *map) {
 						other_block->predecessors.insert(new_block);
 					}
 
+				std::cerr << "Split: " << block->label << " -> " << new_block->label << '\n';
 				blocks.insert(++iter, new_block);
 				changed = true;
 				++count;
@@ -385,20 +391,18 @@ int Function::split(std::map<std::string, BasicBlockPtr> *map) {
 void Function::computeLiveness() {
 	// https://www.classes.cs.uchicago.edu/archive/2004/spring/22620-1/docs/liveness.pdf, page 9
 	std::map<std::string, std::set<VregPtr>> in, out, in_, out_;
-	std::map<std::string, std::vector<BasicBlockPtr>> goes_to;
+
 	for (auto &block: blocks) {
-		goes_to.try_emplace(block->label);
 		block->cacheReadWritten();
 		block->liveIn.clear();
 		block->liveOut.clear();
-		for (auto &other: blocks)
-			if (other->predecessors.count(block) != 0)
-				goes_to[block->label].push_back(other);
+		// std::cerr << block->label << "->readCache:   "; for (const auto &ptr: block->readCache) std::cerr << ' ' << ptr->id; std::cerr << '\n';
+		// std::cerr << block->label << "->writtenCache:"; for (const auto &ptr: block->readCache) std::cerr << ' ' << ptr->id; std::cerr << '\n';
 	}
 
 	bool working;
 	do {
-		for (auto &block: blocks) {
+		for (const auto &block: blocks) {
 			const auto &n = block->label;
 			in_[n]  = in[n];
 			out_[n] = out[n];
@@ -407,14 +411,14 @@ void Function::computeLiveness() {
 				if (block->writtenCache.count(var) == 0)
 					in[n].insert(var);
 			out[n].clear();
-			for (auto &succ: goes_to.at(n))
-				for (auto &var: in[succ->label])
+			for (const auto &succ: block->successors)
+				for (const auto &var: in[succ.lock()->label])
 					out[n].insert(var);
 		}
 
 		working = false;
-		for (auto &block: blocks) {
-			auto n = block->label;
+		for (const auto &block: blocks) {
+			const auto &n = block->label;
 			if (!(Util::equal(in_[n], in[n]) && Util::equal(out_[n], out[n]))) {
 				working = true;
 				break;
@@ -446,8 +450,8 @@ bool Function::spill(VregPtr variable, bool doDebug) {
 	for (std::weak_ptr<WhyInstruction> weak_definition: variable->writers) {
 		WhyPtr definition = weak_definition.lock();
 #ifdef DEBUG_SPILL
-		std::cerr << "  Trying to spill " << *variable << " (definition: " << definition->debugExtra() << " at "
-		          << definition->index << ", OID: " << variable->originalID << ")\n";
+		std::cerr << "  Trying to spill " << *variable << " (definition: " << *definition << " at "
+		          << definition->index << ", ID: " << variable->id << ")\n";
 #endif
 		auto store = std::make_shared<StackStoreInstruction>(variable, int(location));
 		auto next = after(definition);
@@ -462,7 +466,7 @@ bool Function::spill(VregPtr variable, bool doDebug) {
 			if (other_store && *other_store == *store) {
 				should_insert = false;
 #ifdef DEBUG_SPILL
-				std::cerr << "    A stack store already exists: " << next->debugExtra() << "\n";
+				std::cerr << "    A stack store already exists: " << *next << "\n";
 #endif
 			}
 		}
@@ -476,12 +480,12 @@ bool Function::spill(VregPtr variable, bool doDebug) {
 			store->setSource(new_var);
 			out = true;
 #ifdef DEBUG_SPILL
-			std::cerr << "    Inserting a stack store after definition: " << store->debugExtra() << "\n";
+			std::cerr << "    Inserting a stack store after definition: " << *store << "\n";
 #endif
 		} else {
 			addComment(after(definition), "Spill: no store inserted here for " + variable->regOrID());
 #ifdef DEBUG_SPILL
-			std::cerr << "    \e[1mNot\e[22m inserting a stack store after definition: " << store->debugExtra()
+			std::cerr << "    \e[1mNot\e[22m inserting a stack store after definition: " << *store
 			          << "\n";
 #endif
 		}
@@ -505,13 +509,13 @@ bool Function::spill(VregPtr variable, bool doDebug) {
 			const bool replaced = instruction->replaceRead(variable, new_vreg);
 #ifdef DEBUG_SPILL
 			BasicBlockPtr par = instruction->parent.lock();
-			std::cerr << "    Creating new variable: " << *new_var << "\n"
+			std::cerr << "    Creating new variable: " << *new_vreg << "\n"
 			          << "    " << (replaced? "Replaced" : "Didn't replace")
 			          << " in " << old_extra;
 			if (par)
-				std::cerr << " in block " << *par->label;
+				std::cerr << " in block " << par->label;
 			if (replaced)
-				std::cerr << " (now " << instruction->debugExtra() << ")";
+				std::cerr << " (now " << *instruction << ")";
 			std::cerr << '\n';
 #endif
 			if (replaced) {
@@ -521,7 +525,7 @@ bool Function::spill(VregPtr variable, bool doDebug) {
 				out = true;
 #ifdef DEBUG_SPILL
 				std::cerr << "      Inserting a stack load before " << *instruction << ": "
-				          << load->debugExtra() << "\n";
+				          << *load << "\n";
 #endif
 				markSpilled(new_vreg);
 			} else {
@@ -543,8 +547,9 @@ bool Function::spill(VregPtr variable, bool doDebug) {
 	// 	block->extract(true);
 	// extractVariables(true); // Reset stale use/define data.
 
-	computeLiveness();
 	markSpilled(variable);
+	split();
+	computeLiveness();
 	return out;
 }
 
@@ -574,19 +579,29 @@ bool Function::isSpilled(VregPtr vreg) const {
 }
 
 bool Function::canSpill(VregPtr vreg) {
-	if (vreg->writers.empty() || isSpilled(vreg))
+	// if (vreg->writers.empty() || isSpilled(vreg))
+	// 	return false;
+	if (vreg->writers.empty()) {
+		// std::cerr << "Can't spill " << *vreg << ": no definers\n";
 		return false;
+	}
+	if (isSpilled(vreg)) {
+		std::cerr << "Can't spill " << *vreg << ": already spilled\n";
+		return false;
+	}
 
 	// If the only definition is a stack store, the variable can't be spilled.
 	if (vreg->writers.size() == 1) {
 		auto single_def = vreg->writers.begin()->lock();
-		if (single_def) {
+		if (!single_def) {
 			warn() << *vreg << '\n';
 			throw std::runtime_error("Can't lock single writer of instruction");
 		}
 		auto *store = dynamic_cast<StackStoreInstruction *>(single_def.get());
-		if (store && store->leftSource == vreg)
+		if (store && store->leftSource == vreg) {
+			std::cerr << "Can't spill " << *vreg << ": only definer is a stack store\n";
 			return false;
+		}
 	}
 
 	for (auto weak_definition: vreg->writers) {
@@ -746,7 +761,7 @@ WhyPtr Function::insertBefore(WhyPtr base, WhyPtr new_instruction, bool reindex,
 			std::cerr << subblock->label << '[' << subblock->index << "] ";
 		std::cerr << '\n';
 		for (const auto &block_instruction: block->instructions)
-			std::cerr << "    " << *block_instruction << '\n';
+			std::cerr << '\t' << *block_instruction << '\n';
 		throw std::runtime_error("Instruction not found in block");
 	}
 
@@ -790,4 +805,34 @@ VregPtr Function::mx(int n, InstructionPtr writer) {
 
 VregPtr Function::mx(InstructionPtr writer) {
 	return mx(0, writer->parent.lock());
+}
+
+void Function::debug() const {
+	for (const auto &block: blocks) {
+		std::cerr << "\e[1;32m@" << block->label;
+		if (!block->predecessors.empty()) {
+			std::cerr << " <-";
+			for (const auto &pred: block->predecessors)
+				std::cerr << ' ' << pred.lock()->label;
+		}
+		if (!block->successors.empty()) {
+			std::cerr << " ->";
+			for (const auto &succ: block->successors)
+				std::cerr << ' ' << succ.lock()->label;
+		}
+		std::cerr << "\e[0m (" << block->countVariables() << ")\n";
+		for (const auto &instruction: block->instructions)
+			std::cerr << '\t' << instruction->joined() << '\n';
+			// for (const std::string &str: std::vector<std::string>(*instruction))
+			// 	std::cerr << "\t\e[1m" << str << "\e[0m\n";
+		std::cerr << "\e[36mLive-in: \e[1m";
+		std::set<int> in, out;
+		for (const auto &var: block->liveIn) in.insert(var->id);
+		for (int id: in) std::cerr << ' ' << id;
+		std::cerr << "\e[22m\nLive-out:\e[1m";
+		for (const auto &var: block->liveOut) out.insert(var->id);
+		for (int id: out) std::cerr << ' ' << id;
+		// for (const auto &var: block->liveOut) std::cerr << ' ' << var->id;
+		std::cerr << "\e[0m\n\n";
+	}
 }

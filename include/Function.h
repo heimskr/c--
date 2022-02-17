@@ -130,4 +130,6 @@ class Function {
 		VregPtr mx(int = 0, BasicBlockPtr writer = nullptr);
 		VregPtr mx(int, std::shared_ptr<Instruction> writer);
 		VregPtr mx(std::shared_ptr<Instruction> writer);
+
+		void debug() const;
 };
