@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "ASTNode.h"
+#include "ColoringAllocator.h"
 #include "Errors.h"
 #include "Expr.h"
 #include "Function.h"
@@ -46,7 +47,8 @@ void Function::compile() {
 	for (const ASTNode *child: *source->at(2)) {
 		const std::string &argument_name = *child->lexerInfo;
 		arguments.push_back(argument_name);
-		VariablePtr argument = Variable::make(argument_name, TypePtr(Type::get(*child->front())), this);
+		VariablePtr argument = Variable::make(argument_name, TypePtr(Type::get(*child->front())), *this);
+		argument->init();
 		argumentMap.emplace(argument_name, argument);
 		if (i < Why::argumentCount) {
 			argument->reg = Why::argumentOffset + i;
@@ -80,6 +82,15 @@ void Function::compile() {
 	std::cerr << "Split: " << split(&block_map) << '\n';
 	std::cerr << "Names:"; for (const auto &[name, block]: block_map) std::cerr << ' ' << name; std::cerr << '\n';
 	computeLiveness();
+	ColoringAllocator allocator(*this);
+	//*
+	Allocator::Result result;
+	do {
+		result = allocator.attempt();
+		std::cerr << "Allocation result: " << Allocator::stringify(result) << '\n';
+	} while (result != Allocator::Result::Success);
+	//*/
+
 	for (const auto &block: blocks) {
 		std::cerr << "\e[1;32m@" << block->label;
 		if (!block->predecessors.empty()) {
@@ -141,7 +152,8 @@ void Function::compile(const ASTNode &node) {
 			const std::string &var_name = *node.front()->lexerInfo;
 			if (selfScope->lookup(var_name))
 				throw NameConflictError(var_name, node.front()->location);
-			VariablePtr variable = Variable::make(var_name, TypePtr(Type::get(*node.at(1))), this);
+			VariablePtr variable = Variable::make(var_name, TypePtr(Type::get(*node.at(1))), *this);
+			variable->init();
 			variables.emplace(var_name, variable);
 			size_t offset = addToStack(variable);
 			if (node.size() == 3) {
@@ -151,7 +163,7 @@ void Function::compile(const ASTNode &node) {
 					add<StoreRInstruction>(variable, fp);
 				} else {
 					VregPtr m0 = mx(0);
-					add<AddIInstruction>(fp, m0, int(offset));
+					add<SubIInstruction>(fp, m0, int(offset));
 					add<StoreRInstruction>(variable, m0);
 				}
 			}
@@ -513,9 +525,9 @@ bool Function::spill(VregPtr variable, bool doDebug) {
 #endif
 				markSpilled(new_vreg);
 			} else {
-#ifdef DEBUG_SPILL
+// #ifdef DEBUG_SPILL
 				std::cerr << "      Removing variable " << *new_vreg << "\n";
-#endif
+// #endif
 				virtualRegisters.erase(new_vreg);
 			}
 		}

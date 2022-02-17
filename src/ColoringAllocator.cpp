@@ -144,7 +144,7 @@ void ColoringAllocator::makeInterferenceGraph() {
 	interference.clear();
 	size_t links = 0;
 
-	for (const auto &[id, var]: function.variables) {
+	for (const auto &var: function.virtualRegisters) {
 #ifdef DEBUG_COLORING
 		// std::cerr << "%% " << pair.first << " " << *pair.second << "; aliases:";
 		// for (Variable *v: pair.second->getAliases()) std::cerr << " " << *v;

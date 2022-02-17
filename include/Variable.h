@@ -33,11 +33,11 @@ struct VirtualRegister: Checkable, std::enable_shared_from_this<VirtualRegister>
 };
 
 struct Variable: VirtualRegister, Makeable<Variable> {
-	Function *function;
 	std::string name;
 	std::shared_ptr<Type> type;
 
-	Variable(const std::string &name_, std::shared_ptr<Type>, Function *);
+	Variable(const std::string &name_, std::shared_ptr<Type>, Function &);
+	Variable(const std::string &name_, std::shared_ptr<Type>);
 
 	virtual ~Variable() {}
 

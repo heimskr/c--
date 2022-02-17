@@ -1,3 +1,4 @@
+#include <iostream>
 #include "Function.h"
 #include "Type.h"
 #include "Variable.h"
@@ -25,8 +26,11 @@ bool VirtualRegister::special() const {
 	return Why::isSpecialPurpose(reg);
 }
 
-Variable::Variable(const std::string &name_, std::shared_ptr<Type> type_, Function *function_):
-	VirtualRegister(function_? function_->nextVariable++ : -1), function(function_), name(name_), type(type_) {}
+Variable::Variable(const std::string &name_, std::shared_ptr<Type> type_, Function &function_):
+	VirtualRegister(function_), name(name_), type(type_) {}
+
+Variable::Variable(const std::string &name_, std::shared_ptr<Type> type_):
+	VirtualRegister(-1), name(name_), type(type_) {}
 
 size_t Variable::getSize() const {
 	return type->getSize();
