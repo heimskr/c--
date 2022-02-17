@@ -267,7 +267,9 @@ std::list<BasicBlockPtr> & Function::extractBlocks(std::map<std::string, BasicBl
 		map.emplace(current->label, current);
 	}
 
-	for (const auto &block: blocks) {
+	int last_index = -1;
+	for (auto &block: blocks) {
+		block->index = ++last_index;
 		if (!*block)
 			continue;
 		const auto last = block->instructions.back();
@@ -348,6 +350,12 @@ int Function::split(std::map<std::string, BasicBlockPtr> *map) {
 			}
 		}
 	} while (changed);
+
+	if (count != 0) {
+		int last_index = -1;
+		for (auto &block: blocks)
+			block->index = ++last_index;
+	}
 
 	return count;
 }
@@ -531,6 +539,27 @@ void Function::computeLiveness() {
 // 	markSpilled(variable);
 // 	return out;
 // }
+
+std::set<std::shared_ptr<BasicBlock>> Function::getLive(VregPtr var,
+std::function<std::set<VregPtr> &(const std::shared_ptr<BasicBlock> &)> getter) const {
+	std::set<std::shared_ptr<BasicBlock>> out;
+	for (const auto &block: blocks)
+		if (getter(block).count(var) != 0)
+			out.insert(block);
+	return out;
+}
+
+std::set<std::shared_ptr<BasicBlock>> Function::getLiveIn(VregPtr var) const {
+	return getLive(var, [&](const auto &block) -> auto & {
+		return block->liveIn;
+	});
+}
+
+std::set<std::shared_ptr<BasicBlock>> Function::getLiveOut(VregPtr var) const {
+	return getLive(var, [&](const auto &block) -> auto & {
+		return block->liveOut;
+	});
+}
 
 void Function::addComment(const std::string &comment) {
 	add<Comment>(comment);

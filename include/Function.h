@@ -28,6 +28,7 @@ class Function {
 		// std::vector<std::shared_ptr<CmmInstruction>> cmm;
 		std::deque<std::shared_ptr<WhyInstruction>> why;
 		std::map<std::string, VariablePtr> variables;
+		std::set<VregPtr> virtualRegisters;
 		/** Offsets are relative to the value in the frame pointer right after the stack pointer is written to it in the
 		 *  prologue. */
 		std::map<VariablePtr, size_t> stackOffsets;
@@ -73,7 +74,16 @@ class Function {
 		/** Tries to spill a variable. Returns true if any instructions were inserted. */
 		bool spill(VregPtr, bool doDebug = false);
 
-		bool canSpill(VariablePtr);
+		bool canSpill(VregPtr);
+
+		std::set<std::shared_ptr<BasicBlock>> getLive(VregPtr,
+			std::function<std::set<VregPtr> &(const std::shared_ptr<BasicBlock> &)>) const;
+
+		/** Returns a set of all blocks where a given variable or any of its aliases are live-in. */
+		std::set<std::shared_ptr<BasicBlock>> getLiveIn(VregPtr) const;
+
+		/** Returns a set of all blocks where a given variable or any of its aliases are live-out. */
+		std::set<std::shared_ptr<BasicBlock>> getLiveOut(VregPtr) const;
 
 		bool isBuiltin() const { return !name.empty() && name.front() == '.'; }
 

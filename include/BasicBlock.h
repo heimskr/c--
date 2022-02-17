@@ -18,6 +18,7 @@ struct BasicBlock: Makeable<BasicBlock> {
 	WeakSet<BasicBlock> predecessors, successors;
 	std::set<std::shared_ptr<VirtualRegister>> liveIn, liveOut, readCache, writtenCache;
 	Node *node = nullptr;
+	int index = -1;
 	// size_t estimatedExecutions = 0;
 
 	BasicBlock(const std::string &label_): label(label_) {}

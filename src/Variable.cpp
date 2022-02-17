@@ -3,7 +3,9 @@
 #include "Variable.h"
 #include "Why.h"
 
-VirtualRegister::VirtualRegister(Function &function): id(function.nextVariable++) {}
+VirtualRegister::VirtualRegister(Function &function): id(function.nextVariable++) {
+	function.virtualRegisters.insert(shared_from_this());
+}
 
 std::string VirtualRegister::regOrID(bool colored) const {
 	if (colored)

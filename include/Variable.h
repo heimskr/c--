@@ -9,7 +9,7 @@
 class Function;
 struct Type;
 
-struct VirtualRegister: Checkable {
+struct VirtualRegister: Checkable, std::enable_shared_from_this<VirtualRegister> {
 	int id;
 	int reg = -1;
 	bool precolored = false;
