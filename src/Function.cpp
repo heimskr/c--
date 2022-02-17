@@ -218,7 +218,7 @@ std::list<BasicBlockPtr> & Function::extractBlocks(std::map<std::string, BasicBl
 	blocks.clear();
 	anons = 0;
 
-	BasicBlockPtr current = BasicBlock::make(name);
+	BasicBlockPtr current = BasicBlock::make(*this, name);
 	bool waiting = false;
 	bool at_first = true;
 	bool label_found = false;
@@ -228,9 +228,9 @@ std::list<BasicBlockPtr> & Function::extractBlocks(std::map<std::string, BasicBl
 	for (const auto &instruction: instructions) {
 		if (waiting) {
 			if (auto label = instruction->ptrcast<Label>())
-				current = BasicBlock::make(label->name);
+				current = BasicBlock::make(*this, label->name);
 			else
-				current = BasicBlock::make("." + name + ".anon." + std::to_string(anons++));
+				current = BasicBlock::make(*this, "." + name + ".anon." + std::to_string(anons++));
 			waiting = false;
 		}
 
@@ -242,7 +242,7 @@ std::list<BasicBlockPtr> & Function::extractBlocks(std::map<std::string, BasicBl
 				extra_connections.emplace_back(current->label, label->name);
 				blocks.push_back(current);
 				map.emplace(current->label, current);
-				current = BasicBlock::make(label->name);
+				current = BasicBlock::make(*this, label->name);
 				*current += label;
 				at_first = true;
 				label_found = false;
@@ -332,7 +332,7 @@ int Function::split(std::map<std::string, BasicBlockPtr> *map) {
 			if (Why::generalPurposeRegisters < block->countVariables()) {
 				// It would be better to split at the point where the unique variable count begins to exceed the
 				// maximum, but it's probably more efficient to simply split in the middle.
-				BasicBlockPtr new_block = BasicBlock::make("." + name + ".anon." + std::to_string(anons++));
+				BasicBlockPtr new_block = BasicBlock::make(*this, "." + name + ".anon." + std::to_string(anons++));
 
 				for (size_t i = 0, to_remove = block->instructions.size() / 2; i < to_remove; ++i) {
 					new_block->instructions.push_front(block->instructions.back());
@@ -503,7 +503,7 @@ bool Function::spill(VregPtr variable, bool doDebug) {
 			std::cerr << '\n';
 #endif
 			if (replaced) {
-				auto load = std::make_shared<StackLoadInstruction>(new_vreg, location, -1);
+				auto load = std::make_shared<StackLoadInstruction>(new_vreg, location);
 				insertBefore(instruction, load);
 				addComment(load, "Spill: stack load: location=" + std::to_string(location));
 				out = true;
@@ -633,56 +633,54 @@ WhyPtr Function::insertAfter(WhyPtr base, WhyPtr new_instruction, bool reindex) 
 		}
 
 		iter = std::find(instructions.begin(), instructions.end(), base);
-		++iter;
-		instructions.insert(iter, new_instruction);
+		instructions.insert(++iter, new_instruction);
 
-		if (reindex) {
+		if (reindex)
 			for (auto end = instructions.end(); iter != end; ++iter)
 				++(*iter)->index;
-		}
 	}
 
 	return new_instruction;
 }
 
-WhyPtr Function::insertBefore(WhyPtr base, WhyPtr new_instruction, bool reindex,
-										bool linear_warn, bool *should_relinearize_out) {
+WhyPtr Function::insertBefore(WhyPtr base, WhyPtr new_instruction, bool reindex, bool linear_warn,
+                              bool *should_relinearize_out) {
 	BasicBlockPtr block = base->parent.lock();
 	if (!block) {
-		error() << base->debugExtra() << "\n";
+		error() << *base << "\n";
 		throw std::runtime_error("Couldn't lock instruction's parent block");
 	}
 
-	if (block->parent != this)
+	if (&block->function != this)
 		throw std::runtime_error("Block parent isn't equal to this in Function::insertBefore");
 
-	if (new_instruction->debugIndex == -1)
-		new_instruction->debugIndex = base->debugIndex;
+	// if (new_instruction->debugIndex == -1)
+	// 	new_instruction->debugIndex = base->debugIndex;
 
 	new_instruction->parent = base->parent;
 
-	auto linearIter = std::find(instructions.begin(), instructions.end(), base);
-	if (linear_warn && linearIter == instructions.end()) {
-		warn() << "Couldn't find instruction in instructions in " << *name << ": " << base->debugExtra()
-				<< '\n';
-		throw std::runtime_error("youch");
+	auto instructionIter = std::find(instructions.begin(), instructions.end(), base);
+	if (linear_warn && instructionIter == instructions.end()) {
+		warn() << "Couldn't find instruction in instructions field of function " << name << ": " << *base << '\n';
+		throw std::runtime_error("Couldn't find instruction in instructions field of function " + name);
 	}
+
 	auto blockIter = std::find(block->instructions.begin(), block->instructions.end(), base);
 	if (blockIter == block->instructions.end()) {
-		warn() << "Couldn't find instruction in block " << *block->label << " of function " << *name << ": "
-				<< base->debugExtra() << '\n';
+		warn() << "Couldn't find instruction in block " << block->label << " of function " << name << ": " << *base
+		       << '\n';
 		std::cerr << "Index: " << block->index << '\n';
 		for (const auto &subblock: blocks)
-			std::cerr << *subblock->label << '[' << subblock->index << "] ";
+			std::cerr << subblock->label << '[' << subblock->index << "] ";
 		std::cerr << '\n';
 		for (const auto &block_instruction: block->instructions)
-			std::cerr << "    " << block_instruction->debugExtra() << '\n';
+			std::cerr << "    " << *block_instruction << '\n';
 		throw std::runtime_error("Instruction not found in block");
 	}
 
-	const bool can_insert_linear = linearIter != instructions.end();
+	const bool can_insert_linear = instructionIter != instructions.end();
 	if (can_insert_linear) {
-		instructions.insert(linearIter, new_instruction);
+		instructions.insert(instructionIter, new_instruction);
 		if (should_relinearize_out)
 			*should_relinearize_out = false;
 	} else if (should_relinearize_out)
@@ -692,8 +690,8 @@ WhyPtr Function::insertBefore(WhyPtr base, WhyPtr new_instruction, bool reindex,
 
 	if (reindex && can_insert_linear) {
 		new_instruction->index = base->index;
-		for (auto end = instructions.end(); linearIter != end; ++linearIter)
-			++(*linearIter)->index;
+		for (auto end = instructions.end(); instructionIter != end; ++instructionIter)
+			++(*instructionIter)->index;
 	}
 
 	return new_instruction;

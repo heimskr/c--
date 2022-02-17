@@ -29,7 +29,7 @@ class Function {
 		Program &program;
 		std::string name = "???";
 		// std::vector<std::shared_ptr<CmmInstruction>> cmm;
-		std::deque<WhyPtr> instructions;
+		std::list<WhyPtr> instructions;
 		std::map<std::string, VariablePtr> variables;
 		std::set<VregPtr> virtualRegisters;
 		/** Offsets are relative to the value in the frame pointer right after the stack pointer is written to it in the

@@ -8,11 +8,13 @@
 #include "Makeable.h"
 #include "WeakSet.h"
 
+class Function;
 class Node;
 struct VirtualRegister;
 struct WhyInstruction;
 
 struct BasicBlock: Makeable<BasicBlock> {
+	Function &function;
 	std::string label;
 	std::list<std::shared_ptr<WhyInstruction>> instructions;
 	WeakSet<BasicBlock> predecessors, successors;
@@ -21,7 +23,7 @@ struct BasicBlock: Makeable<BasicBlock> {
 	int index = -1;
 	// size_t estimatedExecutions = 0;
 
-	BasicBlock(const std::string &label_): label(label_) {}
+	BasicBlock(Function &function_, const std::string &label_): function(function_), label(label_) {}
 
 	BasicBlock & operator+=(std::shared_ptr<WhyInstruction> instruction) {
 		instructions.push_back(instruction);
