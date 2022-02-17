@@ -101,7 +101,7 @@ void Program::compile() {
 				lines.push_back("\t%8b " + std::to_string(*value));
 			} else {
 				lines.push_back("\t%fill " + std::to_string(size) + " 0");
-				VregPtr vreg = std::make_shared<VirtualRegister>(init);
+				VregPtr vreg = std::make_shared<VirtualRegister>(init)->init();
 				vreg->reg = Why::temporaryOffset;
 				expr->compile(vreg, init, init_scope);
 				init.add<StoreIInstruction>(vreg, iter->first);

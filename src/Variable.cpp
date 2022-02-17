@@ -3,8 +3,16 @@
 #include "Variable.h"
 #include "Why.h"
 
-VirtualRegister::VirtualRegister(Function &function): id(function.nextVariable++) {
-	function.virtualRegisters.insert(shared_from_this());
+VirtualRegister::VirtualRegister(Function &function_):
+	function(&function_), id(function_.nextVariable++) {}
+
+VirtualRegister::VirtualRegister(int id_): id(id_) {}
+
+std::shared_ptr<VirtualRegister> VirtualRegister::init() {
+	const auto ptr = shared_from_this();
+	if (function)
+		function->virtualRegisters.insert(ptr);
+	return ptr;
 }
 
 std::string VirtualRegister::regOrID(bool colored) const {

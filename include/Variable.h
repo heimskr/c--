@@ -14,12 +14,14 @@ struct Type;
 struct WhyInstruction;
 
 struct VirtualRegister: Checkable, std::enable_shared_from_this<VirtualRegister> {
+	Function *function = nullptr;
 	int id;
 	int reg = -1;
 	bool precolored = false;
 
-	VirtualRegister(int id_): id(id_) {}
-	VirtualRegister(Function &function);
+	VirtualRegister(Function &);
+	VirtualRegister(int id_);
+	std::shared_ptr<VirtualRegister> init();
 
 	std::string regOrID(bool colored = false) const;
 	bool special() const;

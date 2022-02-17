@@ -107,7 +107,7 @@ void Function::compile() {
 }
 
 VregPtr Function::newVar() {
-	return std::make_shared<VirtualRegister>(*this);
+	return std::make_shared<VirtualRegister>(*this)->init();
 }
 
 ScopePtr Function::newScope(int *id_out) {
@@ -120,7 +120,7 @@ ScopePtr Function::newScope(int *id_out) {
 }
 
 VregPtr Function::precolored(int reg) {
-	auto out = std::make_shared<VirtualRegister>(*this);
+	auto out = std::make_shared<VirtualRegister>(*this)->init();
 	out->reg = reg;
 	out->precolored = true;
 	return out;
