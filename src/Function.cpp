@@ -60,6 +60,18 @@ void Function::compile() {
 	for (const ASTNode *child: *source->at(3))
 		compile(*child);
 
+	auto fp = precolored(Why::framePointerOffset), rt = precolored(Why::returnAddressOffset);
+	auto sp = precolored(Why::stackPointerOffset);
+	addFront<MoveInstruction>(sp, fp);
+	// TODO: push all used temporaries here
+	addFront<StackPushInstruction>(fp);
+	addFront<StackPushInstruction>(rt);
+	add<Label>("." + name + ".e");
+	// TODO: pop all used temporaries here
+	add<StackPopInstruction>(fp);
+	add<StackPopInstruction>(rt);
+	add<JumpRegisterInstruction>(rt, false);
+
 	std::cerr << "<BasicBlocks>\n";
 	std::map<std::string, BasicBlockPtr> block_map;
 	auto blocks = extractBlocks(&block_map);
@@ -83,18 +95,6 @@ void Function::compile() {
 		std::cerr << '\n';
 	}
 	std::cerr << "</BasicBlocks>\n";
-
-	auto fp = precolored(Why::framePointerOffset), rt = precolored(Why::returnAddressOffset);
-	auto sp = precolored(Why::stackPointerOffset);
-	addFront<MoveInstruction>(sp, fp);
-	// TODO: push all used temporaries here
-	addFront<StackPushInstruction>(fp);
-	addFront<StackPushInstruction>(rt);
-	add<Label>("." + name + ".e");
-	// TODO: pop all used temporaries here
-	add<StackPopInstruction>(fp);
-	add<StackPopInstruction>(rt);
-	add<JumpRegisterInstruction>(rt, false);
 }
 
 VregPtr Function::newVar() {
@@ -235,6 +235,17 @@ std::vector<BasicBlockPtr> Function::extractBlocks(std::map<std::string, BasicBl
 		if (auto *jtype = last->cast<JType>()) {
 			if (std::holds_alternative<std::string>(jtype->imm)) {
 				const std::string &target_name = std::get<std::string>(jtype->imm);
+				if (map.count(target_name) != 0) {
+					auto &target = map.at(target_name);
+					target->predecessors.insert(block);
+					block->successors.insert(target);
+				}
+			}
+		}
+
+		for (const auto &instruction: block->instructions) {
+			if (const auto *conditional = instruction->cast<JumpConditionalInstruction>()) {
+				const std::string &target_name = std::get<std::string>(conditional->imm);
 				if (map.count(target_name) != 0) {
 					auto &target = map.at(target_name);
 					target->predecessors.insert(block);

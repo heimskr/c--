@@ -83,7 +83,6 @@ struct JType: WhyInstruction, HasSource, HasImmediate {
 			return {source};
 		return {};
 	}
-	bool isTerminal() const override { return !link; }
 };
 
 struct MoveInstruction: RType {
@@ -209,6 +208,7 @@ struct JumpInstruction: JType {
 	operator std::vector<std::string>() const override {
 		return {std::string(link? "::" : ":") + " " + stringify(imm)};
 	}
+	bool isTerminal() const override { return !link; }
 };
 
 struct Label: WhyInstruction {
@@ -244,7 +244,6 @@ struct JumpRegisterConditionalInstruction: RType {
 	operator std::vector<std::string>() const override {
 		return {std::string(link? "::" : ":") + " " + leftSource->regOrID() + " if " + rightSource->regOrID()};
 	}
-	bool isTerminal() const override { return !link; }
 };
 
 struct JumpConditionalInstruction: JType {
