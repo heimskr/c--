@@ -322,6 +322,10 @@ bool Function::split(std::map<std::string, BasicBlockPtr> *map) {
 				if (map)
 					map->emplace(new_block->label, new_block);
 
+				new_block->successors = block->successors;
+				block->successors = {new_block};
+				new_block->predecessors = {block};
+
 				blocks.insert(++iter, new_block);
 				changed = any_split = true;
 				break;
