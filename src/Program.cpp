@@ -111,13 +111,12 @@ void Program::compile() {
 
 				auto expr_type = expr->getType(init.selfScope);
 				VregPtr vreg = std::make_shared<VirtualRegister>(init)->init();
+				expr->compile(vreg, init, init_scope);
 
 				if (!(*expr_type && *type)) {
 					if (expr_type->isInt() && type->isInt()) {
 						// bool expr_is_signed = expr_type->isSigned(), var_is_signed = type->isSigned();
 						auto expr_int = expr_type->ptrcast<IntType>(), var_int = type->ptrcast<IntType>();
-						expr->compile(vreg, init, init_scope);
-
 						if (expr_type->isSigned() && type->isSigned()) {
 							if (expr_int->width < var_int->width)
 								init.add<SextInstruction>(vreg, vreg, var_int->width);
@@ -158,9 +157,6 @@ void Program::compile() {
 						// }
 					} else
 						throw ImplicitConversionError(std::move(expr_type), std::move(type));
-				} else {
-					VregPtr vreg = std::make_shared<VirtualRegister>(init)->init();
-					expr->compile(vreg, init, init_scope);
 				}
 				init.add<StoreIInstruction>(vreg, iter->first);
 			}
