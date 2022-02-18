@@ -23,12 +23,17 @@ selfScope(MultiScope::make(GlobalScope::make(program), FunctionScope::make(*this
 	scopes.emplace(0, selfScope);
 }
 
-std::vector<std::string> Function::stringify() {
+std::vector<std::string> Function::stringify(bool colored) {
 	std::vector<std::string> out;
-	for (const auto &instruction: instructions)
-		// for (const std::string &line: std::vector<std::string>(*instruction))
-		for (const std::string &line: instruction->colored())
-			out.push_back(line);
+	if (colored) {
+		for (const auto &instruction: instructions)
+			for (const std::string &line: instruction->colored())
+				out.push_back(line);
+	} else {
+		for (const auto &instruction: instructions)
+			for (const std::string &line: std::vector<std::string>(*instruction))
+				out.push_back(line);
+	}
 	return out;
 }
 
@@ -46,8 +51,6 @@ void Function::compile() {
 			throw std::runtime_error("Expected 4 nodes in " + name + "'s source node, found " +
 				std::to_string(source->size()));
 
-		std::cerr << "\n\e[32mCompiling " << name << "\e[39m\n\n";
-
 		int i = 0;
 		for (const ASTNode *child: *source->at(2)) {
 			const std::string &argument_name = *child->lexerInfo;
@@ -58,8 +61,8 @@ void Function::compile() {
 			if (i < Why::argumentCount) {
 				argument->reg = Why::argumentOffset + i;
 			} else
-				throw std::runtime_error("Functions with greater than " + std::to_string(Why::argumentCount) + " arguments "
-					"are currently unsupported.");
+				throw std::runtime_error("Functions with greater than " + std::to_string(Why::argumentCount) +
+					" arguments are currently unsupported.");
 			if (selfScope->lookup(argument_name))
 				throw NameConflictError(argument_name);
 			variables.emplace(argument_name, argument);

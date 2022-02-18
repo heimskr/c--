@@ -55,7 +55,7 @@ class Function {
 
 		Function(Program &, const ASTNode *);
 
-		std::vector<std::string> stringify();
+		std::vector<std::string> stringify(bool colored = false);
 
 		void compile();
 

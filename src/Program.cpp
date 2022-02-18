@@ -135,14 +135,13 @@ void Program::compile() {
 	lines.push_back("");
 	lines.push_back("%code");
 	lines.push_back("");
-	// if (!init_lines.empty())
 	lines.push_back(":: .init");
 	lines.push_back(":: main");
 	lines.push_back("<halt>");
 
 	for (auto &[name, function]: functions) {
 		lines.push_back("");
-		lines.push_back("\e[36m@\e[38;5;202m" + function.name + "\e[39m");
+		lines.push_back("@" + function.name);
 		for (const std::string &line: function.stringify())
 			lines.push_back("\t" + line);
 	}
