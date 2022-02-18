@@ -20,7 +20,7 @@ fn typecheck(): void {
 	s64_ptr: s64* = (s64*) &s_32;
 	void_ptr: void* = s64_ptr;
 	// badcast: s64* = void_ptr; // Shouldn't compile
-	recast: s64* = (s64*) void_ptr; // Shouldn't compile
+	recast: s64* = (s64*) void_ptr;
 }
 
 fn main(argc: u32): void {
