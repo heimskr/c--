@@ -1,7 +1,7 @@
 #name "Example"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "4.1"
+#version "4.2"
 
 n: s64 = 38 + 5;
 empty: bool;
@@ -57,9 +57,7 @@ fn scope_test(): s32 {
 	if true {
 		n: u64 = (u64) -1s64;
 		.s("Block-scope n = "); .u64(n); l();
-		{
-			n = 64;
-		};
+		{ { { n = 64; }; }; };
 		.s("Block-scope n = "); .u64(n); l();
 	};
 	.s("Function-scope n = "); .s32(n); l();
