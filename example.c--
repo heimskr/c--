@@ -9,6 +9,10 @@ dependent: s64 = n * 2;
 global_addr: s64* = &dependent;
 unsigned: u64 = 60u8;
 
+fn l(): void {
+	.c('\n');
+}
+
 fn triple_and_add(input: s64, addend: s64): s64 {
 	return (input << 1) + input + addend;
 }
@@ -29,29 +33,46 @@ fn main(argc: u32): void {
 	wow: s64;
 	(void*) typecheck();
 	(void*) 42;
-	.s64(n); .c('\n');
-	.s64(empty); .c('\n');
-	.s64(dependent); .c('\n');
-	.s64(global_addr); .c('\n');
-	.s64(val); .s(" * 3 + 10 != "); .s64(triple_and_add(triple_and_add(val, 10), triple_and_add(0, 0))); .c('\n');
+	.s("n = "); .s64(n); l();
+	.s("empty = "); .s64(empty); l();
+	.s("dependent = "); .s64(dependent); l();
+	.s("global_addr = "); .ptr(global_addr); l();
+	.s("*global_addr = "); .s64(*global_addr); l();
+	.s64(val); .s(" * 3 + 10 != "); .s64(triple_and_add(triple_and_add(val, 10), triple_and_add(0, 0))); l();
 	ptr_test();
-	.s64(badfib(10)); .c('\n');
-	.s64(conditional()); .c('\n');
-	.bool(!10); .c('\n');
-	.bool(!0); .c('\n');
-	// .s64(z_split()); .c('\n');
+	.s("Badfib: ");      .s64(badfib(10));    l();
+	.s("Conditional: "); .s64(conditional()); l();
+	.s("!10 = "); .bool(!10); l();
+	.s("!0  = "); .bool(!0);  l();
+	// .s64(z_split()); l();
+	scope_out: s32 = scope_test();
+	.s("scope_out() == "); .s32(scope_out); l();
 	return (void) 0;
 }
 
+fn scope_test(): s32 {
+	n: s32 = 42;
+	.s("Function-scope n = "); .s32(n); l();
+	if true {
+		n: u64 = (u64) -1s64;
+		.s("Block-scope n = "); .u64(n); l();
+		n = 64;
+		.s("Block-scope n = "); .u64(n); l();
+	};
+	.s("Function-scope n = "); .s32(n); l();
+	return n;
+}
+
 fn ptr_test(): void {
+	.s("ptr_test():\n");
 	ptr: s64* = &n;
 	vptr: void* = ptr;
-	.ptr(vptr); .c('\n');
+	.ptr(vptr); l();
 	val: s64 = 12;
 	valptr: s64* = &val;
 	zero: s64;
 	*(valptr + (zero = 0)) = 16;
-	.s64(val); .c('\n');
+	.s64(val); l();
 }
 
 fn forever(): void {

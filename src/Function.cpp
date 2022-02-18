@@ -15,13 +15,14 @@
 
 Function::Function(Program &program_, const ASTNode *source_):
 program(program_), source(source_),
-selfScope(MultiScope::make(GlobalScope::make(program), FunctionScope::make(*this))) {
+selfScope(FunctionScope::make(*this, GlobalScope::make(program))) {
 	if (source) {
 		name = *source->at(0)->lexerInfo;
 		returnType = TypePtr(Type::get(*source->at(1)));
 	} else
 		returnType = VoidType::make();
 	scopes.emplace(0, selfScope);
+	scopeStack.push_back(selfScope);
 }
 
 std::vector<std::string> Function::stringify(bool colored) {
@@ -127,7 +128,7 @@ VregPtr Function::newVar() {
 
 ScopePtr Function::newScope(int *id_out) {
 	const int new_id = ++nextBlock;
-	auto new_scope = std::make_shared<BlockScope>(selfScope);
+	auto new_scope = std::make_shared<BlockScope>(currentScope());
 	scopes.try_emplace(new_id, new_scope);
 	if (id_out)
 		*id_out = new_id;
@@ -152,7 +153,7 @@ void Function::compile(const ASTNode &node) {
 	switch (node.symbol) {
 		case CMMTOK_COLON: {
 			const std::string &var_name = *node.front()->lexerInfo;
-			if (selfScope->lookup(var_name))
+			if (currentScope()->lookup(var_name))
 				throw NameConflictError(var_name, node.front()->location);
 			VariablePtr variable = Variable::make(var_name, TypePtr(Type::get(*node.at(1))), *this);
 			variable->init();
@@ -160,8 +161,8 @@ void Function::compile(const ASTNode &node) {
 			size_t offset = addToStack(variable);
 			if (node.size() == 3) {
 				auto expr = ExprPtr(Expr::get(*node.at(2), this));
-				expr->compile(variable, *this, selfScope);
-				typeCheck(*expr->getType(selfScope), *variable->type, variable, *this);
+				expr->compile(variable, *this, currentScope());
+				typeCheck(*expr->getType(currentScope()), *variable->type, variable, *this);
 				VregPtr fp = precolored(Why::framePointerOffset);
 				if (offset == 0) {
 					add<StoreRInstruction>(variable, fp, variable->getSize());
@@ -176,14 +177,14 @@ void Function::compile(const ASTNode &node) {
 		case CMMTOK_RETURN: {
 			auto expr = ExprPtr(Expr::get(*node.front(), this));
 			auto r0 = precolored(Why::returnValueOffset);
-			expr->compile(r0, *this, selfScope);
-			auto expr_type = expr->getType(selfScope);
+			expr->compile(r0, *this, currentScope());
+			auto expr_type = expr->getType(currentScope());
 			typeCheck(*expr_type, *returnType, r0, *this, node.location);
 			add<JumpInstruction>("." + name + ".e");
 			break;
 		}
 		case CMMTOK_LPAREN:
-			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, selfScope);
+			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, currentScope());
 			break;
 		case CMMTOK_WHILE: {
 			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
@@ -191,10 +192,13 @@ void Function::compile(const ASTNode &node) {
 			const std::string start = label + "s", end = label + "e";
 			add<Label>(start);
 			auto m0 = mx(0);
-			condition->compile(m0, *this, selfScope);
+			condition->compile(m0, *this, currentScope());
 			add<LogicalNotInstruction>(m0);
 			add<JumpConditionalInstruction>(end, m0);
+			auto scope = newScope();
+			scopeStack.push_back(scope);
 			compile(*node.at(1));
+			scopeStack.pop_back();
 			add<JumpInstruction>(start);
 			add<Label>(end);
 			break;
@@ -207,25 +211,34 @@ void Function::compile(const ASTNode &node) {
 			const std::string end_label = "." + name + "." + std::to_string(++nextBlock) + "end";
 			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
 			auto m0 = mx(0);
-			condition->compile(m0, *this, selfScope);
+			condition->compile(m0, *this, currentScope());
 			add<LogicalNotInstruction>(m0);
 			if (node.size() == 3) {
 				const std::string else_label = "." + name + "." + std::to_string(nextBlock) + "e";
 				add<JumpConditionalInstruction>(else_label, m0);
+				auto scope = newScope();
+				scopeStack.push_back(scope);
 				compile(*node.at(1));
+				scopeStack.pop_back();
 				add<JumpInstruction>(end_label);
 				add<Label>(else_label);
+				scope = newScope();
+				scopeStack.push_back(scope);
 				compile(*node.at(2));
+				scopeStack.pop_back();
 			} else {
 				add<JumpConditionalInstruction>(end_label, m0);
+				auto scope = newScope();
+				scopeStack.push_back(scope);
 				compile(*node.at(1));
+				scopeStack.pop_back();
 			}
 			add<Label>(end_label);
 			break;
 		}
 		case CMM_CAST:
 		case CMMTOK_ASSIGN: {
-			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, selfScope);
+			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, currentScope());
 			break;
 		}
 		default:

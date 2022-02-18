@@ -29,7 +29,6 @@ class Function {
 	public:
 		Program &program;
 		std::string name = "???";
-		// std::vector<std::shared_ptr<CmmInstruction>> cmm;
 		std::list<WhyPtr> instructions;
 		std::map<std::string, VariablePtr> variables;
 		std::set<VregPtr> virtualRegisters;
@@ -48,12 +47,14 @@ class Function {
 		const ASTNode *source = nullptr;
 		int nextVariable = 0;
 		size_t stackUsage = 0;
-		// size_t walkCount = 0;
 		std::shared_ptr<Scope> selfScope;
 		/** Maps basic blocks to their corresponding CFG nodes. */
 		std::unordered_map<const BasicBlock *, Node *> bbNodeMap;
+		std::vector<std::shared_ptr<Scope>> scopeStack;
 
 		Function(Program &, const ASTNode *);
+
+		std::shared_ptr<Scope> currentScope() const { return scopeStack.back(); }
 
 		std::vector<std::string> stringify(bool colored = false);
 
