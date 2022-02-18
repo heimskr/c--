@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include "ASTNode.h"
+#include "Casting.h"
 #include "Errors.h"
 #include "Expr.h"
 #include "Function.h"
@@ -58,7 +59,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 		case CMMTOK_STRING:
 			return new StringExpr(node.unquote());
 		case CMMTOK_CHAR:
-			return new NumberExpr(std::to_string(ssize_t(node.getChar())) + "_u8");
+			return new NumberExpr(std::to_string(ssize_t(node.getChar())) + "u8");
 		case CMMTOK_LT:
 			return new LtExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
@@ -193,7 +194,7 @@ std::optional<ssize_t> ShiftLeftExpr::evaluate() const {
 
 ssize_t NumberExpr::getValue() const {
 	getSize(nullptr);
-	return Util::parseLong(literal.substr(0, literal.find('_')));
+	return Util::parseLong(literal.substr(0, literal.find_first_of("su")));
 }
 
 void NumberExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
@@ -210,15 +211,15 @@ void NumberExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 }
 
 size_t NumberExpr::getSize(ScopePtr) const {
-	const size_t underscore = literal.find('_');
+	const size_t suffix = literal.find_first_of("su");
 
 	// TODO: bounds checking for unsigned literals
 
-	if (underscore == std::string::npos)
+	if (suffix == std::string::npos)
 		return 8;
 
-	const ssize_t value = Util::parseLong(literal.substr(0, underscore));
-	const size_t size = Util::parseLong(literal.substr(underscore + 2)) / 8;
+	const ssize_t value = Util::parseLong(literal.substr(0, suffix));
+	const size_t size = Util::parseLong(literal.substr(suffix + 1)) / 8;
 	bool out_of_range = false;
 
 	switch (size) {
@@ -418,6 +419,9 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 			if (!destination)
 				destination = function.mx(1);
 			right->compile(destination, function, scope, multiplier);
+			TypePtr right_type = right->getType(scope), left_type = left->getType(scope);
+			if (!tryCast(right_type, left_type, destination, function))
+				throw ImplicitConversionError(right_type, left_type);
 			if (auto *global = var->cast<Global>()) {
 				function.add<StoreIInstruction>(destination, global->name);
 			} else {

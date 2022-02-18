@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "ASTNode.h"
+#include "Casting.h"
 #include "ColoringAllocator.h"
 #include "Errors.h"
 #include "Expr.h"
@@ -140,10 +141,8 @@ VregPtr Function::precolored(int reg) {
 size_t Function::addToStack(VariablePtr variable) {
 	if (stackOffsets.count(variable) != 0)
 		throw std::runtime_error("Variable already on the stack in function " + name + ": " + variable->name);
-	stackOffsets.emplace(variable, stackUsage);
-	size_t out = stackUsage;
-	stackUsage += variable->type->getSize();
-	return out;
+	stackOffsets.emplace(variable, stackUsage += variable->type->getSize());
+	return stackUsage;
 }
 
 void Function::compile(const ASTNode &node) {
@@ -157,7 +156,9 @@ void Function::compile(const ASTNode &node) {
 			variables.emplace(var_name, variable);
 			size_t offset = addToStack(variable);
 			if (node.size() == 3) {
-				ExprPtr(Expr::get(*node.at(2), this))->compile(variable, *this, selfScope);
+				auto expr = ExprPtr(Expr::get(*node.at(2), this));
+				expr->compile(variable, *this, selfScope);
+				typeCheck(expr->getType(selfScope), variable->type, variable, *this);
 				VregPtr fp = precolored(Why::framePointerOffset);
 				if (offset == 0) {
 					add<StoreRInstruction>(variable, fp);

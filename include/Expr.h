@@ -187,7 +187,7 @@ struct ShiftLeftExpr: BinaryExpr<"<<"> {
 struct NumberExpr: AtomicExpr {
 	std::string literal;
 	NumberExpr(const std::string &literal_): literal(literal_) {}
-	NumberExpr(ssize_t value_): literal(std::to_string(value_) + "_s64") {}
+	NumberExpr(ssize_t value_): literal(std::to_string(value_) + "s64") {}
 	operator std::string() const override { return literal; }
 	ssize_t getValue() const override;
 	std::optional<ssize_t> evaluate() const override { return getValue(); }

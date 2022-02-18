@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <ostream>
 #include <string>
 
 #include "Checkable.h"
@@ -35,6 +36,8 @@ struct Type: Checkable, std::enable_shared_from_this<Type> {
 		return std::dynamic_pointer_cast<const T>(shared_from_this());
 	}
 };
+
+std::ostream & operator<<(std::ostream &, const Type &);
 
 struct IntType: Type {
 	size_t width; // in bits

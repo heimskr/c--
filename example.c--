@@ -7,11 +7,17 @@ n: s64 = 38 + 5;
 empty: bool;
 dependent: s64 = n * 2;
 global_addr: s64* = &dependent;
-unsigned: u64 = 60_u8;
+unsigned: u64 = 60u8;
 
 fn triple_and_add(in: s64, addend: s64): s64 {
 	// return in << 1 + in + addend;
 	return in * 2 + in + addend;
+}
+
+fn typecheck(): void {
+	u_8: u8 = 600u16;
+	s_16: s16 = 40u8;
+	s_32: s32 = -10s8;
 }
 
 fn main(argc: u32): void {
@@ -26,7 +32,7 @@ fn main(argc: u32): void {
 	ptr_test();
 	.s64(badfib(10)); .c('\n');
 	.s64(conditional()); .c('\n');
-	.s64(z_split()); .c('\n');
+	// .s64(z_split()); .c('\n');
 	return 0;
 }
 
@@ -66,7 +72,7 @@ fn conditional(): s64 {
 	return 3;
 }
 
-//*
+/*
 fn z_split(): s64 {
 	var0: s64 = 0;
 	var1: s64 = 1;
@@ -341,3 +347,4 @@ fn z_split(): s64 {
 	var200 = var200 + 100;
 	return var200;
 }
+*/

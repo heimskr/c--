@@ -3,6 +3,10 @@
 #include "Parser.h"
 #include "Type.h"
 
+std::ostream & operator<<(std::ostream &os, const Type &type) {
+	return os << std::string(type);
+}
+
 bool SignedType::operator&&(const Type &other) const {
 	if (auto *other_signed = dynamic_cast<const SignedType *>(&other))
 		return other_signed->width == width;
