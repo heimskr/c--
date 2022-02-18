@@ -28,3 +28,9 @@ void typeCheck(const Type &right_type, const Type &left_type, VregPtr vreg, Func
 	if (!tryCast(right_type, left_type, vreg, function))
 		throw ImplicitConversionError(TypePtr(right_type.copy()), TypePtr(left_type.copy()));
 }
+
+void typeCheck(const Type &right_type, const Type &left_type, VregPtr vreg, Function &function,
+               const ASTLocation &location) {
+	if (!tryCast(right_type, left_type, vreg, function))
+		throw ImplicitConversionError(TypePtr(right_type.copy()), TypePtr(left_type.copy()), location);
+}

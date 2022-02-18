@@ -31,7 +31,10 @@ struct NotOnStackError: std::runtime_error {
 
 struct ImplicitConversionError: std::runtime_error {
 	std::shared_ptr<Type> left, right;
+	ASTLocation location;
+	ImplicitConversionError(std::shared_ptr<Type> left_, std::shared_ptr<Type> right_, const ASTLocation &location_);
 	ImplicitConversionError(std::shared_ptr<Type> left_, std::shared_ptr<Type> right_);
+	ImplicitConversionError(const Type &left_, const Type &right_, const ASTLocation &location_);
 	ImplicitConversionError(const Type &left_, const Type &right_);
 };
 

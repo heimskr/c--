@@ -173,11 +173,15 @@ void Function::compile(const ASTNode &node) {
 			}
 			break;
 		}
-		case CMMTOK_RETURN:
-			ExprPtr(Expr::get(*node.front(), this))->compile(precolored(Why::returnValueOffset), *this,
-				selfScope);
+		case CMMTOK_RETURN: {
+			auto expr = ExprPtr(Expr::get(*node.front(), this));
+			auto r0 = precolored(Why::returnValueOffset);
+			expr->compile(r0, *this, selfScope);
+			auto expr_type = expr->getType(selfScope);
+			typeCheck(*expr_type, *returnType, r0, *this, node.location);
 			add<JumpInstruction>("." + name + ".e");
 			break;
+		}
 		case CMMTOK_LPAREN:
 			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, selfScope);
 			break;

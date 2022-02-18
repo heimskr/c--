@@ -3,6 +3,7 @@
 #include <memory>
 
 class Function;
+struct ASTLocation;
 struct Type;
 struct VirtualRegister;
 
@@ -11,3 +12,7 @@ bool tryCast(const Type &expr_type, const Type &var_type, std::shared_ptr<Virtua
 
 /** Throws an ImplicitConversionError if tryCast returns false for the given arguments. */
 void typeCheck(const Type &expr_type, const Type &var_type, std::shared_ptr<VirtualRegister>, Function &);
+
+/** Throws an ImplicitConversionError if tryCast returns false for the given arguments. */
+void typeCheck(const Type &expr_type, const Type &var_type, std::shared_ptr<VirtualRegister>, Function &,
+               const ASTLocation &);
