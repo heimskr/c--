@@ -114,7 +114,7 @@ void Program::compile() {
 				expr->compile(vreg, init, init_scope);
 				if (!tryCast(*expr_type, *type, vreg, init))
 					throw ImplicitConversionError(expr_type, type);
-				init.add<StoreIInstruction>(vreg, iter->first);
+				init.add<StoreIInstruction>(vreg, iter->first, size);
 			}
 		} else if (size == 1) {
 			lines.push_back("\t%1b 0");
@@ -144,10 +144,10 @@ void Program::compile() {
 	lines.push_back("<halt>");
 
 	for (const std::string &line:
-		Util::split("|@.c|\t<prc $a0>|\t: $rt||@.ptr|\t<prx $a0>|\t: $rt||@.s|\t[$a0] -> $mf /b|\t: _strprint_print if "
-		"$mf|\t: $rt|\t@_strprint_print|\t<prc $mf>|\t$a0++|\t: .s||@.s16|\t<prd $a0>|\t: $rt||@.s32|\t<prd $a0>|\t: $r"
-		"t||@.s64|\t<prd $a0>|\t: $rt||@.s8|\t<prd $a0>|\t: $rt||@.u16|\t<prd $a0>|\t: $rt||@.u32|\t<prd $a0>|\t: $rt||"
-		"@.u64|\t<prd $a0>|\t: $rt||@.u8|\t<prd $a0>|\t: $rt", "|", false))
+		Util::split("|@.c|\t<prc $a0>|\t: $rt||@.ptr|\t<prc '0'>|\t<prc 'x'>|\t<prx $a0>|\t: $rt||@.s|\t[$a0] -> $mf /b"
+		"|\t: _strprint_print if $mf|\t: $rt|\t@_strprint_print|\t<prc $mf>|\t$a0++|\t: .s||@.s16|\t<prd $a0>|\t: $rt||"
+		"@.s32|\t<prd $a0>|\t: $rt||@.s64|\t<prd $a0>|\t: $rt||@.s8|\t<prd $a0>|\t: $rt||@.u16|\t<prd $a0>|\t: $rt||@.u"
+		"32|\t<prd $a0>|\t: $rt||@.u64|\t<prd $a0>|\t: $rt||@.u8|\t<prd $a0>|\t: $rt", "|", false))
 		lines.push_back(line);
 
 	for (auto &[name, function]: functions)

@@ -303,7 +303,7 @@ void BoolExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_
 void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
 	if (VariablePtr var = scope->lookup(name)) {
 		if (auto global = std::dynamic_pointer_cast<Global>(var)) {
-			function.add<LoadIInstruction>(destination, global->name);
+			function.add<LoadIInstruction>(destination, global->name, global->getSize());
 		} else if (function.argumentMap.count(name) != 0) {
 			function.addComment("Load argument " + name);
 			function.add<MoveInstruction>(function.argumentMap.at(name), destination);
@@ -313,7 +313,7 @@ void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr sco
 			const size_t offset = function.stackOffsets.at(var);
 			function.addComment("Load variable " + name);
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, int(offset));
-			function.add<LoadRInstruction>(destination, destination);
+			function.add<LoadRInstruction>(destination, destination, var->getSize());
 		}
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, int(multiplier));
@@ -369,7 +369,7 @@ std::unique_ptr<Type> StringExpr::getType(ScopePtr) const {
 void DerefExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
 	checkType(scope);
 	subexpr->compile(destination, function, scope, multiplier);
-	function.add<LoadRInstruction>(destination, destination);
+	function.add<LoadRInstruction>(destination, destination, subexpr->getSize(scope));
 }
 
 size_t DerefExpr::getSize(ScopePtr scope) const {
@@ -470,16 +470,16 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 			if (!tryCast(*right_type, *left_type, destination, function))
 				throw ImplicitConversionError(right_type, left_type);
 			if (auto *global = var->cast<Global>()) {
-				function.add<StoreIInstruction>(destination, global->name);
+				function.add<StoreIInstruction>(destination, global->name, global->getSize());
 			} else {
 				auto fp = function.precolored(Why::framePointerOffset);
 				auto offset = function.stackOffsets.at(var);
 				if (offset == 0) {
-					function.add<StoreRInstruction>(destination, fp);
+					function.add<StoreRInstruction>(destination, fp, var->getSize());
 				} else {
 					auto m0 = function.mx(0);
 					function.add<SubIInstruction>(fp, m0, int(offset));
-					function.add<StoreRInstruction>(destination, m0);
+					function.add<StoreRInstruction>(destination, m0, var->getSize());
 				}
 			}
 		} else
@@ -491,7 +491,7 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 			destination = function.mx(1);
 		right->compile(destination, function, scope, multiplier);
 		deref_expr->subexpr->compile(m0, function, scope);
-		function.add<StoreRInstruction>(destination, m0);
+		function.add<StoreRInstruction>(destination, m0, deref_expr->getSize(scope)); // TODO: verify size
 	} else
 		throw LvalueError(*left->getType(scope));
 }

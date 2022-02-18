@@ -9,7 +9,6 @@
 bool tryCast(const Type &right_type, const Type &left_type, VregPtr vreg, Function &function) {
 	if (!(right_type && left_type)) {
 		if (right_type.isInt() && left_type.isInt()) {
-			std::cerr << "tryCast(" << right_type << ", " << left_type << ", " << *vreg << ", " << function.name << ")\n";
 			const auto *right_int = right_type.cast<IntType>(), *left_int = left_type.cast<IntType>();
 			if (right_type.isSigned() && left_type.isSigned()) {
 				if (right_int->width < left_int->width)

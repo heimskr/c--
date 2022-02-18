@@ -1,7 +1,7 @@
 #name "Example"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "2.1"
+#version "3.0"
 
 n: s64 = 38 + 5;
 empty: bool;

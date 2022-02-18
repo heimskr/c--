@@ -232,23 +232,43 @@ struct MultIInstruction: IType {
 	}
 };
 
-struct StoreIInstruction: IType {
-	StoreIInstruction(VregPtr source_, const Immediate &imm_): IType(source_, nullptr, imm_) {}
+struct SizedInstruction {
+	size_t size;
+	SizedInstruction(size_t size_): size(size_) {}
+
+	protected:
+		std::string suffix(bool colored = false) const {
+			switch (size) {
+				case 1: return colored? " \e[2m/b\e[22m" : " /b";
+				case 2: return colored? " \e[2m/s\e[22m" : " /s";
+				case 4: return colored? " \e[2m/h\e[22m" : " /h";
+				case 8: return "";
+				default: throw std::out_of_range("Invalid instruction size: " + std::to_string(size));
+			}
+		}
+};
+
+struct StoreIInstruction: IType, SizedInstruction {
+	StoreIInstruction(VregPtr source_, const Immediate &imm_, size_t size_):
+		IType(source_, nullptr, imm_), SizedInstruction(size_) {}
 	operator std::vector<std::string>() const override {
-		return {source->regOrID() + " -> [" + stringify(imm) + "]"};
+		return {source->regOrID() + " -> [" + stringify(imm) + "]" + suffix()};
 	}
 	std::vector<std::string> colored() const override {
-		return {source->regOrID(true) + " \e[2m-> [\e[22m" + stringify(imm, true) + "\e[2m]\e[22m"};
+		return {source->regOrID(true) + " \e[2m-> [\e[22m" + stringify(imm, true) + "\e[2m]\e[22m" + suffix(true)};
 	}
 };
 
-struct StoreRInstruction: RType {
-	StoreRInstruction(VregPtr source_, VregPtr destination_): RType(source_, nullptr, destination_) {}
+struct StoreRInstruction: RType, SizedInstruction {
+	StoreRInstruction(VregPtr source_, VregPtr destination_, size_t size_):
+		RType(source_, nullptr, destination_), SizedInstruction(size_) {}
 	operator std::vector<std::string>() const override {
-		return {leftSource->regOrID() + " -> [" + destination->regOrID() + "]"};
+		return {leftSource->regOrID() + " -> [" + destination->regOrID() + "]" + suffix()};
 	}
 	std::vector<std::string> colored() const override {
-		return {leftSource->regOrID(true) + " \e[2m-> [\e[22m" + destination->regOrID(true) + "\e[2m]\e[22m"};
+		return {
+			leftSource->regOrID(true) + " \e[2m-> [\e[22m" + destination->regOrID(true) + "\e[2m]\e[22m" + suffix(true)
+		};
 	}
 };
 
@@ -272,23 +292,28 @@ struct LuiIInstruction: IType {
 	}
 };
 
-struct LoadIInstruction: IType {
-	LoadIInstruction(VregPtr destination_, const Immediate &imm_): IType(nullptr, destination_, imm_) {}
+struct LoadIInstruction: IType, SizedInstruction {
+	LoadIInstruction(VregPtr destination_, const Immediate &imm_, size_t size_):
+		IType(nullptr, destination_, imm_), SizedInstruction(size_) {}
 	operator std::vector<std::string>() const override {
-		return {"[" + stringify(imm) + "] -> " + destination->regOrID()};
+		return {"[" + stringify(imm) + "] -> " + destination->regOrID() + suffix()};
 	}
 	std::vector<std::string> colored() const override {
-		return {"\e[2m[\e[22m" + stringify(imm, true) + "\e[2m] ->\e[22m " + destination->regOrID(true)};
+		return {"\e[2m[\e[22m" + stringify(imm, true) + "\e[2m] ->\e[22m " + destination->regOrID(true) + suffix(true)};
 	}
 };
 
-struct LoadRInstruction: RType {
-	LoadRInstruction(VregPtr source_, VregPtr destination_): RType(source_, nullptr, destination_) {}
+struct LoadRInstruction: RType, SizedInstruction {
+	size_t size;
+	LoadRInstruction(VregPtr source_, VregPtr destination_, size_t size_):
+		RType(source_, nullptr, destination_), SizedInstruction(size_) {}
 	operator std::vector<std::string>() const override {
-		return {"[" + leftSource->regOrID() + "] -> " + destination->regOrID()};
+		return {"[" + leftSource->regOrID() + "] -> " + destination->regOrID() + suffix()};
 	}
 	std::vector<std::string> colored() const override {
-		return {"\e[2m[\e[22m" + leftSource->regOrID(true) + "\e[2m] ->\e[22m " + destination->regOrID(true)};
+		return {
+			"\e[2m[\e[22m" + leftSource->regOrID(true) + "\e[2m] ->\e[22m " + destination->regOrID(true) + suffix(true)
+		};
 	}
 };
 

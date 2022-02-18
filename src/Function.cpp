@@ -161,11 +161,11 @@ void Function::compile(const ASTNode &node) {
 				typeCheck(*expr->getType(selfScope), *variable->type, variable, *this);
 				VregPtr fp = precolored(Why::framePointerOffset);
 				if (offset == 0) {
-					add<StoreRInstruction>(variable, fp);
+					add<StoreRInstruction>(variable, fp, variable->getSize());
 				} else {
 					VregPtr m0 = mx(0);
 					add<SubIInstruction>(fp, m0, int(offset));
-					add<StoreRInstruction>(variable, m0);
+					add<StoreRInstruction>(variable, m0, variable->getSize());
 				}
 			}
 			break;
