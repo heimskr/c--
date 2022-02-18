@@ -66,8 +66,8 @@ void Function::compile() {
 	for (const ASTNode *child: *source->at(3))
 		compile(*child);
 
-
 	extractBlocks();
+	split();
 	updateVregs();
 	makeCFG();
 	computeLiveness();
@@ -78,7 +78,6 @@ void Function::compile() {
 		std::cerr << "Allocation result: " << Allocator::stringify(result) << '\n';
 	} while (result != Allocator::Result::Success);
 
-	add<Label>("." + name + ".e");
 	auto gp_regs = usedGPRegisters();
 
 	auto fp = precolored(Why::framePointerOffset), rt = precolored(Why::returnAddressOffset);
@@ -88,6 +87,7 @@ void Function::compile() {
 		addFront<StackPushInstruction>(precolored(reg));
 	addFront<StackPushInstruction>(fp);
 	addFront<StackPushInstruction>(rt);
+	add<Label>("." + name + ".e");
 	for (int reg: gp_regs)
 		add<StackPopInstruction>(precolored(reg));
 	add<StackPopInstruction>(fp);
@@ -384,12 +384,8 @@ void Function::computeLiveness() {
 
 	for (auto &block: blocks) {
 		block->cacheReadWritten();
-		for (auto vreg: block->readCache) {
-			if (vreg->id == 602) {
-				error() << "?! " << block->label << "\n";
-			}
+		for (auto vreg: block->readCache)
 			upAndMark(block, vreg);
-		}
 	}
 }
 

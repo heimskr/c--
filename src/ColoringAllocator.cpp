@@ -68,27 +68,6 @@ VregPtr ColoringAllocator::selectMostLive(int *liveness_out) const {
 	}
 
 	if (!ptr) {
-		function.computeLiveness();
-
-		VregPtr vr602;
-		for (const auto &var: function.virtualRegisters)
-			if (var->id == 602) {
-				vr602 = var;
-				break;
-			}
-		if (!vr602) {
-			error() << "Couldn't find %602\n";
-		} else {
-			int count = 0;
-			for (const auto &inst: function.instructions) {
-				if (inst->doesRead(vr602) || inst->doesWrite(vr602)) {
-					++count;
-					error() << *inst << " in block " << inst->parent.lock()->label << '\n';
-				}
-			}
-			error() << "Counted " << count << ".\n";
-		}
-
 		function.debug();
 		throw std::runtime_error("Couldn't select variable with highest liveness");
 	}
