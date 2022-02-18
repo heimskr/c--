@@ -348,6 +348,8 @@ ssize_t NumberExpr::getValue() const {
 void NumberExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
 	const ssize_t multiplied = getValue() * multiplier;
 	getSize(scope);
+	if (!destination)
+		return;
 	if (Util::inRange(multiplied)) {
 		function.add<SetIInstruction>(destination, int(multiplied));
 	} else {
@@ -405,7 +407,8 @@ bool NumberExpr::isUnsigned() const {
 }
 
 void BoolExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) const {
-	function.add<SetIInstruction>(destination, value? int(multiplier) : 0);
+	if (destination)
+		function.add<SetIInstruction>(destination, value? int(multiplier) : 0);
 }
 
 void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
@@ -444,6 +447,8 @@ std::unique_ptr<Type> VariableExpr::getType(ScopePtr scope) const {
 void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
 	if (multiplier != 1)
 		throw std::invalid_argument("Cannot multiply in AddressOfExpr");
+	if (!destination)
+		return;
 	if (auto *var_exp = dynamic_cast<VariableExpr *>(subexpr.get())) {
 		if (auto var = scope->lookup(var_exp->name)) {
 			if (auto global = std::dynamic_pointer_cast<Global>(var))
@@ -481,7 +486,8 @@ void LnotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 void StringExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) const {
 	if (multiplier != 1)
 		throw std::invalid_argument("Cannot multiply in StringExpr");
-	function.add<SetIInstruction>(destination, ".str" + std::to_string(function.program.getStringID(contents)));
+	if (destination)
+		function.add<SetIInstruction>(destination, ".str" + std::to_string(function.program.getStringID(contents)));
 }
 
 std::unique_ptr<Type> StringExpr::getType(ScopePtr) const {

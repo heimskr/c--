@@ -219,6 +219,7 @@ void Function::compile(const ASTNode &node) {
 			add<Label>(end_label);
 			break;
 		}
+		case CMM_CAST:
 		case CMMTOK_ASSIGN: {
 			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, selfScope);
 			break;
