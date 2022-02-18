@@ -610,3 +610,19 @@ struct InverseBinaryRType: RType {
 
 struct GtRInstruction:  InverseBinaryRType<"<">  { using InverseBinaryRType::InverseBinaryRType; };
 struct GteRInstruction: InverseBinaryRType<"<="> { using InverseBinaryRType::InverseBinaryRType; };
+
+template <char O>
+struct UnaryRType: RType {
+	UnaryRType(VregPtr source_, VregPtr destination_): RType(source_, nullptr, destination_) {}
+	operator std::vector<std::string>() const override {
+		return {std::string(1, O) + leftSource->regOrID() + " -> " + destination->regOrID()};
+	}
+	std::vector<std::string> colored() const override {
+		return {
+			"\e[2m" + std::string(1, O) + "\e[22m" + leftSource->regOrID(true) + " -> " + destination->regOrID(true)
+		};
+	}
+};
+
+struct NotInstruction:  UnaryRType<'~'> { using UnaryRType::UnaryRType; };
+struct LnotInstruction: UnaryRType<'!'> { using UnaryRType::UnaryRType; };

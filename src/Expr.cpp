@@ -48,6 +48,10 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			return new BoolExpr(false);
 		case CMM_ADDROF:
 			return new AddressOfExpr(Expr::get(*node.front(), function));
+		case CMMTOK_TILDE:
+			return new NotExpr(Expr::get(*node.front(), function));
+		case CMMTOK_NOT:
+			return new LnotExpr(Expr::get(*node.front(), function));
 		case CMMTOK_IDENT:
 			if (!function)
 				throw std::runtime_error("Variable expression encountered in functionless context");
@@ -458,6 +462,20 @@ std::unique_ptr<Type> AddressOfExpr::getType(ScopePtr scope) const {
 		return std::make_unique<PointerType>(subtype->copy());
 	} else
 		throw LvalueError(*subexpr);
+}
+
+void NotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+	subexpr->compile(destination, function, scope);
+	function.add<NotInstruction>(destination, destination);
+	if (multiplier != 1)
+		function.add<MultIInstruction>(destination, destination, int(multiplier));
+}
+
+void LnotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+	subexpr->compile(destination, function, scope);
+	function.add<LnotInstruction>(destination, destination);
+	if (multiplier != 1)
+		function.add<MultIInstruction>(destination, destination, int(multiplier));
 }
 
 void StringExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) const {

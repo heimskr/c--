@@ -65,6 +65,7 @@ Program compileRoot(const ASTNode &root) {
 	add_dummy("s");
 	add_dummy("c");
 	add_dummy("ptr");
+	add_dummy("bool");
 	for (size_t i = 8; i <= 64; i *= 2) {
 		add_dummy("s" + std::to_string(i));
 		add_dummy("u" + std::to_string(i));
@@ -147,7 +148,8 @@ void Program::compile() {
 		Util::split("|@.c|\t<prc $a0>|\t: $rt||@.ptr|\t<prc '0'>|\t<prc 'x'>|\t<prx $a0>|\t: $rt||@.s|\t[$a0] -> $mf /b"
 		"|\t: _strprint_print if $mf|\t: $rt|\t@_strprint_print|\t<prc $mf>|\t$a0++|\t: .s||@.s16|\t<prd $a0>|\t: $rt||"
 		"@.s32|\t<prd $a0>|\t: $rt||@.s64|\t<prd $a0>|\t: $rt||@.s8|\t<prd $a0>|\t: $rt||@.u16|\t<prd $a0>|\t: $rt||@.u"
-		"32|\t<prd $a0>|\t: $rt||@.u64|\t<prd $a0>|\t: $rt||@.u8|\t<prd $a0>|\t: $rt", "|", false))
+		"32|\t<prd $a0>|\t: $rt||@.u64|\t<prd $a0>|\t: $rt||@.u8|\t<prd $a0>|\t: $rt||@.bool|\t!$a0 -> $a0|\t!$a0 -> $a"
+		"0|\t<prd $a0>|\t: $rt", "|", false))
 		lines.push_back(line);
 
 	for (auto &[name, function]: functions)

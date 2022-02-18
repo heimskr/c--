@@ -72,6 +72,7 @@ CMM_SLCOMMENT	("//"[^\n]*)
 "fn"			{RTOKEN(FN)}
 "return"		{RTOKEN(RETURN)}
 "."				{RTOKEN(PERIOD)}
+"~"				{RTOKEN(TILDE)}
 "s8"			{RTOKEN(S8)}
 "u8"			{RTOKEN(U8)}
 "s16"			{RTOKEN(S16)}

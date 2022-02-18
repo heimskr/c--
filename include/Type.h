@@ -72,7 +72,7 @@ struct VoidType: Type, Makeable<VoidType> {
 	bool isVoid() const override { return true; }
 };
 
-struct BoolType: Type {
+struct BoolType: Type, Makeable<BoolType> {
 	Type * copy() const override { return new BoolType; }
 	operator std::string() const override { return "bool"; }
 	size_t getSize() const override { return 1; }

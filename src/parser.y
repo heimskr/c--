@@ -58,6 +58,7 @@ using AN = ASTNode;
 %token CMMTOK_LT "<"
 %token CMMTOK_GT ">"
 %token CMMTOK_NOT "!"
+%token CMMTOK_TILDE "~"
 %token CMMTOK_NEQ "!="
 %token CMMTOK_LBRACE "{"
 %token CMMTOK_RBRACE "}"
