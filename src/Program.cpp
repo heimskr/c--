@@ -124,8 +124,7 @@ void Program::compile() {
 	}
 
 	for (auto &[name, function]: functions)
-		if (name != ".init")
-			function.compile();
+		function.compile();
 
 	for (const auto &[str, id]: stringIDs) {
 		lines.push_back("");

@@ -33,38 +33,42 @@ std::vector<std::string> Function::stringify() {
 }
 
 void Function::compile() {
-	if (isBuiltin())
-		return;
+	const bool is_init = name == ".init";
 
-	if (!source)
-		throw std::runtime_error("Can't compile " + name + ": no source node");
+	if (!is_init) {
+		if (isBuiltin())
+			return;
 
-	if (source->size() != 4)
-		throw std::runtime_error("Expected 4 nodes in " + name + "'s source node, found " +
-			std::to_string(source->size()));
+		if (!source)
+			throw std::runtime_error("Can't compile " + name + ": no source node");
 
-	std::cerr << "\n\e[32mCompiling " << name << "\e[39m\n\n";
+		if (source->size() != 4)
+			throw std::runtime_error("Expected 4 nodes in " + name + "'s source node, found " +
+				std::to_string(source->size()));
 
-	int i = 0;
-	for (const ASTNode *child: *source->at(2)) {
-		const std::string &argument_name = *child->lexerInfo;
-		arguments.push_back(argument_name);
-		VariablePtr argument = Variable::make(argument_name, TypePtr(Type::get(*child->front())), *this);
-		argument->init();
-		argumentMap.emplace(argument_name, argument);
-		if (i < Why::argumentCount) {
-			argument->reg = Why::argumentOffset + i;
-		} else
-			throw std::runtime_error("Functions with greater than " + std::to_string(Why::argumentCount) + " arguments "
-				"are currently unsupported.");
-		if (selfScope->lookup(argument_name))
-			throw NameConflictError(argument_name);
-		variables.emplace(argument_name, argument);
-		++i;
+		std::cerr << "\n\e[32mCompiling " << name << "\e[39m\n\n";
+
+		int i = 0;
+		for (const ASTNode *child: *source->at(2)) {
+			const std::string &argument_name = *child->lexerInfo;
+			arguments.push_back(argument_name);
+			VariablePtr argument = Variable::make(argument_name, TypePtr(Type::get(*child->front())), *this);
+			argument->init();
+			argumentMap.emplace(argument_name, argument);
+			if (i < Why::argumentCount) {
+				argument->reg = Why::argumentOffset + i;
+			} else
+				throw std::runtime_error("Functions with greater than " + std::to_string(Why::argumentCount) + " arguments "
+					"are currently unsupported.");
+			if (selfScope->lookup(argument_name))
+				throw NameConflictError(argument_name);
+			variables.emplace(argument_name, argument);
+			++i;
+		}
+
+		for (const ASTNode *child: *source->at(3))
+			compile(*child);
 	}
-
-	for (const ASTNode *child: *source->at(3))
-		compile(*child);
 
 	extractBlocks();
 	split();
@@ -77,20 +81,23 @@ void Function::compile() {
 		result = allocator.attempt();
 	while (result != Allocator::Result::Success);
 
-	auto gp_regs = usedGPRegisters();
+	auto rt = precolored(Why::returnAddressOffset);
 
-	auto fp = precolored(Why::framePointerOffset), rt = precolored(Why::returnAddressOffset);
-	auto sp = precolored(Why::stackPointerOffset);
-	addFront<MoveInstruction>(sp, fp);
-	for (int reg: gp_regs)
-		addFront<StackPushInstruction>(precolored(reg));
-	addFront<StackPushInstruction>(fp);
-	addFront<StackPushInstruction>(rt);
-	add<Label>("." + name + ".e");
-	for (int reg: gp_regs)
-		add<StackPopInstruction>(precolored(reg));
-	add<StackPopInstruction>(fp);
-	add<StackPopInstruction>(rt);
+	if (!is_init) {
+		auto gp_regs = usedGPRegisters();
+		auto fp = precolored(Why::framePointerOffset), sp = precolored(Why::stackPointerOffset);
+		addFront<MoveInstruction>(sp, fp);
+		for (int reg: gp_regs)
+			addFront<StackPushInstruction>(precolored(reg));
+		addFront<StackPushInstruction>(fp);
+		addFront<StackPushInstruction>(rt);
+		add<Label>("." + name + ".e");
+		for (int reg: gp_regs)
+			add<StackPopInstruction>(precolored(reg));
+		add<StackPopInstruction>(fp);
+		add<StackPopInstruction>(rt);
+	}
+
 	add<JumpRegisterInstruction>(rt, false);
 }
 
