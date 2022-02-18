@@ -59,6 +59,8 @@ class Function {
 
 		void compile();
 
+		std::set<int> usedGPRegisters() const;
+
 		VregPtr newVar();
 
 		std::shared_ptr<Scope> newScope(int *id_out = nullptr);

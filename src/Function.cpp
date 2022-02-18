@@ -66,59 +66,46 @@ void Function::compile() {
 	for (const ASTNode *child: *source->at(3))
 		compile(*child);
 
-	auto fp = precolored(Why::framePointerOffset), rt = precolored(Why::returnAddressOffset);
-	auto sp = precolored(Why::stackPointerOffset);
-	addFront<MoveInstruction>(sp, fp);
-	// TODO: push all used temporaries here
-	addFront<StackPushInstruction>(fp);
-	addFront<StackPushInstruction>(rt);
-	add<Label>("." + name + ".e");
-	// TODO: pop all used temporaries here
-	add<StackPopInstruction>(fp);
-	add<StackPopInstruction>(rt);
-	add<JumpRegisterInstruction>(rt, false);
 
-	std::cerr << "<BasicBlocks>\n";
-	std::map<std::string, BasicBlockPtr> block_map;
-	extractBlocks(&block_map);
-	std::cerr << "Split: " << split(&block_map) << '\n';
-	std::cerr << "Names:"; for (const auto &[name, block]: block_map) std::cerr << ' ' << name; std::cerr << '\n';
+	extractBlocks();
 	updateVregs();
 	makeCFG();
 	computeLiveness();
 	ColoringAllocator allocator(*this);
-	//*
 	Allocator::Result result;
 	do {
 		result = allocator.attempt();
 		std::cerr << "Allocation result: " << Allocator::stringify(result) << '\n';
 	} while (result != Allocator::Result::Success);
-	//*/
 
-	for (const auto &block: blocks) {
-		std::cerr << "\e[1;32m@" << block->label;
-		if (!block->predecessors.empty()) {
-			std::cerr << " <-";
-			for (const auto &pred: block->predecessors)
-				std::cerr << ' ' << pred.lock()->label;
-		}
-		if (!block->successors.empty()) {
-			std::cerr << " ->";
-			for (const auto &succ: block->successors)
-				std::cerr << ' ' << succ.lock()->label;
-		}
-		std::cerr << "\e[0m (" << block->countVariables() << ")\n";
-		for (const auto &instruction: block->instructions)
-			for (const std::string &str: std::vector<std::string>(*instruction))
-				std::cerr << "\t\e[1m" << str << "\e[0m\n";
-		std::cerr << "\e[36mLive-in: \e[1m";
-		for (const auto &var: block->liveIn) std::cerr << ' ' << var->id;
-		std::cerr << "\e[22m\nLive-out:\e[1m";
-		for (const auto &var: block->liveOut) std::cerr << ' ' << var->id;
-		std::cerr << "\e[0m\n\n";
+	add<Label>("." + name + ".e");
+	auto gp_regs = usedGPRegisters();
+
+	auto fp = precolored(Why::framePointerOffset), rt = precolored(Why::returnAddressOffset);
+	auto sp = precolored(Why::stackPointerOffset);
+	addFront<MoveInstruction>(sp, fp);
+	for (int reg: gp_regs)
+		addFront<StackPushInstruction>(precolored(reg));
+	addFront<StackPushInstruction>(fp);
+	addFront<StackPushInstruction>(rt);
+	for (int reg: gp_regs)
+		add<StackPopInstruction>(precolored(reg));
+	add<StackPopInstruction>(fp);
+	add<StackPopInstruction>(rt);
+	add<JumpRegisterInstruction>(rt, false);
+}
+
+std::set<int> Function::usedGPRegisters() const {
+	std::set<int> out;
+	for (const auto &instruction: instructions) {
+		for (const auto &var: instruction->getRead())
+			if (Why::isGeneralPurpose(var->reg))
+				out.insert(var->reg);
+		for (const auto &var: instruction->getWritten())
+			if (Why::isGeneralPurpose(var->reg))
+				out.insert(var->reg);
 	}
-	std::cerr << "</BasicBlocks>\n";
-
+	return out;
 }
 
 VregPtr Function::newVar() {
@@ -370,7 +357,6 @@ int Function::split(std::map<std::string, BasicBlockPtr> *map) {
 						other_block->predecessors.insert(new_block);
 					}
 
-				std::cerr << "Split: " << block->label << " -> " << new_block->label << '\n';
 				blocks.insert(++iter, new_block);
 				changed = true;
 				++count;
@@ -384,6 +370,7 @@ int Function::split(std::map<std::string, BasicBlockPtr> *map) {
 		for (auto &block: blocks)
 			block->index = ++last_index;
 		relinearize();
+		makeCFG();
 	}
 
 	return count;
@@ -391,9 +378,18 @@ int Function::split(std::map<std::string, BasicBlockPtr> *map) {
 
 void Function::computeLiveness() {
 	for (auto &block: blocks) {
+		block->liveIn.clear();
+		block->liveOut.clear();
+	}
+
+	for (auto &block: blocks) {
 		block->cacheReadWritten();
-		for (auto vreg: block->readCache)
+		for (auto vreg: block->readCache) {
+			if (vreg->id == 602) {
+				error() << "?! " << block->label << "\n";
+			}
 			upAndMark(block, vreg);
+		}
 	}
 }
 
@@ -414,11 +410,11 @@ void Function::upAndMark(BasicBlockPtr block, VregPtr vreg) {
 			upAndMark(p, vreg);
 		}
 	} catch (std::out_of_range &) {
-		std::cerr << "Couldn't find block " << block->label << ".";
+		debug();
+		std::cerr << "Couldn't find block " << block->label << ". bbNodeMap (" << bbNodeMap.size() << "):";
 		for (const auto &pair: bbNodeMap)
 			std::cerr << " " << pair.first->label;
 		std::cerr << "\n";
-		debug();
 		throw;
 	}
 }
@@ -770,6 +766,7 @@ void Function::debug() const {
 }
 
 Graph & Function::makeCFG() {
+	cfg.clear();
 	cfg.name = "CFG for " + name;
 	bbNodeMap.clear();
 
