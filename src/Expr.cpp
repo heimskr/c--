@@ -46,7 +46,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			return new BoolExpr(true);
 		case CMMTOK_FALSE:
 			return new BoolExpr(false);
-		case CMMTOK_AND:
+		case CMM_ADDROF:
 			return new AddressOfExpr(Expr::get(*node.front(), function));
 		case CMMTOK_IDENT:
 			if (!function)
@@ -96,6 +96,22 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 		case CMMTOK_RSHIFT:
 			return new ShiftRightExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+		case CMMTOK_AND:
+			return new AndExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+		case CMMTOK_OR:
+			return new OrExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+		case CMMTOK_LAND:
+			return new LandExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+		case CMMTOK_LOR:
+			return new LorExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 		default:
@@ -195,7 +211,7 @@ void MultExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 void ShiftLeftExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
 	VregPtr temp_var = function.newVar();
 	left->compile(temp_var, function, scope, multiplier);
-	right->compile(destination, function, scope, multiplier);
+	right->compile(destination, function, scope);
 	function.add<ShiftLeftLogicalRInstruction>(temp_var, destination, destination);
 }
 
@@ -214,7 +230,7 @@ std::optional<ssize_t> ShiftLeftExpr::evaluate(ScopePtr scope) const {
 void ShiftRightExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
 	VregPtr temp_var = function.newVar();
 	left->compile(temp_var, function, scope, multiplier);
-	right->compile(destination, function, scope, multiplier);
+	right->compile(destination, function, scope);
 	if (left->getType(scope)->isUnsigned())
 		function.add<ShiftRightLogicalRInstruction>(temp_var, destination, destination);
 	else
@@ -233,6 +249,90 @@ std::optional<ssize_t> ShiftRightExpr::evaluate(ScopePtr scope) const {
 			return size_t(*left_value) << *right_value;
 		return *left_value << *right_value;
 	}
+	return std::nullopt;
+}
+
+void AndExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+	VregPtr temp_var = function.newVar();
+	left->compile(temp_var, function, scope);
+	right->compile(destination, function, scope);
+	function.add<AndRInstruction>(temp_var, destination, destination);
+	if (multiplier)
+		function.add<MultIInstruction>(destination, destination, int(multiplier));
+}
+
+size_t AndExpr::getSize(ScopePtr scope) const {
+	return left->getSize(scope);
+}
+
+std::optional<ssize_t> AndExpr::evaluate(ScopePtr scope) const {
+	auto left_value  = left?  left->evaluate(scope)  : std::nullopt,
+	     right_value = right? right->evaluate(scope) : std::nullopt;
+	if (left_value && right_value)
+		return *left_value & *right_value;
+	return std::nullopt;
+}
+
+void OrExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+	VregPtr temp_var = function.newVar();
+	left->compile(temp_var, function, scope);
+	right->compile(destination, function, scope);
+	function.add<OrRInstruction>(temp_var, destination, destination);
+	if (multiplier)
+		function.add<MultIInstruction>(destination, destination, int(multiplier));
+}
+
+size_t OrExpr::getSize(ScopePtr scope) const {
+	return left->getSize(scope);
+}
+
+std::optional<ssize_t> OrExpr::evaluate(ScopePtr scope) const {
+	auto left_value  = left?  left->evaluate(scope)  : std::nullopt,
+	     right_value = right? right->evaluate(scope) : std::nullopt;
+	if (left_value && right_value)
+		return *left_value | *right_value;
+	return std::nullopt;
+}
+
+void LandExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+	VregPtr temp_var = function.newVar();
+	left->compile(temp_var, function, scope);
+	right->compile(destination, function, scope);
+	function.add<LandRInstruction>(temp_var, destination, destination);
+	if (multiplier)
+		function.add<MultIInstruction>(destination, destination, int(multiplier));
+}
+
+size_t LandExpr::getSize(ScopePtr scope) const {
+	return left->getSize(scope);
+}
+
+std::optional<ssize_t> LandExpr::evaluate(ScopePtr scope) const {
+	auto left_value  = left?  left->evaluate(scope)  : std::nullopt,
+	     right_value = right? right->evaluate(scope) : std::nullopt;
+	if (left_value && right_value)
+		return *left_value && *right_value;
+	return std::nullopt;
+}
+
+void LorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+	VregPtr temp_var = function.newVar();
+	left->compile(temp_var, function, scope);
+	right->compile(destination, function, scope);
+	function.add<LorRInstruction>(temp_var, destination, destination);
+	if (multiplier)
+		function.add<MultIInstruction>(destination, destination, int(multiplier));
+}
+
+size_t LorExpr::getSize(ScopePtr scope) const {
+	return left->getSize(scope);
+}
+
+std::optional<ssize_t> LorExpr::evaluate(ScopePtr scope) const {
+	auto left_value  = left?  left->evaluate(scope)  : std::nullopt,
+	     right_value = right? right->evaluate(scope) : std::nullopt;
+	if (left_value && right_value)
+		return *left_value || *right_value;
 	return std::nullopt;
 }
 
