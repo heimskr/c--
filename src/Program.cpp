@@ -139,12 +139,21 @@ void Program::compile() {
 	lines.push_back(":: main");
 	lines.push_back("<halt>");
 
-	for (auto &[name, function]: functions) {
-		lines.push_back("");
-		lines.push_back("@" + function.name);
-		for (const std::string &line: function.stringify())
-			lines.push_back("\t" + line);
-	}
+	for (const std::string &line:
+		Util::split("|@.c|\t<prc $a0>|\t: $rt||@.ptr|\t<prx $a0>|\t: $rt||@.s|\t[$a0] -> $mf /b|\t: _strprint_print if "
+		"$mf|\t: $rt|\t@_strprint_print|\t<prc $mf>|\t$a0++|\t: .s||@.s16|\t<prd $a0>|\t: $rt||@.s32|\t<prd $a0>|\t: $r"
+		"t||@.s64|\t<prd $a0>|\t: $rt||@.s8|\t<prd $a0>|\t: $rt||@.u16|\t<prd $a0>|\t: $rt||@.u32|\t<prd $a0>|\t: $rt||"
+		"@.u64|\t<prd $a0>|\t: $rt||@.u8|\t<prd $a0>|\t: $rt", "|", false))
+		lines.push_back(line);
+
+	for (auto &[name, function]: functions)
+		if (name == ".init" || !function.isBuiltin()) {
+			lines.push_back("");
+			lines.push_back("@" + function.name);
+			for (const std::string &line: function.stringify())
+				lines.push_back("\t" + line);
+		}
+
 }
 
 size_t Program::getStringID(const std::string &str) {

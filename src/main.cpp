@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	std::string input = Util::read(argv[1]);
+	const std::string input = Util::read(argv[1]);
 
 	cmmParser.in(input);
 	cmmParser.debug(false, false);
