@@ -104,6 +104,10 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 	}
 }
 
+std::ostream & operator<<(std::ostream &os, const Expr &expr) {
+	return os << std::string(expr);
+}
+
 void PlusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
 	VregPtr left_var = function.newVar(), right_var = function.newVar();
 	auto left_type = left->getType(scope), right_type = right->getType(scope);

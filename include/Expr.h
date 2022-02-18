@@ -1,8 +1,8 @@
 #pragma once
 
-#include <iostream>
 #include <memory>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -52,6 +52,8 @@ struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 		return std::dynamic_pointer_cast<const T>(shared_from_this());
 	}
 };
+
+std::ostream & operator<<(std::ostream &, const Expr &);
 
 using ExprPtr = std::shared_ptr<Expr>;
 

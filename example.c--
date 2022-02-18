@@ -1,7 +1,7 @@
 #name "Example"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "3.0"
+#version "3.1"
 
 n: s64 = 38 + 5;
 empty: bool;
@@ -10,7 +10,7 @@ global_addr: s64* = &dependent;
 unsigned: u64 = 60u8;
 
 fn triple_and_add(input: s64, addend: s64): s64 {
-	return input << 1 + input + addend;
+	return (input << 1) + input + addend;
 }
 
 fn typecheck(): void {
