@@ -98,6 +98,7 @@ void Function::compile() {
 		addFront<StackPushInstruction>(fp);
 		addFront<StackPushInstruction>(rt);
 		add<Label>("." + name + ".e");
+		add<MoveInstruction>(fp, sp);
 		for (int reg: gp_regs)
 			add<StackPopInstruction>(precolored(reg));
 		add<StackPopInstruction>(fp);
