@@ -1,7 +1,7 @@
 #name "Example"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "3.3"
+#version "3.4"
 
 n: s64 = 38 + 5;
 empty: bool;
@@ -27,6 +27,7 @@ fn main(argc: u32): void {
 	// Functions whose names are "." followed by a type are built-in print functions.
 	val: s64 = n - 1;
 	wow: s64;
+	(void*) typecheck();
 	(void*) 42;
 	.s64(n); .c('\n');
 	.s64(empty); .c('\n');
