@@ -10,6 +10,10 @@ bool EmptyScope::doesConflict(const std::string &) const {
 	return false;
 }
 
+bool EmptyScope::insert(VariablePtr) {
+	return false;
+}
+
 VariablePtr BasicScope::lookup(const std::string &name) const {
 	if (variables.count(name) == 0)
 		return nullptr;
@@ -18,6 +22,13 @@ VariablePtr BasicScope::lookup(const std::string &name) const {
 
 bool BasicScope::doesConflict(const std::string &name) const {
 	return variables.count(name) != 0;
+}
+
+bool BasicScope::insert(VariablePtr variable) {
+	if (doesConflict(variable->name))
+		return false;
+	variables.emplace(variable->name, variable);
+	return true;
 }
 
 VariablePtr FunctionScope::lookup(const std::string &name) const {
@@ -35,6 +46,13 @@ bool FunctionScope::doesConflict(const std::string &name) const {
 	return function.variables.count(name) != 0;
 }
 
+bool FunctionScope::insert(VariablePtr variable) {
+	if (doesConflict(variable->name))
+		return false;
+	function.variables.emplace(variable->name, variable);
+	return true;
+}
+
 VariablePtr GlobalScope::lookup(const std::string &name) const {
 	if (program.globals.count(name) == 0)
 		return nullptr;
@@ -49,6 +67,17 @@ Function * GlobalScope::lookupFunction(const std::string &name) const {
 
 bool GlobalScope::doesConflict(const std::string &name) const {
 	return program.globals.count(name) != 0;
+}
+
+bool GlobalScope::insert(VariablePtr variable) {
+	if (!variable->is<Global>())
+		throw std::invalid_argument("Can't insert a non-global into a GlobalScope");
+
+	if (doesConflict(variable->name))
+		return false;
+
+	program.globals.emplace(variable->name, std::dynamic_pointer_cast<Global>(variable));
+	return true;
 }
 
 VariablePtr MultiScope::lookup(const std::string &name) const {
@@ -72,6 +101,17 @@ bool MultiScope::doesConflict(const std::string &name) const {
 	return false;
 }
 
+bool MultiScope::insert(VariablePtr variable) {
+	if (scopes.empty())
+		throw std::runtime_error("Can't insert variable into an empty MultiScope");
+
+	if (doesConflict(variable->name))
+		return false;
+
+	scopes.front()->insert(variable);
+	return true;
+}
+
 VariablePtr BlockScope::lookup(const std::string &name) const {
 	if (variables.count(name) != 0)
 		return variables.at(name);
@@ -85,4 +125,11 @@ Function * BlockScope::lookupFunction(const std::string &name) const {
 bool BlockScope::doesConflict(const std::string &name) const {
 	// It's fine if the parent scope has a conflict because it can be shadowed in this scope.
 	return variables.count(name) != 0;
+}
+
+bool BlockScope::insert(VariablePtr variable) {
+	if (doesConflict(variable->name))
+		return false;
+	variables.emplace(variable->name, variable);
+	return true;
 }

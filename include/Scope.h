@@ -16,6 +16,8 @@ struct Scope {
 	virtual VariablePtr lookup(const std::string &) const = 0;
 	virtual Function * lookupFunction(const std::string &) const { return nullptr; }
 	virtual bool doesConflict(const std::string &) const = 0;
+	/** Returns whether the insertion was successful. Insertion can fail due to conflicts. */
+	virtual bool insert(VariablePtr) = 0;
 };
 
 using ScopePtr = std::shared_ptr<Scope>;
@@ -26,6 +28,7 @@ struct EmptyScope: Scope, Makeable<EmptyScope> {
 	EmptyScope() = default;
 	VariablePtr lookup(const std::string &) const override;
 	bool doesConflict(const std::string &) const override;
+	bool insert(VariablePtr) override;
 };
 
 struct BasicScope: Scope, Makeable<BasicScope> {
@@ -33,6 +36,7 @@ struct BasicScope: Scope, Makeable<BasicScope> {
 	BasicScope() = default;
 	VariablePtr lookup(const std::string &) const override;
 	bool doesConflict(const std::string &) const override;
+	bool insert(VariablePtr) override;
 };
 
 struct FunctionScope: Scope, Makeable<FunctionScope> {
@@ -42,6 +46,7 @@ struct FunctionScope: Scope, Makeable<FunctionScope> {
 	VariablePtr lookup(const std::string &) const override;
 	Function * lookupFunction(const std::string &) const override;
 	bool doesConflict(const std::string &) const override;
+	bool insert(VariablePtr) override;
 };
 
 struct GlobalScope: Scope, Makeable<GlobalScope> {
@@ -50,6 +55,7 @@ struct GlobalScope: Scope, Makeable<GlobalScope> {
 	VariablePtr lookup(const std::string &) const override;
 	Function * lookupFunction(const std::string &) const override;
 	bool doesConflict(const std::string &) const override;
+	bool insert(VariablePtr) override;
 };
 
 struct MultiScope: Scope, Makeable<MultiScope> {
@@ -60,6 +66,7 @@ struct MultiScope: Scope, Makeable<MultiScope> {
 	VariablePtr lookup(const std::string &) const override;
 	Function * lookupFunction(const std::string &) const override;
 	bool doesConflict(const std::string &) const override;
+	bool insert(VariablePtr) override;
 };
 
 struct BlockScope: Scope, Makeable<BlockScope> {
@@ -69,4 +76,5 @@ struct BlockScope: Scope, Makeable<BlockScope> {
 	VariablePtr lookup(const std::string &) const override;
 	Function * lookupFunction(const std::string &) const override;
 	bool doesConflict(const std::string &) const override;
+	bool insert(VariablePtr) override;
 };

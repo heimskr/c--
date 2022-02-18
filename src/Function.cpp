@@ -157,7 +157,7 @@ void Function::compile(const ASTNode &node) {
 				throw NameConflictError(var_name, node.front()->location);
 			VariablePtr variable = Variable::make(var_name, TypePtr(Type::get(*node.at(1))), *this);
 			variable->init();
-			variables.emplace(var_name, variable);
+			currentScope()->insert(variable);
 			size_t offset = addToStack(variable);
 			if (node.size() == 3) {
 				auto expr = ExprPtr(Expr::get(*node.at(2), this));

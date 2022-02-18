@@ -36,7 +36,7 @@ struct VirtualRegister: Checkable, std::enable_shared_from_this<VirtualRegister>
 struct Variable: VirtualRegister, Makeable<Variable> {
 	std::string name;
 	std::shared_ptr<Type> type;
-	std::weak_ptr<Scope> scope;
+	std::weak_ptr<Scope> scope; // ???
 
 	Variable(const std::string &name_, std::shared_ptr<Type>, Function &);
 	Variable(const std::string &name_, std::shared_ptr<Type>);
