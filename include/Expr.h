@@ -25,19 +25,6 @@ using ScopePtr = std::shared_ptr<Scope>;
 
 std::string stringify(const Expr *);
 
-// struct Pointer {
-// 	VariablePtr variable;
-// 	ssize_t offset;
-// 	Pointer(VariablePtr variable_ = nullptr, ssize_t offset_ = 0): variable(variable_), offset(offset_) {}
-// 	Pointer & operator+=(ssize_t offset_offset) {
-// 		offset += offset_offset;
-// 		return *this;
-// 	}
-// 	Pointer operator+(ssize_t offset_offset) {
-// 		return {variable, offset + offset_offset};
-// 	}
-// };
-
 struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 	virtual ~Expr() {}
 	virtual void compile(VregPtr destination, Function &, ScopePtr, ssize_t multiplier = 1) const;

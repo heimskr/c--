@@ -1,4 +1,5 @@
 #include "ASTNode.h"
+#include "Casting.h"
 #include "Expr.h"
 #include "Lexer.h"
 #include "Parser.h"
@@ -108,56 +109,11 @@ void Program::compile() {
 				lines.push_back("\t%8b " + std::to_string(*value));
 			} else {
 				lines.push_back("\t%fill " + std::to_string(size) + " 0");
-
-				auto expr_type = expr->getType(init.selfScope);
+				TypePtr expr_type = expr->getType(init.selfScope);
 				VregPtr vreg = std::make_shared<VirtualRegister>(init)->init();
 				expr->compile(vreg, init, init_scope);
-
-				if (!(*expr_type && *type)) {
-					if (expr_type->isInt() && type->isInt()) {
-						// bool expr_is_signed = expr_type->isSigned(), var_is_signed = type->isSigned();
-						auto expr_int = expr_type->ptrcast<IntType>(), var_int = type->ptrcast<IntType>();
-						if (expr_type->isSigned() && type->isSigned()) {
-							if (expr_int->width < var_int->width)
-								init.add<SextInstruction>(vreg, vreg, var_int->width);
-							else
-								init.add<AndIInstruction>(vreg, vreg, int((1ul << var_int->width) - 1));
-						} else if (var_int->width < expr_int->width)
-							init.add<AndIInstruction>(vreg, vreg, int((1ul << var_int->width) - 1));
-						// VregPtr vreg = std::make_shared<VirtualRegister>(init)->init();
-						// if (expr_is_signed) {
-						// 	auto expr_signed = expr_type->ptrcast<SignedType>();
-						// 	if (var_is_signed) {
-						// 		// signed -> signed
-						// 		auto var_signed = type->ptrcast<SignedType>();
-						// 		expr->compile(vreg, init, init_scope);
-						// 		if (expr_signed->width < var_signed->width)
-						// 			init.add<SextInstruction>(vreg, vreg, var_signed->width);
-						// 		else
-						// 			init.add<AndIInstruction>(vreg, vreg, (1ul << var_signed->width) - 1);
-						// 	} else {
-						// 		// signed -> unsigned
-						// 		auto var_unsigned = type->ptrcast<UnsignedType>();
-						// 		expr->compile(vreg, init, init_scope);
-						// 		// TODO: verify
-						// 		if (var_unsigned->width < expr_signed->width)
-						// 			init.add<AndIInstruction>(vreg, vreg, (1ul << var_unsigned->width) - 1);
-						// 	}
-						// } else {
-						// 	auto expr_unsigned = expr_type->ptrcast<UnsignedType>();
-						// 	if (var_is_signed) {
-						// 		// unsigned -> signed
-						// 		auto var_signed = type->ptrcast<SignedType>();
-						// 		expr->compile(vreg, init, init_scope);
-						// 	} else {
-						// 		// unsigned -> unsigned
-						// 		auto var_unsigned = type->ptrcast<UnsignedType>();
-						// 		expr->compile(vreg, init, init_scope);
-						// 	}
-						// }
-					} else
-						throw ImplicitConversionError(std::move(expr_type), std::move(type));
-				}
+				if (!tryCast(expr_type, type, vreg, init))
+					throw ImplicitConversionError(expr_type, type);
 				init.add<StoreIInstruction>(vreg, iter->first);
 			}
 		} else if (size == 1) {
