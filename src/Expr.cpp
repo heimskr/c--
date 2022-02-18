@@ -88,6 +88,8 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			return new AssignExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+		case CMM_CAST:
+			return new CastExpr(Type::get(*node.at(0)), Expr::get(*node.at(1), function));
 		default:
 			throw std::invalid_argument("Unrecognized symbol in Expr::get: " +
 				std::string(cmmParser.getName(node.symbol)));
@@ -356,6 +358,13 @@ CallExpr::CallExpr(const ASTNode &node, Function *function_): name(*node.front()
 		arguments.emplace_back(Expr::get(*child, function));
 }
 
+Expr * CallExpr::copy() const {
+	std::vector<ExprPtr> arguments_copy;
+	for (const ExprPtr &argument: arguments)
+		arguments_copy.emplace_back(argument->copy());
+	return new CallExpr(name, function, arguments_copy);
+}
+
 void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_t multiplier) const {
 	const size_t to_push = arguments.size();
 	size_t i;
@@ -420,7 +429,7 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 				destination = function.mx(1);
 			right->compile(destination, function, scope, multiplier);
 			TypePtr right_type = right->getType(scope), left_type = left->getType(scope);
-			if (!tryCast(right_type, left_type, destination, function))
+			if (!tryCast(*right_type, *left_type, destination, function))
 				throw ImplicitConversionError(right_type, left_type);
 			if (auto *global = var->cast<Global>()) {
 				function.add<StoreIInstruction>(destination, global->name);
@@ -462,4 +471,13 @@ size_t AssignExpr::getSize(ScopePtr scope) const {
 
 std::optional<ssize_t> AssignExpr::evaluate() const {
 	return right? right->evaluate() : std::nullopt;
+}
+
+void CastExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+	subexpr->compile(destination, function, scope, multiplier);
+	tryCast(*subexpr->getType(scope), *targetType, destination, function);
+}
+
+std::unique_ptr<Type> CastExpr::getType(ScopePtr) const {
+	return std::unique_ptr<Type>(targetType->copy());
 }

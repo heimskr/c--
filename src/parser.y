@@ -87,7 +87,7 @@ using AN = ASTNode;
 %token CMMTOK_META_VERSION "#version"
 %token CMMTOK_META_ORCID "#orcid"
 
-%token CMM_LIST CMM_ACCESS CMM_BLOCK
+%token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST
 
 %start start
 
@@ -163,6 +163,7 @@ expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
     // | expr "[" expr "]" { ($$ = $2->adopt({$1, $3}))->symbol = CMM_ACCESS; D($4); }
     | function_call
     | "(" expr ")" { $$ = $2; D($1, $3); }
+    | "(" type ")" expr %prec "!" { $1->symbol = CMM_CAST; $$ = $1->adopt({$2, $4}); D($3); }
     | "!" expr { $$ = $1->adopt($2); }
     | number
     | "-" number { $$ = $2->adopt($1); }

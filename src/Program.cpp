@@ -112,7 +112,7 @@ void Program::compile() {
 				TypePtr expr_type = expr->getType(init.selfScope);
 				VregPtr vreg = std::make_shared<VirtualRegister>(init)->init();
 				expr->compile(vreg, init, init_scope);
-				if (!tryCast(expr_type, type, vreg, init))
+				if (!tryCast(*expr_type, *type, vreg, init))
 					throw ImplicitConversionError(expr_type, type);
 				init.add<StoreIInstruction>(vreg, iter->first);
 			}

@@ -18,6 +18,10 @@ fn typecheck(): void {
 	u_8: u8 = 600u16;
 	s_16: s16 = 40u8;
 	s_32: s32 = -10s8;
+	s64_ptr: s64* = (s64*) &s_32;
+	void_ptr: void* = s64_ptr;
+	// badcast: s64* = void_ptr; // Shouldn't compile
+	recast: s64* = (s64*) void_ptr; // Shouldn't compile
 }
 
 fn main(argc: u32): void {

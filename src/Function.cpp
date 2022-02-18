@@ -158,7 +158,7 @@ void Function::compile(const ASTNode &node) {
 			if (node.size() == 3) {
 				auto expr = ExprPtr(Expr::get(*node.at(2), this));
 				expr->compile(variable, *this, selfScope);
-				typeCheck(expr->getType(selfScope), variable->type, variable, *this);
+				typeCheck(*expr->getType(selfScope), *variable->type, variable, *this);
 				VregPtr fp = precolored(Why::framePointerOffset);
 				if (offset == 0) {
 					add<StoreRInstruction>(variable, fp);

@@ -6,8 +6,8 @@ class Function;
 struct Type;
 struct VirtualRegister;
 
-bool tryCast(std::shared_ptr<Type> expr_type, std::shared_ptr<Type> var_type, std::shared_ptr<VirtualRegister>,
-             Function &);
+/** Tries to do an implicit cast if one is allowed and needed. Returns false if one is not allowed. */
+bool tryCast(const Type &expr_type, const Type &var_type, std::shared_ptr<VirtualRegister>, Function &);
 
-void typeCheck(std::shared_ptr<Type> expr_type, std::shared_ptr<Type> var_type, std::shared_ptr<VirtualRegister>,
-               Function &);
+/** Throws an ImplicitConversionError if tryCast returns false for the given arguments. */
+void typeCheck(const Type &expr_type, const Type &var_type, std::shared_ptr<VirtualRegister>, Function &);
