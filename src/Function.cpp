@@ -769,6 +769,9 @@ Graph & Function::makeCFG() {
 	cfg.name = "CFG for " + name;
 	bbNodeMap.clear();
 
+	if (blocks.empty())
+		return cfg;
+
 	// First pass: add all the nodes.
 	for (BasicBlockPtr &block: blocks) {
 		const std::string &label = block->label;

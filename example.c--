@@ -35,7 +35,7 @@ fn main(argc: u32): void {
 	ptr_test();
 	.s64(badfib(10)); .c('\n');
 	.s64(conditional()); .c('\n');
-	.bool(!1); .c('\n');
+	.bool(!10); .c('\n');
 	.bool(!0); .c('\n');
 	// .s64(z_split()); .c('\n');
 	return 0;
