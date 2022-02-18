@@ -90,6 +90,8 @@ void Function::compile() {
 	if (!is_init) {
 		auto gp_regs = usedGPRegisters();
 		auto fp = precolored(Why::framePointerOffset), sp = precolored(Why::stackPointerOffset);
+		if (stackUsage != 0)
+			addFront<SubIInstruction>(sp, sp, int(stackUsage));
 		addFront<MoveInstruction>(sp, fp);
 		for (int reg: gp_regs)
 			addFront<StackPushInstruction>(precolored(reg));
@@ -498,11 +500,9 @@ size_t Function::getSpill(VregPtr variable, bool create, bool *created) {
 	if (create) {
 		if (created)
 			*created = true;
-		// return addToStack(variable, StackLocation::Purpose::Spill);
-		const size_t out = spillLocations[variable] = stackUsage;
 		spilledVregs.insert(variable);
-		stackUsage += Why::wordSize;
-		return out;
+		// TODO: verify (see ff5e26da04a0d8846f026ba6c4e31370f3511110)
+		return spillLocations[variable] = stackUsage += Why::wordSize;
 	}
 	throw std::out_of_range("Couldn't find a spill location for " + variable->regOrID());
 }
@@ -516,16 +516,8 @@ bool Function::isSpilled(VregPtr vreg) const {
 }
 
 bool Function::canSpill(VregPtr vreg) {
-	// if (vreg->writers.empty() || isSpilled(vreg))
-	// 	return false;
-	if (vreg->writers.empty()) {
-		// std::cerr << "Can't spill " << *vreg << ": no definers\n";
+	if (vreg->writers.empty() || isSpilled(vreg))
 		return false;
-	}
-	if (isSpilled(vreg)) {
-		std::cerr << "Can't spill " << *vreg << ": already spilled\n";
-		return false;
-	}
 
 	// If the only definition is a stack store, the variable can't be spilled.
 	if (vreg->writers.size() == 1) {
