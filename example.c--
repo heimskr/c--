@@ -9,9 +9,8 @@ dependent: s64 = n * 2;
 global_addr: s64* = &dependent;
 unsigned: u64 = 60u8;
 
-fn triple_and_add(in: s64, addend: s64): s64 {
-	// return in << 1 + in + addend;
-	return in * 2 + in + addend;
+fn triple_and_add(input: s64, addend: s64): s64 {
+	return input << 1 + input + addend;
 }
 
 fn typecheck(): void {
