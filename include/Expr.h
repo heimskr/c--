@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <string>
@@ -49,8 +50,8 @@ struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 	virtual std::vector<std::string> references() const { return {}; }
 	/** This function both performs type checking and returns a type. */
 	virtual std::unique_ptr<Type> getType(ScopePtr) const = 0;
-	// /** Attempts to return a variable address + offset if the expression is a pointer. */
-	// virtual Pointer getPointer() const { return {}; }
+	virtual bool isUnsigned() const { return false; }
+
 	static Expr * get(const ASTNode &, Function * = nullptr);
 
 	template <typename T>
@@ -137,12 +138,12 @@ struct GteRInstruction;
 struct EqRInstruction;
 struct NeqRInstruction;
 
-struct LtExpr:   CompExpr<"<",  std::less,          LtRInstruction>  { using CompExpr::CompExpr; };
+struct LtExpr:   CompExpr<"<",  std::less,           LtRInstruction>  { using CompExpr::CompExpr; };
 struct LteExpr:  CompExpr<"<=", std::less_equal,    LteRInstruction> { using CompExpr::CompExpr; };
-struct GtExpr:   CompExpr<">",  std::greater,       GtRInstruction>  { using CompExpr::CompExpr; };
+struct GtExpr:   CompExpr<">",  std::greater,        GtRInstruction>  { using CompExpr::CompExpr; };
 struct GteExpr:  CompExpr<">=", std::greater_equal, GteRInstruction> { using CompExpr::CompExpr; };
-struct EqExpr:   CompExpr<"==", std::greater_equal, GteRInstruction> { using CompExpr::CompExpr; };
-struct NeqExpr:  CompExpr<"<=", std::greater_equal, GteRInstruction> { using CompExpr::CompExpr; };
+struct EqExpr:   CompExpr<"==", std::greater_equal,  EqRInstruction> { using CompExpr::CompExpr; };
+struct NeqExpr:  CompExpr<"<=", std::greater_equal, NeqRInstruction> { using CompExpr::CompExpr; };
 
 struct PlusExpr: BinaryExpr<"+"> {
 	using BinaryExpr::BinaryExpr;
@@ -189,15 +190,24 @@ struct MultExpr: BinaryExpr<"*"> {
 	}
 };
 
+struct ShiftLeftExpr: BinaryExpr<"<<"> {
+	using BinaryExpr::BinaryExpr;
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
+	size_t getSize(ScopePtr) const override;
+	std::optional<ssize_t> evaluate() const override;
+};
+
 struct NumberExpr: AtomicExpr {
-	ssize_t value;
-	NumberExpr(ssize_t value_): value(value_) {}
-	operator std::string() const override { return std::to_string(value); }
-	ssize_t getValue() const override { return value; }
+	std::string literal;
+	NumberExpr(const std::string &literal_): literal(literal_) {}
+	NumberExpr(ssize_t value_): literal(std::to_string(value_) + "_s64") {}
+	operator std::string() const override { return literal; }
+	ssize_t getValue() const override;
 	std::optional<ssize_t> evaluate() const override { return getValue(); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
-	// TODO: support unsigned literals and literals of other widths
-	std::unique_ptr<Type> getType(ScopePtr) const override { return std::make_unique<SignedType>(64); }
+	size_t getSize(ScopePtr) const override;
+	std::unique_ptr<Type> getType(ScopePtr) const override;
+	bool isUnsigned() const override;
 };
 
 struct BoolExpr: AtomicExpr {

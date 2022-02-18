@@ -200,46 +200,6 @@ struct MoveInstruction: RType {
 	}
 };
 
-struct AddRInstruction: RType {
-	using RType::RType;
-	operator std::vector<std::string>() const override {
-		return {leftSource->regOrID() + " + " + rightSource->regOrID() + " -> " + destination->regOrID()};
-	}
-	std::vector<std::string> colored() const override {
-		return {leftSource->regOrID(true) + o("+") + rightSource->regOrID(true) + o("->") + destination->regOrID(true)};
-	}
-};
-
-struct AddIInstruction: IType {
-	using IType::IType;
-	operator std::vector<std::string>() const override {
-		return {source->regOrID() + " + " + stringify(imm) + " -> " + destination->regOrID()};
-	}
-	std::vector<std::string> colored() const override {
-		return {source->regOrID(true) + o("+") + stringify(imm, true) + o("->") + destination->regOrID(true)};
-	}
-};
-
-struct SubRInstruction: RType {
-	using RType::RType;
-	operator std::vector<std::string>() const override {
-		return {leftSource->regOrID() + " - " + rightSource->regOrID() + " -> " + destination->regOrID()};
-	}
-	std::vector<std::string> colored() const override {
-		return {leftSource->regOrID(true) + o("-") + rightSource->regOrID(true) + o("->") + destination->regOrID(true)};
-	}
-};
-
-struct SubIInstruction: IType {
-	using IType::IType;
-	operator std::vector<std::string>() const override {
-		return {source->regOrID() + " - " + stringify(imm) + " -> " + destination->regOrID()};
-	}
-	std::vector<std::string> colored() const override {
-		return {source->regOrID(true) + o("-") + stringify(imm, true) + o("->") + destination->regOrID(true)};
-	}
-};
-
 struct MultRInstruction: RType {
 	using RType::RType;
 	operator std::vector<std::string>() const override {
@@ -520,8 +480,44 @@ struct LogicalNotInstruction: RType {
 	}
 };
 
+struct SextInstruction: RType {
+	public:
+		enum class SextType {Sext8, Sext16, Sext32};
+		SextType type;
+		SextInstruction(VregPtr source_, VregPtr destination_, SextType type_):
+			RType(source_, nullptr, destination_), type(type_) {}
+		SextInstruction(VregPtr source_, VregPtr destination_, int width):
+			RType(source_, nullptr, destination_), type(getType(width)) {}
+		operator std::vector<std::string>() const override {
+			return {getOper() + " " + leftSource->regOrID() + " -> " + destination->regOrID()};
+		}
+		std::vector<std::string> colored() const override {
+			return {"\e[2m" + getOper() + "\e[22m " + leftSource->regOrID(true) + o("->") + destination->regOrID(true)};
+		}
+
+	private:
+		std::string getOper() const {
+			switch (type) {
+				case SextType::Sext8:  return "sext8";
+				case SextType::Sext16: return "sext16";
+				case SextType::Sext32: return "sext32";
+				default: return "sext?";
+			}
+		}
+
+		SextType getType(int width) {
+			switch (width) {
+				case 8:  return SextType::Sext8;
+				case 16: return SextType::Sext16;
+				case 32: return SextType::Sext32;
+				default:
+					throw std::invalid_argument("No sext instruction exists for bitwidth " + std::to_string(width));
+			}
+		}
+};
+
 template <fixstr::fixed_string O>
-struct CompRInstruction: RType {
+struct BinaryRType: RType {
 	using RType::RType;
 	operator std::vector<std::string>() const override {
 		return {
@@ -537,9 +533,55 @@ struct CompRInstruction: RType {
 	}
 };
 
-struct LtRInstruction:  CompRInstruction<"<">  { using CompRInstruction::CompRInstruction; };
-struct LteRInstruction: CompRInstruction<"<="> { using CompRInstruction::CompRInstruction; };
-struct GtRInstruction:  CompRInstruction<">">  { using CompRInstruction::CompRInstruction; };
-struct GteRInstruction: CompRInstruction<">="> { using CompRInstruction::CompRInstruction; };
-struct EqRInstruction:  CompRInstruction<"=="> { using CompRInstruction::CompRInstruction; };
-struct NeqRInstruction: CompRInstruction<"!="> { using CompRInstruction::CompRInstruction; };
+struct LtRInstruction:   BinaryRType<"<">  { using BinaryRType::BinaryRType; };
+struct LteRInstruction:  BinaryRType<"<="> { using BinaryRType::BinaryRType; };
+struct EqRInstruction:   BinaryRType<"=="> { using BinaryRType::BinaryRType; };
+struct NeqRInstruction:  BinaryRType<"!="> { using BinaryRType::BinaryRType; };
+struct AddRInstruction:  BinaryRType<"+">  { using BinaryRType::BinaryRType; };
+struct SubRInstruction:  BinaryRType<"-">  { using BinaryRType::BinaryRType; };
+struct AndRInstruction:  BinaryRType<"&">  { using BinaryRType::BinaryRType; };
+struct OrRInstruction:   BinaryRType<"|">  { using BinaryRType::BinaryRType; };
+struct XorRInstruction:  BinaryRType<"^">  { using BinaryRType::BinaryRType; };
+struct LandRInstruction: BinaryRType<"&&"> { using BinaryRType::BinaryRType; };
+struct LorRInstruction:  BinaryRType<"||"> { using BinaryRType::BinaryRType; };
+struct LxorRInstruction: BinaryRType<"^^"> { using BinaryRType::BinaryRType; };
+struct ShiftLeftLogicalRInstruction:     BinaryRType<"<<">  { using BinaryRType::BinaryRType; };
+struct ShiftRightArithmeticRInstruction: BinaryRType<">>">  { using BinaryRType::BinaryRType; };
+struct ShiftRightLogicalRInstruction:    BinaryRType<">>>"> { using BinaryRType::BinaryRType; };
+
+template <fixstr::fixed_string O>
+struct BinaryIType: IType {
+	using IType::IType;
+	operator std::vector<std::string>() const override {
+		return {source->regOrID() + " " + std::string(O) + " " + stringify(imm) + " -> " + destination->regOrID()};
+	}
+	std::vector<std::string> colored() const override {
+		return {
+			source->regOrID(true) + o(std::string(O)) + stringify(imm, true) + o("->") + destination->regOrID(true)
+		};
+	}
+};
+
+struct AddIInstruction: BinaryIType<"+"> { using BinaryIType::BinaryIType; };
+struct SubIInstruction: BinaryIType<"-"> { using BinaryIType::BinaryIType; };
+struct AndIInstruction: BinaryIType<"&"> { using BinaryIType::BinaryIType; };
+
+template <fixstr::fixed_string O>
+struct InverseBinaryRType: RType {
+	using RType::RType;
+	operator std::vector<std::string>() const override {
+		return {
+			rightSource->regOrID() + " " + std::string(O) + " " + leftSource->regOrID() + " -> " +
+				destination->regOrID()
+		};
+	}
+	std::vector<std::string> colored() const override {
+		return {
+			rightSource->regOrID(true) + o(std::string(O)) + leftSource->regOrID(true) + o("->") +
+				destination->regOrID(true)
+		};
+	}
+};
+
+struct GtRInstruction:  InverseBinaryRType<"<">  { using InverseBinaryRType::InverseBinaryRType; };
+struct GteRInstruction: InverseBinaryRType<"<="> { using InverseBinaryRType::InverseBinaryRType; };

@@ -4,10 +4,10 @@
 #version "2.1"
 
 n: s64 = 38 + 5;
-
 empty: bool;
 dependent: s64 = n * 2;
 global_addr: s64* = &dependent;
+unsigned: u64 = 60_u8;
 
 fn triple_and_add(in: s64, addend: s64): s64 {
 	// return in << 1 + in + addend;

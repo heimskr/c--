@@ -1,3 +1,4 @@
+#include <climits>
 #include <iostream>
 #include <sstream>
 
@@ -39,7 +40,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 		case CMMTOK_NUMBER:
-			return new NumberExpr(ssize_t(node.atoi()));
+			return new NumberExpr(*node.lexerInfo);
 		case CMMTOK_TRUE:
 			return new BoolExpr(true);
 		case CMMTOK_FALSE:
@@ -57,7 +58,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 		case CMMTOK_STRING:
 			return new StringExpr(node.unquote());
 		case CMMTOK_CHAR:
-			return new NumberExpr(ssize_t(node.getChar()));
+			return new NumberExpr(std::to_string(ssize_t(node.getChar())) + "_u8");
 		case CMMTOK_LT:
 			return new LtExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
@@ -175,8 +176,29 @@ void MultExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 	function.add<MultRInstruction>(left_var, right_var, destination);
 }
 
-void NumberExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) const {
-	const ssize_t multiplied = value * multiplier;
+void ShiftLeftExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+	
+}
+
+size_t ShiftLeftExpr::getSize(ScopePtr scope) const {
+
+}
+
+std::optional<ssize_t> ShiftLeftExpr::evaluate() const {
+	auto left_value = left? left->evaluate() : std::nullopt, right_value = right? right->evaluate() : std::nullopt;
+	if (left_value && right_value)
+		return *left_value << *right_value;
+	return std::nullopt;
+}
+
+ssize_t NumberExpr::getValue() const {
+	getSize(nullptr);
+	return Util::parseLong(literal.substr(0, literal.find('_')));
+}
+
+void NumberExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+	const ssize_t multiplied = getValue() * multiplier;
+	getSize(scope);
 	if (Util::inRange(multiplied)) {
 		function.add<SetIInstruction>(destination, int(multiplied));
 	} else {
@@ -185,6 +207,52 @@ void NumberExpr::compile(VregPtr destination, Function &function, ScopePtr, ssiz
 		function.add<SetIInstruction>(destination, int(low));
 		function.add<LuiIInstruction>(destination, int(high));
 	}
+}
+
+size_t NumberExpr::getSize(ScopePtr) const {
+	const size_t underscore = literal.find('_');
+
+	// TODO: bounds checking for unsigned literals
+
+	if (underscore == std::string::npos)
+		return 8;
+
+	const ssize_t value = Util::parseLong(literal.substr(0, underscore));
+	const size_t size = Util::parseLong(literal.substr(underscore + 2)) / 8;
+	bool out_of_range = false;
+
+	switch (size) {
+		case 8:
+			break;
+		case 4:
+			out_of_range = value < INT_MIN || INT_MAX < value;
+			break;
+		case 2:
+			out_of_range = value < -65536 || 65535 < value;
+			break;
+		case 1:
+			out_of_range = value < -256 || 255 < value;
+			break;
+		default:
+			throw std::invalid_argument("Invalid numeric literal size (in bytes): " + std::to_string(size));
+	}
+
+	if (out_of_range)
+		throw std::out_of_range("Numeric literal cannot fit in " + std::to_string(size) + " byte" +
+			(size == 1? "" : "s") + ": " + std::to_string(value));
+
+	return size;
+}
+
+std::unique_ptr<Type> NumberExpr::getType(ScopePtr scope) const {
+	const size_t bits = getSize(scope) * 8;
+	if (isUnsigned())
+		return std::make_unique<UnsignedType>(bits);
+	return std::make_unique<SignedType>(bits);
+}
+
+bool NumberExpr::isUnsigned() const {
+	return literal.find('u') != std::string::npos;
 }
 
 void BoolExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) const {
