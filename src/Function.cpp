@@ -65,7 +65,7 @@ void Function::compile() {
 			} else
 				throw std::runtime_error("Functions with greater than " + std::to_string(Why::argumentCount) +
 					" arguments are currently unsupported.");
-			if (selfScope->lookup(argument_name))
+			if (selfScope->doesConflict(argument_name))
 				throw NameConflictError(argument_name);
 			variables.emplace(argument_name, argument);
 			++i;
@@ -153,7 +153,7 @@ void Function::compile(const ASTNode &node) {
 	switch (node.symbol) {
 		case CMMTOK_COLON: {
 			const std::string &var_name = *node.front()->lexerInfo;
-			if (currentScope()->lookup(var_name))
+			if (currentScope()->doesConflict(var_name))
 				throw NameConflictError(var_name, node.front()->location);
 			VariablePtr variable = Variable::make(var_name, TypePtr(Type::get(*node.at(1))), *this);
 			variable->init();

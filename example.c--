@@ -1,7 +1,7 @@
 #name "Example"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "3.4"
+#version "4.0"
 
 n: s64 = 38 + 5;
 empty: bool;
@@ -46,7 +46,8 @@ fn main(argc: u32): void {
 	.s("!0  = "); .bool(!0);  l();
 	// .s64(z_split()); l();
 	scope_out: s32 = scope_test();
-	.s("scope_out() == "); .s32(scope_out); l();
+	.s("scope_out() = "); .s32(scope_out); l();
+	.s("Global n = "); .s64(n); l();
 	return (void) 0;
 }
 
