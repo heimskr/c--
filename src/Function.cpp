@@ -73,10 +73,9 @@ void Function::compile() {
 	computeLiveness();
 	ColoringAllocator allocator(*this);
 	Allocator::Result result;
-	do {
+	do
 		result = allocator.attempt();
-		std::cerr << "Allocation result: " << Allocator::stringify(result) << '\n';
-	} while (result != Allocator::Result::Success);
+	while (result != Allocator::Result::Success);
 
 	auto gp_regs = usedGPRegisters();
 

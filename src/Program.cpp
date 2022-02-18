@@ -11,6 +11,9 @@
 Program compileRoot(const ASTNode &root) {
 	Program out;
 
+	Function &init = out.functions.try_emplace(".init", out, nullptr).first->second;
+	init.name = ".init";
+
 	for (const ASTNode *child: root)
 		switch (child->symbol) {
 			case CMMTOK_FN: {
@@ -34,7 +37,7 @@ Program compileRoot(const ASTNode &root) {
 						std::make_shared<Global>(name, type, nullptr)).first);
 				else
 					out.globalOrder.push_back(out.globals.try_emplace(name, std::make_shared<Global>(name, type,
-						std::shared_ptr<Expr>(Expr::get(*child->at(2), &out.init)))).first);
+						std::shared_ptr<Expr>(Expr::get(*child->at(2), &init)))).first);
 				break;
 			}
 			case CMMTOK_META_NAME:
@@ -84,6 +87,9 @@ void Program::compile() {
 	lines.push_back("");
 	lines.push_back("%data");
 	auto init_scope = std::make_shared<GlobalScope>(*this);
+
+	auto &init = functions.at(".init");
+
 	for (const auto &iter: globalOrder) {
 		const auto &expr = iter->second->value;
 		lines.push_back("");
@@ -118,25 +124,22 @@ void Program::compile() {
 	}
 
 	for (auto &[name, function]: functions)
-		function.compile();
+		if (name != ".init")
+			function.compile();
 
-	const auto init_lines = init.stringify();
+	for (const auto &[str, id]: stringIDs) {
+		lines.push_back("");
+		lines.push_back("@.str" + std::to_string(id));
+		lines.push_back("\t%stringz \"" + Util::escape(str) + "\"");
+	}
 
 	lines.push_back("");
 	lines.push_back("%code");
 	lines.push_back("");
-	if (!init_lines.empty())
-		lines.push_back(":: $init");
+	// if (!init_lines.empty())
+	lines.push_back(":: .init");
 	lines.push_back(":: main");
 	lines.push_back("<halt>");
-
-	if (!init_lines.empty()) {
-		lines.push_back("");
-		lines.push_back("@init");
-		for (const std::string &line: init_lines)
-			lines.push_back("\t" + line);
-		lines.push_back("\t: $rt");
-	}
 
 	for (auto &[name, function]: functions) {
 		lines.push_back("");

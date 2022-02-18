@@ -232,7 +232,7 @@ void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr sc
 			if (auto global = std::dynamic_pointer_cast<Global>(var))
 				function.add<SetIInstruction>(destination, global->name);
 			else
-				function.add<AddIInstruction>(function.precolored(Why::framePointerOffset), destination, var);
+				function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, var);
 		} else
 			throw ResolutionError(var_exp->name, scope);
 	} else
@@ -250,7 +250,7 @@ std::unique_ptr<Type> AddressOfExpr::getType(ScopePtr scope) const {
 void StringExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) const {
 	if (multiplier != 1)
 		throw std::invalid_argument("Cannot multiply in StringExpr");
-	function.add<SetIInstruction>(destination, "$str" + std::to_string(function.program.getStringID(contents)));
+	function.add<SetIInstruction>(destination, ".str" + std::to_string(function.program.getStringID(contents)));
 }
 
 std::unique_ptr<Type> StringExpr::getType(ScopePtr) const {
@@ -359,7 +359,7 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 					function.add<StoreRInstruction>(destination, fp);
 				} else {
 					auto m0 = function.mx(0);
-					function.add<AddIInstruction>(fp, m0, int(offset));
+					function.add<SubIInstruction>(fp, m0, int(offset));
 					function.add<StoreRInstruction>(destination, m0);
 				}
 			}

@@ -17,8 +17,6 @@ struct Program {
 	std::map<std::string, Function> functions;
 	std::map<std::string, size_t> stringIDs;
 	std::vector<std::string> lines;
-	Function init {*this, nullptr};
-
 	std::string name, author, orcid, version;
 
 	Program() = default;

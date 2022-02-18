@@ -1,7 +1,7 @@
 #name "Example"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "1.0"
+#version "2.0"
 
 n: s64 = 38 + 5;
 
@@ -18,22 +18,27 @@ fn main(argc: u32): void {
 	// Functions whose names are "." followed by a type are built-in print functions.
 	val: s64 = n - 1;
 	wow: s64;
-	.s64(val);
-	.s(" * 3 + 10 = ");
-	.s64(triple_and_add(triple_and_add(val, 10), triple_and_add(0, 0)));
-	.c('\n');
+	.s64(n); .c('\n');
+	.s64(empty); .c('\n');
+	.s64(dependent); .c('\n');
+	.s64(global_addr); .c('\n');
+	.s64(val); .s(" * 3 + 10 != "); .s64(triple_and_add(triple_and_add(val, 10), triple_and_add(0, 0))); .c('\n');
+	ptr_test(); .c('\n');
+	.s64(badfib(10)); .c('\n');
+	.s64(conditional()); .c('\n');
+	.s64(z_split()); .c('\n');
 	return 0;
 }
 
 fn ptr_test(): void {
 	ptr: s64* = &n;
 	vptr: void* = ptr;
-	.ptr(vptr);
+	.ptr(vptr); .c('\n');
 	val: s64 = 12;
 	valptr: s64* = &val;
 	zero: s64;
 	*(valptr + (zero = 0)) = 16;
-	.s64(val);
+	.s64(val); .c('\n');
 }
 
 fn forever(): void {
@@ -50,7 +55,7 @@ fn badfib(x: s64): s64 {
 	};
 }
 
-fn conditional(): void {
+fn conditional(): s64 {
 	if true {
 		if false {
 			return 1;
@@ -62,7 +67,7 @@ fn conditional(): void {
 }
 
 //*
-fn z_split(): void {
+fn z_split(): s64 {
 	var0: s64 = 0;
 	var1: s64 = 1;
 	var2: s64 = 2;
@@ -333,5 +338,6 @@ fn z_split(): void {
 	var192 = var50 + 1 + var37;
 	var191 = var50 + 1 + var38;
 	var190 = var50 + 1 + var39;
+	var200 = var200 + 100;
+	return var200;
 }
-
