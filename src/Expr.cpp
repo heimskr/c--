@@ -180,11 +180,14 @@ void MultExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 }
 
 void ShiftLeftExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
-	
+	VregPtr temp_var = function.newVar();
+	left->compile(temp_var, function, scope, multiplier);
+	right->compile(destination, function, scope, multiplier);
+	function.add<ShiftLeftLogicalRInstruction>(temp_var, destination, destination);
 }
 
 size_t ShiftLeftExpr::getSize(ScopePtr scope) const {
-
+	return left->getSize(scope);
 }
 
 std::optional<ssize_t> ShiftLeftExpr::evaluate() const {
