@@ -69,6 +69,7 @@ struct VoidType: Type, Makeable<VoidType> {
 	Type * copy() const override { return new VoidType; }
 	operator std::string() const override { return "void"; }
 	size_t getSize() const override { return 0; }
+	bool operator&&(const Type &other) const override { return other.isVoid(); }
 	bool isVoid() const override { return true; }
 };
 

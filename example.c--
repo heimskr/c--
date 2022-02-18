@@ -40,7 +40,7 @@ fn main(argc: u32): void {
 	.bool(!10); .c('\n');
 	.bool(!0); .c('\n');
 	// .s64(z_split()); .c('\n');
-	return 0;
+	return (void) 0;
 }
 
 fn ptr_test(): void {
