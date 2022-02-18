@@ -90,6 +90,14 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 		case CMM_CAST:
 			return new CastExpr(Type::get(*node.at(0)), Expr::get(*node.at(1), function));
+		case CMMTOK_LSHIFT:
+			return new ShiftLeftExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+		case CMMTOK_RSHIFT:
+			return new ShiftRightExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 		default:
 			throw std::invalid_argument("Unrecognized symbol in Expr::get: " +
 				std::string(cmmParser.getName(node.symbol)));
@@ -122,8 +130,9 @@ void PlusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 	function.add<AddRInstruction>(left_var, right_var, destination);
 }
 
-std::optional<ssize_t> PlusExpr::evaluate() const {
-	auto left_value = left? left->evaluate() : std::nullopt, right_value = right? right->evaluate() : std::nullopt;
+std::optional<ssize_t> PlusExpr::evaluate(ScopePtr scope) const {
+	auto left_value  = left?  left->evaluate(scope)  : std::nullopt,
+	     right_value = right? right->evaluate(scope) : std::nullopt;
 	if (left_value && right_value)
 		return *left_value + *right_value;
 	return std::nullopt;
@@ -190,10 +199,36 @@ size_t ShiftLeftExpr::getSize(ScopePtr scope) const {
 	return left->getSize(scope);
 }
 
-std::optional<ssize_t> ShiftLeftExpr::evaluate() const {
-	auto left_value = left? left->evaluate() : std::nullopt, right_value = right? right->evaluate() : std::nullopt;
+std::optional<ssize_t> ShiftLeftExpr::evaluate(ScopePtr scope) const {
+	auto left_value  = left?  left->evaluate(scope)  : std::nullopt,
+	     right_value = right? right->evaluate(scope) : std::nullopt;
 	if (left_value && right_value)
 		return *left_value << *right_value;
+	return std::nullopt;
+}
+
+void ShiftRightExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+	VregPtr temp_var = function.newVar();
+	left->compile(temp_var, function, scope, multiplier);
+	right->compile(destination, function, scope, multiplier);
+	if (left->getType(scope)->isUnsigned())
+		function.add<ShiftRightLogicalRInstruction>(temp_var, destination, destination);
+	else
+		function.add<ShiftRightArithmeticRInstruction>(temp_var, destination, destination);
+}
+
+size_t ShiftRightExpr::getSize(ScopePtr scope) const {
+	return left->getSize(scope);
+}
+
+std::optional<ssize_t> ShiftRightExpr::evaluate(ScopePtr scope) const {
+	auto left_value  = left?  left->evaluate(scope)  : std::nullopt,
+	     right_value = right? right->evaluate(scope) : std::nullopt;
+	if (left_value && right_value) {
+		if (left->getType(scope)->isUnsigned())
+			return size_t(*left_value) << *right_value;
+		return *left_value << *right_value;
+	}
 	return std::nullopt;
 }
 
@@ -472,8 +507,8 @@ size_t AssignExpr::getSize(ScopePtr scope) const {
 	return left->getSize(scope);
 }
 
-std::optional<ssize_t> AssignExpr::evaluate() const {
-	return right? right->evaluate() : std::nullopt;
+std::optional<ssize_t> AssignExpr::evaluate(ScopePtr scope) const {
+	return right? right->evaluate(scope) : std::nullopt;
 }
 
 void CastExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {

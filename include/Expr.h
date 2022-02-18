@@ -33,7 +33,7 @@ struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 	virtual bool shouldParenthesize() const { return false; }
 	virtual size_t getSize(ScopePtr) const { return 0; } // in bytes
 	/** Attempts to evaluate the expression at compile time. */
-	virtual std::optional<ssize_t> evaluate() const { return std::nullopt; }
+	virtual std::optional<ssize_t> evaluate(ScopePtr) const { return std::nullopt; }
 	/** Returns a vector of all variable names referenced by the expression or its children. */
 	virtual std::vector<std::string> references() const { return {}; }
 	/** This function both performs type checking and returns a type. */
@@ -105,9 +105,9 @@ struct CompExpr: BinaryExpr<O> {
 
 	size_t getSize(ScopePtr) const override { return 1; }
 
-	std::optional<ssize_t> evaluate() const override {
-		auto left_value  = this->left?  this->left->evaluate()  : std::nullopt,
-		     right_value = this->right? this->right->evaluate() : std::nullopt;
+	std::optional<ssize_t> evaluate(ScopePtr scope) const override {
+		auto left_value  = this->left?  this->left->evaluate(scope)  : std::nullopt,
+		     right_value = this->right? this->right->evaluate(scope) : std::nullopt;
 		if (left_value && right_value)
 			return CompFn()(*left_value, *right_value)? 1 : 0;
 		return std::nullopt;
@@ -140,7 +140,7 @@ struct PlusExpr: BinaryExpr<"+"> {
 
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 	size_t getSize(ScopePtr) const override { return 8; }
-	std::optional<ssize_t> evaluate() const override;
+	std::optional<ssize_t> evaluate(ScopePtr) const override;
 	std::unique_ptr<Type> getType(ScopePtr scope) const override;
 };
 
@@ -150,8 +150,8 @@ struct MinusExpr: BinaryExpr<"-"> {
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 	size_t getSize(ScopePtr) const override { return 8; }
 
-	std::optional<ssize_t> evaluate() const override {
-		auto left_value = left? left->evaluate() : std::nullopt, right_value = right? right->evaluate() : std::nullopt;
+	std::optional<ssize_t> evaluate(ScopePtr scope) const override {
+		auto left_value = left? left->evaluate(scope) : std::nullopt, right_value = right? right->evaluate(scope) : std::nullopt;
 		if (left_value && right_value)
 			return *left_value - *right_value;
 		return std::nullopt;
@@ -171,8 +171,9 @@ struct MultExpr: BinaryExpr<"*"> {
 	using BinaryExpr::BinaryExpr;
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 	size_t getSize(ScopePtr) const override { return 8; }
-	std::optional<ssize_t> evaluate() const override {
-		auto left_value = left? left->evaluate() : std::nullopt, right_value = right? right->evaluate() : std::nullopt;
+	std::optional<ssize_t> evaluate(ScopePtr scope) const override {
+		auto left_value  = left?  left->evaluate(scope)  : std::nullopt,
+		     right_value = right? right->evaluate(scope) : std::nullopt;
 		if (left_value && right_value)
 			return *left_value * *right_value;
 		return std::nullopt;
@@ -183,7 +184,14 @@ struct ShiftLeftExpr: BinaryExpr<"<<"> {
 	using BinaryExpr::BinaryExpr;
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 	size_t getSize(ScopePtr) const override;
-	std::optional<ssize_t> evaluate() const override;
+	std::optional<ssize_t> evaluate(ScopePtr) const override;
+};
+
+struct ShiftRightExpr: BinaryExpr<">>"> {
+	using BinaryExpr::BinaryExpr;
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
+	size_t getSize(ScopePtr) const override;
+	std::optional<ssize_t> evaluate(ScopePtr) const override;
 };
 
 struct NumberExpr: AtomicExpr {
@@ -193,7 +201,7 @@ struct NumberExpr: AtomicExpr {
 	Expr * copy() const override { return new NumberExpr(literal); }
 	operator std::string() const override { return literal; }
 	ssize_t getValue() const override;
-	std::optional<ssize_t> evaluate() const override { return getValue(); }
+	std::optional<ssize_t> evaluate(ScopePtr) const override { return getValue(); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 	size_t getSize(ScopePtr) const override;
 	std::unique_ptr<Type> getType(ScopePtr) const override;
@@ -206,7 +214,7 @@ struct BoolExpr: AtomicExpr {
 	Expr * copy() const override { return new BoolExpr(value); }
 	operator std::string() const override { return value? "true" : "false"; }
 	ssize_t getValue() const override { return value? 1 : 0; }
-	std::optional<ssize_t> evaluate() const override { return getValue(); }
+	std::optional<ssize_t> evaluate(ScopePtr) const override { return getValue(); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 	std::unique_ptr<Type> getType(ScopePtr) const override { return std::make_unique<BoolType>(); }
 };
@@ -277,7 +285,7 @@ struct AssignExpr: BinaryExpr<"="> {
 	std::unique_ptr<Type> getType(ScopePtr scope) const override;
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 	size_t getSize(ScopePtr) const override;
-	std::optional<ssize_t> evaluate() const override;
+	std::optional<ssize_t> evaluate(ScopePtr) const override;
 };
 
 struct CastExpr: Expr {

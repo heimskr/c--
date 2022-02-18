@@ -98,7 +98,7 @@ void Program::compile() {
 		auto type = iter->second->type;
 		auto size = type->getSize();
 		if (expr) {
-			auto value = expr->evaluate();
+			auto value = expr->evaluate(init.selfScope);
 			if (value && size == 1) {
 				lines.push_back("\t%1b " + std::to_string(*value));
 			} else if (value && size == 2) {
