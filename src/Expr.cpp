@@ -22,7 +22,7 @@ std::string stringify(const Expr *expr) {
 	return std::string(*expr);
 }
 
-void Expr::compile(VregPtr, Function &, ScopePtr, ssize_t) const {}
+void Expr::compile(VregPtr, Function &, ScopePtr, ssize_t) {}
 
 Expr * Expr::get(const ASTNode &node, Function *function) {
 	Expr *out = nullptr;
@@ -193,7 +193,7 @@ std::ostream & operator<<(std::ostream &os, const Expr &expr) {
 	return os << std::string(expr);
 }
 
-void PlusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void PlusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	VregPtr left_var = function.newVar(), right_var = function.newVar();
 	auto left_type = left->getType(scope), right_type = right->getType(scope);
 
@@ -238,7 +238,7 @@ std::unique_ptr<Type> PlusExpr::getType(ScopePtr scope) const {
 	return left_type;
 }
 
-void MinusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void MinusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	VregPtr left_var = function.newVar(), right_var = function.newVar();
 	auto left_type = left->getType(scope), right_type = right->getType(scope);
 
@@ -260,14 +260,14 @@ void MinusExpr::compile(VregPtr destination, Function &function, ScopePtr scope,
 	function.add<SubRInstruction>(left_var, right_var, destination);
 }
 
-void MultExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void MultExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	VregPtr left_var = function.newVar(), right_var = function.newVar();
 	left->compile(left_var, function, scope, 1);
 	right->compile(right_var, function, scope, multiplier); // TODO: verify
 	function.add<MultRInstruction>(left_var, right_var, destination);
 }
 
-void ShiftLeftExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void ShiftLeftExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	VregPtr temp_var = function.newVar();
 	left->compile(temp_var, function, scope, multiplier);
 	right->compile(destination, function, scope);
@@ -286,7 +286,7 @@ std::optional<ssize_t> ShiftLeftExpr::evaluate(ScopePtr scope) const {
 	return std::nullopt;
 }
 
-void ShiftRightExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void ShiftRightExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	VregPtr temp_var = function.newVar();
 	left->compile(temp_var, function, scope, multiplier);
 	right->compile(destination, function, scope);
@@ -311,7 +311,7 @@ std::optional<ssize_t> ShiftRightExpr::evaluate(ScopePtr scope) const {
 	return std::nullopt;
 }
 
-void AndExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void AndExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	VregPtr temp_var = function.newVar();
 	left->compile(temp_var, function, scope);
 	right->compile(destination, function, scope);
@@ -332,7 +332,7 @@ std::optional<ssize_t> AndExpr::evaluate(ScopePtr scope) const {
 	return std::nullopt;
 }
 
-void OrExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void OrExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	VregPtr temp_var = function.newVar();
 	left->compile(temp_var, function, scope);
 	right->compile(destination, function, scope);
@@ -353,7 +353,7 @@ std::optional<ssize_t> OrExpr::evaluate(ScopePtr scope) const {
 	return std::nullopt;
 }
 
-void LandExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void LandExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	VregPtr temp_var = function.newVar();
 	left->compile(temp_var, function, scope);
 	right->compile(destination, function, scope);
@@ -374,7 +374,7 @@ std::optional<ssize_t> LandExpr::evaluate(ScopePtr scope) const {
 	return std::nullopt;
 }
 
-void LorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void LorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	VregPtr temp_var = function.newVar();
 	left->compile(temp_var, function, scope);
 	right->compile(destination, function, scope);
@@ -395,7 +395,7 @@ std::optional<ssize_t> LorExpr::evaluate(ScopePtr scope) const {
 	return std::nullopt;
 }
 
-void DivExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void DivExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	VregPtr temp_var = function.newVar();
 	left->compile(temp_var, function, scope, multiplier);
 	right->compile(destination, function, scope);
@@ -420,7 +420,7 @@ std::optional<ssize_t> DivExpr::evaluate(ScopePtr scope) const {
 	return std::nullopt;
 }
 
-void ModExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void ModExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	VregPtr temp_var = function.newVar();
 	left->compile(temp_var, function, scope, multiplier);
 	right->compile(destination, function, scope);
@@ -450,7 +450,7 @@ ssize_t NumberExpr::getValue() const {
 	return Util::parseLong(literal.substr(0, literal.find_first_of("su")));
 }
 
-void NumberExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void NumberExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	const ssize_t multiplied = getValue() * multiplier;
 	getSize(scope);
 	if (!destination)
@@ -511,12 +511,12 @@ bool NumberExpr::isUnsigned() const {
 	return literal.find('u') != std::string::npos;
 }
 
-void BoolExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) const {
+void BoolExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) {
 	if (destination)
 		function.add<SetIInstruction>(destination, value? size_t(multiplier) : 0);
 }
 
-void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	if (VariablePtr var = scope->lookup(name)) {
 		if (auto global = std::dynamic_pointer_cast<Global>(var)) {
 			function.add<LoadIInstruction>(destination, global->name, global->getSize());
@@ -537,7 +537,7 @@ void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr sco
 		throw ResolutionError(name, scope);
 }
 
-bool VariableExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) const {
+bool VariableExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
 	if (VariablePtr var = scope->lookup(name)) {
 		if (auto global = std::dynamic_pointer_cast<Global>(var)) {
 			function.add<SetIInstruction>(destination, global->name);
@@ -565,7 +565,7 @@ std::unique_ptr<Type> VariableExpr::getType(ScopePtr scope) const {
 	throw ResolutionError(name, scope);
 }
 
-void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	if (multiplier != 1)
 		throw std::invalid_argument("Cannot multiply in AddressOfExpr");
 	if (!destination)
@@ -595,21 +595,21 @@ std::unique_ptr<Type> AddressOfExpr::getType(ScopePtr scope) const {
 		throw LvalueError(*subexpr);
 }
 
-void NotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void NotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	subexpr->compile(destination, function, scope);
 	function.add<NotInstruction>(destination, destination);
 	if (multiplier != 1)
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
-void LnotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void LnotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	subexpr->compile(destination, function, scope);
 	function.add<LnotInstruction>(destination, destination);
 	if (multiplier != 1)
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
-void StringExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) const {
+void StringExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) {
 	if (multiplier != 1)
 		throw std::invalid_argument("Cannot multiply in StringExpr");
 	if (destination)
@@ -620,7 +620,7 @@ std::unique_ptr<Type> StringExpr::getType(ScopePtr) const {
 	return std::make_unique<PointerType>(new UnsignedType(8));
 }
 
-bool StringExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) const {
+bool StringExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
 	// TODO: is this correct?
 	compile(destination, function, scope, 1);
 	return true;
@@ -630,7 +630,7 @@ std::string StringExpr::getID(Program &program) const {
 	return ".str" + std::to_string(program.getStringID(contents));
 }
 
-void DerefExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void DerefExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	checkType(scope);
 	subexpr->compile(destination, function, scope, multiplier);
 	function.add<LoadRInstruction>(destination, destination, subexpr->getSize(scope));
@@ -653,7 +653,7 @@ std::unique_ptr<Type> DerefExpr::checkType(ScopePtr scope) const {
 	return type;
 }
 
-bool DerefExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) const {
+bool DerefExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
 	checkType(scope);
 	subexpr->compile(destination, function, scope, 1);
 	return true;
@@ -673,7 +673,7 @@ Expr * CallExpr::copy() const {
 	return new CallExpr(name, function, arguments_copy);
 }
 
-void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_t multiplier) const {
+void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_t multiplier) {
 	const size_t to_push = arguments.size();
 	size_t i;
 	Function *found = scope->lookupFunction(name);
@@ -745,7 +745,7 @@ std::unique_ptr<Type> CallExpr::getType(ScopePtr scope) const {
 		throw ResolutionError(name, scope);
 }
 
-void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	if (auto *var_expr = left->cast<VariableExpr>()) {
 		if (auto var = scope->lookup(var_expr->name)) {
 			if (!destination)
@@ -778,7 +778,7 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 		deref_expr->subexpr->compile(addr_variable, function, scope);
 		function.add<StoreRInstruction>(destination, addr_variable, deref_expr->getSize(scope)); // TODO: verify size
 	} else if (auto *access_expr = left->cast<AccessExpr>()) {
-		access_expr->checkType(scope);
+		access_expr->check(scope);
 		auto addr_variable = function.newVar();
 		if (!destination)
 			destination = function.newVar();
@@ -804,11 +804,11 @@ std::optional<ssize_t> AssignExpr::evaluate(ScopePtr scope) const {
 	return right? right->evaluate(scope) : std::nullopt;
 }
 
-bool AssignExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) const {
+bool AssignExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
 	return left? left->compileAddress(destination, function, scope) : false;
 }
 
-void CastExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void CastExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	subexpr->compile(destination, function, scope, multiplier);
 	tryCast(*subexpr->getType(scope), *targetType, destination, function);
 }
@@ -817,7 +817,7 @@ std::unique_ptr<Type> CastExpr::getType(ScopePtr) const {
 	return std::unique_ptr<Type>(targetType->copy());
 }
 
-void AccessExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void AccessExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	compileAddress(destination, function, scope);
 	function.add<LoadRInstruction>(destination, destination, getSize(scope));
 	if (multiplier != 1)
@@ -831,8 +831,8 @@ std::unique_ptr<Type> AccessExpr::getType(ScopePtr scope) const {
 	throw std::runtime_error("Can't get array access result type: array expression isn't an array type");
 }
 
-bool AccessExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) const {
-	checkType(scope);
+bool AccessExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
+	check(scope);
 	if (!array->compileAddress(destination, function, scope))
 		throw LvalueError(std::string(*array->getType(scope)));
 	const auto element_size = getSize(scope);
@@ -850,14 +850,23 @@ bool AccessExpr::compileAddress(VregPtr destination, Function &function, ScopePt
 	return true;
 }
 
-std::unique_ptr<ArrayType> AccessExpr::checkType(ScopePtr scope) const {
+std::unique_ptr<ArrayType> AccessExpr::check(ScopePtr scope) {
 	auto type = array->getType(scope);
 	if (!type->isArray())
 		throw NotArrayError(TypePtr(type->copy()));
+	if (!warned)
+		if (const auto evaluated = subscript->evaluate(scope)) {
+			const auto array_count = type->cast<ArrayType>()->count;
+			if (*evaluated < 0 || ssize_t(array_count) <= *evaluated) {
+				warn() << "Array index " << *evaluated << " at " << subscript->location << " is higher than array size ("
+					<< array_count << ") at " << location << '\n';
+				warned = true;
+			}
+		}
 	return std::unique_ptr<ArrayType>(type->copy()->cast<ArrayType>());
 }
 
-void LengthExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+void LengthExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	TypePtr type = subexpr->getType(scope);
 	if (auto *array = type->cast<const ArrayType>())
 		function.add<SetIInstruction>(destination, array->count * multiplier);
