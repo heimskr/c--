@@ -1,0 +1,25 @@
+#name "Prefix/Postfix Test"
+#author "Kai Tamkun"
+#orcid "0000-0001-7405-6654"
+#version "0.1"
+
+fn main(): void {
+	i: s64 = 0;
+	// Expected output:
+	// 1 1
+	// 1 2
+	// 1 1
+	// 1 0
+	.s64(++i); s(); .s64(i); l();
+	.s64(i++); s(); .s64(i); l();
+	.s64(--i); s(); .s64(i); l();
+	.s64(i--); s(); .s64(i); l();
+}
+
+fn l(): void {
+	.c('\n');
+}
+
+fn s(): void {
+	.c(' ');
+}

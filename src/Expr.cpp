@@ -86,6 +86,12 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 		case CMMTOK_MINUSMINUS:
 			out = new PrefixMinusExpr(Expr::get(*node.front(), function));
 			break;
+		case CMM_POSTPLUS:
+			out = new PostfixPlusExpr(Expr::get(*node.front(), function));
+			break;
+		case CMM_POSTMINUS:
+			out = new PostfixMinusExpr(Expr::get(*node.front(), function));
+			break;
 		case CMMTOK_IDENT:
 			if (!function)
 				throw std::runtime_error("Variable expression encountered in functionless context");
