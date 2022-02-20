@@ -167,6 +167,10 @@ struct RType: ThreeRegs {
 struct IType: TwoRegs, HasImmediate {
 	IType(VregPtr source_, VregPtr destination_, const Immediate &imm_):
 		TwoRegs(source_, destination_), HasImmediate(imm_) {}
+	IType(VregPtr source_, VregPtr destination_, size_t imm_): TwoRegs(source_, destination_), HasImmediate(int(imm_)) {
+		if (!Util::inRange(imm_))
+			throw std::out_of_range("Immediate value out of range: " + std::to_string(imm_));
+	}
 	std::vector<VregPtr> getRead() override {
 		if (source)
 			return {source};
@@ -260,14 +264,14 @@ struct StoreIInstruction: IType, SizedInstruction {
 };
 
 struct StoreRInstruction: RType, SizedInstruction {
-	StoreRInstruction(VregPtr source_, VregPtr destination_, size_t size_):
-		RType(source_, nullptr, destination_), SizedInstruction(size_) {}
+	StoreRInstruction(VregPtr source_, VregPtr address_, size_t size_):
+		RType(source_, address_, nullptr), SizedInstruction(size_) {}
 	operator std::vector<std::string>() const override {
-		return {leftSource->regOrID() + " -> [" + destination->regOrID() + "]" + suffix()};
+		return {leftSource->regOrID() + " -> [" + rightSource->regOrID() + "]" + suffix()};
 	}
 	std::vector<std::string> colored() const override {
 		return {
-			leftSource->regOrID(true) + " \e[2m-> [\e[22m" + destination->regOrID(true) + "\e[2m]\e[22m" + suffix(true)
+			leftSource->regOrID(true) + " \e[2m-> [\e[22m" + rightSource->regOrID(true) + "\e[2m]\e[22m" + suffix(true)
 		};
 	}
 };

@@ -1,17 +1,17 @@
 #name "For Loop Test"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "1.0"
+#version "1.1"
 
 fn main(): void {
-	for i: s64 = 0; i < 50; i = i + 1 {
+	for i: s64 = 0; i < 50; ++i {
 		if i % 3 == 0 {
 			continue;
 		};
 		.s64(i);
-		for j: s64 = 0;; j = j + 1 {
+		for j: s64 = 0;; {
 			.c('.');
-			if j + 1 == i { break; };
+			if ++j == i { break; };
 		};
 		.c('\n');
 		if i == 42 {

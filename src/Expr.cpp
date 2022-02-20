@@ -80,6 +80,12 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 		case CMMTOK_HASH:
 			out = new LengthExpr(Expr::get(*node.front(), function));
 			break;
+		case CMMTOK_PLUSPLUS:
+			out = new PrefixPlusExpr(Expr::get(*node.front(), function));
+			break;
+		case CMMTOK_MINUSMINUS:
+			out = new PrefixMinusExpr(Expr::get(*node.front(), function));
+			break;
 		case CMMTOK_IDENT:
 			if (!function)
 				throw std::runtime_error("Variable expression encountered in functionless context");

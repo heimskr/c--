@@ -11,13 +11,15 @@
 #include "Errors.h"
 #include "fixed_string.h"
 #include "Function.h"
+#include "Global.h"
+#include "Scope.h"
 #include "Type.h"
 #include "Util.h"
 #include "Variable.h"
+#include "WhyInstructions.h"
 
 class Function;
 struct Program;
-struct Scope;
 struct Type;
 struct WhyInstruction;
 
@@ -406,3 +408,68 @@ struct LengthExpr: Expr {
 	std::unique_ptr<Type> getType(ScopePtr) const override { return std::make_unique<UnsignedType>(64); }
 	std::vector<std::string> references() const override { return subexpr->references(); }
 };
+
+template <fixstr::fixed_string O, typename I>
+struct PrefixExpr: Expr {
+	std::unique_ptr<Expr> subexpr;
+	PrefixExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
+	PrefixExpr(Expr *subexpr_): subexpr(subexpr_) {}
+	Expr * copy() const override { return new PrefixExpr<O, I>(subexpr->copy()); }
+	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const override {
+		TypePtr subtype = subexpr->getType(scope);
+		if (!subtype->isInt())
+			throw std::runtime_error("Cannot increment/decrement " + std::string(*subtype));
+		if (!destination)
+			destination = function.newVar();
+		if (auto *var_expr = subexpr->cast<VariableExpr>()) {
+			if (auto var = scope->lookup(var_expr->name)) {
+				if (auto *global = var->cast<Global>()) {
+					function.add<LoadIInstruction>(destination, global->name, global->getSize());
+					function.add<I>(destination, destination, 1);
+					function.add<StoreIInstruction>(destination, global->name, global->getSize());
+				} else {
+					auto fp = function.precolored(Why::framePointerOffset);
+					auto offset = function.stackOffsets.at(var);
+					VregPtr addr;
+					if (offset == 0) {
+						addr = fp;
+					} else {
+						addr = function.newVar();
+						function.add<SubIInstruction>(fp, addr, offset);
+					}
+					function.add<LoadRInstruction>(addr, destination, var->getSize());
+					function.add<I>(destination, destination, 1);
+					function.add<StoreRInstruction>(destination, addr, var->getSize());
+				}
+			} else
+				throw ResolutionError(var_expr->name, scope);
+		} else if (auto *deref_expr = subexpr->cast<DerefExpr>()) {
+			deref_expr->checkType(scope);
+			auto addr_variable = function.newVar();
+			deref_expr->subexpr->compile(addr_variable, function, scope);
+			const auto deref_size = deref_expr->getSize(scope);
+			function.add<LoadRInstruction>(addr_variable, destination, deref_size);
+			function.add<I>(destination, destination, 1);
+			function.add<StoreRInstruction>(destination, addr_variable, deref_size);
+		} else if (auto *access_expr = subexpr->cast<AccessExpr>()) {
+			access_expr->checkType(scope);
+			auto addr_variable = function.newVar();
+			access_expr->compileAddress(addr_variable, function, scope);
+			const auto access_size = access_expr->getSize(scope);
+			function.add<LoadRInstruction>(addr_variable, destination, access_size);
+			function.add<I>(destination, destination, 1);
+			function.add<StoreRInstruction>(destination, addr_variable, access_size);
+		} else
+			throw LvalueError(*subexpr->getType(scope));
+
+		if (multiplier != 1)
+			function.add<MultIInstruction>(destination, destination, multiplier);
+	}
+	operator std::string() const override { return std::string(O) + std::string(*subexpr); }
+	size_t getSize(ScopePtr scope) const override { return subexpr->getSize(scope); }
+	std::unique_ptr<Type> getType(ScopePtr scope) const override { return subexpr->getType(scope); }
+	std::vector<std::string> references() const override { return subexpr->references(); }
+};
+
+struct PrefixPlusExpr:  PrefixExpr<"++", AddIInstruction> { using PrefixExpr::PrefixExpr; };
+struct PrefixMinusExpr: PrefixExpr<"--", SubIInstruction> { using PrefixExpr::PrefixExpr; };
