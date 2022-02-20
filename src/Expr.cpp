@@ -25,105 +25,137 @@ std::string stringify(const Expr *expr) {
 void Expr::compile(VregPtr, Function &, ScopePtr, ssize_t) const {}
 
 Expr * Expr::get(const ASTNode &node, Function *function) {
+	Expr *out = nullptr;
 	switch (node.symbol) {
 		case CMMTOK_PLUS:
-			return new PlusExpr(
+			out = new PlusExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		case CMMTOK_MINUS:
-			return new MinusExpr(
+			out = new MinusExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		case CMMTOK_TIMES:
 			if (node.size() == 1)
-				return new DerefExpr(Expr::get(*node.front(), function));
-			return new MultExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				out = new DerefExpr(Expr::get(*node.front(), function));
+			else
+				out = new MultExpr(
+					std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+					std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		case CMMTOK_NUMBER:
 			if (node.size() == 1) // Contains a "-" child indicating unary negation
-				return new NumberExpr("-" + *node.lexerInfo);
-			return new NumberExpr(*node.lexerInfo);
+				out = new NumberExpr("-" + *node.lexerInfo);
+			else
+				out = new NumberExpr(*node.lexerInfo);
+			break;
 		case CMMTOK_TRUE:
-			return new BoolExpr(true);
+			out = new BoolExpr(true);
+			break;
 		case CMMTOK_FALSE:
-			return new BoolExpr(false);
+			out = new BoolExpr(false);
+			break;
 		case CMM_ADDROF:
-			return new AddressOfExpr(Expr::get(*node.front(), function));
+			out = new AddressOfExpr(Expr::get(*node.front(), function));
+			break;
 		case CMMTOK_TILDE:
-			return new NotExpr(Expr::get(*node.front(), function));
+			out = new NotExpr(Expr::get(*node.front(), function));
+			break;
 		case CMMTOK_NOT:
-			return new LnotExpr(Expr::get(*node.front(), function));
+			out = new LnotExpr(Expr::get(*node.front(), function));
+			break;
 		case CMMTOK_IDENT:
 			if (!function)
 				throw std::runtime_error("Variable expression encountered in functionless context");
-			return new VariableExpr(*node.lexerInfo);
+			out = new VariableExpr(*node.lexerInfo);
+			break;
 		case CMMTOK_LPAREN:
 			if (!function)
 				throw std::runtime_error("Function call expression encountered in functionless context");
-			return new CallExpr(node, function);
+			out = new CallExpr(node, function);
+			break;
 		case CMMTOK_STRING:
-			return new StringExpr(node.unquote());
+			out = new StringExpr(node.unquote());
+			break;
 		case CMMTOK_CHAR:
-			return new NumberExpr(std::to_string(ssize_t(node.getChar())) + "u8");
+			out = new NumberExpr(std::to_string(ssize_t(node.getChar())) + "u8");
+			break;
 		case CMMTOK_LT:
-			return new LtExpr(
+			out = new LtExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		case CMMTOK_LTE:
-			return new LteExpr(
+			out = new LteExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		case CMMTOK_GT:
-			return new GtExpr(
+			out = new GtExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		case CMMTOK_GTE:
-			return new GteExpr(
+			out = new GteExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		case CMMTOK_DEQ:
-			return new EqExpr(
+			out = new EqExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		case CMMTOK_NEQ:
-			return new NeqExpr(
+			out = new NeqExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		case CMMTOK_ASSIGN:
-			return new AssignExpr(
+			out = new AssignExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		case CMM_CAST:
-			return new CastExpr(Type::get(*node.at(0)), Expr::get(*node.at(1), function));
+			out = new CastExpr(Type::get(*node.at(0)), Expr::get(*node.at(1), function));
+			break;
 		case CMMTOK_LSHIFT:
-			return new ShiftLeftExpr(
+			out = new ShiftLeftExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		case CMMTOK_RSHIFT:
-			return new ShiftRightExpr(
+			out = new ShiftRightExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		case CMMTOK_AND:
-			return new AndExpr(
+			out = new AndExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		case CMMTOK_OR:
-			return new OrExpr(
+			out = new OrExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		case CMMTOK_LAND:
-			return new LandExpr(
+			out = new LandExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		case CMMTOK_LOR:
-			return new LorExpr(
+			out = new LorExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		default:
 			throw std::invalid_argument("Unrecognized symbol in Expr::get: " +
 				std::string(cmmParser.getName(node.symbol)));
 	}
+
+	return out->setLocation(node.location);
 }
 
 std::ostream & operator<<(std::ostream &os, const Expr &expr) {
@@ -174,16 +206,6 @@ std::unique_ptr<Type> PlusExpr::getType(ScopePtr scope) const {
 		throw ImplicitConversionError(*left_type, *right_type);
 	return left_type;
 }
-
-// Pointer PlusExpr::getPointer() const {
-// 	auto left_type = left->getType(scope), right_type = right->getType(scope);
-
-// 	if (left_type->isPointer() && right_type->isInt()) {
-// 		return left->getPointer() + right->
-// 	}
-
-// 	return {};
-// }
 
 void MinusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
 	VregPtr left_var = function.newVar(), right_var = function.newVar();
@@ -536,19 +558,28 @@ Expr * CallExpr::copy() const {
 void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_t multiplier) const {
 	const size_t to_push = arguments.size();
 	size_t i;
+	Function *found = scope->lookupFunction(name);
+
+	if (!found)
+		throw std::runtime_error("Function not found: " + name);
 
 	for (i = 0; i < to_push; ++i)
 		fn.add<StackPushInstruction>(fn.precolored(Why::argumentOffset + i));
 
 	i = 0;
-	for (const auto &argument: arguments)
-		argument->compile(fn.precolored(Why::argumentOffset + i++), fn, scope);
+	for (const auto &argument: arguments) {
+		auto argument_register = fn.precolored(Why::argumentOffset + i);
+		argument->compile(argument_register, fn, scope);
+		try {
+			typeCheck(*argument->getType(scope), *found->argumentMap[found->arguments.at(i)]->type, argument_register,
+				fn, location);
+		} catch (std::out_of_range &err) {
+			std::cerr << "Bad expr: " << location << ": " << err.what() << '\n';
+		}
+		++i;
+	}
 
 	fn.add<JumpInstruction>(name, true);
-
-	Function *found = scope->lookupFunction(name);
-	if (!found)
-		throw std::runtime_error("Function not found: " + name);
 
 	for (i = to_push; 0 < i; --i)
 		fn.add<StackPopInstruction>(fn.precolored(Why::argumentOffset + i - 1));

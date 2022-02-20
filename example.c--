@@ -1,7 +1,7 @@
 #name "Example"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "4.2"
+#version "4.3"
 
 n: s64 = 38 + 5;
 empty: bool;
@@ -34,7 +34,7 @@ fn main(argc: u32): void {
 	(void*) typecheck();
 	(void*) 42;
 	.s("n = "); .s64(n); l();
-	.s("empty = "); .s64(empty); l();
+	.s("empty = "); .bool(empty); l();
 	.s("dependent = "); .s64(dependent); l();
 	.s("global_addr = "); .ptr(global_addr); l();
 	.s("*global_addr = "); .s64(*global_addr); l();
@@ -48,7 +48,7 @@ fn main(argc: u32): void {
 	scope_out: s32 = scope_test();
 	.s("scope_out() = "); .s32(scope_out); l();
 	.s("Global n = "); .s64(n); l();
-	.s("~100u8 = "); .u8((s64) ~100u8); l();
+	.s("~100u8 = "); .u8(~(s64)100u8); l();
 	return (void) 0;
 }
 

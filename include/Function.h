@@ -25,6 +25,7 @@ class Function {
 	private:
 		int nextBlock = 0, anons = 0;
 		void compile(const ASTNode &);
+		void extractArguments();
 
 	public:
 		Program &program;
@@ -53,6 +54,8 @@ class Function {
 		std::vector<std::shared_ptr<Scope>> scopeStack;
 
 		Function(Program &, const ASTNode *);
+
+		void setArguments(const std::vector<std::pair<std::string, TypePtr>> &);
 
 		std::shared_ptr<Scope> currentScope() const { return scopeStack.back(); }
 

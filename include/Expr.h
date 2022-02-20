@@ -26,6 +26,7 @@ using ScopePtr = std::shared_ptr<Scope>;
 std::string stringify(const Expr *);
 
 struct Expr: Checkable, std::enable_shared_from_this<Expr> {
+	ASTLocation location;
 	virtual ~Expr() {}
 	virtual Expr * copy() const = 0;
 	virtual void compile(VregPtr destination, Function &, ScopePtr, ssize_t multiplier = 1) const;
@@ -39,6 +40,7 @@ struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 	/** This function both performs type checking and returns a type. */
 	virtual std::unique_ptr<Type> getType(ScopePtr) const = 0;
 	virtual bool isUnsigned() const { return false; }
+	Expr * setLocation(const ASTLocation &location_) { location = location_; return this; }
 
 	static Expr * get(const ASTNode &, Function * = nullptr);
 

@@ -23,6 +23,7 @@ selfScope(FunctionScope::make(*this, GlobalScope::make(program))) {
 		returnType = VoidType::make();
 	scopes.emplace(0, selfScope);
 	scopeStack.push_back(selfScope);
+	extractArguments();
 }
 
 std::vector<std::string> Function::stringify(bool colored) {
@@ -39,6 +40,52 @@ std::vector<std::string> Function::stringify(bool colored) {
 	return out;
 }
 
+void Function::extractArguments() {
+	arguments.clear();
+	argumentMap.clear();
+	if (!source)
+		return;
+
+	int i = 0;
+	for (const ASTNode *child: *source->at(2)) {
+		const std::string &argument_name = *child->lexerInfo;
+		arguments.push_back(argument_name);
+		VariablePtr argument = Variable::make(argument_name, TypePtr(Type::get(*child->front())), *this);
+		argument->init();
+		argumentMap.emplace(argument_name, argument);
+		if (i < Why::argumentCount) {
+			argument->reg = Why::argumentOffset + i;
+		} else
+			throw std::runtime_error("Functions with greater than " + std::to_string(Why::argumentCount) +
+				" arguments are currently unsupported.");
+		if (selfScope->doesConflict(argument_name))
+			throw NameConflictError(argument_name);
+		variables.emplace(argument_name, argument);
+		++i;
+	}
+}
+
+void Function::setArguments(const std::vector<std::pair<std::string, TypePtr>> &args) {
+	arguments.clear();
+	argumentMap.clear();
+	int i = 0;
+	for (const auto &[argument_name, type]: args) {
+		arguments.push_back(argument_name);
+		VariablePtr argument = Variable::make(argument_name, type, *this);
+		argument->init();
+		argumentMap.emplace(argument_name, argument);
+		if (i < Why::argumentCount) {
+			argument->reg = Why::argumentOffset + i;
+		} else
+			throw std::runtime_error("Functions with greater than " + std::to_string(Why::argumentCount) +
+				" arguments are currently unsupported.");
+		if (selfScope->doesConflict(argument_name))
+			throw NameConflictError(argument_name);
+		variables.emplace(argument_name, argument);
+		++i;
+	}
+}
+
 void Function::compile() {
 	const bool is_init = name == ".init";
 
@@ -52,24 +99,6 @@ void Function::compile() {
 		if (source->size() != 4)
 			throw std::runtime_error("Expected 4 nodes in " + name + "'s source node, found " +
 				std::to_string(source->size()));
-
-		int i = 0;
-		for (const ASTNode *child: *source->at(2)) {
-			const std::string &argument_name = *child->lexerInfo;
-			arguments.push_back(argument_name);
-			VariablePtr argument = Variable::make(argument_name, TypePtr(Type::get(*child->front())), *this);
-			argument->init();
-			argumentMap.emplace(argument_name, argument);
-			if (i < Why::argumentCount) {
-				argument->reg = Why::argumentOffset + i;
-			} else
-				throw std::runtime_error("Functions with greater than " + std::to_string(Why::argumentCount) +
-					" arguments are currently unsupported.");
-			if (selfScope->doesConflict(argument_name))
-				throw NameConflictError(argument_name);
-			variables.emplace(argument_name, argument);
-			++i;
-		}
 
 		for (const ASTNode *child: *source->at(3))
 			compile(*child);

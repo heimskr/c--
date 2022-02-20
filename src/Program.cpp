@@ -59,16 +59,18 @@ Program compileRoot(const ASTNode &root) {
 		}
 
 	// TODO: implement functions
-	auto add_dummy = [&](const std::string &function_name) {
-		out.functions.try_emplace("." + function_name, out, nullptr).first->second.name = "." + function_name;
+	auto add_dummy = [&](const std::string &function_name) -> Function & {
+		auto &fn = out.functions.try_emplace("." + function_name, out, nullptr).first->second;
+		fn.name = "." + function_name;
+		return fn;
 	};
-	add_dummy("s");
-	add_dummy("c");
-	add_dummy("ptr");
-	add_dummy("bool");
+	add_dummy("s").setArguments({{".string", std::make_shared<PointerType>(new UnsignedType(8))}});
+	add_dummy("c").setArguments({{".char", std::make_shared<UnsignedType>(8)}});
+	add_dummy("ptr").setArguments({{".pointer", std::make_shared<PointerType>(new VoidType())}});
+	add_dummy("bool").setArguments({{".boolean", std::make_shared<BoolType>()}});
 	for (size_t i = 8; i <= 64; i *= 2) {
-		add_dummy("s" + std::to_string(i));
-		add_dummy("u" + std::to_string(i));
+		add_dummy("s" + std::to_string(i)).setArguments({{".int", std::make_shared<SignedType>(i)}});
+		add_dummy("u" + std::to_string(i)).setArguments({{".int", std::make_shared<UnsignedType>(i)}});
 	}
 
 	return out;
@@ -146,10 +148,10 @@ void Program::compile() {
 
 	for (const std::string &line:
 		Util::split("|@.c|\t<prc $a0>|\t: $rt||@.ptr|\t<prc '0'>|\t<prc 'x'>|\t<prx $a0>|\t: $rt||@.s|\t[$a0] -> $mf /b"
-		"|\t: _strprint_print if $mf|\t: $rt|\t@_strprint_print|\t<prc $mf>|\t$a0++|\t: .s||@.s16|\t<prd $a0>|\t: $rt||"
-		"@.s32|\t<prd $a0>|\t: $rt||@.s64|\t<prd $a0>|\t: $rt||@.s8|\t<prd $a0>|\t: $rt||@.u16|\t<prd $a0>|\t: $rt||@.u"
-		"32|\t<prd $a0>|\t: $rt||@.u64|\t<prd $a0>|\t: $rt||@.u8|\t<prd $a0>|\t: $rt||@.bool|\t!$a0 -> $a0|\t!$a0 -> $a"
-		"0|\t<prd $a0>|\t: $rt", "|", false))
+		"|\t: _strprint_print if $mf|\t: $rt|\t@_strprint_print|\t<prc $mf>|\t$a0++|\t: .s||@.s16|\tsext16 $a0 -> $a0|"
+		"\t<prd $a0>|\t: $rt||@.s32|\tsext32 $a0 -> $a0|\t<prd $a0>|\t: $rt||@.s64|\t<prd $a0>|\t: $rt||@.s8|\tsext8 $a"
+		"0 -> $a0|\t<prd $a0>|\t: $rt||@.u16|\t<prd $a0>|\t: $rt||@.u32|\t<prd $a0>|\t: $rt||@.u64|\t<prd $a0>|\t: $rt|"
+		"|@.u8|\t<prd $a0>|\t: $rt||@.bool|\t!$a0 -> $a0|\t!$a0 -> $a0|\t<prd $a0>|\t: $rt", "|", false))
 		lines.push_back(line);
 
 	for (auto &[name, function]: functions)

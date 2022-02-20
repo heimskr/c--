@@ -6,8 +6,8 @@
 #include <string>
 
 struct ASTLocation {
-	size_t line;
-	size_t column;
+	size_t line = 0;
+	size_t column = 0;
 
 	operator std::string() const;
 };
