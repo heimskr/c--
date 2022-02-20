@@ -15,7 +15,7 @@ fn main(): void {
 	array[5] = 543210;
 	array[6] = 6543210;
 	array[7] = 76543210;
-	array[8] = 976543210;
+	array[8] = 876543210;
 	array[9] = 9876543210;
 	for i: s64 = #array; 0 < i; --i {
 		.s64(array[i - 1]);
