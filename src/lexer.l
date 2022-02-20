@@ -30,6 +30,10 @@ CMM_SLCOMMENT	("//"[^\n]*)
 [ \t]+			{}
 \n				{cmmLexer.newline();}
 
+"+="			{RTOKEN(PLUSEQ)}
+"-="			{RTOKEN(MINUSEQ)}
+"++"			{RTOKEN(PLUSPLUS)}
+"--"			{RTOKEN(MINUSMINUS)}
 "("				{RTOKEN(LPAREN)}
 ")"				{RTOKEN(RPAREN)}
 "+"				{RTOKEN(PLUS)}

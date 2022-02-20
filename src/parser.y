@@ -91,25 +91,29 @@ using AN = ASTNode;
 %token CMMTOK_CONTINUE "continue"
 %token CMMTOK_FOR "for"
 %token CMMTOK_MOD "%"
+%token CMMTOK_PLUSEQ "+="
+%token CMMTOK_MINUSEQ "-="
+%token CMMTOK_PLUSPLUS "++"
+%token CMMTOK_MINUSMINUS "--"
 
-%token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY
+%token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY CMM_POSTPLUS CMM_POSTMINUS
 
 %start start
 
 %left ";"
-%right "?" "="
+%right "?" "=" "+=" "-="
 %left "||"
 %left "&&"
 %left "|"
 %left "^"
-%left "&"
+%left BITWISE_AND
 %left "==" "!="
 %left "<" "<=" ">" ">="
 %left "<<" ">>"
 %left "+" "-"
-%left "*" "/" "%"
-%right "!" "~" "#"
-%left "["
+%left MULT "/" "%"
+%right "!" "~" "#" DEREF ADDROF PREFIX UNARY CAST
+%left "[" POSTFIX CALL
 %nonassoc "else"
 
 %%
@@ -158,7 +162,7 @@ _decl_or_def: decl_or_def | { $$ = new ASTNode(cmmParser, CMM_EMPTY); };
 
 expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
     | expr "||" expr { $$ = $2->adopt({$1, $3}); }
-    | expr "&"  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "&"  expr %prec BITWISE_AND { $$ = $2->adopt({$1, $3}); }
     | expr "|"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "==" expr { $$ = $2->adopt({$1, $3}); }
     | expr "!=" expr { $$ = $2->adopt({$1, $3}); }
@@ -170,21 +174,25 @@ expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
     | expr ">=" expr { $$ = $2->adopt({$1, $3}); }
     | expr "+"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "-"  expr { $$ = $2->adopt({$1, $3}); }
-    | expr "*"  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "*"  expr %prec MULT { $$ = $2->adopt({$1, $3}); }
     | expr "/"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "="  expr { $$ = $2->adopt({$1, $3}); }
     | expr "%"  expr { $$ = $2->adopt({$1, $3}); }
-    | expr "[" expr "]" { $$ = $2->adopt({$1, $3}); D($4); }
-    | function_call
-    | "(" expr ")" { $$ = $2; D($1, $3); }
-    | "(" type ")" expr %prec "!" { $1->symbol = CMM_CAST; $$ = $1->adopt({$2, $4}); D($3); }
+    | expr "[" expr "]" %prec "[" { $$ = $2->adopt({$1, $3}); D($4); }
+    | function_call %prec CALL
+    | "(" expr ")" %prec "(" { $$ = $2; D($1, $3); }
+    | "(" type ")" expr %prec CAST { $1->symbol = CMM_CAST; $$ = $1->adopt({$2, $4}); D($3); }
     | "!" expr { $$ = $1->adopt($2); }
     | "~" expr { $$ = $1->adopt($2); }
     | "#" expr { $$ = $1->adopt($2); }
     | number
-    | "-" number { $$ = $2->adopt($1); }
-    | "&" expr { $$ = $1->adopt($2); $$->symbol = CMM_ADDROF; }
-    | "*" expr { $$ = $1->adopt($2); }
+    | "-" number %prec UNARY { $$ = $2->adopt($1); }
+    | "&" expr %prec ADDROF { $$ = $1->adopt($2); $$->symbol = CMM_ADDROF; }
+    | "*" expr %prec DEREF { $$ = $1->adopt($2); }
+    | "++" expr %prec PREFIX  { $$ = $1->adopt($2); }
+    | expr "++" %prec POSTFIX { $$ = $2->adopt($1); $$->symbol = CMM_POSTPLUS; }
+    | "--" expr %prec PREFIX  { $$ = $1->adopt($2); }
+    | expr "--" %prec POSTFIX { $$ = $2->adopt($1); $$->symbol = CMM_POSTMINUS; }
     | ident
     | boolean
     | string
