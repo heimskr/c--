@@ -574,6 +574,7 @@ struct XorRInstruction:  BinaryRType<"^">  { using BinaryRType::BinaryRType; };
 struct LandRInstruction: BinaryRType<"&&"> { using BinaryRType::BinaryRType; };
 struct LorRInstruction:  BinaryRType<"||"> { using BinaryRType::BinaryRType; };
 struct LxorRInstruction: BinaryRType<"^^"> { using BinaryRType::BinaryRType; };
+struct DivRInstruction:  BinaryRType<"/">  { using BinaryRType::BinaryRType; };
 struct ShiftLeftLogicalRInstruction:     BinaryRType<"<<">  { using BinaryRType::BinaryRType; };
 struct ShiftRightArithmeticRInstruction: BinaryRType<">>">  { using BinaryRType::BinaryRType; };
 struct ShiftRightLogicalRInstruction:    BinaryRType<">>>"> { using BinaryRType::BinaryRType; };
@@ -594,6 +595,7 @@ struct BinaryIType: IType {
 struct AddIInstruction: BinaryIType<"+"> { using BinaryIType::BinaryIType; };
 struct SubIInstruction: BinaryIType<"-"> { using BinaryIType::BinaryIType; };
 struct AndIInstruction: BinaryIType<"&"> { using BinaryIType::BinaryIType; };
+struct DivIInstruction: BinaryIType<"/"> { using BinaryIType::BinaryIType; };
 
 template <fixstr::fixed_string O>
 struct InverseBinaryRType: RType {
@@ -630,3 +632,40 @@ struct UnaryRType: RType {
 
 struct NotInstruction:  UnaryRType<'~'> { using UnaryRType::UnaryRType; };
 struct LnotInstruction: UnaryRType<'!'> { using UnaryRType::UnaryRType; };
+
+template <fixstr::fixed_string O>
+struct UnsignedBinaryRType: RType {
+	using RType::RType;
+	operator std::vector<std::string>() const override {
+		return {
+			leftSource->regOrID() + " " + std::string(O) + " " + rightSource->regOrID() + " -> " +
+				destination->regOrID() + " /u"
+		};
+	}
+	std::vector<std::string> colored() const override {
+		return {
+			leftSource->regOrID(true) + o(std::string(O)) + rightSource->regOrID(true) + o("->") +
+				destination->regOrID(true) + " \e[2m/u\e[22m"
+		};
+	}
+};
+
+struct DivuRInstruction: UnsignedBinaryRType<"/"> { using UnsignedBinaryRType::UnsignedBinaryRType; };
+
+template <fixstr::fixed_string O>
+struct UnsignedBinaryIType: IType {
+	using IType::IType;
+	operator std::vector<std::string>() const override {
+		return {
+			source->regOrID() + " " + std::string(O) + " " + stringify(imm) + " -> " + destination->regOrID() + "/u"
+		};
+	}
+	std::vector<std::string> colored() const override {
+		return {
+			source->regOrID(true) + o(std::string(O)) + stringify(imm, true) + o("->") + destination->regOrID(true)
+				+ " \e[2m/u\e[22m"
+		};
+	}
+};
+
+struct DivuIInstruction: UnsignedBinaryIType<"/"> { using UnsignedBinaryIType::UnsignedBinaryIType; };

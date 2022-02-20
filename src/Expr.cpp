@@ -37,6 +37,11 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
+		case CMMTOK_DIV:
+			out = new DivExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		case CMMTOK_TIMES:
 			if (node.size() == 1)
 				out = new DerefExpr(Expr::get(*node.front(), function));
@@ -369,6 +374,31 @@ std::optional<ssize_t> LorExpr::evaluate(ScopePtr scope) const {
 	     right_value = right? right->evaluate(scope) : std::nullopt;
 	if (left_value && right_value)
 		return *left_value || *right_value;
+	return std::nullopt;
+}
+
+void DivExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+	VregPtr temp_var = function.newVar();
+	left->compile(temp_var, function, scope, multiplier);
+	right->compile(destination, function, scope);
+	if (left->getType(scope)->isUnsigned())
+		function.add<DivuRInstruction>(temp_var, destination, destination);
+	else
+		function.add<DivRInstruction>(temp_var, destination, destination);
+}
+
+size_t DivExpr::getSize(ScopePtr scope) const {
+	return left->getSize(scope);
+}
+
+std::optional<ssize_t> DivExpr::evaluate(ScopePtr scope) const {
+	auto left_value  = left?  left->evaluate(scope)  : std::nullopt,
+	     right_value = right? right->evaluate(scope) : std::nullopt;
+	if (left_value && right_value) {
+		if (left->getType(scope)->isUnsigned())
+			return size_t(*left_value) / size_t(*right_value);
+		return *left_value / *right_value;
+	}
 	return std::nullopt;
 }
 
