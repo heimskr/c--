@@ -1,0 +1,11 @@
+#name "Unsigned vs. Signed"
+#author "Kai Tamkun"
+#orcid "0000-0001-7405-6654"
+#version "1.0"
+
+fn main(): void {
+	.bool(-10u64 / 2u64 == (u64) (-10s64 / 2)); .c('\n');
+	.bool(-10u64 / 2u64 == -10u64 / 2u64);      .c('\n');
+	.s64(-10u64 / 2u64); .c('\n');
+	.s64(-10s64 / 2s64); .c('\n');
+}
