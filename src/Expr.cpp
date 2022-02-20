@@ -563,6 +563,11 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 	if (!found)
 		throw std::runtime_error("Function not found: " + name);
 
+	if (found->arguments.size() != arguments.size())
+		throw std::runtime_error("Invalid number of arguments in call to " + found->name + " at " +
+			std::string(location) + ": " + std::to_string(arguments.size()) + " (expected " +
+			std::to_string(found->arguments.size()) + ")");
+
 	for (i = 0; i < to_push; ++i)
 		fn.add<StackPushInstruction>(fn.precolored(Why::argumentOffset + i));
 
@@ -571,10 +576,11 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 		auto argument_register = fn.precolored(Why::argumentOffset + i);
 		argument->compile(argument_register, fn, scope);
 		try {
-			typeCheck(*argument->getType(scope), *found->argumentMap[found->arguments.at(i)]->type, argument_register,
-				fn, location);
+			typeCheck(*argument->getType(scope), *found->argumentMap.at(found->arguments.at(i))->type,
+				argument_register, fn, location);
 		} catch (std::out_of_range &err) {
-			std::cerr << "Bad expr: " << location << ": " << err.what() << '\n';
+			std::cerr << "\e[31mBad function argument at " << argument->location << "\e[39m\n";
+			throw;
 		}
 		++i;
 	}

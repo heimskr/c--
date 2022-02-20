@@ -1,7 +1,7 @@
 #name "Example"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "4.3"
+#version "4.4"
 
 n: s64 = 38 + 5;
 empty: bool;
@@ -26,6 +26,12 @@ fn typecheck(): void {
 	// badcast: s64* = void_ptr; // Shouldn't compile
 	recast: s64* = (s64*) void_ptr;
 }
+
+/*
+fn badcall(): void {
+	.bool("Hello", empty);
+}
+*/
 
 fn main(argc: u32): void {
 	// Functions whose names are "." followed by a type are built-in print functions.
