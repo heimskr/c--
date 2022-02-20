@@ -44,10 +44,11 @@ fn main(argc: u32): void {
 	.s("Conditional: "); .s64(conditional()); l();
 	.s("!10 = "); .bool(!10); l();
 	.s("!0  = "); .bool(!0);  l();
-	// .s64(z_split()); l();
+	// .s("z_split: "); .s64(z_split()); l();
 	scope_out: s32 = scope_test();
 	.s("scope_out() = "); .s32(scope_out); l();
 	.s("Global n = "); .s64(n); l();
+	.s("~100u8 = "); .u8((s64) ~100u8); l();
 	return (void) 0;
 }
 
@@ -376,4 +377,4 @@ fn z_split(): s64 {
 	var200 = var200 + 100;
 	return var200;
 }
-*/
+//*/

@@ -41,6 +41,8 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 		case CMMTOK_NUMBER:
+			if (node.size() == 1) // Contains a "-" child indicating unary negation
+				return new NumberExpr("-" + *node.lexerInfo);
 			return new NumberExpr(*node.lexerInfo);
 		case CMMTOK_TRUE:
 			return new BoolExpr(true);

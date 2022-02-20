@@ -105,7 +105,7 @@ using AN = ASTNode;
 %left "+" "-"
 %left "*" "/"
 %left "["
-%left "!"
+%left "!" "~"
 %nonassoc "else"
 
 %%
@@ -166,6 +166,7 @@ expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
     | "(" expr ")" { $$ = $2; D($1, $3); }
     | "(" type ")" expr %prec "!" { $1->symbol = CMM_CAST; $$ = $1->adopt({$2, $4}); D($3); }
     | "!" expr { $$ = $1->adopt($2); }
+    | "~" expr { $$ = $1->adopt($2); }
     | number
     | "-" number { $$ = $2->adopt($1); }
     | "&" expr { $$ = $1->adopt($2); $$->symbol = CMM_ADDROF; }

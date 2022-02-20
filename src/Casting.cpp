@@ -11,9 +11,10 @@ bool tryCast(const Type &right_type, const Type &left_type, VregPtr vreg, Functi
 		if (right_type.isInt() && left_type.isInt()) {
 			const auto *right_int = right_type.cast<IntType>(), *left_int = left_type.cast<IntType>();
 			if (right_type.isSigned() && left_type.isSigned()) {
+				std::cerr << "\e[36mrw[" << right_int->width << "], lw[" << left_int->width << "]\e[0m\n";
 				if (right_int->width < left_int->width)
-					function.add<SextInstruction>(vreg, vreg, left_int->width);
-				else
+					function.add<SextInstruction>(vreg, vreg, right_int->width);
+				if (left_int->width != 64)
 					function.add<AndIInstruction>(vreg, vreg, int((1ul << left_int->width) - 1));
 			} else if (left_int->width < right_int->width)
 				function.add<AndIInstruction>(vreg, vreg, int((1ul << left_int->width) - 1));
