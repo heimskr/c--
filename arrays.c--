@@ -18,7 +18,7 @@ fn main(): void {
 	array[8] = 976543210;
 	array[9] = 9876543210;
 	i: s64 = #array;
-	while (i > 0) {
+	while i > 0 {
 		.s64(array[i - 1]);
 		.c('\n');
 		i = i - 1;

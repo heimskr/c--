@@ -221,6 +221,9 @@ void Function::compile(const ASTNode &node) {
 			const std::string start = label + "s", end = label + "e";
 			add<Label>(start);
 			auto m0 = mx(0);
+			const TypePtr condition_type = condition->getType(currentScope());
+			if (!(*condition_type && BoolType()))
+				throw ImplicitConversionError(condition_type, BoolType::make());
 			condition->compile(m0, *this, currentScope());
 			add<LogicalNotInstruction>(m0);
 			add<JumpConditionalInstruction>(end, m0);
