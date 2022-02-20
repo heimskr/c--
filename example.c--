@@ -1,7 +1,7 @@
 #name "Example"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "4.5"
+#version "4.6"
 
 n: s64 = 38 + 5;
 empty: bool;
@@ -66,9 +66,9 @@ fn scope_test(): s32 {
 	if true {
 		n: u64 = (u64) -1s64;
 		.s("Block-scope n = "); .u64(n); l();
-		{ { { n = 64; }; }; };
+		{{{ n = 64; }}}
 		.s("Block-scope n = "); .u64(n); l();
-	};
+	}
 	.s("Function-scope n = "); .s32(n); l();
 	return n;
 }
@@ -88,7 +88,7 @@ fn ptr_test(): void {
 fn forever(): void {
 	while true {
 		.s("Hello!\n");
-	};
+	}
 }
 
 fn badfib(x: s64): s64 {
@@ -96,7 +96,7 @@ fn badfib(x: s64): s64 {
 		return 1;
 	} else {
 		return badfib(x - 2) + badfib(x - 1);
-	};
+	}
 }
 
 fn conditional(): s64 {
@@ -105,8 +105,8 @@ fn conditional(): s64 {
 			return 1;
 		} else {
 			return 2;
-		};
-	};
+		}
+	}
 	return 3;
 }
 

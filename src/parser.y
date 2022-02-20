@@ -133,11 +133,12 @@ statement: block
          | conditional
          | while_loop
          | for_loop
-         | decl_or_def
-         | expr
-         | "return" expr { $$ = $1->adopt($2); }
-         | "break"
-         | "continue";
+         | decl_or_def ";" { D($2); }
+         | expr ";" { D($2); }
+         | "return" expr ";" { $$ = $1->adopt($2); D($3); }
+         | "break" ";" { D($2); }
+         | "continue" ";" { D($2); }
+         | ";" { $1->symbol = CMM_EMPTY; };
 
 declaration: ident ":" type { $$ = $2->adopt({$1, $3}); }
 definition:  ident ":" type "=" expr { $$ = $2->adopt({$1, $3, $5}); D($4); };
@@ -147,7 +148,7 @@ function_def: "fn" ident "(" _arglist ")" ":" type block { $$ = $1->adopt({$2, $
 
 block: "{" statements "}" { $$ = $2; D($1, $3); };
 
-statements: statements statement ";" { $$ = $1->adopt($2); D($3); }
+statements: statements statement { $$ = $1->adopt($2); }
           | { $$ = new ASTNode(cmmParser, CMM_BLOCK); };
 
 conditional: "if" expr block "else" block { $$ = $1->adopt({$2, $3, $5}); D($4); }
