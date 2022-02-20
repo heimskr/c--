@@ -294,7 +294,7 @@ struct LnotExpr: Expr {
 	std::unique_ptr<Expr> subexpr;
 	LnotExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
 	LnotExpr(Expr *subexpr_): subexpr(subexpr_) {}
-	Expr * copy() const override { return new NotExpr(subexpr->copy()); }
+	Expr * copy() const override { return new LnotExpr(subexpr->copy()); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 	operator std::string() const override { return "!" + std::string(*subexpr); }
 	size_t getSize(ScopePtr scope) const override { return subexpr->getSize(scope); }
