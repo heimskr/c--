@@ -66,6 +66,9 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 		case CMMTOK_NOT:
 			out = new LnotExpr(Expr::get(*node.front(), function));
 			break;
+		case CMMTOK_HASH:
+			out = new LengthExpr(Expr::get(*node.front(), function));
+			break;
 		case CMMTOK_IDENT:
 			if (!function)
 				throw std::runtime_error("Variable expression encountered in functionless context");
@@ -742,6 +745,20 @@ std::unique_ptr<Type> CastExpr::getType(ScopePtr) const {
 }
 
 void AccessExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+	compileAddress(destination, function, scope);
+	function.add<LoadRInstruction>(destination, destination, getSize(scope));
+	if (multiplier != 1)
+		function.add<MultIInstruction>(destination, destination, int(multiplier));
+}
+
+std::unique_ptr<Type> AccessExpr::getType(ScopePtr scope) const {
+	auto array_type = array->getType(scope);
+	if (auto *casted = array_type->cast<const ArrayType>())
+		return std::unique_ptr<Type>(casted->subtype->copy());
+	throw std::runtime_error("Can't get array access result type: array expression isn't an array type");
+}
+
+bool AccessExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) const {
 	checkType(scope);
 	if (!array->compileAddress(destination, function, scope))
 		throw LvalueError(std::string(*array->getType(scope)));
@@ -757,17 +774,7 @@ void AccessExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 			function.add<MultIInstruction>(subscript_variable, subscript_variable, int(element_size));
 		function.add<AddRInstruction>(destination, subscript_variable, destination);
 	}
-
-	function.add<LoadRInstruction>(destination, destination, element_size);
-	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, int(multiplier));
-}
-
-std::unique_ptr<Type> AccessExpr::getType(ScopePtr scope) const {
-	auto array_type = array->getType(scope);
-	if (auto *casted = array_type->cast<ArrayType>())
-		return std::unique_ptr<Type>(casted->subtype->copy());
-	throw std::runtime_error("Can't get array access result type: array expression isn't an array type");
+	return true;
 }
 
 std::unique_ptr<ArrayType> AccessExpr::checkType(ScopePtr scope) const {
@@ -775,4 +782,12 @@ std::unique_ptr<ArrayType> AccessExpr::checkType(ScopePtr scope) const {
 	if (!type->isArray())
 		throw NotArrayError(TypePtr(type->copy()));
 	return std::unique_ptr<ArrayType>(type->copy()->cast<ArrayType>());
+}
+
+void LengthExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+	TypePtr type = subexpr->getType(scope);
+	if (auto *array = type->cast<const ArrayType>())
+		function.add<SetIInstruction>(destination, array->count * multiplier);
+	else
+		throw NotArrayError(type);
 }

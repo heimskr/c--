@@ -1,7 +1,7 @@
 #name "Arrays"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "0.1"
+#version "1.0"
 
 n: s64 = 10;
 array: s64[10];
@@ -16,7 +16,7 @@ fn main(): void {
 	array[6] = 6543210;
 	array[7] = 76543210;
 	array[8] = 976543210;
-	array[9] = 976543210;
+	array[9] = 9876543210;
 	i: s64 = #array;
 	while (i > 0) {
 		.s64(array[i - 1]);

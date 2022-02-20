@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "ASTNode.h"
 #include "Checkable.h"
 #include "Errors.h"
 #include "fixed_string.h"
@@ -14,9 +15,7 @@
 #include "Util.h"
 #include "Variable.h"
 
-class ASTNode;
 class Function;
-struct Expr;
 struct Program;
 struct Scope;
 struct Type;
@@ -24,10 +23,9 @@ struct WhyInstruction;
 
 using ScopePtr = std::shared_ptr<Scope>;
 
-std::string stringify(const Expr *);
-
 struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 	ASTLocation location;
+	Expr(const ASTLocation &location_ = {}): location(location_) {}
 	virtual ~Expr() {}
 	virtual Expr * copy() const = 0;
 	virtual void compile(VregPtr destination, Function &, ScopePtr, ssize_t multiplier = 1) const;
@@ -56,6 +54,8 @@ struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 		return std::dynamic_pointer_cast<const T>(shared_from_this());
 	}
 };
+
+std::string stringify(const Expr *);
 
 std::ostream & operator<<(std::ostream &, const Expr &);
 
@@ -377,5 +377,18 @@ struct AccessExpr: Expr {
 	operator std::string() const override { return std::string(*array) + "[" + std::string(*subscript) + "]"; }
 	size_t getSize(ScopePtr scope) const override { return getType(scope)->getSize(); }
 	std::unique_ptr<Type> getType(ScopePtr) const override;
+	bool compileAddress(VregPtr, Function &, ScopePtr) const override;
 	std::unique_ptr<ArrayType> checkType(ScopePtr) const;
+};
+
+struct LengthExpr: Expr {
+	std::unique_ptr<Expr> subexpr;
+	LengthExpr(std::unique_ptr<Expr> &&subexpr_): Expr(subexpr_->location), subexpr(std::move(subexpr_)) {}
+	LengthExpr(Expr *subexpr_): Expr(subexpr_->location), subexpr(subexpr_) {}
+	Expr * copy() const override { return new LengthExpr(subexpr->copy()); }
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
+	operator std::string() const override { return "#" + std::string(*subexpr); }
+	size_t getSize(ScopePtr scope) const override { return subexpr->getSize(scope); }
+	std::unique_ptr<Type> getType(ScopePtr) const override { return std::make_unique<UnsignedType>(64); }
+	std::vector<std::string> references() const override { return subexpr->references(); }
 };
