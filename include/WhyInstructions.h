@@ -575,6 +575,7 @@ struct LandRInstruction: BinaryRType<"&&"> { using BinaryRType::BinaryRType; };
 struct LorRInstruction:  BinaryRType<"||"> { using BinaryRType::BinaryRType; };
 struct LxorRInstruction: BinaryRType<"^^"> { using BinaryRType::BinaryRType; };
 struct DivRInstruction:  BinaryRType<"/">  { using BinaryRType::BinaryRType; };
+struct ModRInstruction:  BinaryRType<"%">  { using BinaryRType::BinaryRType; };
 struct ShiftLeftLogicalRInstruction:     BinaryRType<"<<">  { using BinaryRType::BinaryRType; };
 struct ShiftRightArithmeticRInstruction: BinaryRType<">>">  { using BinaryRType::BinaryRType; };
 struct ShiftRightLogicalRInstruction:    BinaryRType<">>>"> { using BinaryRType::BinaryRType; };
@@ -596,6 +597,7 @@ struct AddIInstruction: BinaryIType<"+"> { using BinaryIType::BinaryIType; };
 struct SubIInstruction: BinaryIType<"-"> { using BinaryIType::BinaryIType; };
 struct AndIInstruction: BinaryIType<"&"> { using BinaryIType::BinaryIType; };
 struct DivIInstruction: BinaryIType<"/"> { using BinaryIType::BinaryIType; };
+struct ModIInstruction: BinaryIType<"%"> { using BinaryIType::BinaryIType; };
 
 template <fixstr::fixed_string O>
 struct InverseBinaryRType: RType {
@@ -651,6 +653,7 @@ struct UnsignedBinaryRType: RType {
 };
 
 struct DivuRInstruction: UnsignedBinaryRType<"/"> { using UnsignedBinaryRType::UnsignedBinaryRType; };
+struct ModuRInstruction: UnsignedBinaryRType<"%"> { using UnsignedBinaryRType::UnsignedBinaryRType; };
 
 template <fixstr::fixed_string O>
 struct UnsignedBinaryIType: IType {
@@ -669,3 +672,4 @@ struct UnsignedBinaryIType: IType {
 };
 
 struct DivuIInstruction: UnsignedBinaryIType<"/"> { using UnsignedBinaryIType::UnsignedBinaryIType; };
+struct ModuIInstruction: UnsignedBinaryIType<"%"> { using UnsignedBinaryIType::UnsignedBinaryIType; };

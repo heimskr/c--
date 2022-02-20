@@ -236,6 +236,13 @@ struct DivExpr: BinaryExpr<"/"> {
 	std::optional<ssize_t> evaluate(ScopePtr) const override;
 };
 
+struct ModExpr: BinaryExpr<"%"> {
+	using BinaryExpr::BinaryExpr;
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
+	size_t getSize(ScopePtr) const override;
+	std::optional<ssize_t> evaluate(ScopePtr) const override;
+};
+
 struct NumberExpr: AtomicExpr {
 	std::string literal;
 	NumberExpr(const std::string &literal_): literal(literal_) {}

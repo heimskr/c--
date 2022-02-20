@@ -42,6 +42,11 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
+		case CMMTOK_MOD:
+			out = new ModExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		case CMMTOK_TIMES:
 			if (node.size() == 1)
 				out = new DerefExpr(Expr::get(*node.front(), function));
@@ -57,6 +62,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				out = new NumberExpr(*node.lexerInfo);
 			break;
 		case CMMTOK_TRUE:
+		case CMM_EMPTY:
 			out = new BoolExpr(true);
 			break;
 		case CMMTOK_FALSE:
@@ -398,6 +404,31 @@ std::optional<ssize_t> DivExpr::evaluate(ScopePtr scope) const {
 		if (left->getType(scope)->isUnsigned())
 			return size_t(*left_value) / size_t(*right_value);
 		return *left_value / *right_value;
+	}
+	return std::nullopt;
+}
+
+void ModExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+	VregPtr temp_var = function.newVar();
+	left->compile(temp_var, function, scope, multiplier);
+	right->compile(destination, function, scope);
+	if (left->getType(scope)->isUnsigned())
+		function.add<ModuRInstruction>(temp_var, destination, destination);
+	else
+		function.add<ModRInstruction>(temp_var, destination, destination);
+}
+
+size_t ModExpr::getSize(ScopePtr scope) const {
+	return left->getSize(scope);
+}
+
+std::optional<ssize_t> ModExpr::evaluate(ScopePtr scope) const {
+	auto left_value  = left?  left->evaluate(scope)  : std::nullopt,
+	     right_value = right? right->evaluate(scope) : std::nullopt;
+	if (left_value && right_value) {
+		if (left->getType(scope)->isUnsigned())
+			return size_t(*left_value) % size_t(*right_value);
+		return *left_value % *right_value;
 	}
 	return std::nullopt;
 }

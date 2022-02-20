@@ -87,8 +87,12 @@ using AN = ASTNode;
 %token CMMTOK_META_AUTHOR "#author"
 %token CMMTOK_META_VERSION "#version"
 %token CMMTOK_META_ORCID "#orcid"
+%token CMMTOK_BREAK "break"
+%token CMMTOK_CONTINUE "continue"
+%token CMMTOK_FOR "for"
+%token CMMTOK_MOD "%"
 
-%token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF
+%token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY
 
 %start start
 
@@ -103,7 +107,7 @@ using AN = ASTNode;
 %left "<" "<=" ">" ">="
 %left "<<" ">>"
 %left "+" "-"
-%left "*" "/"
+%left "*" "/" "%"
 %right "!" "~" "#"
 %left "["
 %nonassoc "else"
@@ -123,10 +127,13 @@ meta: meta_start string { $$ = $1->adopt($2); };
 
 statement: block
          | conditional
-         | loop
+         | while_loop
+         | for_loop
          | decl_or_def
          | expr
-         | "return" expr { $$ = $1->adopt($2); };
+         | "return" expr { $$ = $1->adopt($2); }
+         | "break"
+         | "continue";
 
 declaration: ident ":" type { $$ = $2->adopt({$1, $3}); }
 definition:  ident ":" type "=" expr { $$ = $2->adopt({$1, $3, $5}); D($4); };
@@ -142,7 +149,12 @@ statements: statements statement ";" { $$ = $1->adopt($2); D($3); }
 conditional: "if" expr block "else" block { $$ = $1->adopt({$2, $3, $5}); D($4); }
            | "if" expr block { $$ = $1->adopt({$2, $3}); };
 
-loop: "while" expr block { $$ = $1->adopt({$2, $3}); };
+while_loop: "while" expr block { $$ = $1->adopt({$2, $3}); };
+
+for_loop: "for" _decl_or_def ";" _expr ";" _expr block { $$ = $1->adopt({$2, $4, $6, $7}); D($3, $5); };
+
+_expr: expr | { $$ = new ASTNode(cmmParser, CMM_EMPTY); };
+_decl_or_def: decl_or_def | { $$ = new ASTNode(cmmParser, CMM_EMPTY); };
 
 expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
     | expr "||" expr { $$ = $2->adopt({$1, $3}); }
@@ -161,6 +173,7 @@ expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
     | expr "*"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "/"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "="  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "%"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "[" expr "]" { $$ = $2->adopt({$1, $3}); D($4); }
     | function_call
     | "(" expr ")" { $$ = $2; D($1, $3); }

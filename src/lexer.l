@@ -83,6 +83,10 @@ CMM_SLCOMMENT	("//"[^\n]*)
 "u64"			{RTOKEN(U64)}
 "bool"			{RTOKEN(BOOL)}
 "void"			{RTOKEN(VOID)}
+"break"			{RTOKEN(BREAK)}
+"continue"		{RTOKEN(CONTINUE)}
+"for"			{RTOKEN(FOR)}
+"%"				{RTOKEN(MOD)}
 
 {CMM_CHAR}		{RTOKEN(CHAR)}
 {CMM_STRING}	{RTOKEN(STRING)}

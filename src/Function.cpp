@@ -178,7 +178,7 @@ size_t Function::addToStack(VariablePtr variable) {
 	return stackUsage;
 }
 
-void Function::compile(const ASTNode &node) {
+void Function::compile(const ASTNode &node, const std::string &break_label, const std::string &continue_label) {
 	switch (node.symbol) {
 		case CMMTOK_COLON: {
 			const std::string &var_name = *node.front()->lexerInfo;
@@ -220,24 +220,61 @@ void Function::compile(const ASTNode &node) {
 			const std::string label = "." + name + "." + std::to_string(++nextBlock);
 			const std::string start = label + "s", end = label + "e";
 			add<Label>(start);
-			auto m0 = mx(0);
+			auto temp_var = newVar();
 			const TypePtr condition_type = condition->getType(currentScope());
 			if (!(*condition_type && BoolType()))
 				throw ImplicitConversionError(condition_type, BoolType::make());
-			condition->compile(m0, *this, currentScope());
-			add<LogicalNotInstruction>(m0);
-			add<JumpConditionalInstruction>(end, m0);
+			condition->compile(temp_var, *this, currentScope());
+			add<LogicalNotInstruction>(temp_var);
+			add<JumpConditionalInstruction>(end, temp_var);
 			auto scope = newScope();
 			scopeStack.push_back(scope);
-			compile(*node.at(1));
+			compile(*node.at(1), break_label, continue_label);
 			scopeStack.pop_back();
 			add<JumpInstruction>(start);
 			add<Label>(end);
 			break;
 		}
+		case CMMTOK_FOR: {
+			auto scope = newScope();
+			scopeStack.push_back(scope);
+
+			const std::string label = "." + name + "." + std::to_string(++nextBlock);
+			const std::string start = label + "s", end = label + "e", next = label + "n";
+			auto temp_var = newVar();
+
+			compile(*node.front());
+			add<Label>(start);
+			ExprPtr condition = ExprPtr(Expr::get(*node.at(1), this));
+			const TypePtr condition_type = condition->getType(currentScope());
+			if (!(*condition_type && BoolType()))
+				throw ImplicitConversionError(condition_type, BoolType::make());
+			condition->compile(temp_var, *this, currentScope());
+			add<LogicalNotInstruction>(temp_var);
+			add<JumpConditionalInstruction>(end, temp_var);
+			compile(*node.at(3), end, next);
+			add<Label>(next);
+			compile(*node.at(2));
+			add<JumpInstruction>(start);
+			add<Label>(end);
+			scopeStack.pop_back();
+			break;
+		}
+		case CMMTOK_CONTINUE:
+			if (continue_label.empty())
+				throw std::runtime_error("Encountered invalid continue statement at " + std::string(node.location));
+			add<JumpInstruction>(continue_label);
+			break;
+		case CMMTOK_BREAK:
+			if (break_label.empty())
+				throw std::runtime_error("Encountered invalid break statement at " + std::string(node.location));
+			add<JumpInstruction>(break_label);
+			break;
+		case CMM_EMPTY:
+			break;
 		case CMM_BLOCK:
 			for (const ASTNode *child: node)
-				compile(*child);
+				compile(*child, break_label, continue_label);
 			break;
 		case CMMTOK_IF: {
 			const std::string end_label = "." + name + "." + std::to_string(++nextBlock) + "end";
@@ -253,19 +290,19 @@ void Function::compile(const ASTNode &node) {
 				add<JumpConditionalInstruction>(else_label, m0);
 				auto scope = newScope();
 				scopeStack.push_back(scope);
-				compile(*node.at(1));
+				compile(*node.at(1), break_label, continue_label);
 				scopeStack.pop_back();
 				add<JumpInstruction>(end_label);
 				add<Label>(else_label);
 				scope = newScope();
 				scopeStack.push_back(scope);
-				compile(*node.at(2));
+				compile(*node.at(2), break_label, continue_label);
 				scopeStack.pop_back();
 			} else {
 				add<JumpConditionalInstruction>(end_label, m0);
 				auto scope = newScope();
 				scopeStack.push_back(scope);
-				compile(*node.at(1));
+				compile(*node.at(1), break_label, continue_label);
 				scopeStack.pop_back();
 			}
 			add<Label>(end_label);
