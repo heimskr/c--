@@ -463,7 +463,7 @@ struct PrefixExpr: Expr {
 			throw LvalueError(*subexpr->getType(scope));
 
 		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, multiplier);
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 	}
 	operator std::string() const override { return std::string(O) + std::string(*subexpr); }
 	size_t getSize(ScopePtr scope) const override { return subexpr->getSize(scope); }
@@ -529,7 +529,7 @@ struct PostfixExpr: Expr {
 			throw LvalueError(*subexpr->getType(scope));
 
 		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, multiplier);
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 	}
 	operator std::string() const override { return std::string(*subexpr) + std::string(O); }
 	size_t getSize(ScopePtr scope) const override { return subexpr->getSize(scope); }

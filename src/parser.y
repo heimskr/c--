@@ -187,13 +187,13 @@ expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
     | "~" expr { $$ = $1->adopt($2); }
     | "#" expr { $$ = $1->adopt($2); }
     | number
-    | "-" number %prec UNARY { $$ = $2->adopt($1); }
-    | "&" expr %prec ADDROF { $$ = $1->adopt($2); $$->symbol = CMM_ADDROF; }
-    | "*" expr %prec DEREF { $$ = $1->adopt($2); }
-    | "++" expr %prec PREFIX  { $$ = $1->adopt($2); }
-    | expr "++" %prec POSTFIX { $$ = $2->adopt($1); $$->symbol = CMM_POSTPLUS; }
-    | "--" expr %prec PREFIX  { $$ = $1->adopt($2); }
-    | expr "--" %prec POSTFIX { $$ = $2->adopt($1); $$->symbol = CMM_POSTMINUS; }
+    | "-" number %prec UNARY   { $$ = $2->adopt($1); }
+    | "&" expr   %prec ADDROF  { $$ = $1->adopt($2); $$->symbol = CMM_ADDROF; }
+    | "*" expr   %prec DEREF   { $$ = $1->adopt($2); }
+    | "++" expr  %prec PREFIX  { $$ = $1->adopt($2); }
+    | expr "++"  %prec POSTFIX { $$ = $2->adopt($1); $$->symbol = CMM_POSTPLUS; }
+    | "--" expr  %prec PREFIX  { $$ = $1->adopt($2); }
+    | expr "--"  %prec POSTFIX { $$ = $2->adopt($1); $$->symbol = CMM_POSTMINUS; }
     | ident
     | boolean
     | string
