@@ -278,10 +278,7 @@ struct StoreRInstruction: RType, SizedInstruction {
 
 struct SetIInstruction: IType {
 	SetIInstruction(VregPtr destination_, const Immediate &imm_): IType(nullptr, destination_, imm_) {}
-	SetIInstruction(VregPtr destination_, size_t imm_): IType(nullptr, destination_, int(imm_)) {
-		if (!Util::inRange(imm_))
-			throw std::out_of_range("Immediate value out of range: " + std::to_string(imm_));
-	}
+	SetIInstruction(VregPtr destination_, size_t imm_): IType(nullptr, destination_, imm_) {}
 	operator std::vector<std::string>() const override {
 		return {stringify(imm) + " -> " + destination->regOrID()};
 	}

@@ -121,7 +121,7 @@ void Function::compile() {
 		auto gp_regs = usedGPRegisters();
 		auto fp = precolored(Why::framePointerOffset), sp = precolored(Why::stackPointerOffset);
 		if (stackUsage != 0)
-			addFront<SubIInstruction>(sp, sp, int(stackUsage));
+			addFront<SubIInstruction>(sp, sp, stackUsage);
 		addFront<MoveInstruction>(sp, fp);
 		for (int reg: gp_regs)
 			addFront<StackPushInstruction>(precolored(reg));
@@ -197,7 +197,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 					add<StoreRInstruction>(variable, fp, variable->getSize());
 				} else {
 					VregPtr m0 = mx(0);
-					add<SubIInstruction>(fp, m0, int(offset));
+					add<SubIInstruction>(fp, m0, offset);
 					add<StoreRInstruction>(variable, m0, variable->getSize());
 				}
 			}
@@ -541,7 +541,7 @@ bool Function::spill(VregPtr vreg) {
 
 	for (std::weak_ptr<WhyInstruction> weak_definition: vreg->writers) {
 		WhyPtr definition = weak_definition.lock();
-		auto store = std::make_shared<StackStoreInstruction>(vreg, int(location));
+		auto store = std::make_shared<StackStoreInstruction>(vreg, location);
 		auto next = after(definition);
 		bool should_insert = true;
 
@@ -635,7 +635,7 @@ bool Function::canSpill(VregPtr vreg) {
 
 		bool created;
 		const size_t location = getSpill(vreg, true, &created);
-		auto store = std::make_shared<StackStoreInstruction>(vreg, int(location));
+		auto store = std::make_shared<StackStoreInstruction>(vreg, location);
 		auto next = after(definition);
 		bool should_insert = true;
 

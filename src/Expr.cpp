@@ -317,7 +317,7 @@ void AndExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	right->compile(destination, function, scope);
 	function.add<AndRInstruction>(temp_var, destination, destination);
 	if (multiplier)
-		function.add<MultIInstruction>(destination, destination, int(multiplier));
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
 size_t AndExpr::getSize(ScopePtr scope) const {
@@ -338,7 +338,7 @@ void OrExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ss
 	right->compile(destination, function, scope);
 	function.add<OrRInstruction>(temp_var, destination, destination);
 	if (multiplier)
-		function.add<MultIInstruction>(destination, destination, int(multiplier));
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
 size_t OrExpr::getSize(ScopePtr scope) const {
@@ -359,7 +359,7 @@ void LandExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 	right->compile(destination, function, scope);
 	function.add<LandRInstruction>(temp_var, destination, destination);
 	if (multiplier)
-		function.add<MultIInstruction>(destination, destination, int(multiplier));
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
 size_t LandExpr::getSize(ScopePtr scope) const {
@@ -380,7 +380,7 @@ void LorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	right->compile(destination, function, scope);
 	function.add<LorRInstruction>(temp_var, destination, destination);
 	if (multiplier)
-		function.add<MultIInstruction>(destination, destination, int(multiplier));
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
 size_t LorExpr::getSize(ScopePtr scope) const {
@@ -513,7 +513,7 @@ bool NumberExpr::isUnsigned() const {
 
 void BoolExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) const {
 	if (destination)
-		function.add<SetIInstruction>(destination, value? int(multiplier) : 0);
+		function.add<SetIInstruction>(destination, value? size_t(multiplier) : 0);
 }
 
 void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
@@ -528,11 +528,11 @@ void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr sco
 		} else {
 			const size_t offset = function.stackOffsets.at(var);
 			function.addComment("Load variable " + name);
-			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, int(offset));
+			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset);
 			function.add<LoadRInstruction>(destination, destination, var->getSize());
 		}
 		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, int(multiplier));
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 	} else
 		throw ResolutionError(name, scope);
 }
@@ -546,7 +546,7 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, Scope
 		} else {
 			const size_t offset = function.stackOffsets.at(var);
 			function.addComment("Get variable lvalue for " + name);
-			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, int(offset));
+			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset);
 		}
 	} else
 		throw ResolutionError(name, scope);
@@ -599,14 +599,14 @@ void NotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	subexpr->compile(destination, function, scope);
 	function.add<NotInstruction>(destination, destination);
 	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, int(multiplier));
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
 void LnotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
 	subexpr->compile(destination, function, scope);
 	function.add<LnotInstruction>(destination, destination);
 	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, int(multiplier));
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
 void StringExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) const {
@@ -712,7 +712,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 		if (multiplier == 1)
 			fn.add<MoveInstruction>(fn.precolored(Why::returnValueOffset), destination);
 		else
-			fn.add<MultIInstruction>(fn.precolored(Why::returnValueOffset), destination, int(multiplier));
+			fn.add<MultIInstruction>(fn.precolored(Why::returnValueOffset), destination, size_t(multiplier));
 	}
 }
 
@@ -758,12 +758,12 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 				function.add<StoreIInstruction>(destination, global->name, global->getSize());
 			} else {
 				auto fp = function.precolored(Why::framePointerOffset);
-				auto offset = function.stackOffsets.at(var);
+				const size_t offset = function.stackOffsets.at(var);
 				if (offset == 0) {
 					function.add<StoreRInstruction>(destination, fp, var->getSize());
 				} else {
 					auto temp = function.newVar();
-					function.add<SubIInstruction>(fp, temp, int(offset));
+					function.add<SubIInstruction>(fp, temp, offset);
 					function.add<StoreRInstruction>(destination, temp, var->getSize());
 				}
 			}
@@ -821,7 +821,7 @@ void AccessExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 	compileAddress(destination, function, scope);
 	function.add<LoadRInstruction>(destination, destination, getSize(scope));
 	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, int(multiplier));
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
 std::unique_ptr<Type> AccessExpr::getType(ScopePtr scope) const {
@@ -839,12 +839,12 @@ bool AccessExpr::compileAddress(VregPtr destination, Function &function, ScopePt
 	const auto subscript_value = subscript->evaluate(scope);
 	if (subscript_value) {
 		if (*subscript_value != 0)
-			function.add<AddIInstruction>(destination, destination, int(*subscript_value * element_size));
+			function.add<AddIInstruction>(destination, destination, size_t(*subscript_value * element_size));
 	} else {
 		auto subscript_variable = function.newVar();
 		subscript->compile(subscript_variable, function, scope);
 		if (element_size != 1)
-			function.add<MultIInstruction>(subscript_variable, subscript_variable, int(element_size));
+			function.add<MultIInstruction>(subscript_variable, subscript_variable, element_size);
 		function.add<AddRInstruction>(destination, subscript_variable, destination);
 	}
 	return true;

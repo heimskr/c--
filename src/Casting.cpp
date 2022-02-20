@@ -15,9 +15,9 @@ bool tryCast(const Type &right_type, const Type &left_type, VregPtr vreg, Functi
 				if (right_int->width < left_int->width)
 					function.add<SextInstruction>(vreg, vreg, right_int->width);
 				if (left_int->width != 64)
-					function.add<AndIInstruction>(vreg, vreg, int((1ul << left_int->width) - 1));
+					function.add<AndIInstruction>(vreg, vreg, (1ul << left_int->width) - 1);
 			} else if (left_int->width < right_int->width)
-				function.add<AndIInstruction>(vreg, vreg, int((1ul << left_int->width) - 1));
+				function.add<AndIInstruction>(vreg, vreg, (1ul << left_int->width) - 1);
 			return true;
 		}
 		return false;
