@@ -1,0 +1,26 @@
+#name "Arrays"
+#author "Kai Tamkun"
+#orcid "0000-0001-7405-6654"
+#version "0.1"
+
+n: s64 = 10;
+array: s64[10];
+
+fn main(): void {
+	array[0] = 0;
+	array[1] = 10;
+	array[2] = 210;
+	array[3] = 3210;
+	array[4] = 43210;
+	array[5] = 543210;
+	array[6] = 6543210;
+	array[7] = 76543210;
+	array[8] = 976543210;
+	array[9] = 976543210;
+	i: s64 = #array;
+	while (i > 0) {
+		.s64(array[i - 1]);
+		.c('\n');
+		i = i - 1;
+	};
+}

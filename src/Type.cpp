@@ -1,4 +1,5 @@
 #include "ASTNode.h"
+#include "Expr.h"
 #include "Lexer.h"
 #include "Parser.h"
 #include "Type.h"
@@ -29,6 +30,14 @@ bool PointerType::operator&&(const Type &other) const {
 	return false;
 }
 
+bool ArrayType::operator&&(const Type &other) const {
+	if (auto *other_array = dynamic_cast<const ArrayType *>(&other))
+		return (*subtype && *other_array->subtype) && count == other_array->count;
+	if (auto *pointer = dynamic_cast<const PointerType *>(&other))
+		return *subtype && *pointer->subtype;
+	return false;
+}
+
 Type * Type::get(const ASTNode &node) {
 	switch (node.symbol) {
 		case CMMTOK_VOID:
@@ -55,6 +64,14 @@ Type * Type::get(const ASTNode &node) {
 			return new PointerType(Type::get(*node.front()));
 		case CMMTOK_STRING:
 			return new PointerType(new UnsignedType(8));
+		case CMMTOK_LSQUARE: {
+			auto expr = std::unique_ptr<Expr>(Expr::get(*node.at(1)));
+			auto count = expr->evaluate(nullptr);
+			if (!count)
+				throw std::runtime_error("Array size expression must be a compile-time constant: " + std::string(*expr)
+					+ " (at " + std::string(expr->location) + ")");
+			return new ArrayType(Type::get(*node.front()), *count);
+		}
 		default:
 			throw std::invalid_argument("Invalid token in getType: " + std::string(cmmParser.getName(node.symbol)));
 	}

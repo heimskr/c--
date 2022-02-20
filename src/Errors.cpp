@@ -25,3 +25,6 @@ ImplicitConversionError::ImplicitConversionError(const Type &left_, const Type &
 
 NotPointerError::NotPointerError(std::shared_ptr<Type> type_):
 	std::runtime_error("Not a pointer: " + std::string(*type_)), type(type_) {}
+
+NotArrayError::NotArrayError(std::shared_ptr<Type> type_):
+	std::runtime_error("Not an array: " + std::string(*type_)), type(type_) {}

@@ -150,6 +150,11 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
+		case CMMTOK_LSQUARE:
+			out = new AccessExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		default:
 			throw std::invalid_argument("Unrecognized symbol in Expr::get: " +
 				std::string(cmmParser.getName(node.symbol)));
@@ -456,6 +461,22 @@ void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr sco
 		throw ResolutionError(name, scope);
 }
 
+bool VariableExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) const {
+	if (VariablePtr var = scope->lookup(name)) {
+		if (auto global = std::dynamic_pointer_cast<Global>(var)) {
+			function.add<SetIInstruction>(destination, global->name);
+		} else if (function.argumentMap.count(name) != 0 || function.stackOffsets.count(var) == 0) {
+			throw NotOnStackError(var);
+		} else {
+			const size_t offset = function.stackOffsets.at(var);
+			function.addComment("Get variable lvalue for " + name);
+			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, int(offset));
+		}
+	} else
+		throw ResolutionError(name, scope);
+	return true;
+}
+
 size_t VariableExpr::getSize(ScopePtr scope) const {
 	if (VariablePtr var = scope->lookup(name))
 		return var->getSize();
@@ -473,16 +494,21 @@ void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr sc
 		throw std::invalid_argument("Cannot multiply in AddressOfExpr");
 	if (!destination)
 		return;
-	if (auto *var_exp = dynamic_cast<VariableExpr *>(subexpr.get())) {
-		if (auto var = scope->lookup(var_exp->name)) {
-			if (auto global = std::dynamic_pointer_cast<Global>(var))
-				function.add<SetIInstruction>(destination, global->name);
-			else
-				function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, var);
-		} else
-			throw ResolutionError(var_exp->name, scope);
-	} else
+
+	if (!subexpr->compileAddress(destination, function, scope))
 		throw LvalueError(*subexpr);
+
+	// if (auto *var_expr = subexpr->cast<VariableExpr>()) {
+	// 	if (auto var = scope->lookup(var_expr->name)) {
+	// 		if (auto global = std::dynamic_pointer_cast<Global>(var))
+	// 			function.add<SetIInstruction>(destination, global->name);
+	// 		else
+	// 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, var);
+	// 	} else
+	// 		throw ResolutionError(var_expr->name, scope);
+	// } else if (auto *access_expr = subexpr->cast<AccessExpr>()) { // TODO!
+	// } else
+	// 	throw LvalueError(*subexpr);
 }
 
 std::unique_ptr<Type> AddressOfExpr::getType(ScopePtr scope) const {
@@ -511,11 +537,21 @@ void StringExpr::compile(VregPtr destination, Function &function, ScopePtr, ssiz
 	if (multiplier != 1)
 		throw std::invalid_argument("Cannot multiply in StringExpr");
 	if (destination)
-		function.add<SetIInstruction>(destination, ".str" + std::to_string(function.program.getStringID(contents)));
+		function.add<SetIInstruction>(destination, getID(function.program));
 }
 
 std::unique_ptr<Type> StringExpr::getType(ScopePtr) const {
 	return std::make_unique<PointerType>(new UnsignedType(8));
+}
+
+bool StringExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) const {
+	// TODO: is this correct?
+	compile(destination, function, scope, 1);
+	return true;
+}
+
+std::string StringExpr::getID(Program &program) const {
+	return ".str" + std::to_string(program.getStringID(contents));
 }
 
 void DerefExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
@@ -539,6 +575,12 @@ std::unique_ptr<Type> DerefExpr::checkType(ScopePtr scope) const {
 	if (!type->isPointer())
 		throw NotPointerError(TypePtr(type->copy()));
 	return type;
+}
+
+bool DerefExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) const {
+	checkType(scope);
+	subexpr->compile(destination, function, scope, 1);
+	return true;
 }
 
 CallExpr::CallExpr(const ASTNode &node, Function *function_): name(*node.front()->lexerInfo), function(function_) {
@@ -631,7 +673,7 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 	if (auto *var_expr = left->cast<VariableExpr>()) {
 		if (auto var = scope->lookup(var_expr->name)) {
 			if (!destination)
-				destination = function.mx(1);
+				destination = function.newVar();
 			right->compile(destination, function, scope, multiplier);
 			TypePtr right_type = right->getType(scope), left_type = left->getType(scope);
 			if (!tryCast(*right_type, *left_type, destination, function))
@@ -644,21 +686,29 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 				if (offset == 0) {
 					function.add<StoreRInstruction>(destination, fp, var->getSize());
 				} else {
-					auto m0 = function.mx(0);
-					function.add<SubIInstruction>(fp, m0, int(offset));
-					function.add<StoreRInstruction>(destination, m0, var->getSize());
+					auto temp = function.newVar();
+					function.add<SubIInstruction>(fp, temp, int(offset));
+					function.add<StoreRInstruction>(destination, temp, var->getSize());
 				}
 			}
 		} else
 			throw ResolutionError(var_expr->name, scope);
 	} else if (auto *deref_expr = left->cast<DerefExpr>()) {
 		deref_expr->checkType(scope);
-		auto m0 = function.mx(0);
+		auto addr_variable = function.newVar();
 		if (!destination)
-			destination = function.mx(1);
+			destination = function.newVar();
 		right->compile(destination, function, scope, multiplier);
-		deref_expr->subexpr->compile(m0, function, scope);
-		function.add<StoreRInstruction>(destination, m0, deref_expr->getSize(scope)); // TODO: verify size
+		deref_expr->subexpr->compile(addr_variable, function, scope);
+		function.add<StoreRInstruction>(destination, addr_variable, deref_expr->getSize(scope)); // TODO: verify size
+	} else if (auto *access_expr = left->cast<AccessExpr>()) {
+		access_expr->checkType(scope);
+		auto addr_variable = function.newVar();
+		if (!destination)
+			destination = function.newVar();
+		right->compile(destination, function, scope, multiplier);
+		access_expr->compileAddress(addr_variable, function, scope);
+		function.add<StoreRInstruction>(destination, addr_variable, access_expr->getSize(scope)); // TODO: verify size
 	} else
 		throw LvalueError(*left->getType(scope));
 }
@@ -678,6 +728,10 @@ std::optional<ssize_t> AssignExpr::evaluate(ScopePtr scope) const {
 	return right? right->evaluate(scope) : std::nullopt;
 }
 
+bool AssignExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) const {
+	return left? left->compileAddress(destination, function, scope) : false;
+}
+
 void CastExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
 	subexpr->compile(destination, function, scope, multiplier);
 	tryCast(*subexpr->getType(scope), *targetType, destination, function);
@@ -685,4 +739,40 @@ void CastExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 
 std::unique_ptr<Type> CastExpr::getType(ScopePtr) const {
 	return std::unique_ptr<Type>(targetType->copy());
+}
+
+void AccessExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) const {
+	checkType(scope);
+	if (!array->compileAddress(destination, function, scope))
+		throw LvalueError(std::string(*array->getType(scope)));
+	const auto element_size = getSize(scope);
+	const auto subscript_value = subscript->evaluate(scope);
+	if (subscript_value) {
+		if (*subscript_value != 0)
+			function.add<AddIInstruction>(destination, destination, int(*subscript_value * element_size));
+	} else {
+		auto subscript_variable = function.newVar();
+		subscript->compile(subscript_variable, function, scope);
+		if (element_size != 1)
+			function.add<MultIInstruction>(subscript_variable, subscript_variable, int(element_size));
+		function.add<AddRInstruction>(destination, subscript_variable, destination);
+	}
+
+	function.add<LoadRInstruction>(destination, destination, element_size);
+	if (multiplier != 1)
+		function.add<MultIInstruction>(destination, destination, int(multiplier));
+}
+
+std::unique_ptr<Type> AccessExpr::getType(ScopePtr scope) const {
+	auto array_type = array->getType(scope);
+	if (auto *casted = array_type->cast<ArrayType>())
+		return std::unique_ptr<Type>(casted->subtype->copy());
+	throw std::runtime_error("Can't get array access result type: array expression isn't an array type");
+}
+
+std::unique_ptr<ArrayType> AccessExpr::checkType(ScopePtr scope) const {
+	auto type = array->getType(scope);
+	if (!type->isArray())
+		throw NotArrayError(TypePtr(type->copy()));
+	return std::unique_ptr<ArrayType>(type->copy()->cast<ArrayType>());
 }

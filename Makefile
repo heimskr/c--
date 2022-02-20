@@ -28,7 +28,7 @@ $(OUTPUT): $(OBJECTS)
 	$(COMPILER) -o $@ $^ $(LDFLAGS)
 
 test: $(OUTPUT)
-	./$(OUTPUT) example.c--
+	./$(OUTPUT) arrays.c--
 
 %.o: %.cpp $(PARSERHDR)
 	$(COMPILER) $(CFLAGS) -c $< -o $@

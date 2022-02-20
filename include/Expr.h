@@ -17,6 +17,7 @@
 class ASTNode;
 class Function;
 struct Expr;
+struct Program;
 struct Scope;
 struct Type;
 struct WhyInstruction;
@@ -39,6 +40,7 @@ struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 	virtual std::vector<std::string> references() const { return {}; }
 	/** This function both performs type checking and returns a type. */
 	virtual std::unique_ptr<Type> getType(ScopePtr) const = 0;
+	virtual bool compileAddress(VregPtr, Function &, ScopePtr) const { return false; }
 	virtual bool isUnsigned() const { return false; }
 	Expr * setLocation(const ASTLocation &location_) { location = location_; return this; }
 
@@ -155,7 +157,8 @@ struct MinusExpr: BinaryExpr<"-"> {
 	size_t getSize(ScopePtr) const override { return 8; }
 
 	std::optional<ssize_t> evaluate(ScopePtr scope) const override {
-		auto left_value = left? left->evaluate(scope) : std::nullopt, right_value = right? right->evaluate(scope) : std::nullopt;
+		auto left_value  = left?  left->evaluate(scope)  : std::nullopt,
+		     right_value = right? right->evaluate(scope) : std::nullopt;
 		if (left_value && right_value)
 			return *left_value - *right_value;
 		return std::nullopt;
@@ -260,6 +263,7 @@ struct VariableExpr: Expr {
 	size_t getSize(ScopePtr) const override;
 	std::vector<std::string> references() const override { return {name}; }
 	std::unique_ptr<Type> getType(ScopePtr) const override;
+	bool compileAddress(VregPtr, Function &, ScopePtr) const override;
 };
 
 struct AddressOfExpr: Expr {
@@ -306,6 +310,10 @@ struct StringExpr: Expr {
 	operator std::string() const override { return "\"" + Util::escape(contents) + "\""; }
 	size_t getSize(ScopePtr) const override { return 8; }
 	std::unique_ptr<Type> getType(ScopePtr) const override;
+	bool compileAddress(VregPtr, Function &, ScopePtr) const override;
+
+	private:
+		std::string getID(Program &) const;
 };
 
 struct DerefExpr: Expr {
@@ -319,6 +327,7 @@ struct DerefExpr: Expr {
 	std::unique_ptr<Type> getType(ScopePtr) const override;
 	std::vector<std::string> references() const override { return subexpr->references(); }
 	std::unique_ptr<Type> checkType(ScopePtr) const;
+	bool compileAddress(VregPtr, Function &, ScopePtr) const override;
 };
 
 struct CallExpr: Expr {
@@ -342,6 +351,7 @@ struct AssignExpr: BinaryExpr<"="> {
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
 	size_t getSize(ScopePtr) const override;
 	std::optional<ssize_t> evaluate(ScopePtr) const override;
+	bool compileAddress(VregPtr, Function &, ScopePtr) const override;
 };
 
 struct CastExpr: Expr {
@@ -355,4 +365,17 @@ struct CastExpr: Expr {
 	operator std::string() const override { return "(" + std::string(*targetType) + ") " + std::string(*subexpr); }
 	size_t getSize(ScopePtr) const override { return targetType->getSize(); }
 	std::unique_ptr<Type> getType(ScopePtr) const override;
+};
+
+struct AccessExpr: Expr {
+	std::unique_ptr<Expr> array, subscript;
+	AccessExpr(std::unique_ptr<Expr> &&array_, std::unique_ptr<Expr> &&subscript_):
+		array(std::move(array_)), subscript(std::move(subscript_)) {}
+	AccessExpr(Expr *array_, Expr *subscript_): array(array_), subscript(subscript_) {}
+	Expr * copy() const override { return new AccessExpr(array->copy(), subscript->copy()); }
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) const override;
+	operator std::string() const override { return std::string(*array) + "[" + std::string(*subscript) + "]"; }
+	size_t getSize(ScopePtr scope) const override { return getType(scope)->getSize(); }
+	std::unique_ptr<Type> getType(ScopePtr) const override;
+	std::unique_ptr<ArrayType> checkType(ScopePtr) const;
 };

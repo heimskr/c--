@@ -24,6 +24,7 @@ struct Type: Checkable, std::enable_shared_from_this<Type> {
 	virtual bool isVoid() const { return false; }
 	virtual bool isBool() const { return false; }
 	virtual bool isPointer() const { return false; }
+	virtual bool isArray() const { return false; }
 	static Type * get(const ASTNode &);
 
 	template <typename T>
@@ -81,16 +82,32 @@ struct BoolType: Type, Makeable<BoolType> {
 	bool isBool() const override { return true; }
 };
 
-struct PointerType: Type {
+struct SuperType: Type {
 	Type *subtype;
 	/** Takes ownership of the subtype pointer! */
-	PointerType(Type *subtype_): subtype(subtype_) {}
-	~PointerType() { if (subtype) delete subtype; }
+	SuperType(Type *subtype_): subtype(subtype_) {}
+	~SuperType() { if (subtype) delete subtype; }
+};
+
+struct PointerType: SuperType {
+	using SuperType::SuperType;
 	Type * copy() const override { return new PointerType(subtype? subtype->copy() : nullptr); }
 	operator std::string() const override { return subtype? std::string(*subtype) + "*" : "???*"; }
 	size_t getSize() const override { return 8; }
 	bool operator&&(const Type &) const override;
 	bool isPointer() const override { return true; }
+};
+
+struct ArrayType: SuperType {
+	size_t count;
+	ArrayType(Type *subtype_, size_t count_): SuperType(subtype_), count(count_) {}
+	Type * copy() const override { return new ArrayType(subtype? subtype->copy() : nullptr, count); }
+	operator std::string() const override {
+		return (subtype? std::string(*subtype) : "???") + "[" + std::to_string(count) + "]";
+	}
+	size_t getSize() const override { return subtype? subtype->getSize() * count : 0; }
+	bool operator&&(const Type &) const override;
+	bool isArray() const override { return true; }
 };
 
 using TypePtr = std::shared_ptr<Type>;

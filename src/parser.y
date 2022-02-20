@@ -104,8 +104,8 @@ using AN = ASTNode;
 %left "<<" ">>"
 %left "+" "-"
 %left "*" "/"
+%right "!" "~" "#"
 %left "["
-%left "!" "~"
 %nonassoc "else"
 
 %%
@@ -161,12 +161,13 @@ expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
     | expr "*"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "/"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "="  expr { $$ = $2->adopt({$1, $3}); }
-    // | expr "[" expr "]" { ($$ = $2->adopt({$1, $3}))->symbol = CMM_ACCESS; D($4); }
+    | expr "[" expr "]" { $$ = $2->adopt({$1, $3}); D($4); }
     | function_call
     | "(" expr ")" { $$ = $2; D($1, $3); }
     | "(" type ")" expr %prec "!" { $1->symbol = CMM_CAST; $$ = $1->adopt({$2, $4}); D($3); }
     | "!" expr { $$ = $1->adopt($2); }
     | "~" expr { $$ = $1->adopt($2); }
+    | "#" expr { $$ = $1->adopt($2); }
     | number
     | "-" number { $$ = $2->adopt($1); }
     | "&" expr { $$ = $1->adopt($2); $$->symbol = CMM_ADDROF; }
@@ -193,7 +194,9 @@ int_type: signed_type | unsigned_type;
 
 pointer_type: type "*" { $$ = $2->adopt($1); };
 
-type: "bool" | int_type | "void" | pointer_type;
+array_type: type "[" expr "]" { $$ = $2->adopt({$1, $3}); D($4); };
+
+type: "bool" | int_type | "void" | pointer_type | array_type;
 
 arg: ident ":" type { $$ = $1->adopt($3); D($2); };
 
