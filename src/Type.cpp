@@ -9,19 +9,23 @@ std::ostream & operator<<(std::ostream &os, const Type &type) {
 }
 
 bool SignedType::operator&&(const Type &other) const {
-	if (auto *other_signed = dynamic_cast<const SignedType *>(&other))
+	if (other.cast<BoolType>())
+		return true;
+	if (auto *other_signed = other.cast<SignedType>())
 		return other_signed->width == width;
 	return false;
 }
 
 bool UnsignedType::operator&&(const Type &other) const {
-	if (auto *other_unsigned = dynamic_cast<const UnsignedType *>(&other))
+	if (other.cast<BoolType>())
+		return true;
+	if (auto *other_unsigned = other.cast<UnsignedType>())
 		return other_unsigned->width == width;
 	return false;
 }
 
 bool BoolType::operator&&(const Type &other) const {
-	return dynamic_cast<const BoolType *>(&other);
+	return other.cast<BoolType>();
 }
 
 bool PointerType::operator&&(const Type &other) const {
