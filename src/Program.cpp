@@ -125,8 +125,10 @@ void Program::compile() {
 			lines.push_back("\t%2b 0");
 		} else if (size == 4) {
 			lines.push_back("\t%4b 0");
-		} else {
+		} else if (size == 8) {
 			lines.push_back("\t%8b 0");
+		} else {
+			lines.push_back("\t%fill " + std::to_string(size) + " 0");
 		}
 	}
 
