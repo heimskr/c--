@@ -143,6 +143,8 @@ class Function {
 		VregPtr mx(int, std::shared_ptr<Instruction> writer);
 		VregPtr mx(std::shared_ptr<Instruction> writer);
 
+		int getNextBlock() { return ++nextBlock; }
+
 		void debug() const;
 
 		Graph & makeCFG();

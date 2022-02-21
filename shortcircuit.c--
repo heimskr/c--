@@ -1,0 +1,25 @@
+#name "Short-Circuiting Test"
+#author "Kai Tamkun"
+#orcid "0000-0001-7405-6654"
+#version "1.0"
+
+fn main(): void {
+	.s("foo() && bar()\n");
+	.bool(foo() && bar()); .c('\n');
+	.s("foo() || bar()\n");
+	.bool(foo() || bar()); .c('\n');
+	.s("bar() && foo()\n");
+	.bool(bar() && foo()); .c('\n');
+	.s("bar() || foo()\n");
+	.bool(bar() || foo()); .c('\n');
+}
+
+fn foo(): bool { // false
+	.s("foo()\n");
+	return 20 < 10;
+}
+
+fn bar(): bool { // true
+	.s("bar()\n");
+	return 10 < 20;
+}

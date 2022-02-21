@@ -316,7 +316,7 @@ void AndExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	left->compile(temp_var, function, scope);
 	right->compile(destination, function, scope);
 	function.add<AndRInstruction>(temp_var, destination, destination);
-	if (multiplier)
+	if (multiplier != 1)
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
@@ -337,7 +337,7 @@ void OrExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ss
 	left->compile(temp_var, function, scope);
 	right->compile(destination, function, scope);
 	function.add<OrRInstruction>(temp_var, destination, destination);
-	if (multiplier)
+	if (multiplier != 1)
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
@@ -354,11 +354,16 @@ std::optional<ssize_t> OrExpr::evaluate(ScopePtr scope) const {
 }
 
 void LandExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	VregPtr temp_var = function.newVar();
-	left->compile(temp_var, function, scope);
+	const std::string base = "." + function.name + "." + std::to_string(function.getNextBlock());
+	const std::string success = base + "s", end = base + "e";
+	left->compile(destination, function, scope);
+	function.add<JumpConditionalInstruction>(success, destination, false);
+	function.add<JumpInstruction>(end);
+	function.add<Label>(success);
 	right->compile(destination, function, scope);
-	function.add<LandRInstruction>(temp_var, destination, destination);
-	if (multiplier)
+	function.add<Label>(end);
+
+	if (multiplier != 1)
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
@@ -375,11 +380,12 @@ std::optional<ssize_t> LandExpr::evaluate(ScopePtr scope) const {
 }
 
 void LorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	VregPtr temp_var = function.newVar();
-	left->compile(temp_var, function, scope);
+	const std::string success = "." + function.name + "." + std::to_string(function.getNextBlock()) + "s";
+	left->compile(destination, function, scope);
+	function.add<JumpConditionalInstruction>(success, destination, false);
 	right->compile(destination, function, scope);
-	function.add<LorRInstruction>(temp_var, destination, destination);
-	if (multiplier)
+	function.add<Label>(success);
+	if (multiplier != 1)
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
