@@ -56,7 +56,6 @@ WASM_SINGLE_REG			("$"[0-9]+)
 "%ei"						{ WASMRTOKEN(EI) }
 "rest"						{ WASMRTOKEN(REST) }
 "print"						{ WASMRTOKEN(PRINT) }
-"*init"						{ WASMRTOKEN(INIT) }
 "%%time"					{ WASMRTOKEN(TIME) }
 "%%ring"					{ WASMRTOKEN(RING) }
 "%%page"					{ WASMRTOKEN(PAGE) }
