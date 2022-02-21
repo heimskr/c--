@@ -111,9 +111,6 @@ void Function::compile() {
 					throw std::runtime_error("Invalid fnattr: " + *child->lexerInfo);
 			}
 
-		if (attributes.count(Attribute::Naked) != 0)
-			info() << name << " is a naked function\n";
-
 		for (const ASTNode *child: *source->at(4))
 			compile(*child);
 	}
@@ -345,7 +342,11 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			} else {
 				const ASTNode &input_exprs  = *node.at(1),
 				              &output_exprs = *node.at(2);
-				const size_t  input_count = input_exprs.size();
+				const size_t  input_count  = input_exprs.size();
+				const size_t  output_count = output_exprs.size();
+
+				if (isNaked() && (input_count != 0 || output_count != 0))
+					throw std::runtime_error("Can't supply inputs or outputs to asm nodes in a naked function");
 
 				VarMap map;
 				std::map<std::string, ExprPtr> out_exprs;

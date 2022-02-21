@@ -4,17 +4,17 @@
 #version "2.0"
 
 table: void*[8];
-delay: s64 = 100000;
+delay: s64 = 300000;
 timeup: u8* = "Time's up\n";
 
 fn main(): void {
 	// g: s64;
 	// asm("$g -> $1"::g);
 	// .s64(g); .c('\n');
-	keybrd_ptr: void*; asm("int_keybrd -> $1"::keybrd_ptr);
-	timer_ptr:  void*; asm("int_timer  -> $1"::timer_ptr);
-	table[2] = timer_ptr;
-	table[7] = keybrd_ptr;
+	// keybrd_ptr: void*; asm("int_keybrd -> $1"::keybrd_ptr);
+	// timer_ptr:  void*; asm("int_timer  -> $1"::timer_ptr);
+	table[2] = &int_timer;
+	table[7] = &int_keybrd;
 	asm("%rit table"::);
 	asm("%time $1":delay:);
 	while true {
@@ -48,7 +48,8 @@ fn int_timer(): void #naked {
 	asm("timeup -> $a0"::);
 	asm("[$a0] -> $a0"::);
 	asm(":: .s"::);
-	asm("%time $1":delay:);
+	asm("[delay] -> $a0"::);
+	asm("%time $a0"::);
 	asm("] $a0"::);
 	asm("] $rt"::);
 	asm(": ] %page $e0"::);
