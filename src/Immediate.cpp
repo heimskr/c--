@@ -1,6 +1,7 @@
 #include "Errors.h"
 #include "Function.h"
 #include "Immediate.h"
+#include "Util.h"
 #include "Variable.h"
 
 std::string stringify(const Immediate &imm, bool colored, bool ampersand) {
@@ -18,6 +19,13 @@ std::string stringify(const Immediate &imm, bool colored, bool ampersand) {
 	}
 	const std::string &str = std::get<std::string>(imm);
 	return colored? "\e[38;5;202m" + (ampersand? "&" + str : str) + "\e[39m" : (ampersand? "&" + str : str);
+}
+
+std::string charify(const Immediate &imm) {
+	if (!std::holds_alternative<int>(imm))
+		throw std::invalid_argument("Cannot charify a non-int Immediate");
+	std::string hex = Util::hex(std::get<int>(imm));
+	return "'\\x" + (hex.size() == 1? "0" + hex : hex) + "'";
 }
 
 bool operator==(const Immediate &imm, const std::string &str) {

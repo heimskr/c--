@@ -1036,10 +1036,10 @@ struct PrintPseudoinstruction: IType {
 	PrintPseudoinstruction(const Immediate &imm_): IType(nullptr, nullptr, imm_) {}
 	PrintPseudoinstruction(const std::string &text_): IType(nullptr, nullptr, 0), text(text_), useText(true) {}
 	operator std::vector<std::string>() const override {
-		return {"<p \"" + (useText? text : stringify(imm, false)) + "\">"};
+		return {(useText? "<p \"" + text + "\"" : "<prc " + charify(imm)) + ">"};
 	}
 	std::vector<std::string> colored() const override {
-		return {"<\e[36mp\e[39m \"" + (useText? text : stringify(imm, true)) + "\">"};
+		return {"<\e[36mp" + (useText? "\e[39m \"" + text + "\"" : "rc\e[39m " + charify(imm)) + ">"};
 	}
 };
 
