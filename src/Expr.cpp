@@ -556,6 +556,8 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, Scope
 			function.addComment("Get variable lvalue for " + name);
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset);
 		}
+	} else if (auto *fn = scope->lookupFunction(name)) {
+		function.add<SetIInstruction>(destination, fn->name);
 	} else
 		throw ResolutionError(name, scope);
 	return true;
