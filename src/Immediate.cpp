@@ -3,7 +3,7 @@
 #include "Immediate.h"
 #include "Variable.h"
 
-std::string stringify(const Immediate &imm, bool colored) {
+std::string stringify(const Immediate &imm, bool colored, bool ampersand) {
 	if (std::holds_alternative<int>(imm)) {
 		const std::string str = std::to_string(std::get<int>(imm));
 		return colored? "\e[36m" + str + "\e[39m" : str;
@@ -17,7 +17,7 @@ std::string stringify(const Immediate &imm, bool colored) {
 		return std::to_string(var->function->stackOffsets.at(var));
 	}
 	const std::string &str = std::get<std::string>(imm);
-	return colored? "\e[38;5;202m" + str + "\e[39m" : str;
+	return colored? "\e[38;5;202m" + (ampersand? "&" + str : str) + "\e[39m" : (ampersand? "&" + str : str);
 }
 
 bool operator==(const Immediate &imm, const std::string &str) {

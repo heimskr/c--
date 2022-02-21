@@ -771,7 +771,7 @@ struct ComparisonIInstruction: IType, ComparisonInstruction {
 	}
 };
 
-struct MemsetInstruction: public RType {
+struct MemsetInstruction: RType {
 	using RType::RType;
 	operator std::vector<std::string>() const override {
 		return {
@@ -786,7 +786,7 @@ struct MemsetInstruction: public RType {
 	}
 };
 
-struct CompareRInstruction: public RType {
+struct CompareRInstruction: RType {
 	CompareRInstruction(VregPtr rs_, VregPtr rt_): RType(rs_, rt_, nullptr) {}
 	operator std::vector<std::string>() const override {
 		return {leftSource->regOrID() + " ~ " + rightSource->regOrID()};
@@ -796,7 +796,7 @@ struct CompareRInstruction: public RType {
 	}
 };
 
-struct CompareIInstruction: public IType {
+struct CompareIInstruction: IType {
 	CompareIInstruction(VregPtr rs_, const Immediate &imm_): IType(rs_, nullptr, imm_) {}
 	operator std::vector<std::string>() const override {
 		return {source->regOrID() + " ~ " + stringify(imm)};
@@ -845,6 +845,11 @@ struct InverseBinaryIType: IType {
 };
 
 struct DiviIInstruction: InverseBinaryIType<"/"> { using InverseBinaryIType::InverseBinaryIType; };
+struct ShiftLeftLogicalInverseIInstruction: InverseBinaryIType<"<<"> { using InverseBinaryIType::InverseBinaryIType; };
+struct ShiftRightLogicalInverseIInstruction: InverseBinaryIType<">>>"> {
+	using InverseBinaryIType::InverseBinaryIType; };
+struct ShiftRightArithmeticInverseIInstruction: InverseBinaryIType<">>"> {
+	using InverseBinaryIType::InverseBinaryIType; };
 
 template <fixstr::fixed_string O>
 struct InverseUnsignedBinaryIType: IType {
@@ -872,7 +877,7 @@ struct Nop: WhyInstruction {
 };
 
 template <fixstr::fixed_string N>
-struct SimpleIType: public IType {
+struct SimpleIType: IType {
 	SimpleIType(const Immediate &imm_): IType(nullptr, nullptr, imm_) {}
 	operator std::vector<std::string>() const override {
 		return {"%" + std::string(N) + " " + stringify(imm)};
@@ -889,7 +894,7 @@ struct RingIInstruction:  SimpleIType<"ring">  { using SimpleIType::SimpleIType;
 struct SetptIInstruction: SimpleIType<"setpt"> { using SimpleIType::SimpleIType; };
 
 template <fixstr::fixed_string N>
-struct SimpleRType: public RType {
+struct SimpleRType: RType {
 	SimpleRType(VregPtr rs_): RType(rs_, nullptr, nullptr) {}
 	operator std::vector<std::string>() const override {
 		return {"%" + std::string(N) + " " + leftSource->regOrID()};
@@ -906,7 +911,7 @@ struct RingRInstruction:  SimpleRType<"ring">  { using SimpleRType::SimpleRType;
 struct SetptRInstruction: SimpleRType<"setpt"> { using SimpleRType::SimpleRType; };
 
 template <fixstr::fixed_string N>
-struct SaveRInstruction: public RType {
+struct SaveRInstruction: RType {
 	SaveRInstruction(VregPtr rd_): RType(nullptr, nullptr, rd_) {}
 	operator std::vector<std::string>() const override {
 		return {"%" + std::string(N) + " -> " + destination->regOrID()};
@@ -946,13 +951,20 @@ struct PrintRInstruction: RType {
 		}
 };
 
-struct HaltRInstruction: public RType {
-	HaltRInstruction(): RType(nullptr, nullptr, nullptr) {}
-	operator std::vector<std::string>() const override { return {"<halt>"}; }
-	std::vector<std::string>  colored() const override { return {"<\e[36mhalt\e[39m>"}; }
+template <fixstr::fixed_string N>
+struct TrivialExternalInstruction: RType {
+	TrivialExternalInstruction(): RType(nullptr, nullptr, nullptr) {}
+	operator std::vector<std::string>() const override { return {"<" + std::string(N) + ">"}; }
+	std::vector<std::string>  colored() const override { return {"<\e[36m" + std::string(N) + "\e[39m>"}; }
 };
 
-struct SleepRInstruction: public RType {
+struct HaltRInstruction: TrivialExternalInstruction<"halt"> {
+	using TrivialExternalInstruction::TrivialExternalInstruction; };
+
+struct RestRInstruction: TrivialExternalInstruction<"rest"> {
+	using TrivialExternalInstruction::TrivialExternalInstruction; };
+
+struct SleepRInstruction: RType {
 	SleepRInstruction(VregPtr rs_): RType(rs_, nullptr, nullptr) {}
 	operator std::vector<std::string>() const override {
 		return {"<sleep " + leftSource->regOrID() + ">"};
@@ -962,7 +974,7 @@ struct SleepRInstruction: public RType {
 	}
 };
 
-struct PageRInstruction: public RType {
+struct PageRInstruction: RType {
 	bool on;
 	PageRInstruction(bool on_): RType(nullptr, nullptr, nullptr), on(on_) {}
 	operator std::vector<std::string>() const override {
@@ -970,5 +982,51 @@ struct PageRInstruction: public RType {
 	}
 	std::vector<std::string> colored() const override {
 		return {"\e[36m%page\e[39m " + std::string(on? "on" : "off")};
+	}
+};
+
+struct QueryRInstruction: RType {
+	QueryType type;
+	QueryRInstruction(VregPtr rd_, QueryType type_): RType(nullptr, nullptr, rd_), type(type_) {}
+	operator std::vector<std::string>() const override {
+		return {"? " + query_map.at(type) + " -> " + destination->regOrID()};
+	}
+	std::vector<std::string> colored() const override {
+		return {"? \e[36m" + query_map.at(type) + "\e[39m \e[2m->\e[22m " + destination->regOrID(true)};
+	}
+};
+
+struct PrintPseudoinstruction: IType {
+	std::string text;
+	bool useText = false;
+	PrintPseudoinstruction(const Immediate &imm_): IType(nullptr, nullptr, imm_) {}
+	PrintPseudoinstruction(const std::string &text_): IType(nullptr, nullptr, 0), text(text_), useText(true) {}
+	operator std::vector<std::string>() const override {
+		return {"<p \"" + (useText? text : stringify(imm, false)) + "\">"};
+	}
+	std::vector<std::string> colored() const override {
+		return {"<\e[36mp\e[39m \"" + (useText? text : stringify(imm, true)) + "\">"};
+	}
+};
+
+struct IOInstruction: RType {
+	std::string type;
+	IOInstruction(const std::string &type_): RType(nullptr, nullptr, nullptr), type(type_) {}
+	operator std::vector<std::string>() const override {
+		return {"<io" + (type.empty()? "" : " " + type) + ">"};
+	}
+	std::vector<std::string> colored() const override {
+		return {"<\e[36mio\e[39m" + (type.empty()? "" : " " + type) + ">"};
+	}
+};
+
+struct InterruptsInstruction: RType {
+	bool enable;
+	InterruptsInstruction(bool enable_): RType(nullptr, nullptr, nullptr), enable(enable_) {}
+	operator std::vector<std::string>() const override {
+		return {enable? "%ei" : "%di"};
+	}
+	std::vector<std::string> colored() const override {
+		return {"\e[34m" + std::string(enable? "%ei" : "%di") + "\e[39m"};
 	}
 };

@@ -9,6 +9,7 @@ enum class PrintType {Dec, Bin, Hex, Char, Full};
 enum class QueryType {Memory};
 
 extern std::unordered_map<Comparison, std::string> comparison_map;
+extern std::unordered_map<QueryType,  std::string> query_map;
 
 // extern std::unordered_map<TypeType,   std::string> type_map;
 // extern std::unordered_map<ValueType,  std::string> value_map;
@@ -25,7 +26,6 @@ extern std::unordered_map<Comparison, std::string> comparison_map;
 // extern std::unordered_map<std::string,   IcmpCond> cond_inv_map;
 // extern std::unordered_map<IcmpCond,      IcmpCond> cond_rev_map;
 // extern std::unordered_map<Conversion, std::string> conversion_map;
-// extern std::unordered_map<QueryType,  std::string> query_map;
 // extern std::unordered_map<LogicType,  std::string> logic_map;
 // extern std::unordered_map<std::string,  LogicType> logic_inv_map;
 

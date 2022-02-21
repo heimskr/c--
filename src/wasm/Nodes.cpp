@@ -1113,7 +1113,7 @@ WASMQueryNode::operator std::string() const {
 }
 
 std::unique_ptr<WhyInstruction> WASMQueryNode::convert(Function &function, VarMap &map) {
-	return std::make_unique<QueryInstruction>(type, convertVariable(function, map, rd));
+	return std::make_unique<QueryRInstruction>(type, convertVariable(function, map, rd));
 }
 
 WASMPseudoPrintNode::WASMPseudoPrintNode(ASTNode *imm_):
@@ -1149,7 +1149,7 @@ WASMRestNode::operator std::string() const {
 }
 
 std::unique_ptr<WhyInstruction> WASMRestNode::convert(Function &, VarMap &) {
-	return std::make_unique<RestInstruction>();
+	return std::make_unique<RestRInstruction>();
 }
 
 WASMIONode::WASMIONode(const std::string *ident_): WASMInstructionNode(WASM_IONODE), ident(ident_) {}
@@ -1236,13 +1236,13 @@ WASMSextNode::operator std::string() const {
 }
 
 std::unique_ptr<WhyInstruction> WASMSextNode::convert(Function &function, VarMap &map) {
-	VariablePtr rs_ = convertVariable(function, map, rs);
-	VariablePtr rd_ = convertVariable(function, map, rd);
+	auto rs_ = convertVariable(function, map, rs),
+	     rd_ = convertVariable(function, map, rd);
 
 	switch (size) {
-		case 32: return std::make_unique<Sext32RInstruction>(rs_, rd_);
-		case 16: return std::make_unique<Sext16RInstruction>(rs_, rd_);
-		case  8: return std::make_unique<Sext8RInstruction>(rs_, rd_);
+		case 32: return std::make_unique<SextInstruction>(rs_, rd_, SextInstruction::SextType::Sext32);
+		case 16: return std::make_unique<SextInstruction>(rs_, rd_, SextInstruction::SextType::Sext16);
+		case  8: return std::make_unique<SextInstruction>(rs_, rd_, SextInstruction::SextType::Sext8);
 		default:
 			throw std::runtime_error("Invalid size for WASMSextNode: " + std::to_string(size));
 	}
@@ -1263,8 +1263,8 @@ WASMTransNode::operator std::string() const {
 }
 
 std::unique_ptr<WhyInstruction> WASMTransNode::convert(Function &function, VarMap &map) {
-	VariablePtr rs_ = convertVariable(function, map, rs);
-	VariablePtr rd_ = convertVariable(function, map, rd);
+	auto rs_ = convertVariable(function, map, rs),
+	     rd_ = convertVariable(function, map, rd);
 	return std::make_unique<TranslateAddressRInstruction>(rs_, rd_);
 }
 
