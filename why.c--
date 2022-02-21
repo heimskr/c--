@@ -38,7 +38,6 @@ fn int_keybrd_(key: u8): void {
 	} else {
 		.s("You pressed '"); .c(key); .c('\''); .c('\n');
 	}
-	asm(": ] %page $e0");
 }
 
 fn int_keybrd(): void #naked {
