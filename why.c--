@@ -1,7 +1,7 @@
 #name "Why ISA Tests"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "2.0"
+#version "3.0"
 
 table: void*[8];
 delay: s64 = 300000;
@@ -30,7 +30,6 @@ fn main(): void {
 }
 
 fn int_keybrd_(key: u8): void {
-	// .s("Key: "); asm("<prx $1>":key:); .c('\n');
 	if (key == 'a') {
 		.s("You pressed 'a' :)\n");
 	} else if (key == '=') {
@@ -45,7 +44,8 @@ fn int_keybrd_(key: u8): void {
 		fnptr = fnptr == double? add5 : double;
 	} else if (key == '*') {
 		.s("20 -> ");
-		.s64(fnptr(20));
+		hacked_ptr: s64(s64)* = (s64(s64)*) ((s64) fnptr << 1);
+		.s64(((s64(s64)*)((s64) hacked_ptr / 2))(20));
 		.c('\n');
 	} else {
 		.s("You pressed '"); .c(key); .c('\''); .c('\n');
