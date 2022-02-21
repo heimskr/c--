@@ -9,6 +9,7 @@
 #include "Makeable.h"
 
 class ASTNode;
+class Function;
 
 struct Type: Checkable, std::enable_shared_from_this<Type> {
 	virtual ~Type() {}
@@ -126,6 +127,7 @@ struct FunctionPointerType: Type {
 	Type *returnType;
 	std::vector<Type *> argumentTypes;
 	FunctionPointerType(Type *return_type, std::vector<Type *> &&argument_types);
+	FunctionPointerType(const Function &);
 	FunctionPointerType(const FunctionPointerType &) = delete;
 	FunctionPointerType & operator=(const FunctionPointerType &) = delete;
 	~FunctionPointerType();

@@ -2,6 +2,7 @@
 
 #include "ASTNode.h"
 #include "Expr.h"
+#include "Function.h"
 #include "Lexer.h"
 #include "Parser.h"
 #include "Type.h"
@@ -102,6 +103,13 @@ Type * Type::get(const ASTNode &node) {
 					+ " (at " + std::string(expr->location) + ")");
 			return new ArrayType(Type::get(*node.front()), *count);
 		}
+		case CMM_FNPTR: {
+			std::vector<Type *> argument_types;
+			argument_types.reserve(node.at(1)->size());
+			for (const ASTNode *child: *node.at(1))
+				argument_types.push_back(Type::get(*child));
+			return new FunctionPointerType(Type::get(*node.front()), std::move(argument_types));
+		}
 		default:
 			throw std::invalid_argument("Invalid token in getType: " + std::string(cmmParser.getName(node.symbol)));
 	}
@@ -157,4 +165,10 @@ bool FunctionPointerType::operator==(const Type &other) const {
 		return true;
 	}
 	return false;
+}
+
+FunctionPointerType::FunctionPointerType(const Function &function): returnType(function.returnType->copy()) {
+	argumentTypes.reserve(function.arguments.size());
+	for (const std::string &name: function.arguments)
+		argumentTypes.push_back(function.argumentMap.at(name)->type->copy());
 }

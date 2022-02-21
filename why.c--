@@ -9,13 +9,14 @@ timeup: u8* = "Time's up\n";
 you_pressed: u8* = "You pressed '";
 delay_str: u8* = "Delay: ";
 pressed_a: u8* = "You pressed 'a' :)\n";
+timer_ptr: void()* = int_timer;
 
 fn main(): void {
 	// g: s64;
 	// asm("$g -> $1"::g);
 	// .s64(g); .c('\n');
-	table[2] = &int_timer;
-	table[7] = &int_keybrd;
+	table[2] = timer_ptr;
+	table[7] = int_keybrd;
 	asm("%rit table");
 	asm("%time $1":delay);
 	while true {

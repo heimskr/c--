@@ -98,7 +98,7 @@ using AN = ASTNode;
 %token CMMTOK_ASM "asm"
 %token CMMTOK_NAKED "#naked"
 
-%token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY CMM_POSTPLUS CMM_POSTMINUS
+%token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY CMM_POSTPLUS CMM_POSTMINUS CMM_FNPTR
 
 %start start
 
@@ -219,7 +219,7 @@ boolean: "true" | "false";
 function_call: ident "(" _exprlist ")" { $$ = $2->adopt({$1, $3}); D($4); };
 
 exprlist: exprlist "," expr { $$ = $1->adopt($3); D($2); }
-         | expr { $$ = (new ASTNode(cmmParser, CMM_LIST))->locate($1)->adopt($1); };
+        | expr { $$ = (new ASTNode(cmmParser, CMM_LIST))->locate($1)->adopt($1); };
 
 _exprlist: exprlist | { $$ = new ASTNode(cmmParser, CMM_LIST); };
 
@@ -231,7 +231,14 @@ pointer_type: type "*" { $$ = $2->adopt($1); };
 
 array_type: type "[" expr "]" { $$ = $2->adopt({$1, $3}); D($4); };
 
-type: "bool" | int_type | "void" | pointer_type | array_type;
+fnptr_type: type "(" _typelist ")" "*" { $$ = (new ASTNode(cmmParser, CMM_FNPTR))->locate($1)->adopt({$1, $3}); D($2, $4, $5); };
+
+typelist: typelist "," type { $$ = $1->adopt($3); D($2); }
+        | type { $$ = (new ASTNode(cmmParser, CMM_LIST))->locate($1)->adopt($1); };
+
+_typelist: typelist | { $$ = new ASTNode(cmmParser, CMM_LIST); };
+
+type: "bool" | int_type | "void" | pointer_type | array_type | fnptr_type;
 
 arg: ident ":" type { $$ = $1->adopt($3); D($2); };
 

@@ -541,6 +541,8 @@ void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr sco
 		}
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+	} else if (const auto *fn = scope->lookupFunction(name)) {
+		function.add<SetIInstruction>(destination, name);
 	} else
 		throw ResolutionError(name, scope);
 }
@@ -556,7 +558,7 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, Scope
 			function.addComment("Get variable lvalue for " + name);
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset);
 		}
-	} else if (auto *fn = scope->lookupFunction(name)) {
+	} else if (const auto *fn = scope->lookupFunction(name)) {
 		function.add<SetIInstruction>(destination, fn->name);
 	} else
 		throw ResolutionError(name, scope);
@@ -566,12 +568,16 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, Scope
 size_t VariableExpr::getSize(ScopePtr scope) const {
 	if (VariablePtr var = scope->lookup(name))
 		return var->getSize();
+	else if (scope->lookupFunction(name))
+		return Why::wordSize;
 	throw ResolutionError(name, scope);
 }
 
 std::unique_ptr<Type> VariableExpr::getType(ScopePtr scope) const {
 	if (VariablePtr var = scope->lookup(name))
 		return std::unique_ptr<Type>(var->type->copy());
+	else if (const auto *fn = scope->lookupFunction(name))
+		return std::make_unique<FunctionPointerType>(*fn);
 	throw ResolutionError(name, scope);
 }
 
