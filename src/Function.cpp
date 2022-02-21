@@ -225,7 +225,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			if (!(*condition_type && BoolType()))
 				throw ImplicitConversionError(condition_type, BoolType::make());
 			condition->compile(temp_var, *this, currentScope());
-			add<LnotRInstruction>(temp_var);
+			add<LnotRInstruction>(temp_var, temp_var);
 			add<JumpConditionalInstruction>(end, temp_var);
 			auto scope = newScope();
 			scopeStack.push_back(scope);
@@ -250,7 +250,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			if (!(*condition_type && BoolType()))
 				throw ImplicitConversionError(condition_type, BoolType::make());
 			condition->compile(temp_var, *this, currentScope());
-			add<LnotRInstruction>(temp_var);
+			add<LnotRInstruction>(temp_var, temp_var);
 			add<JumpConditionalInstruction>(end, temp_var);
 			compile(*node.at(3), end, next);
 			add<Label>(next);
@@ -279,15 +279,15 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 		case CMMTOK_IF: {
 			const std::string end_label = "." + name + "." + std::to_string(++nextBlock) + "end";
 			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
-			auto m0 = mx(0);
+			auto temp_var = newVar();
 			const TypePtr condition_type = condition->getType(currentScope());
 			if (!(*condition_type && BoolType()))
 				throw ImplicitConversionError(condition_type, BoolType::make());
-			condition->compile(m0, *this, currentScope());
-			add<LnotRInstruction>(m0);
+			condition->compile(temp_var, *this, currentScope());
+			add<LnotRInstruction>(temp_var, temp_var);
 			if (node.size() == 3) {
 				const std::string else_label = "." + name + "." + std::to_string(nextBlock) + "e";
-				add<JumpConditionalInstruction>(else_label, m0);
+				add<JumpConditionalInstruction>(else_label, temp_var);
 				auto scope = newScope();
 				scopeStack.push_back(scope);
 				compile(*node.at(1), break_label, continue_label);
@@ -299,7 +299,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				compile(*node.at(2), break_label, continue_label);
 				scopeStack.pop_back();
 			} else {
-				add<JumpConditionalInstruction>(end_label, m0);
+				add<JumpConditionalInstruction>(end_label, temp_var);
 				auto scope = newScope();
 				scopeStack.push_back(scope);
 				compile(*node.at(1), break_label, continue_label);

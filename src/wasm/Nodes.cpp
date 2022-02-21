@@ -582,11 +582,11 @@ WASMInstructionNode(WASM_JNODE), addr(getImmediate(addr_)), link(!colons->empty(
 }
 
 std::string WASMJNode::debugExtra() const {
-	return dim(conditionString(condition) + std::string(link? "::" : ":")) + " " + colorize(addr);
+	return dim(conditionString(condition) + std::string(link? "::" : ":")) + " " + stringify(addr, true);
 }
 
 WASMJNode::operator std::string() const {
-	return conditionString(condition) + std::string(link? "::" : ":") + " " + toString(addr);
+	return conditionString(condition) + std::string(link? "::" : ":") + " " + stringify(addr);
 }
 
 std::unique_ptr<WhyInstruction> WASMJNode::convert(Function &, VarMap &) {
@@ -606,11 +606,11 @@ WASMInstructionNode(WASM_JCNODE), link(j? j->link : false), addr(j? j->addr : 0)
 }
 
 std::string WASMJcNode::debugExtra() const {
-	return dim(link? "::" : ":") + " " + colorize(addr) + red(" if ") + cyan(*rs);
+	return dim(link? "::" : ":") + " " + stringify(addr, true) + red(" if ") + cyan(*rs);
 }
 
 WASMJcNode::operator std::string() const {
-	return std::string(link? "::" : ":") + " " + toString(addr) + " if " + *rs;
+	return std::string(link? "::" : ":") + " " + stringify(addr) + " if " + *rs;
 }
 
 std::unique_ptr<WhyInstruction> WASMJcNode::convert(Function &function, VarMap &map) {
@@ -748,7 +748,7 @@ WASMDiviINode::operator std::string() const {
 
 std::unique_ptr<WhyInstruction> WASMDiviINode::convert(Function &function, VarMap &map) {
 	auto conv = [&](const std::string *str) { return convertVariable(function, map, str); };
-	return std::make_unique<DiviIInstruction>(conv(rs), imm, conv(rd));
+	return std::make_unique<DiviIInstruction>(conv(rs), conv(rd), imm);
 }
 
 WASMLuiNode::WASMLuiNode(ASTNode *imm_, ASTNode *rd_):
@@ -766,7 +766,7 @@ WASMLuiNode::operator std::string() const {
 }
 
 std::unique_ptr<WhyInstruction> WASMLuiNode::convert(Function &function, VarMap &map) {
-	return std::make_unique<LuiInstruction>(convertVariable(function, map, rd), imm);
+	return std::make_unique<LuiIInstruction>(convertVariable(function, map, rd), imm);
 }
 
 WASMStackNode::WASMStackNode(ASTNode *reg_, bool is_push):
@@ -879,7 +879,7 @@ WASMSvtimeNode::operator std::string() const {
 }
 
 std::unique_ptr<WhyInstruction> WASMSvtimeNode::convert(Function &function, VarMap &map) {
-	return std::make_unique<SvtimeInstruction>(convertVariable(function, map, rd));
+	return std::make_unique<SvtimeRInstruction>(convertVariable(function, map, rd));
 }
 
 WASMRingINode::WASMRingINode(ASTNode *imm_): WASMInstructionNode(WASM_RINGINODE), imm(getImmediate(imm_)) {
@@ -927,7 +927,7 @@ WASMSvringNode::operator std::string() const {
 }
 
 std::unique_ptr<WhyInstruction> WASMSvringNode::convert(Function &function, VarMap &map) {
-	return std::make_unique<SvringInstruction>(convertVariable(function, map, rd));
+	return std::make_unique<SvringRInstruction>(convertVariable(function, map, rd));
 }
 
 WASMPrintNode::WASMPrintNode(ASTNode *rs_, ASTNode *type_):
@@ -990,7 +990,7 @@ WASMHaltNode::operator std::string() const {
 }
 
 std::unique_ptr<WhyInstruction> WASMHaltNode::convert(Function &, VarMap &) {
-	return std::make_unique<HaltInstruction>();
+	return std::make_unique<HaltRInstruction>();
 }
 
 WASMSleepRNode::WASMSleepRNode(ASTNode *rs_): WASMInstructionNode(WASM_SLEEPRNODE), rs(rs_->lexerInfo) {
@@ -1020,7 +1020,7 @@ WASMPageNode::operator std::string() const {
 }
 
 std::unique_ptr<WhyInstruction> WASMPageNode::convert(Function &, VarMap &) {
-	return std::make_unique<PageInstruction>(on);
+	return std::make_unique<PageRInstruction>(on);
 }
 
 WASMSetptINode::WASMSetptINode(ASTNode *imm_): WASMInstructionNode(WASM_SETPTINODE), imm(getImmediate(imm_)) {
@@ -1059,7 +1059,7 @@ WASMSetptRNode::operator std::string() const {
 
 std::unique_ptr<WhyInstruction> WASMSetptRNode::convert(Function &function, VarMap &map) {
 	return std::make_unique<SetptRInstruction>(convertVariable(function, map, rs),
-												rt? convertVariable(function, map, rt) : nullptr);
+	                                           rt? convertVariable(function, map, rt) : nullptr);
 }
 
 WASMMvNode::WASMMvNode(ASTNode *rs_, ASTNode *rd_):
@@ -1096,7 +1096,7 @@ WASMSvpgNode::operator std::string() const {
 
 std::unique_ptr<WhyInstruction> WASMSvpgNode::convert(Function &function, VarMap &map) {
 	auto conv = [&](const std::string *str) { return convertVariable(function, map, str); };
-	return std::make_unique<SvpgInstruction>(conv(rd));
+	return std::make_unique<SvpgRInstruction>(conv(rd));
 }
 
 WASMQueryNode::WASMQueryNode(QueryType type_, ASTNode *rd_):

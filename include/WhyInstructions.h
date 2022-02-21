@@ -704,7 +704,7 @@ struct UnsignedBinaryIType: IType {
 	using IType::IType;
 	operator std::vector<std::string>() const override {
 		return {
-			source->regOrID() + " " + std::string(O) + " " + stringify(imm) + " -> " + destination->regOrID() + "/u"
+			source->regOrID() + " " + std::string(O) + " " + stringify(imm) + " -> " + destination->regOrID() + " /u"
 		};
 	}
 	std::vector<std::string> colored() const override {
@@ -796,12 +796,179 @@ struct CompareRInstruction: public RType {
 	}
 };
 
-struct CompareIInstruction: public RType {
+struct CompareIInstruction: public IType {
 	CompareIInstruction(VregPtr rs_, const Immediate &imm_): IType(rs_, nullptr, imm_) {}
 	operator std::vector<std::string>() const override {
-		return {leftSource->regOrID() + " ~ " + stringify(imm))};
+		return {source->regOrID() + " ~ " + stringify(imm)};
 	}
 	std::vector<std::string> colored() const override {
-		return {leftSource->regOrID(true) + " ~ " + stringify(imm, true)};
+		return {source->regOrID(true) + " ~ " + stringify(imm, true)};
+	}
+};
+
+class SelectInstruction: public RType {
+	private:
+		static const std::unordered_map<Condition, const char *> operMap;
+
+	public:
+		Condition condition;
+
+		SelectInstruction(VregPtr rs_, VregPtr rt_, VregPtr rd_, Condition condition_):
+			RType(rs_, rt_, rd_), condition(condition_) {}
+
+		operator std::vector<std::string>() const override {
+			return {
+				"[" + leftSource->regOrID() + " " + std::string(operMap.at(condition)) + " " + rightSource->regOrID() +
+					"] -> " + destination->regOrID()
+			};
+		}
+
+		std::vector<std::string> colored() const override {
+			return {
+				"\e[2m[\e[22m" + leftSource->regOrID(true) + " " + std::string(operMap.at(condition)) + " " +
+					rightSource->regOrID(true) + "\e[2m] ->\e[22m " + destination->regOrID(true)
+			};
+		}
+};
+
+template <fixstr::fixed_string O>
+struct InverseBinaryIType: IType {
+	using IType::IType;
+	operator std::vector<std::string>() const override {
+		return {stringify(imm) + " " + std::string(O) + " " + source->regOrID() + " -> " + destination->regOrID()};
+	}
+	std::vector<std::string> colored() const override {
+		return {
+			stringify(imm, true) + o(std::string(O)) + source->regOrID(true) + o("->") + destination->regOrID(true)
+		};
+	}
+};
+
+struct DiviIInstruction: InverseBinaryIType<"/"> { using InverseBinaryIType::InverseBinaryIType; };
+
+template <fixstr::fixed_string O>
+struct InverseUnsignedBinaryIType: IType {
+	using IType::IType;
+	operator std::vector<std::string>() const override {
+		return {
+			stringify(imm) + " " + std::string(O) + " " + source->regOrID() + " -> " + destination->regOrID() + " /u"
+		};
+	}
+	std::vector<std::string> colored() const override {
+		return {
+			stringify(imm, true) + o(std::string(O)) + source->regOrID(true) + o("->") + destination->regOrID(true)
+				+ " \e[2m/u\e[22m"
+		};
+	}
+};
+
+struct DivuiIInstruction: InverseUnsignedBinaryIType<"/"> {
+	using InverseUnsignedBinaryIType::InverseUnsignedBinaryIType; };
+
+struct Nop: WhyInstruction {
+	Nop() {}
+	operator std::vector<std::string>() const override { return {"<>"}; }
+	std::vector<std::string> colored() const override { return {"<>"}; }
+};
+
+template <fixstr::fixed_string N>
+struct SimpleIType: public IType {
+	SimpleIType(const Immediate &imm_): IType(nullptr, nullptr, imm_) {}
+	operator std::vector<std::string>() const override {
+		return {"%" + std::string(N) + " " + stringify(imm)};
+	}
+	std::vector<std::string> colored() const override {
+		return {"\e[36m%" + std::string(N) + "\e[39m " + stringify(imm, true)};
+	}
+};
+
+struct IntIInstruction:   SimpleIType<"int">   { using SimpleIType::SimpleIType; };
+struct RitIInstruction:   SimpleIType<"rit">   { using SimpleIType::SimpleIType; };
+struct TimeIInstruction:  SimpleIType<"time">  { using SimpleIType::SimpleIType; };
+struct RingIInstruction:  SimpleIType<"ring">  { using SimpleIType::SimpleIType; };
+struct SetptIInstruction: SimpleIType<"setpt"> { using SimpleIType::SimpleIType; };
+
+template <fixstr::fixed_string N>
+struct SimpleRType: public RType {
+	SimpleRType(VregPtr rs_): RType(rs_, nullptr, nullptr) {}
+	operator std::vector<std::string>() const override {
+		return {"%" + std::string(N) + " " + leftSource->regOrID()};
+	}
+	std::vector<std::string> colored() const override {
+		return {"\e[36m%" + std::string(N) + "\e[39m " + leftSource->regOrID(true)};
+	}
+};
+
+struct IntRInstruction:   SimpleRType<"int">   { using SimpleRType::SimpleRType; };
+struct RitRInstruction:   SimpleRType<"rit">   { using SimpleRType::SimpleRType; };
+struct TimeRInstruction:  SimpleRType<"time">  { using SimpleRType::SimpleRType; };
+struct RingRInstruction:  SimpleRType<"ring">  { using SimpleRType::SimpleRType; };
+struct SetptRInstruction: SimpleRType<"setpt"> { using SimpleRType::SimpleRType; };
+
+template <fixstr::fixed_string N>
+struct SaveRInstruction: public RType {
+	SaveRInstruction(VregPtr rd_): RType(nullptr, nullptr, rd_) {}
+	operator std::vector<std::string>() const override {
+		return {"%" + std::string(N) + " -> " + destination->regOrID()};
+	}
+	std::vector<std::string> colored() const override {
+		return {"\e[36m%" + std::string(N) + "\e[39m" + o("->") + destination->regOrID(true)};
+	}
+};
+
+struct SvtimeRInstruction: SaveRInstruction<"time"> { using SaveRInstruction::SaveRInstruction; };
+struct SvringRInstruction: SaveRInstruction<"ring"> { using SaveRInstruction::SaveRInstruction; };
+struct SvpgRInstruction:   SaveRInstruction<"page"> { using SaveRInstruction::SaveRInstruction; };
+
+struct PrintRInstruction: RType {
+	PrintType type;
+
+	PrintRInstruction(VregPtr rs_, PrintType type_): RType(rs_, nullptr, nullptr), type(type_) {}
+
+	operator std::vector<std::string>() const override {
+		return {"<" + typeName() + " " + leftSource->regOrID() + ">"};
+	}
+
+	std::vector<std::string> colored() const override {
+		return {"<\e[36m" + typeName() + "\e[39m " + leftSource->regOrID(true) + ">"};
+	}
+
+	private:
+		const std::string typeName() const {
+			switch (type) {
+				case PrintType::Bin:  return "prb";
+				case PrintType::Dec:  return "prd";
+				case PrintType::Hex:  return "prx";
+				case PrintType::Char: return "prc";
+				case PrintType::Full: return "print";
+				default: return "???";
+			}
+		}
+};
+
+struct HaltRInstruction: public RType {
+	HaltRInstruction(): RType(nullptr, nullptr, nullptr) {}
+	operator std::vector<std::string>() const override { return {"<halt>"}; }
+	std::vector<std::string>  colored() const override { return {"<\e[36mhalt\e[39m>"}; }
+};
+
+struct SleepRInstruction: public RType {
+	SleepRInstruction(VregPtr rs_): RType(rs_, nullptr, nullptr) {}
+	operator std::vector<std::string>() const override {
+		return {"<sleep " + leftSource->regOrID() + ">"};
+	}
+	std::vector<std::string> colored() const override {
+		return {"<\e[36msleep\e[39m " + leftSource->regOrID(true) + ">"};
+	}
+};
+
+struct PageRInstruction: public RType {
+	bool on;
+	PageRInstruction(bool on_): RType(nullptr, nullptr, nullptr), on(on_) {}
+	operator std::vector<std::string>() const override {
+		return {"%page " + std::string(on? "on" : "off")};
+	}
+	std::vector<std::string> colored() const override {
+		return {"\e[36m%page\e[39m " + std::string(on? "on" : "off")};
 	}
 };
