@@ -1,7 +1,7 @@
 #name "Arrays"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "1.3"
+#version "2.0"
 
 n: s64 = 10;
 array: s64[10];
@@ -21,5 +21,17 @@ fn main(): void {
 	for i: s64 = #array; 0 < i; --i {
 		.s64(array[i - 1]);
 		.c('\n');
+	}
+	c = 0;
+	multidim: s64[5][5];
+	for row: u64 = 0; row < #multidim; ++row {
+		for col: u64 = 0; col < #multidim[0]; ++col {
+			multidim[row][col] = ++c;
+		}
+	}
+	for row: u64 = 0; row < #multidim; ++row {
+		for col: u64 = 0; col < #multidim[0]; ++col {
+			.s("multidim["); .u64(row); .s("]["); .u64(col); .s("]: "); .s64(multidim[row][col]); .c('\n');
+		}
 	}
 }
