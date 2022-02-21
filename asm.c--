@@ -1,12 +1,12 @@
 #name "Inline Assembly"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "0.1"
+#version "1.1"
 
 fn main(): void {
-	foo: s64 = 42;
+	foo: s64 = 40;
 	bar: s64 = 999;
-	.c('('); .s64(foo); .s(", "); .s64(bar); .s(") -> ");
-	asm("$1 -> $m4; $m4 -> $2" : foo : bar);
-	.c('('); .s64(foo); .s(", "); .s64(bar); .s(")\n");
+	.c('('); .s64(foo); .s(", "); .s64(bar); .s(") -> "); // Expected: (40, 999)
+	asm("$1 + 1 -> $m4; $m4 -> $2; -99 -> $1" : foo + 1 : *&bar);
+	.c('('); .s64(foo); .s(", "); .s64(bar); .s(")\n");   // Expected: (40, 42)
 }

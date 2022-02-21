@@ -311,13 +311,11 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			break;
 		}
 		case CMMTOK_ASM: {
-			node.debug();
 			wasmParser.errorCount = 0;
 			const std::string wasm_source = node.front()->extractName();
 			wasmParser.in(wasm_source);
 			wasmParser.debug(false, false);
 			wasmParser.parse();
-			wasmParser.root->debug();
 			if (wasmParser.errorCount != 0 || wasmLexer.failed) {
 				std::cerr << "\e[31mWASM parsing failed for ASM node at " << node.location << "\e[39m\n";
 				std::cerr << "\e[31mFull text: [\e[1m" << wasm_source << "\e[22m]\e[39m\n";
@@ -333,47 +331,24 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				for (const ASTNode *child: output_exprs) {
 					auto expr = ExprPtr(Expr::get(*child, this));
 					const std::string wasm_vreg = "$" + std::to_string(1 + input_count + output_counter++);
-					// if (auto *var_expr = expr->cast<VariableExpr>()) {
-					// 	if (auto var = currentScope()->lookup(var_expr->name)) {
-					// 		std::cerr << "Emplace output " << wasm_vreg << '\n';
-					// 		map.emplace(wasm_vreg, var);
-					// 	} else
-					// 		throw ResolutionError(var_expr->name, currentScope());
-					// } else {
-						std::cerr << "Emplace output " << wasm_vreg << '\n';
-						map.emplace(wasm_vreg, newVar());
-						out_exprs.emplace(wasm_vreg, expr);
-					// }
+					map.emplace(wasm_vreg, newVar());
+					out_exprs.emplace(wasm_vreg, expr);
 				}
 
 				size_t input_counter = 0;
 				for (const ASTNode *child: input_exprs) {
 					auto expr = ExprPtr(Expr::get(*child, this));
-					VregPtr var;
-					// if (auto *var_expr = expr->cast<VariableExpr>()) {
-					// 	if (auto found = currentScope()->lookup(var_expr->name))
-					// 		var = found;
-					// 	else
-					// 		throw ResolutionError(var_expr->name, currentScope());
-					// } else {
-						var = newVar();
-						expr->compile(var, *this, currentScope());
-					// }
 					const std::string wasm_vreg = "$" + std::to_string(1 + input_counter++);
-					std::cerr << "Emplace input " << wasm_vreg << '\n';
+					VregPtr var = newVar();
+					expr->compile(var, *this, currentScope());
 					map.emplace(wasm_vreg, var);
 				}
 
-				for (ASTNode *child: *wasmParser.root) {
+				for (ASTNode *child: *wasmParser.root)
 					if (auto *wasm_node = dynamic_cast<WASMInstructionNode *>(child)) {
 						WhyPtr converted = wasm_node->convert(*this, map);
-						info() << converted->joined(true, "; ") << '\n';
 						instructions.push_back(converted);
-					} else {
-						warn() << "???\n";
-						child->debug();
 					}
-				}
 
 				if (!out_exprs.empty()) {
 					auto addr_var = newVar();
