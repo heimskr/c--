@@ -176,6 +176,7 @@ char ASTNode::getChar() const {
 	if (out == "\\n") return '\n';
 	if (out == "\\r") return '\r';
 	if (out == "\\t") return '\t';
+	if (out == "\\'") return '\'';
 	return out.front();
 }
 

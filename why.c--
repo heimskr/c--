@@ -25,9 +25,9 @@ fn int_keybrd(): void {
 	if key == 'a' {
 		.s("You pressed a :)\n");
 	} else {
-		.s("You pressed ");
+		.s("You pressed '");
 		asm("<prc $1>":key:);
-		.c('\n');
+		.c('\''); .c('\n');
 	}
 	asm(": ] %page $e0"::);
 }
