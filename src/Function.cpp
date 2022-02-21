@@ -322,61 +322,43 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				std::cerr << "\e[31mWASM parsing failed for ASM node at " << node.location << "\e[39m\n";
 				std::cerr << "\e[31mFull text: [\e[1m" << wasm_source << "\e[22m]\e[39m\n";
 			} else {
-				bool init_found = false;
-				std::list<decltype(wasmParser.root->children)::iterator> remove_inits;
-				for (auto child_iter = wasmParser.root->begin(); child_iter != wasmParser.root->end(); ++child_iter)
-					if ((*child_iter)->symbol == WASMTOK_INIT) {
-						if (init_found)
-							remove_inits.push_back(child_iter);
-						else
-							init_found = true;
-					}
-				if (!init_found)
-					wasmParser.root->children.push_front(new ASTNode(wasmParser, WASMTOK_INIT));
-				else
-					for (auto child_iter: remove_inits)
-						wasmParser.root->children.erase(child_iter);
-
 				const ASTNode &input_exprs  = *node.at(1),
 				              &output_exprs = *node.at(2);
-
 				const size_t  input_count = input_exprs.size();
-				const size_t output_count = output_exprs.size();
 
 				VarMap map;
-
 				std::map<std::string, ExprPtr> out_exprs;
 
 				size_t output_counter = 0;
 				for (const ASTNode *child: output_exprs) {
 					auto expr = ExprPtr(Expr::get(*child, this));
 					const std::string wasm_vreg = "$" + std::to_string(1 + input_count + output_counter++);
-					if (auto *var_expr = expr->cast<VariableExpr>()) {
-						if (auto var = currentScope()->lookup(var_expr->name)) {
-							std::cerr << "Emplace output " << wasm_vreg << '\n';
-							map.emplace(wasm_vreg, var);
-						} else
-							throw ResolutionError(var_expr->name, currentScope());
-					} else {
+					// if (auto *var_expr = expr->cast<VariableExpr>()) {
+					// 	if (auto var = currentScope()->lookup(var_expr->name)) {
+					// 		std::cerr << "Emplace output " << wasm_vreg << '\n';
+					// 		map.emplace(wasm_vreg, var);
+					// 	} else
+					// 		throw ResolutionError(var_expr->name, currentScope());
+					// } else {
 						std::cerr << "Emplace output " << wasm_vreg << '\n';
 						map.emplace(wasm_vreg, newVar());
 						out_exprs.emplace(wasm_vreg, expr);
-					}
+					// }
 				}
 
 				size_t input_counter = 0;
 				for (const ASTNode *child: input_exprs) {
 					auto expr = ExprPtr(Expr::get(*child, this));
 					VregPtr var;
-					if (auto *var_expr = expr->cast<VariableExpr>()) {
-						if (auto found = currentScope()->lookup(var_expr->name))
-							var = found;
-						else
-							throw ResolutionError(var_expr->name, currentScope());
-					} else {
+					// if (auto *var_expr = expr->cast<VariableExpr>()) {
+					// 	if (auto found = currentScope()->lookup(var_expr->name))
+					// 		var = found;
+					// 	else
+					// 		throw ResolutionError(var_expr->name, currentScope());
+					// } else {
 						var = newVar();
 						expr->compile(var, *this, currentScope());
-					}
+					// }
 					const std::string wasm_vreg = "$" + std::to_string(1 + input_counter++);
 					std::cerr << "Emplace input " << wasm_vreg << '\n';
 					map.emplace(wasm_vreg, var);
@@ -384,10 +366,22 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 
 				for (ASTNode *child: *wasmParser.root) {
 					if (auto *wasm_node = dynamic_cast<WASMInstructionNode *>(child)) {
-						instructions.push_back(wasm_node->convert(*this, map));
+						WhyPtr converted = wasm_node->convert(*this, map);
+						info() << converted->joined(true, "; ") << '\n';
+						instructions.push_back(converted);
 					} else {
 						warn() << "???\n";
 						child->debug();
+					}
+				}
+
+				if (!out_exprs.empty()) {
+					auto addr_var = newVar();
+					auto scope = currentScope();
+					for (const auto &[wasm_vreg, expr]: out_exprs) {
+						if (!expr->compileAddress(addr_var, *this, scope))
+							throw LvalueError(std::string(*expr->getType(scope)));
+						add<StoreRInstruction>(map.at(wasm_vreg), addr_var, expr->getSize(scope));
 					}
 				}
 			}
