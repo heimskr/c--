@@ -91,15 +91,16 @@ static Immediate getImmediate(ASTNode *node) {
 WASMBaseNode::WASMBaseNode(int sym): ASTNode(wasmParser, sym) {}
 
 VregPtr WASMInstructionNode::convertVariable(Function &function, VarMap &map, const std::string *name) {
-	if (name->front() == '$')
-		return function.precolored(registerMap.at(name));
-	if (map.count(name) == 0) {
+	if (registerMap.count(*name) != 0)
+		return function.precolored(registerMap.at(*name));
+	if (map.count(*name) == 0) {
+		warn() << "Didn't find " << *name << " in the map.\n";
 		// TODO: verify using i64 as a default type.
 		auto new_var = function.newVar(SignedType::make(64));
-		map.emplace(name, new_var);
+		map.emplace(*name, new_var);
 		return new_var;
 	} else {
-		return map.at(name);
+		return map.at(*name);
 	}
 }
 

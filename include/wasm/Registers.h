@@ -3,4 +3,4 @@
 #include <map>
 #include <string>
 
-extern std::map<const std::string *, int> registerMap;
+extern std::map<std::string, int> registerMap;

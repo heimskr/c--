@@ -514,13 +514,9 @@ size_t NumberExpr::getSize(ScopePtr) const {
 
 std::unique_ptr<Type> NumberExpr::getType(ScopePtr scope) const {
 	const size_t bits = getSize(scope) * 8;
-	if (isUnsigned())
+	if (literal.find('u') != std::string::npos)
 		return std::make_unique<UnsignedType>(bits);
 	return std::make_unique<SignedType>(bits);
-}
-
-bool NumberExpr::isUnsigned() const {
-	return literal.find('u') != std::string::npos;
 }
 
 void BoolExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) {

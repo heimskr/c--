@@ -20,7 +20,7 @@ struct Variable;
 struct VirtualRegister;
 struct WhyInstruction;
 
-using VarMap = std::unordered_map<const std::string *, std::shared_ptr<VirtualRegister>>;
+using VarMap = std::unordered_map<std::string, std::shared_ptr<VirtualRegister>>;
 
 struct WASMBaseNode: ASTNode {
 	WASMBaseNode(int sym);

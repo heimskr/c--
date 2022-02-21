@@ -39,7 +39,7 @@ struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 	/** This function both performs type checking and returns a type. */
 	virtual std::unique_ptr<Type> getType(ScopePtr) const = 0;
 	virtual bool compileAddress(VregPtr, Function &, ScopePtr) { return false; }
-	virtual bool isUnsigned() const { return false; }
+	bool isUnsigned(ScopePtr scope) const { return getType(scope)->isUnsigned(); }
 	Expr * setLocation(const ASTLocation &location_) { location = location_; return this; }
 
 	static Expr * get(const ASTNode &, Function * = nullptr);
@@ -249,7 +249,6 @@ struct NumberExpr: AtomicExpr {
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	size_t getSize(ScopePtr) const override;
 	std::unique_ptr<Type> getType(ScopePtr) const override;
-	bool isUnsigned() const override;
 };
 
 struct BoolExpr: AtomicExpr {
