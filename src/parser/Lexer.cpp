@@ -70,3 +70,20 @@ void cmmerror(const std::string &message, const ASTLocation &location) {
 	++cmmParser.errorCount;
 	cmmLexer.errors.push_back({message, location});
 }
+
+void wasmerror(const char *message) {
+	wasmerror(std::string(message), wasmLexer.location);
+}
+
+void wasmerror(const std::string &message) {
+	wasmerror(message, wasmLexer.location);
+}
+
+void wasmerror(const std::string &message, const ASTLocation &location) {
+	auto lines = Util::split(wasmParser.getBuffer(), "\n", false);
+	if (location.line < lines.size())
+		std::cerr << lines.at(location.line) << "\n";
+	std::cerr << "\e[31mWASM error at \e[1m" << location << "\e[22m: " << message << "\e[0m\n";
+	++wasmParser.errorCount;
+	wasmLexer.errors.push_back({message, location});
+}

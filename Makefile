@@ -11,16 +11,16 @@ PARSERHDR       := include/bison.h
 LEXERSRC        := src/lexer.l
 PARSERSRC       := src/parser.y
 
-WASMLEXERCPP        := src/wasmflex.cpp
-WASMPARSERCPP       := src/wasmbison.cpp
-WASMPARSERHDR       := include/wasmbison.h
-WASMLEXERSRC        := src/wasm.l
-WASMPARSERSRC       := src/wasm.y
+WASMLEXERCPP    := src/wasmflex.cpp
+WASMPARSERCPP   := src/wasmbison.cpp
+WASMPARSERHDR   := include/wasmbison.h
+WASMLEXERSRC    := src/wasm.l
+WASMPARSERSRC   := src/wasm.y
 
 LEXFLAGS        := -Wno-sign-compare -Wno-register
 BISONFLAGS      := --color=always
 
-SOURCES         := $(shell find src/**/*.cpp src/*.cpp) $(LEXERCPP) $(PARSERCPP)
+SOURCES         := $(shell find src/**/*.cpp src/*.cpp) $(LEXERCPP) $(PARSERCPP) $(WASMLEXERCPP) $(WASMPARSERCPP)
 OBJECTS         := $(SOURCES:.cpp=.o)
 
 CLOC_OPTIONS    := --exclude-dir=.vscode,fixed_string --not-match-f='^((wasm)?flex|(wasm)?bison|fixed_string)'

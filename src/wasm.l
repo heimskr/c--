@@ -1,5 +1,5 @@
 %{
-#include "parser/Lexer.h"
+#include "Lexer.h"
 #ifdef YY_USER_ACTION
 #error "YY_USER_ACTION is already defined"
 #endif

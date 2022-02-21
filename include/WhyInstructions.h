@@ -224,6 +224,16 @@ struct MultRInstruction: RType {
 	}
 };
 
+struct BareMultRInstruction: RType {
+	BareMultRInstruction(VregPtr rs_, VregPtr rt_): RType(rs_, rt_, nullptr) {}
+	operator std::vector<std::string>() const override {
+		return {leftSource->regOrID() + " * " + rightSource->regOrID()};
+	}
+	std::vector<std::string> colored() const override {
+		return {leftSource->regOrID(true) + o("*") + rightSource->regOrID(true)};
+	}
+};
+
 struct MultIInstruction: IType {
 	using IType::IType;
 	operator std::vector<std::string>() const override {
@@ -237,6 +247,16 @@ struct MultIInstruction: IType {
 			source->regOrID(true) + o("*") + stringify(imm, true),
 			Why::coloredRegister(Why::loOffset) + o("->") + destination->regOrID(true)
 		};
+	}
+};
+
+struct BareMultIInstruction: IType {
+	BareMultIInstruction(VregPtr rs_, const Immediate &imm_): IType(rs_, nullptr, imm_) {}
+	operator std::vector<std::string>() const override {
+		return {source->regOrID() + " * " + stringify(imm)};
+	}
+	std::vector<std::string> colored() const override {
+		return {source->regOrID(true) + o("*") + stringify(imm, true)};
 	}
 };
 
@@ -506,16 +526,16 @@ struct Comment: WhyInstruction, Makeable<Comment> {
 	}
 };
 
-struct JumpRegisterInstruction: RType {
+struct JumpRegisterInstruction: RType, Conditional {
 	bool link;
-	JumpRegisterInstruction(VregPtr target, bool link_ = false):
-		RType(target, nullptr, nullptr), link(link_) {}
+	JumpRegisterInstruction(VregPtr target, bool link_ = false, Condition condition_ = Condition::None):
+		RType(target, nullptr, nullptr), Conditional(condition_), link(link_) {}
 	bool isTerminal() const override { return !link; }
 	operator std::vector<std::string>() const override {
-		return {std::string(link? "::" : ":") + " " + leftSource->regOrID()};
+		return {conditionPrefix() + std::string(link? "::" : ":") + " " + leftSource->regOrID()};
 	}
 	std::vector<std::string> colored() const override {
-		return {"\e[1;2m" + std::string(link? "::" : ":") + "\e[22m " + leftSource->regOrID(true)};
+		return {"\e[1;2m" + conditionPrefix() + std::string(link? "::" : ":") + "\e[22m " + leftSource->regOrID(true)};
 	}
 };
 
@@ -923,7 +943,6 @@ struct IntRInstruction:   SimpleRType<"int">   { using SimpleRType::SimpleRType;
 struct RitRInstruction:   SimpleRType<"rit">   { using SimpleRType::SimpleRType; };
 struct TimeRInstruction:  SimpleRType<"time">  { using SimpleRType::SimpleRType; };
 struct RingRInstruction:  SimpleRType<"ring">  { using SimpleRType::SimpleRType; };
-struct SetptRInstruction: SimpleRType<"setpt"> { using SimpleRType::SimpleRType; };
 
 template <fixstr::fixed_string N>
 struct SaveRInstruction: RType {
@@ -1068,5 +1087,19 @@ struct PageStackInstruction: RType {
 		if (!leftSource)
 			return {"\e[2m" + std::string(isPush? "[" : "]") + "\e[22m \e[34m%page\e[39m"};
 		return {"\e[2m: " + std::string(isPush? "[" : "]") + "\e[22m \e[34m%page\e[39m " + leftSource->regOrID(true)};
+	}
+};
+
+struct SetptRInstruction: RType {
+	SetptRInstruction(VregPtr rs_, VregPtr rt_): RType(rs_, rt_, nullptr) {}
+	operator std::vector<std::string>() const override {
+		if (!leftSource)
+			return {"%setpt " + leftSource->regOrID()};
+		return {": %setpt " + leftSource->regOrID() + " " + rightSource->regOrID()};
+	}
+	std::vector<std::string> colored() const override {
+		if (!leftSource)
+			return {"\e[36m%setpt\e[39m " + leftSource->regOrID(true)};
+		return {"\e[2m:\e[22m \e[36m%setpt\e[39m " + leftSource->regOrID(true) + " " + rightSource->regOrID(true)};
 	}
 };

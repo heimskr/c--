@@ -616,7 +616,7 @@ WASMJcNode::operator std::string() const {
 }
 
 std::unique_ptr<WhyInstruction> WASMJcNode::convert(Function &function, VarMap &map) {
-	return std::make_unique<JumpConditionalInstruction>(convertVariable(function, map, rs), addr, link);
+	return std::make_unique<JumpConditionalInstruction>(addr, convertVariable(function, map, rs), link);
 }
 
 WASMJrNode::WASMJrNode(ASTNode *cond, ASTNode *colons, ASTNode *rd_):
@@ -685,8 +685,8 @@ WASMSizedStackNode::operator std::string() const {
 std::unique_ptr<WhyInstruction> WASMSizedStackNode::convert(Function &function, VarMap &map) {
 	auto conv = [&](const std::string *str) { return convertVariable(function, map, str); };
 	if (isPush)
-		return std::make_unique<SizedStackPushInstruction>(conv(rs), size);
-	return std::make_unique<SizedStackPopInstruction>(conv(rs), size);
+		return std::make_unique<SizedStackPushInstruction>(conv(rs), int(size));
+	return std::make_unique<SizedStackPopInstruction>(conv(rs), int(size));
 }
 
 WASMMultRNode::WASMMultRNode(ASTNode *rs_, ASTNode *rt_, ASTNode *unsigned_):
@@ -707,7 +707,7 @@ WASMMultRNode::operator std::string() const {
 
 std::unique_ptr<WhyInstruction> WASMMultRNode::convert(Function &function, VarMap &map) {
 	auto conv = [&](const std::string *str) { return convertVariable(function, map, str); };
-	return std::make_unique<MultRInstruction>(conv(rs), conv(rt));
+	return std::make_unique<BareMultRInstruction>(conv(rs), conv(rt));
 }
 
 WASMMultINode::WASMMultINode(ASTNode *rs_, ASTNode *imm_, ASTNode *unsigned_):
@@ -727,7 +727,7 @@ WASMMultINode::operator std::string() const {
 }
 
 std::unique_ptr<WhyInstruction> WASMMultINode::convert(Function &function, VarMap &map) {
-	return std::make_unique<MultIInstruction>(convertVariable(function, map, rs), imm);
+	return std::make_unique<BareMultIInstruction>(convertVariable(function, map, rs), imm);
 }
 
 WASMDiviINode::WASMDiviINode(ASTNode *imm_, ASTNode *rs_, ASTNode *rd_, ASTNode *unsigned_):
@@ -1115,7 +1115,7 @@ WASMQueryNode::operator std::string() const {
 }
 
 std::unique_ptr<WhyInstruction> WASMQueryNode::convert(Function &function, VarMap &map) {
-	return std::make_unique<QueryRInstruction>(type, convertVariable(function, map, rd));
+	return std::make_unique<QueryRInstruction>(convertVariable(function, map, rd), type);
 }
 
 WASMPseudoPrintNode::WASMPseudoPrintNode(ASTNode *imm_):
@@ -1136,8 +1136,8 @@ WASMPseudoPrintNode::operator std::string() const {
 
 std::unique_ptr<WhyInstruction> WASMPseudoPrintNode::convert(Function &, VarMap &) {
 	if (text)
-		return std::make_unique<PrintPseudoinstruction>(text, true, -1);
-	return std::make_unique<PrintPseudoinstruction>(imm, -1);
+		return std::make_unique<PrintPseudoinstruction>(*text);
+	return std::make_unique<PrintPseudoinstruction>(imm);
 }
 
 WASMRestNode::WASMRestNode(): WASMInstructionNode(WASM_RESTNODE) {}
@@ -1165,7 +1165,7 @@ WASMIONode::operator std::string() const {
 }
 
 std::unique_ptr<WhyInstruction> WASMIONode::convert(Function &, VarMap &) {
-	return std::make_unique<IOInstruction>(ident);
+	return std::make_unique<IOInstruction>(*ident);
 }
 
 WASMInterruptsNode::WASMInterruptsNode(bool enable_): WASMInstructionNode(WASM_INTERRUPTSNODE), enable(enable_) {}
@@ -1204,11 +1204,11 @@ std::unique_ptr<WhyInstruction> WASMInverseShiftNode::convert(Function &function
 
 	switch (operToken) {
 		case WASMTOK_LL:
-			return std::make_unique<ShiftLeftLogicalInverseIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<ShiftLeftLogicalInverseIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_RL:
-			return std::make_unique<ShiftRightLogicalInverseIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<ShiftRightLogicalInverseIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_RA:
-			return std::make_unique<ShiftRightArithmeticInverseIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<ShiftRightArithmeticInverseIInstruction>(conv(rs), conv(rd), imm);
 		default:
 			throw std::invalid_argument("Unknown operator in WASMInverseShiftNode::convert: " + *oper);
 	}
@@ -1291,7 +1291,5 @@ WASMPageStackNode::operator std::string() const {
 }
 
 std::unique_ptr<WhyInstruction> WASMPageStackNode::convert(Function &function, VarMap &map) {
-	if (rs)
-		return std::make_unique<PageStackInstruction>(isPush, convertVariable(function, map, rs));
-	return std::make_unique<PageStackInstruction>(isPush);
+	return std::make_unique<PageStackInstruction>(isPush, rs? convertVariable(function, map, rs) : nullptr);
 }
