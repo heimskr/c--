@@ -1,7 +1,7 @@
 #name "Example"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "5.1"
+#version "5.2"
 
 n: s64 = 38 + 5;
 empty: bool;
@@ -64,10 +64,9 @@ fn main(argc: u32): void {
 	(&(*&wow))[0] = 200;
 	.s("wow = "); .s64(wow); .s(" (should be 200)"); l();
 	arr: s32[4];
-	arr[0] = 10;
-	arr[1] = 20;
-	arr[2] = 30;
-	arr[3] = 40;
+	for i: u64 = 0; i < #arr; ++i {
+		arr[i] = (s32) (10u64 * (i + 1u64));
+	}
 	arrptr: s32* = &arr;
 	.s("Should be 30: "); .s32(arrptr[2]); l();
 	return (void) 0;
