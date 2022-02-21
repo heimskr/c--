@@ -97,11 +97,14 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				throw std::runtime_error("Variable expression encountered in functionless context");
 			out = new VariableExpr(*node.lexerInfo);
 			break;
-		case CMMTOK_LPAREN:
-			if (!function)
-				throw std::runtime_error("Function call expression encountered in functionless context");
-			out = new CallExpr(node, function);
+		case CMMTOK_LPAREN: {
+			std::vector<ExprPtr> arguments;
+			arguments.reserve(node.at(1)->size());
+			for (const ASTNode *child: *node.at(1))
+				arguments.emplace_back(Expr::get(*child, function));
+			out = new CallExpr(Expr::get(*node.front(), function), arguments);
 			break;
+		}
 		case CMMTOK_STRING:
 			out = new StringExpr(node.unquote());
 			break;
@@ -669,32 +672,62 @@ bool DerefExpr::compileAddress(VregPtr destination, Function &function, ScopePtr
 	return true;
 }
 
-CallExpr::CallExpr(const ASTNode &node, Function *function_): name(*node.front()->lexerInfo), function(function_) {
-	if (!function)
-		throw std::runtime_error("CallExpr needs a nonnull function");
-	for (const ASTNode *child: *node.back())
-		arguments.emplace_back(Expr::get(*child, function));
-}
-
 Expr * CallExpr::copy() const {
 	std::vector<ExprPtr> arguments_copy;
 	for (const ExprPtr &argument: arguments)
 		arguments_copy.emplace_back(argument->copy());
-	return new CallExpr(name, function, arguments_copy);
+	return new CallExpr(subexpr->copy(), arguments_copy);
 }
 
 void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_t multiplier) {
 	const size_t to_push = arguments.size();
 	size_t i;
-	Function *found = scope->lookupFunction(name);
 
-	if (!found)
-		throw std::runtime_error("Function not found: " + name);
+	std::function<const Type &(size_t)> get_arg_type = [](size_t) -> const Type & {
+		throw std::logic_error("get_arg_type not redefined");
+	};
 
-	if (found->arguments.size() != arguments.size())
-		throw std::runtime_error("Invalid number of arguments in call to " + found->name + " at " +
-			std::string(location) + ": " + std::to_string(arguments.size()) + " (expected " +
-			std::to_string(found->arguments.size()) + ")");
+	std::function<void()> add_jump = [] {
+		throw std::logic_error("add_jump not redefined");
+	};
+
+	TypePtr found_return_type = nullptr;
+
+	auto fnptr_type = subexpr->getType(scope);
+
+	bool function_found = false;
+
+	if (auto *var_expr = subexpr->cast<VariableExpr>()) {
+		const std::string &name = var_expr->name;
+		Function *found = scope->lookupFunction(name);
+
+		if (found) {
+			if (found->arguments.size() != arguments.size())
+				throw std::runtime_error("Invalid number of arguments in call to " + found->name + " at " +
+					std::string(location) + ": " + std::to_string(arguments.size()) + " (expected " +
+					std::to_string(found->arguments.size()) + ")");
+
+			function_found = true;
+			found_return_type = found->returnType;
+			get_arg_type = [found](size_t i) -> const Type & {
+				return *found->argumentMap.at(found->arguments.at(i))->type;
+			};
+			add_jump = [&name, &fn] { fn.add<JumpInstruction>(name, true); };
+		}
+	}
+
+	if (!function_found) {
+		if (!fnptr_type->isFunctionPointer())
+			throw FunctionPointerError(*fnptr_type);
+		const auto *subfn = fnptr_type->cast<FunctionPointerType>();
+		found_return_type = TypePtr(subfn->returnType->copy());
+		get_arg_type = [subfn](size_t i) -> const Type & { return *subfn->argumentTypes.at(i); };
+		add_jump = [this, &fn, scope] {
+			auto jump_destination = fn.newVar();
+			subexpr->compile(jump_destination, fn, scope);
+			fn.add<JumpRegisterInstruction>(jump_destination, true);
+		};
+	}
 
 	for (i = 0; i < to_push; ++i)
 		fn.add<StackPushInstruction>(fn.precolored(Why::argumentOffset + i));
@@ -704,8 +737,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 		auto argument_register = fn.precolored(Why::argumentOffset + i);
 		argument->compile(argument_register, fn, scope);
 		try {
-			typeCheck(*argument->getType(scope), *found->argumentMap.at(found->arguments.at(i))->type,
-				argument_register, fn, location);
+			typeCheck(*argument->getType(scope), get_arg_type(i), argument_register, fn, location);
 		} catch (std::out_of_range &err) {
 			std::cerr << "\e[31mBad function argument at " << argument->location << "\e[39m\n";
 			throw;
@@ -713,12 +745,12 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 		++i;
 	}
 
-	fn.add<JumpInstruction>(name, true);
+	add_jump();
 
 	for (i = to_push; 0 < i; --i)
 		fn.add<StackPopInstruction>(fn.precolored(Why::argumentOffset + i - 1));
 
-	if (!found->returnType->isVoid() && destination) {
+	if (!found_return_type->isVoid() && destination) {
 		if (multiplier == 1)
 			fn.add<MoveInstruction>(fn.precolored(Why::returnValueOffset), destination);
 		else
@@ -728,7 +760,10 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 
 CallExpr::operator std::string() const {
 	std::stringstream out;
-	out << name << '(';
+	if (auto *var_expr = subexpr->cast<VariableExpr>())
+		out << var_expr->name << '(';
+	else
+		out << '(' << *subexpr << ")(";
 	bool first = true;
 	for (const auto &argument: arguments) {
 		if (first)
@@ -742,17 +777,25 @@ CallExpr::operator std::string() const {
 }
 
 size_t CallExpr::getSize(ScopePtr scope) const {
-	if (auto fn = scope->lookupFunction(name)) {
-		return fn->returnType->getSize();
-	} else
-		throw ResolutionError(name, scope);
+	return getType(scope)->getSize();
 }
 
 std::unique_ptr<Type> CallExpr::getType(ScopePtr scope) const {
-	if (auto fn = scope->lookupFunction(name)) {
-		return std::unique_ptr<Type>(fn->returnType->copy());
-	} else
-		throw ResolutionError(name, scope);
+	if (auto *var_expr = subexpr->cast<VariableExpr>()) {
+		if (const auto *fn = scope->lookupFunction(var_expr->name))
+			return std::unique_ptr<Type>(fn->returnType->copy());
+		if (auto var = scope->lookup(var_expr->name)) {
+			if (auto *fnptr = var->type->cast<FunctionPointerType>())
+				return std::unique_ptr<Type>(fnptr->returnType->copy());
+			throw FunctionPointerError(*var->type);
+		}
+		throw ResolutionError(var_expr->name, scope);
+	} else {
+		auto type = subexpr->getType(scope);
+		if (const auto *fnptr = type->cast<FunctionPointerType>())
+				return std::unique_ptr<Type>(fnptr->returnType->copy());
+		throw FunctionPointerError(*type);
+	}
 }
 
 void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {

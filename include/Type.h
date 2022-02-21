@@ -29,6 +29,7 @@ struct Type: Checkable, std::enable_shared_from_this<Type> {
 	virtual bool isBool() const { return false; }
 	virtual bool isPointer() const { return false; }
 	virtual bool isArray() const { return false; }
+	virtual bool isFunctionPointer() const { return false; }
 	static Type * get(const ASTNode &);
 
 	template <typename T>
@@ -136,4 +137,5 @@ struct FunctionPointerType: Type {
 	size_t getSize() const override { return 8; }
 	bool operator&&(const Type &) const override;
 	bool operator==(const Type &) const override;
+	bool isFunctionPointer() const override { return true; }
 };

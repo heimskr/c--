@@ -24,6 +24,12 @@ struct LvalueError: std::runtime_error {
 		std::runtime_error("Not an lvalue: " + type_string), typeString(type_string) {}
 };
 
+struct FunctionPointerError: std::runtime_error {
+	std::string typeString;
+	FunctionPointerError(const std::string &type_string):
+		std::runtime_error("Not a function pointer: " + type_string), typeString(type_string) {}
+};
+
 struct NotOnStackError: std::runtime_error {
 	std::shared_ptr<Variable> variable;
 	NotOnStackError(std::shared_ptr<Variable>);

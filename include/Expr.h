@@ -334,12 +334,11 @@ struct DerefExpr: Expr {
 };
 
 struct CallExpr: Expr {
-	std::string name;
-	Function *function;
+	std::unique_ptr<Expr> subexpr;
 	std::vector<ExprPtr> arguments;
-	CallExpr(const ASTNode &, Function *);
-	CallExpr(const std::string &name_, Function *function_, const std::vector<ExprPtr> &arguments_):
-		name(name_), function(function_), arguments(arguments_) {}
+	/** Takes ownership of the subexpr argument. */
+	CallExpr(Expr *subexpr_, const std::vector<ExprPtr> &arguments_):
+		subexpr(subexpr_), arguments(arguments_) {}
 	Expr * copy() const override;
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	operator std::string() const override;

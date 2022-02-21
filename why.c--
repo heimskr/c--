@@ -6,10 +6,16 @@
 table: void*[8];
 delay: s64 = 300000;
 timeup: u8* = "Time's up\n";
-you_pressed: u8* = "You pressed '";
-delay_str: u8* = "Delay: ";
-pressed_a: u8* = "You pressed 'a' :)\n";
 timer_ptr: void()* = int_timer;
+fnptr: s64(s64)* = double;
+
+fn double(n: s64): s64 {
+	return n << 1;
+}
+
+fn add5(n: s64): s64 {
+	return n + 5;
+}
 
 fn main(): void {
 	// g: s64;
@@ -18,7 +24,6 @@ fn main(): void {
 	table[2] = timer_ptr;
 	table[7] = int_keybrd;
 	asm("%rit table");
-	asm("%time $1":delay);
 	while true {
 		asm("<rest>");
 	}
@@ -36,6 +41,12 @@ fn int_keybrd_(key: u8): void {
 		.s("Delay: "); .s64(delay); .c('\n');
 	} else if (key == '\n') {
 		asm("%time $1":delay:);
+	} else if (key == ' ') {
+		fnptr = fnptr == double? add5 : double;
+	} else if (key == '*') {
+		.s("20 -> ");
+		.s64(fnptr(20));
+		.c('\n');
 	} else {
 		.s("You pressed '"); .c(key); .c('\''); .c('\n');
 	}

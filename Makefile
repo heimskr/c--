@@ -69,7 +69,7 @@ $(WASMPARSERCPP:.cpp=.o): $(WASMPARSERCPP) $(WASMPARSERHDR)
 	$(COMPILER) $(CFLAGS) $(LEXFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(LEXERCPP) $(PARSERCPP) $(PARSERHDR) src/*.o src/**/*.o $(OUTPUT) src/bison.output
+	rm -f $(LEXERCPP) $(PARSERCPP) $(PARSERHDR) $(WASMLEXERCPP) $(WASMPARSERCPP) $(WASMPARSERHDR) src/*.o src/**/*.o $(OUTPUT) src/bison.output src/wasmbison.output
 
 count:
 	cloc . $(CLOC_OPTIONS)
