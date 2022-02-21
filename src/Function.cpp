@@ -340,10 +340,10 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				std::cerr << "\e[31mWASM parsing failed for ASM node at " << node.location << "\e[39m\n";
 				std::cerr << "\e[31mFull text: [\e[1m" << wasm_source << "\e[22m]\e[39m\n";
 			} else {
-				const ASTNode &input_exprs  = *node.at(1),
-				              &output_exprs = *node.at(2);
-				const size_t  input_count  = input_exprs.size();
-				const size_t  output_count = output_exprs.size();
+				const ASTNode *input_exprs  = 2 <= node.size()? node.at(1) : nullptr,
+				              *output_exprs = 3 <= node.size()? node.at(2) : nullptr;
+				const size_t  input_count  = input_exprs?  input_exprs->size()  : 0;
+				const size_t  output_count = output_exprs? output_exprs->size() : 0;
 
 				if (isNaked() && (input_count != 0 || output_count != 0))
 					throw std::runtime_error("Can't supply inputs or outputs to asm nodes in a naked function");
@@ -351,21 +351,25 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				VarMap map;
 				std::map<std::string, ExprPtr> out_exprs;
 
-				size_t output_counter = 0;
-				for (const ASTNode *child: output_exprs) {
-					auto expr = ExprPtr(Expr::get(*child, this));
-					const std::string wasm_vreg = "$" + std::to_string(1 + input_count + output_counter++);
-					map.emplace(wasm_vreg, newVar());
-					out_exprs.emplace(wasm_vreg, expr);
+				if (output_exprs) {
+					size_t output_counter = 0;
+					for (const ASTNode *child: *output_exprs) {
+						auto expr = ExprPtr(Expr::get(*child, this));
+						const std::string wasm_vreg = "$" + std::to_string(1 + input_count + output_counter++);
+						map.emplace(wasm_vreg, newVar());
+						out_exprs.emplace(wasm_vreg, expr);
+					}
 				}
 
-				size_t input_counter = 0;
-				for (const ASTNode *child: input_exprs) {
-					auto expr = ExprPtr(Expr::get(*child, this));
-					const std::string wasm_vreg = "$" + std::to_string(1 + input_counter++);
-					VregPtr var = newVar();
-					expr->compile(var, *this, currentScope());
-					map.emplace(wasm_vreg, var);
+				if (input_exprs) {
+					size_t input_counter = 0;
+					for (const ASTNode *child: *input_exprs) {
+						auto expr = ExprPtr(Expr::get(*child, this));
+						const std::string wasm_vreg = "$" + std::to_string(1 + input_counter++);
+						VregPtr var = newVar();
+						expr->compile(var, *this, currentScope());
+						map.emplace(wasm_vreg, var);
+					}
 				}
 
 				for (ASTNode *child: *wasmParser.root)

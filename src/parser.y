@@ -143,7 +143,9 @@ statement: block
          | ";" { $1->symbol = CMM_EMPTY; }
          | inline_asm;
 
-inline_asm: "asm" "(" string ":" _exprlist ":" _exprlist ")" { $$ = $1->adopt({$3, $5, $7}); D($2, $4, $6, $8); };
+inline_asm: "asm" "(" string ":" _exprlist ":" _exprlist ")" { $$ = $1->adopt({$3, $5, $7}); D($2, $4, $6, $8); }
+          | "asm" "(" string ":" _exprlist ")" { $$ = $1->adopt({$3, $5}); D($2, $4, $6); }
+          | "asm" "(" string ")" { $$ = $1->adopt({$3}); D($2, $4); };
 
 declaration: ident ":" type { $$ = $2->adopt({$1, $3}); }
 definition:  ident ":" type "=" expr { $$ = $2->adopt({$1, $3, $5}); D($4); };
