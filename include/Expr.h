@@ -382,7 +382,7 @@ struct AccessExpr: Expr {
 	size_t getSize(ScopePtr scope) const override { return getType(scope)->getSize(); }
 	std::unique_ptr<Type> getType(ScopePtr) const override;
 	bool compileAddress(VregPtr, Function &, ScopePtr) override;
-	std::unique_ptr<ArrayType> check(ScopePtr);
+	std::unique_ptr<Type> check(ScopePtr);
 
 	private:
 		bool warned = false;

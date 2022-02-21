@@ -580,31 +580,25 @@ std::unique_ptr<Type> VariableExpr::getType(ScopePtr scope) const {
 void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	if (multiplier != 1)
 		throw std::invalid_argument("Cannot multiply in AddressOfExpr");
+
 	if (!destination)
 		return;
 
 	if (!subexpr->compileAddress(destination, function, scope))
 		throw LvalueError(*subexpr);
-
-	// if (auto *var_expr = subexpr->cast<VariableExpr>()) {
-	// 	if (auto var = scope->lookup(var_expr->name)) {
-	// 		if (auto global = std::dynamic_pointer_cast<Global>(var))
-	// 			function.add<SetIInstruction>(destination, global->name);
-	// 		else
-	// 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, var);
-	// 	} else
-	// 		throw ResolutionError(var_expr->name, scope);
-	// } else if (auto *access_expr = subexpr->cast<AccessExpr>()) { // TODO!
-	// } else
-	// 	throw LvalueError(*subexpr);
 }
 
 std::unique_ptr<Type> AddressOfExpr::getType(ScopePtr scope) const {
-	if (auto *var_exp = dynamic_cast<VariableExpr *>(subexpr.get())) {
-		auto subtype = var_exp->getType(scope);
-		return std::make_unique<PointerType>(subtype->copy());
+	std::unique_ptr<Type> out;
+	if (auto *var_expr = subexpr->cast<VariableExpr>()) {
+		out = var_expr->getType(scope);
+	} else if (auto *deref_expr = subexpr->cast<DerefExpr>()) {
+		out = deref_expr->getType(scope);
+	} else if (auto *access_expr = subexpr->cast<AccessExpr>()) {
+		out = access_expr->getType(scope);
 	} else
 		throw LvalueError(*subexpr);
+	return std::make_unique<PointerType>(out->copy());
 }
 
 void NotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
@@ -840,12 +834,15 @@ std::unique_ptr<Type> AccessExpr::getType(ScopePtr scope) const {
 	auto array_type = array->getType(scope);
 	if (auto *casted = array_type->cast<const ArrayType>())
 		return std::unique_ptr<Type>(casted->subtype->copy());
-	throw std::runtime_error("Can't get array access result type: array expression isn't an array type");
+	if (auto *casted = array_type->cast<const PointerType>())
+		return std::unique_ptr<Type>(casted->subtype->copy());
+	throw std::runtime_error("Can't get array access result type: array expression isn't an array or pointer type");
 }
 
 bool AccessExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
-	check(scope);
-	if (!array->compileAddress(destination, function, scope))
+	if (check(scope)->isPointer())
+		array->compile(destination, function, scope);
+	else if (!array->compileAddress(destination, function, scope))
 		throw LvalueError(std::string(*array->getType(scope)));
 	const auto element_size = getSize(scope);
 	const auto subscript_value = subscript->evaluate(scope);
@@ -862,11 +859,12 @@ bool AccessExpr::compileAddress(VregPtr destination, Function &function, ScopePt
 	return true;
 }
 
-std::unique_ptr<ArrayType> AccessExpr::check(ScopePtr scope) {
+std::unique_ptr<Type> AccessExpr::check(ScopePtr scope) {
 	auto type = array->getType(scope);
-	if (!type->isArray())
+	const bool is_array = type->isArray(), is_pointer = type->isPointer();
+	if (!is_array && !is_pointer)
 		throw NotArrayError(TypePtr(type->copy()));
-	if (!warned)
+	if (!warned && is_array)
 		if (const auto evaluated = subscript->evaluate(scope)) {
 			const auto array_count = type->cast<ArrayType>()->count;
 			if (*evaluated < 0 || ssize_t(array_count) <= *evaluated) {
@@ -875,7 +873,7 @@ std::unique_ptr<ArrayType> AccessExpr::check(ScopePtr scope) {
 				warned = true;
 			}
 		}
-	return std::unique_ptr<ArrayType>(type->copy()->cast<ArrayType>());
+	return std::unique_ptr<Type>(type->copy());
 }
 
 void LengthExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {

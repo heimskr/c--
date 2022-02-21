@@ -29,8 +29,12 @@ bool BoolType::operator&&(const Type &other) const {
 }
 
 bool PointerType::operator&&(const Type &other) const {
-	if (auto *other_pointer = dynamic_cast<const PointerType *>(&other))
-		return dynamic_cast<const VoidType *>(other_pointer->subtype) || (*subtype && *other_pointer->subtype);
+	if (auto *other_pointer = dynamic_cast<const PointerType *>(&other)) {
+		if (other_pointer->subtype->cast<VoidType>() || (*subtype && *other_pointer->subtype))
+			return true;
+		if (auto *subtype_array = subtype->cast<ArrayType>())
+			return *subtype_array->subtype && *other_pointer->subtype;
+	}
 	return false;
 }
 
