@@ -603,14 +603,14 @@ std::unique_ptr<Type> AddressOfExpr::getType(ScopePtr scope) const {
 
 void NotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	subexpr->compile(destination, function, scope);
-	function.add<NotInstruction>(destination, destination);
+	function.add<NotRInstruction>(destination, destination);
 	if (multiplier != 1)
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
 void LnotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	subexpr->compile(destination, function, scope);
-	function.add<LnotInstruction>(destination, destination);
+	function.add<LnotRInstruction>(destination, destination);
 	if (multiplier != 1)
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }

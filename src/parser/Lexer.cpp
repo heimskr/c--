@@ -9,6 +9,7 @@
 #include "Util.h"
 
 Lexer cmmLexer(cmmParser, cmmleng, cmmlval);
+Lexer wasmLexer(wasmParser, wasmleng, wasmlval);
 
 Lexer::Lexer(Parser &parser_, yysize &yyleng_ref, ASTNode *&yylval_ref):
 	parser(&parser_), leng(&yyleng_ref), lval(&yylval_ref) {}

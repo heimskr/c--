@@ -14,18 +14,23 @@ class Parser {
 		YY_BUFFER_STATE bufferState = nullptr;
 
 	public:
+		enum class Type {Cmm, Wasm};
+
 		ASTNode *root = nullptr;
 		int errorCount = 0;
+		Type type;
 
-		Parser() = default;
+		Parser(Type type_): type(type_) {}
 		void open(const std::string &filename);
 		void in(const std::string &text);
 		void debug(bool flex, bool bison);
 		void parse();
 		void done();
 
+		const char * getNameCMM(int symbol);
+		const char * getNameWASM(int symbol);
 		const char * getName(int symbol);
 		std::string getBuffer() const;
 };
 
-extern Parser cmmParser;
+extern Parser cmmParser, wasmParser;

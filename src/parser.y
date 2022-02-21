@@ -95,6 +95,7 @@ using AN = ASTNode;
 %token CMMTOK_MINUSEQ "-="
 %token CMMTOK_PLUSPLUS "++"
 %token CMMTOK_MINUSMINUS "--"
+%token CMMTOK_ASM "asm"
 
 %token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY CMM_POSTPLUS CMM_POSTMINUS
 
@@ -138,7 +139,10 @@ statement: block
          | "return" expr ";" { $$ = $1->adopt($2); D($3); }
          | "break" ";" { D($2); }
          | "continue" ";" { D($2); }
-         | ";" { $1->symbol = CMM_EMPTY; };
+         | ";" { $1->symbol = CMM_EMPTY; }
+         | inline_asm;
+
+inline_asm: "asm" "(" string ":" _exprlist ":" _exprlist ")";
 
 declaration: ident ":" type { $$ = $2->adopt({$1, $3}); }
 definition:  ident ":" type "=" expr { $$ = $2->adopt({$1, $3, $5}); D($4); };
@@ -235,6 +239,6 @@ ident:  CMMTOK_IDENT;
 
 #pragma GCC diagnostic pop
 
-const char * Parser::getName(int symbol) {
+const char * Parser::getNameCMM(int symbol) {
     return yytname[YYTRANSLATE(symbol)];
 }

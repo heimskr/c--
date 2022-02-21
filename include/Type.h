@@ -50,7 +50,7 @@ struct IntType: Type {
 		IntType(size_t width_): width(width_) {}
 };
 
-struct SignedType: IntType {
+struct SignedType: IntType, Makeable<SignedType> {
 	SignedType(size_t width_): IntType(width_) {}
 	Type * copy() const override { return new SignedType(width); }
 	bool isSigned(size_t width_) const override { return isNumber(width_); }
@@ -58,7 +58,7 @@ struct SignedType: IntType {
 	bool operator&&(const Type &) const override;
 };
 
-struct UnsignedType: IntType {
+struct UnsignedType: IntType, Makeable<UnsignedType> {
 	UnsignedType(size_t width_): IntType(width_) {}
 	Type * copy() const override { return new UnsignedType(width); }
 	bool isUnsigned(size_t width_) const override { return isNumber(width_); }

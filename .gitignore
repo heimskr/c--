@@ -5,5 +5,9 @@ src/bison.output
 include/bison.h
 src/flex.cpp
 src/bison.cpp
+src/wasmbison.output
+include/wasmbison.h
+src/wasmflex.cpp
+src/wasmbison.cpp
 .dep
 *.png

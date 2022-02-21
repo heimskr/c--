@@ -62,6 +62,8 @@ class ASTNode {
 		void debug(int indent = 0, bool is_last = false, bool suppress_line = false) const;
 		virtual std::string debugExtra() const;
 		virtual std::string style() const;
+		std::string extractName() const;
+		const std::string * extracted() const;
 
 		static void destroy(std::initializer_list<ASTNode *>);
 

@@ -48,8 +48,16 @@ void Parser::done() {
 	}
 }
 
+const char * Parser::getName(int symbol) {
+	switch (type) {
+		case Type::Cmm:  return getNameCMM(symbol);
+		case Type::Wasm: return getNameWASM(symbol);
+		default: throw std::runtime_error("Invalid parser type: " + std::to_string(int(type)));
+	}
+}
+
 std::string Parser::getBuffer() const {
 	return buffer? buffer : "";
 }
 
-Parser cmmParser;
+Parser cmmParser(Parser::Type::Cmm), wasmParser(Parser::Type::Wasm);

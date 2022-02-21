@@ -4,10 +4,11 @@
 #include "Variable.h"
 #include "Why.h"
 
-VirtualRegister::VirtualRegister(Function &function_):
-	function(&function_), id(function_.nextVariable++) {}
+VirtualRegister::VirtualRegister(Function &function_, std::shared_ptr<Type> type_):
+	function(&function_), id(function_.nextVariable++), type(type_) {}
 
-VirtualRegister::VirtualRegister(int id_): id(id_) {}
+VirtualRegister::VirtualRegister(int id_, std::shared_ptr<Type> type_):
+	id(id_), type(type_) {}
 
 std::shared_ptr<VirtualRegister> VirtualRegister::init() {
 	const auto ptr = shared_from_this();
@@ -27,10 +28,10 @@ bool VirtualRegister::special() const {
 }
 
 Variable::Variable(const std::string &name_, std::shared_ptr<Type> type_, Function &function_):
-	VirtualRegister(function_), name(name_), type(type_) {}
+	VirtualRegister(function_, type_), name(name_) {}
 
 Variable::Variable(const std::string &name_, std::shared_ptr<Type> type_):
-	VirtualRegister(-1), name(name_), type(type_) {}
+	VirtualRegister(-1, type_), name(name_) {}
 
 size_t Variable::getSize() const {
 	return type->getSize();

@@ -209,6 +209,17 @@ std::string ASTNode::style() const {
 	return "\e[1m";
 }
 
+std::string ASTNode::extractName() const {
+	if (parser == &wasmParser && symbol == WASMTOK_STRING)
+		return lexerInfo->substr(1, lexerInfo->size() - 2);
+	throw std::runtime_error("extractName() was called on an inappropriate symbol: " +
+		std::string(parser->getName(symbol)));
+}
+
+const std::string * ASTNode::extracted() const {
+	return StringSet::intern(extractName());
+}
+
 void ASTNode::destroy(std::initializer_list<ASTNode *> to_destroy) {
 	for (ASTNode *node: to_destroy) {
 		if (node)

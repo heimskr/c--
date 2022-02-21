@@ -10,8 +10,12 @@
 #define CMMSTYPE_IS_DECLARED
 typedef ASTNode * CMMSTYPE;
 
+#define WASMSTYPE_IS_DECLARED
+typedef ASTNode * WASMSTYPE;
+
 #ifndef NO_YYPARSE
 #include "bison.h"
+#include "wasmbison.h"
 #endif
 
 #ifdef __APPLE__
@@ -20,11 +24,11 @@ typedef size_t yysize;
 typedef int yysize;
 #endif
 
-extern FILE *cmmin;
-extern char *cmmtext;
-extern yysize cmmleng;
-extern int cmm_flex_debug;
-extern int cmmdebug;
+extern FILE *cmmin, *wasmin;
+extern char *cmmtext, *wasmtext;
+extern yysize cmmleng, wasmleng;
+extern int cmm_flex_debug, wasm_flex_debug;
+extern int cmmdebug, wasmdebug;
 
 class Parser;
 
@@ -50,10 +54,16 @@ class Lexer {
 		int token(const char *, int symbol);
 };
 
-extern Lexer cmmLexer;
+extern Lexer cmmLexer, wasmLexer;
 
 int cmmlex();
 int cmmlex_destroy();
 int cmmparse();
 void cmmerror(const std::string &);
 void cmmerror(const std::string &, const ASTLocation &);
+
+int wasmlex();
+int wasmlex_destroy();
+int wasmparse();
+void wasmerror(const std::string &);
+void wasmerror(const std::string &, const ASTLocation &);

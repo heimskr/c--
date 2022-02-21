@@ -151,8 +151,8 @@ std::set<int> Function::usedGPRegisters() const {
 	return out;
 }
 
-VregPtr Function::newVar() {
-	return std::make_shared<VirtualRegister>(*this)->init();
+VregPtr Function::newVar(TypePtr type) {
+	return std::make_shared<VirtualRegister>(*this, type)->init();
 }
 
 ScopePtr Function::newScope(int *id_out) {
@@ -225,7 +225,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			if (!(*condition_type && BoolType()))
 				throw ImplicitConversionError(condition_type, BoolType::make());
 			condition->compile(temp_var, *this, currentScope());
-			add<LogicalNotInstruction>(temp_var);
+			add<LnotRInstruction>(temp_var);
 			add<JumpConditionalInstruction>(end, temp_var);
 			auto scope = newScope();
 			scopeStack.push_back(scope);
@@ -250,7 +250,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			if (!(*condition_type && BoolType()))
 				throw ImplicitConversionError(condition_type, BoolType::make());
 			condition->compile(temp_var, *this, currentScope());
-			add<LogicalNotInstruction>(temp_var);
+			add<LnotRInstruction>(temp_var);
 			add<JumpConditionalInstruction>(end, temp_var);
 			compile(*node.at(3), end, next);
 			add<Label>(next);
@@ -284,7 +284,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			if (!(*condition_type && BoolType()))
 				throw ImplicitConversionError(condition_type, BoolType::make());
 			condition->compile(m0, *this, currentScope());
-			add<LogicalNotInstruction>(m0);
+			add<LnotRInstruction>(m0);
 			if (node.size() == 3) {
 				const std::string else_label = "." + name + "." + std::to_string(nextBlock) + "e";
 				add<JumpConditionalInstruction>(else_label, m0);

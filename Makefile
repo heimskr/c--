@@ -10,7 +10,12 @@ PARSERCPP       := src/bison.cpp
 PARSERHDR       := include/bison.h
 LEXERSRC        := src/lexer.l
 PARSERSRC       := src/parser.y
-FLEXPREFIX      := cmm
+
+WASMLEXERCPP        := src/wasmflex.cpp
+WASMPARSERCPP       := src/wasmbison.cpp
+WASMPARSERHDR       := include/wasmbison.h
+WASMLEXERSRC        := src/wasm.l
+WASMPARSERSRC       := src/wasm.y
 
 LEXFLAGS        := -Wno-sign-compare -Wno-register
 BISONFLAGS      := --color=always
@@ -18,7 +23,7 @@ BISONFLAGS      := --color=always
 SOURCES         := $(shell find src/**/*.cpp src/*.cpp) $(LEXERCPP) $(PARSERCPP)
 OBJECTS         := $(SOURCES:.cpp=.o)
 
-CLOC_OPTIONS    := --exclude-dir=.vscode,fixed_string --not-match-f='^(flex|bison|fixed_string)'
+CLOC_OPTIONS    := --exclude-dir=.vscode,fixed_string --not-match-f='^((wasm)?flex|(wasm)?bison|fixed_string)'
 
 .PHONY: all test clean
 
@@ -30,11 +35,13 @@ $(OUTPUT): $(OBJECTS)
 test: $(OUTPUT)
 	./$(OUTPUT) example.c--
 
-%.o: %.cpp $(PARSERHDR)
+%.o: %.cpp $(PARSERHDR) $(WASMPARSERHDR)
 	$(COMPILER) $(CFLAGS) -c $< -o $@
 
+
+
 $(LEXERCPP): $(LEXERSRC) $(PARSERHDR)
-	flex --prefix=$(FLEXPREFIX) --outfile=$(LEXERCPP) $(LEXERSRC)
+	flex --prefix=cmm --outfile=$(LEXERCPP) $(LEXERSRC)
 
 $(PARSERCPP) $(PARSERHDR): $(PARSERSRC)
 	bison $(BISONFLAGS) --defines=$(PARSERHDR) --output=$(PARSERCPP) $(PARSERSRC)
@@ -47,6 +54,25 @@ $(LEXERCPP:.cpp=.o): $(LEXERCPP)
 
 $(PARSERCPP:.cpp=.o): $(PARSERCPP) $(PARSERHDR)
 	$(COMPILER) $(CFLAGS) $(LEXFLAGS) -c $< -o $@
+
+
+
+$(WASMLEXERCPP): $(WASMLEXERSRC) $(WASMPARSERHDR)
+	flex --prefix=wasm --outfile=$(WASMLEXERCPP) $(WASMLEXERSRC)
+
+$(WASMPARSERCPP) $(WASMPARSERHDR): $(WASMPARSERSRC)
+	bison $(BISONFLAGS) --defines=$(WASMPARSERHDR) --output=$(WASMPARSERCPP) $<
+
+wcounter:
+	bison -Wcounterexamples $(BISONFLAGS) --defines=$(WASMPARSERHDR) --output=$(WASMPARSERCPP) $(WASMPARSERSRC)
+
+$(WASMLEXERCPP:.cpp=.o): $(WASMLEXERCPP)
+	$(COMPILER) $(CFLAGS) $(LEXFLAGS) -c $< -o $@
+
+$(WASMPARSERCPP:.cpp=.o): $(WASMPARSERCPP) $(WASMPARSERHDR)
+	$(COMPILER) $(CFLAGS) $(LEXFLAGS) -c $< -o $@
+
+
 
 clean:
 	rm -f $(LEXERCPP) $(PARSERCPP) $(PARSERHDR) src/*.o src/**/*.o $(OUTPUT) src/bison.output

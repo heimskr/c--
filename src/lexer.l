@@ -91,6 +91,7 @@ CMM_SLCOMMENT	("//"[^\n]*)
 "continue"		{RTOKEN(CONTINUE)}
 "for"			{RTOKEN(FOR)}
 "%"				{RTOKEN(MOD)}
+"asm"			{RTOKEN(ASM)}
 
 {CMM_CHAR}		{RTOKEN(CHAR)}
 {CMM_STRING}	{RTOKEN(STRING)}

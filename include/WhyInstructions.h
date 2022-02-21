@@ -3,6 +3,7 @@
 #include <climits>
 
 #include "Checkable.h"
+#include "Enums.h"
 #include "fixed_string.h"
 #include "Immediate.h"
 #include "Instruction.h"
@@ -312,6 +313,20 @@ struct LoadIInstruction: IType, SizedInstruction {
 	}
 };
 
+struct LoadIndirectIInstruction: IType, SizedInstruction {
+	LoadIndirectIInstruction(VregPtr destination_, const Immediate &imm_, size_t size_):
+		IType(nullptr, destination_, imm_), SizedInstruction(size_) {}
+	operator std::vector<std::string>() const override {
+		return {"[" + stringify(imm) + "] -> [" + destination->regOrID() + "]" + suffix()};
+	}
+	std::vector<std::string> colored() const override {
+		return {
+			"\e[2m[\e[22m" + stringify(imm, true) + "\e[2m] -> [\e[22m" + destination->regOrID(true) + "\e[2m]\e[22m" +
+				suffix(true)
+		};
+	}
+};
+
 struct LoadRInstruction: RType, SizedInstruction {
 	size_t size;
 	LoadRInstruction(VregPtr source_, VregPtr destination_, size_t size_):
@@ -322,6 +337,21 @@ struct LoadRInstruction: RType, SizedInstruction {
 	std::vector<std::string> colored() const override {
 		return {
 			"\e[2m[\e[22m" + leftSource->regOrID(true) + "\e[2m] ->\e[22m " + destination->regOrID(true) + suffix(true)
+		};
+	}
+};
+
+struct CopyRInstruction: RType, SizedInstruction {
+	size_t size;
+	CopyRInstruction(VregPtr source_, VregPtr destination_, size_t size_):
+		RType(source_, nullptr, destination_), SizedInstruction(size_) {}
+	operator std::vector<std::string>() const override {
+		return {"[" + leftSource->regOrID() + "] -> [" + destination->regOrID() + "]" + suffix()};
+	}
+	std::vector<std::string> colored() const override {
+		return {
+			"\e[2m[\e[22m" + leftSource->regOrID(true) + "\e[2m] -> [\e[22m" + destination->regOrID(true) +
+				"\e[2m]\e[22m" + suffix(true)
 		};
 	}
 };
@@ -503,17 +533,6 @@ struct JumpConditionalInstruction: JType {
 	}
 };
 
-struct LogicalNotInstruction: RType {
-	LogicalNotInstruction(VregPtr reg): RType(reg, nullptr, reg) {}
-	LogicalNotInstruction(VregPtr source_, VregPtr destination_): RType(source_, nullptr, destination_) {}
-	operator std::vector<std::string>() const override {
-		return {"!" + leftSource->regOrID() + " -> " + destination->regOrID()};
-	}
-	std::vector<std::string> colored() const override {
-		return {"\e[2m!\e[22m" + leftSource->regOrID(true) + o("->") + destination->regOrID(true)};
-	}
-};
-
 struct SextInstruction: RType {
 	public:
 		enum class SextType {Sext8, Sext16, Sext32};
@@ -567,20 +586,26 @@ struct BinaryRType: RType {
 	}
 };
 
-struct LtRInstruction:   BinaryRType<"<">  { using BinaryRType::BinaryRType; };
-struct LteRInstruction:  BinaryRType<"<="> { using BinaryRType::BinaryRType; };
-struct EqRInstruction:   BinaryRType<"=="> { using BinaryRType::BinaryRType; };
-struct NeqRInstruction:  BinaryRType<"!="> { using BinaryRType::BinaryRType; };
-struct AddRInstruction:  BinaryRType<"+">  { using BinaryRType::BinaryRType; };
-struct SubRInstruction:  BinaryRType<"-">  { using BinaryRType::BinaryRType; };
-struct AndRInstruction:  BinaryRType<"&">  { using BinaryRType::BinaryRType; };
-struct OrRInstruction:   BinaryRType<"|">  { using BinaryRType::BinaryRType; };
-struct XorRInstruction:  BinaryRType<"^">  { using BinaryRType::BinaryRType; };
-struct LandRInstruction: BinaryRType<"&&"> { using BinaryRType::BinaryRType; };
-struct LorRInstruction:  BinaryRType<"||"> { using BinaryRType::BinaryRType; };
-struct LxorRInstruction: BinaryRType<"^^"> { using BinaryRType::BinaryRType; };
-struct DivRInstruction:  BinaryRType<"/">  { using BinaryRType::BinaryRType; };
-struct ModRInstruction:  BinaryRType<"%">  { using BinaryRType::BinaryRType; };
+struct LtRInstruction:    BinaryRType<"<">   { using BinaryRType::BinaryRType; };
+struct LteRInstruction:   BinaryRType<"<=">  { using BinaryRType::BinaryRType; };
+struct EqRInstruction:    BinaryRType<"==">  { using BinaryRType::BinaryRType; };
+struct NeqRInstruction:   BinaryRType<"!=">  { using BinaryRType::BinaryRType; };
+struct AddRInstruction:   BinaryRType<"+">   { using BinaryRType::BinaryRType; };
+struct SubRInstruction:   BinaryRType<"-">   { using BinaryRType::BinaryRType; };
+struct AndRInstruction:   BinaryRType<"&">   { using BinaryRType::BinaryRType; };
+struct OrRInstruction:    BinaryRType<"|">   { using BinaryRType::BinaryRType; };
+struct XorRInstruction:   BinaryRType<"^">   { using BinaryRType::BinaryRType; };
+struct NandRInstruction:  BinaryRType<"~&">  { using BinaryRType::BinaryRType; };
+struct NorRInstruction:   BinaryRType<"~|">  { using BinaryRType::BinaryRType; };
+struct XnorRInstruction:  BinaryRType<"~^">  { using BinaryRType::BinaryRType; };
+struct LandRInstruction:  BinaryRType<"&&">  { using BinaryRType::BinaryRType; };
+struct LorRInstruction:   BinaryRType<"||">  { using BinaryRType::BinaryRType; };
+struct LxorRInstruction:  BinaryRType<"^^">  { using BinaryRType::BinaryRType; };
+struct LnandRInstruction: BinaryRType<"~&&"> { using BinaryRType::BinaryRType; };
+struct LnorRInstruction:  BinaryRType<"~||"> { using BinaryRType::BinaryRType; };
+struct LxnorRInstruction: BinaryRType<"~^^"> { using BinaryRType::BinaryRType; };
+struct DivRInstruction:   BinaryRType<"/">   { using BinaryRType::BinaryRType; };
+struct ModRInstruction:   BinaryRType<"%">   { using BinaryRType::BinaryRType; };
 struct ShiftLeftLogicalRInstruction:     BinaryRType<"<<">  { using BinaryRType::BinaryRType; };
 struct ShiftRightArithmeticRInstruction: BinaryRType<">>">  { using BinaryRType::BinaryRType; };
 struct ShiftRightLogicalRInstruction:    BinaryRType<">>>"> { using BinaryRType::BinaryRType; };
@@ -598,11 +623,25 @@ struct BinaryIType: IType {
 	}
 };
 
-struct AddIInstruction: BinaryIType<"+"> { using BinaryIType::BinaryIType; };
-struct SubIInstruction: BinaryIType<"-"> { using BinaryIType::BinaryIType; };
-struct AndIInstruction: BinaryIType<"&"> { using BinaryIType::BinaryIType; };
-struct DivIInstruction: BinaryIType<"/"> { using BinaryIType::BinaryIType; };
-struct ModIInstruction: BinaryIType<"%"> { using BinaryIType::BinaryIType; };
+struct AddIInstruction:   BinaryIType<"+">   { using BinaryIType::BinaryIType; };
+struct SubIInstruction:   BinaryIType<"-">   { using BinaryIType::BinaryIType; };
+struct AndIInstruction:   BinaryIType<"&">   { using BinaryIType::BinaryIType; };
+struct OrIInstruction:    BinaryIType<"|">   { using BinaryIType::BinaryIType; };
+struct XorIInstruction:   BinaryIType<"^">   { using BinaryIType::BinaryIType; };
+struct NandIInstruction:  BinaryIType<"~&">  { using BinaryIType::BinaryIType; };
+struct NorIInstruction:   BinaryIType<"~|">  { using BinaryIType::BinaryIType; };
+struct XnorIInstruction:  BinaryIType<"~^">  { using BinaryIType::BinaryIType; };
+struct LandIInstruction:  BinaryIType<"&&">  { using BinaryIType::BinaryIType; };
+struct LorIInstruction:   BinaryIType<"||">  { using BinaryIType::BinaryIType; };
+struct LxorIInstruction:  BinaryIType<"^^">  { using BinaryIType::BinaryIType; };
+struct LnandIInstruction: BinaryIType<"~&&"> { using BinaryIType::BinaryIType; };
+struct LnorIInstruction:  BinaryIType<"~||"> { using BinaryIType::BinaryIType; };
+struct LxnorIInstruction: BinaryIType<"~^^"> { using BinaryIType::BinaryIType; };
+struct DivIInstruction:   BinaryIType<"/">   { using BinaryIType::BinaryIType; };
+struct ModIInstruction:   BinaryIType<"%">   { using BinaryIType::BinaryIType; };
+struct ShiftLeftLogicalIInstruction:     BinaryIType<"<<">  { using BinaryIType::BinaryIType; };
+struct ShiftRightArithmeticIInstruction: BinaryIType<">>">  { using BinaryIType::BinaryIType; };
+struct ShiftRightLogicalIInstruction:    BinaryIType<">>>"> { using BinaryIType::BinaryIType; };
 
 template <fixstr::fixed_string O>
 struct InverseBinaryRType: RType {
@@ -637,8 +676,8 @@ struct UnaryRType: RType {
 	}
 };
 
-struct NotInstruction:  UnaryRType<'~'> { using UnaryRType::UnaryRType; };
-struct LnotInstruction: UnaryRType<'!'> { using UnaryRType::UnaryRType; };
+struct NotRInstruction:  UnaryRType<'~'> { using UnaryRType::UnaryRType; };
+struct LnotRInstruction: UnaryRType<'!'> { using UnaryRType::UnaryRType; };
 
 template <fixstr::fixed_string O>
 struct UnsignedBinaryRType: RType {
@@ -678,3 +717,91 @@ struct UnsignedBinaryIType: IType {
 
 struct DivuIInstruction: UnsignedBinaryIType<"/"> { using UnsignedBinaryIType::UnsignedBinaryIType; };
 struct ModuIInstruction: UnsignedBinaryIType<"%"> { using UnsignedBinaryIType::UnsignedBinaryIType; };
+
+/** Note that Why currently has no != instruction. */
+struct ComparisonInstruction {
+	Comparison comparison;
+	bool isUnsigned;
+
+	ComparisonInstruction(Comparison comparison_, bool is_unsigned): comparison(comparison_), isUnsigned(is_unsigned) {
+		if (comparison_ == Comparison::Neq)
+			throw std::invalid_argument("Comparison::Neq has no corresponding instruction");
+	}
+
+	std::string oper() const {
+		return comparison_map.at(comparison);
+	}
+
+	std::string suffix(bool colored = false) const {
+		return colored? (isUnsigned? " \e[2m/u\e[22m" : "") : (isUnsigned? " /u" : "");
+	}
+};
+
+/** $rs == (<=, <...) $rt -> $rd (/u) */
+struct ComparisonRInstruction: RType, ComparisonInstruction {
+	ComparisonRInstruction(VregPtr rs_, VregPtr rt_, VregPtr rd_, Comparison comparison_, bool is_unsigned):
+		RType(rs_, rt_, rd_), ComparisonInstruction(comparison_, is_unsigned) {}
+	operator std::vector<std::string>() const override {
+		return {
+			leftSource->regOrID() + " " + oper() + " " + rightSource->regOrID() + " -> " + destination->regOrID() +
+				suffix()
+		};
+	}
+	std::vector<std::string> colored() const override {
+		return {
+			leftSource->regOrID(true) + o(oper()) + rightSource->regOrID(true) + o("->") +
+				destination->regOrID(true) + suffix(true)
+		};
+	}
+};
+
+struct ComparisonIInstruction: IType, ComparisonInstruction {
+	ComparisonIInstruction(VregPtr rs_, VregPtr rd_, const Immediate &imm_, Comparison comparison_, bool is_unsigned):
+		IType(rs_, rd_, imm_), ComparisonInstruction(comparison_, is_unsigned) {}
+	operator std::vector<std::string>() const override {
+		return {
+			source->regOrID() + " " + oper() + " " + stringify(imm) + " -> " + destination->regOrID() + suffix()
+		};
+	}
+	std::vector<std::string> colored() const override {
+		return {
+			source->regOrID(true) + o(oper()) + stringify(imm, true) + o("->") +
+				destination->regOrID(true) + suffix(true)
+		};
+	}
+};
+
+struct MemsetInstruction: public RType {
+	using RType::RType;
+	operator std::vector<std::string>() const override {
+		return {
+			"memset " + leftSource->regOrID() + " x " + rightSource->regOrID() + " -> " + destination->regOrID()
+		};
+	}
+	std::vector<std::string> colored() const override {
+		return {
+			"\e[36mmemset\e[39m " + leftSource->regOrID(true) + " x " + rightSource->regOrID(true) + o("->") +
+				destination->regOrID(true)
+		};
+	}
+};
+
+struct CompareRInstruction: public RType {
+	CompareRInstruction(VregPtr rs_, VregPtr rt_): RType(rs_, rt_, nullptr) {}
+	operator std::vector<std::string>() const override {
+		return {leftSource->regOrID() + " ~ " + rightSource->regOrID()};
+	}
+	std::vector<std::string> colored() const override {
+		return {leftSource->regOrID(true) + " ~ " + rightSource->regOrID(true)};
+	}
+};
+
+struct CompareIInstruction: public RType {
+	CompareIInstruction(VregPtr rs_, const Immediate &imm_): IType(rs_, nullptr, imm_) {}
+	operator std::vector<std::string>() const override {
+		return {leftSource->regOrID() + " ~ " + stringify(imm))};
+	}
+	std::vector<std::string> colored() const override {
+		return {leftSource->regOrID(true) + " ~ " + stringify(imm, true)};
+	}
+};

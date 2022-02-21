@@ -19,9 +19,10 @@ struct VirtualRegister: Checkable, std::enable_shared_from_this<VirtualRegister>
 	int id;
 	int reg = -1;
 	bool precolored = false;
+	std::shared_ptr<Type> type;
 
-	VirtualRegister(Function &);
-	VirtualRegister(int id_);
+	VirtualRegister(Function &, std::shared_ptr<Type> = nullptr);
+	VirtualRegister(int id_, std::shared_ptr<Type> = nullptr);
 	std::shared_ptr<VirtualRegister> init();
 
 	std::string regOrID(bool colored = false) const;
@@ -35,7 +36,6 @@ struct VirtualRegister: Checkable, std::enable_shared_from_this<VirtualRegister>
 
 struct Variable: VirtualRegister, Makeable<Variable> {
 	std::string name;
-	std::shared_ptr<Type> type;
 	std::weak_ptr<Scope> scope; // ???
 
 	Variable(const std::string &name_, std::shared_ptr<Type>, Function &);
