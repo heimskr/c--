@@ -1,25 +1,25 @@
 #name "Short-Circuiting Test"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "1.0"
+#version "1.1"
 
 fn main(): void {
-	.s("foo() && bar()\n");
-	.bool(foo() && bar()); .c('\n');
-	.s("foo() || bar()\n");
-	.bool(foo() || bar()); .c('\n');
-	.s("bar() && foo()\n");
-	.bool(bar() && foo()); .c('\n');
-	.s("bar() || foo()\n");
-	.bool(bar() || foo()); .c('\n');
+	.s("true_() && false_()\n");
+	.bool(true_() && false_()); .c('\n');
+	.s("true_() || false_()\n");
+	.bool(true_() || false_()); .c('\n');
+	.s("false_() && true_()\n");
+	.bool(false_() && true_()); .c('\n');
+	.s("false_() || true_()\n");
+	.bool(false_() || true_()); .c('\n');
 }
 
-fn foo(): bool { // false
-	.s("foo()\n");
+fn false_(): bool { // false
+	.s("false_()\n");
 	return 20 < 10;
 }
 
-fn bar(): bool { // true
-	.s("bar()\n");
+fn true_(): bool { // true
+	.s("true_()\n");
 	return 10 < 20;
 }
