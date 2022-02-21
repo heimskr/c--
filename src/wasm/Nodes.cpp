@@ -64,13 +64,6 @@ static Immediate getImmediate(ASTNode *node) {
 		const std::string middle = node->lexerInfo->substr(1, node->lexerInfo->size() - 2);
 		if (middle.size() == 1)
 			return middle.front();
-		if (middle.front() != '\\') {
-			if (middle == "$(")
-				return '{';
-			if (middle == "$)")
-				return '}';
-			throw std::runtime_error("Invalid character literal: " + *node->lexerInfo);
-		}
 		size_t pos = middle.find_first_not_of("\\");
 		if (pos == std::string::npos)
 			return '\\';
@@ -80,6 +73,7 @@ static Immediate getImmediate(ASTNode *node) {
 			case 'a': return '\a';
 			case 't': return '\t';
 			case 'b': return '\b';
+			case '\'': return '\'';
 			default:  throw std::runtime_error("Invalid character literal: " + *node->lexerInfo);
 		}
 	}

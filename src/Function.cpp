@@ -332,7 +332,8 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 		}
 		case CMMTOK_ASM: {
 			wasmParser.errorCount = 0;
-			const std::string wasm_source = node.front()->extractName();
+			const std::string wasm_source = node.front()->unquote();
+			wasmLexer.location = {0, 0};
 			wasmParser.in(wasm_source);
 			wasmParser.debug(false, false);
 			wasmParser.parse();
