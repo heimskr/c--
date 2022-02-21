@@ -24,11 +24,13 @@ int main(int argc, char **argv) {
 	cmmParser.debug(false, false);
 	cmmParser.parse();
 
-	Program program = compileRoot(*cmmParser.root);
-	program.compile();
+	if (cmmParser.errorCount == 0) {
+		Program program = compileRoot(*cmmParser.root);
+		program.compile();
 
-	for (const std::string &line: program.lines)
-		std::cout << line << '\n';
+		for (const std::string &line: program.lines)
+			std::cout << line << '\n';
+	}
 
 	cmmParser.done();
 }
