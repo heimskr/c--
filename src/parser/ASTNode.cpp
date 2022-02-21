@@ -210,7 +210,7 @@ std::string ASTNode::style() const {
 }
 
 std::string ASTNode::extractName() const {
-	if (parser == &wasmParser && symbol == WASMTOK_STRING)
+	if ((parser == &wasmParser && symbol == WASMTOK_STRING) || (parser == &cmmParser && symbol == CMMTOK_STRING))
 		return lexerInfo->substr(1, lexerInfo->size() - 2);
 	throw std::runtime_error("extractName() was called on an inappropriate symbol: " +
 		std::string(parser->getName(symbol)));
