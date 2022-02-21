@@ -33,12 +33,10 @@ $(OUTPUT): $(OBJECTS)
 	$(COMPILER) -o $@ $^ $(LDFLAGS)
 
 test: $(OUTPUT)
-	./$(OUTPUT) example.c--
+	./$(OUTPUT) asm.c--
 
 %.o: %.cpp $(PARSERHDR) $(WASMPARSERHDR)
 	$(COMPILER) $(CFLAGS) -c $< -o $@
-
-
 
 $(LEXERCPP): $(LEXERSRC) $(PARSERHDR)
 	flex --prefix=cmm --outfile=$(LEXERCPP) $(LEXERSRC)
@@ -55,8 +53,6 @@ $(LEXERCPP:.cpp=.o): $(LEXERCPP)
 $(PARSERCPP:.cpp=.o): $(PARSERCPP) $(PARSERHDR)
 	$(COMPILER) $(CFLAGS) $(LEXFLAGS) -c $< -o $@
 
-
-
 $(WASMLEXERCPP): $(WASMLEXERSRC) $(WASMPARSERHDR)
 	flex --prefix=wasm --outfile=$(WASMLEXERCPP) $(WASMLEXERSRC)
 
@@ -71,8 +67,6 @@ $(WASMLEXERCPP:.cpp=.o): $(WASMLEXERCPP)
 
 $(WASMPARSERCPP:.cpp=.o): $(WASMPARSERCPP) $(WASMPARSERHDR)
 	$(COMPILER) $(CFLAGS) $(LEXFLAGS) -c $< -o $@
-
-
 
 clean:
 	rm -f $(LEXERCPP) $(PARSERCPP) $(PARSERHDR) src/*.o src/**/*.o $(OUTPUT) src/bison.output
