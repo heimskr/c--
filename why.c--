@@ -1,18 +1,21 @@
 #name "Why ISA Tests"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "1.0"
+#version "2.0"
 
 table: void*[8];
+delay: s64 = 100000;
 
 fn main(): void {
 	// g: s64;
 	// asm("$g -> $1"::g);
 	// .s64(g); .c('\n');
-	keybrd_ptr: void*;
-	asm("int_keybrd -> $1"::keybrd_ptr);
+	keybrd_ptr: void*; asm("int_keybrd -> $1"::keybrd_ptr);
+	timer_ptr:  void*; asm("int_timer  -> $1"::timer_ptr);
+	table[2] = timer_ptr;
 	table[7] = keybrd_ptr;
 	asm("%rit table"::);
+	asm("%time $1":delay:);
 	while true {
 		asm("<rest>"::);
 	}
@@ -23,11 +26,29 @@ fn int_keybrd(): void {
 	asm("$e2 -> $1"::key);
 	// .s("Key: "); asm("<prx $1>":key:); .c('\n');
 	if key == 'a' {
-		.s("You pressed a :)\n");
+		.s("You pressed 'a' :)\n");
 	} else {
-		.s("You pressed '");
-		asm("<prc $1>":key:);
-		.c('\''); .c('\n');
+		if key == '=' {
+			delay = delay * 11 / 10;
+			.s("Delay: "); .s64(delay); .c('\n');
+		} else {
+			if key == '-' {
+				delay = delay * 10 / 11;
+				.s("Delay: "); .s64(delay); .c('\n');
+			} else {
+				if key == '\n' {
+					asm("%time $1":delay:);
+				} else {
+					.s("You pressed '"); .c(key); .c('\''); .c('\n');
+				}
+			}
+		}
 	}
+	asm(": ] %page $e0"::);
+}
+
+fn int_timer(): void {
+	.s("Time's up\n");
+	asm("%time $1":delay:);
 	asm(": ] %page $e0"::);
 }
