@@ -1,25 +1,25 @@
 #name "Short-Circuiting Test"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "1.1"
+#version "1.2"
 
 fn main(): void {
-	.s("true_() && false_()\n");
+	.s("true && false\n");
 	.bool(true_() && false_()); .c('\n');
-	.s("true_() || false_()\n");
+	.s("true || false\n");
 	.bool(true_() || false_()); .c('\n');
-	.s("false_() && true_()\n");
+	.s("false && true\n");
 	.bool(false_() && true_()); .c('\n');
-	.s("false_() || true_()\n");
+	.s("false || true\n");
 	.bool(false_() || true_()); .c('\n');
 }
 
 fn false_(): bool { // false
-	.s("false_()\n");
+	.s("false\n");
 	return 20 < 10;
 }
 
 fn true_(): bool { // true
-	.s("true_()\n");
+	.s("true\n");
 	return 10 < 20;
 }
