@@ -20,6 +20,9 @@ struct Type: Checkable, std::enable_shared_from_this<Type> {
 	virtual size_t getSize() const = 0; // in bytes
 	/** Returns whether this type can be implicitly converted to the given type. Order matters! */
 	virtual bool operator&&(const Type &) const { return false; }
+	/** Returns whether this type is identical to the given type. Order shouldn't matter. */
+	virtual bool operator==(const Type &) const { return false; }
+	virtual bool operator!=(const Type &other) const { return !(*this == other); }
 	virtual bool isInt()  const { return false; }
 	virtual bool isVoid() const { return false; }
 	virtual bool isBool() const { return false; }
@@ -37,6 +40,8 @@ struct Type: Checkable, std::enable_shared_from_this<Type> {
 		return std::dynamic_pointer_cast<const T>(shared_from_this());
 	}
 };
+
+using TypePtr = std::shared_ptr<Type>;
 
 std::ostream & operator<<(std::ostream &, const Type &);
 
@@ -56,6 +61,7 @@ struct SignedType: IntType, Makeable<SignedType> {
 	bool isSigned(size_t width_) const override { return isNumber(width_); }
 	operator std::string() const override { return "s" + std::to_string(width); }
 	bool operator&&(const Type &) const override;
+	bool operator==(const Type &) const override;
 };
 
 struct UnsignedType: IntType, Makeable<UnsignedType> {
@@ -64,6 +70,7 @@ struct UnsignedType: IntType, Makeable<UnsignedType> {
 	bool isUnsigned(size_t width_) const override { return isNumber(width_); }
 	operator std::string() const override { return "u" + std::to_string(width); }
 	bool operator&&(const Type &) const override;
+	bool operator==(const Type &) const override;
 };
 
 struct VoidType: Type, Makeable<VoidType> {
@@ -71,6 +78,7 @@ struct VoidType: Type, Makeable<VoidType> {
 	operator std::string() const override { return "void"; }
 	size_t getSize() const override { return 0; }
 	bool operator&&(const Type &other) const override { return other.isVoid(); }
+	bool operator==(const Type &other) const override { return other.isVoid(); }
 	bool isVoid() const override { return true; }
 };
 
@@ -78,7 +86,8 @@ struct BoolType: Type, Makeable<BoolType> {
 	Type * copy() const override { return new BoolType; }
 	operator std::string() const override { return "bool"; }
 	size_t getSize() const override { return 1; }
-	bool operator&&(const Type &) const override;
+	bool operator&&(const Type &other) const override { return other.isBool(); }
+	bool operator==(const Type &other) const override { return other.isBool(); }
 	bool isBool() const override { return true; }
 };
 
@@ -95,6 +104,7 @@ struct PointerType: SuperType {
 	operator std::string() const override { return subtype? std::string(*subtype) + "*" : "???*"; }
 	size_t getSize() const override { return 8; }
 	bool operator&&(const Type &) const override;
+	bool operator==(const Type &) const override;
 	bool isPointer() const override { return true; }
 };
 
@@ -107,7 +117,21 @@ struct ArrayType: SuperType {
 	}
 	size_t getSize() const override { return subtype? subtype->getSize() * count : 0; }
 	bool operator&&(const Type &) const override;
+	bool operator==(const Type &) const override;
 	bool isArray() const override { return true; }
 };
 
-using TypePtr = std::shared_ptr<Type>;
+/** Owns all its subtypes. */
+struct FunctionPointerType: Type {
+	Type *returnType;
+	std::vector<Type *> argumentTypes;
+	FunctionPointerType(Type *return_type, std::vector<Type *> &&argument_types);
+	FunctionPointerType(const FunctionPointerType &) = delete;
+	FunctionPointerType & operator=(const FunctionPointerType &) = delete;
+	~FunctionPointerType();
+	Type * copy() const override;
+	operator std::string() const override;
+	size_t getSize() const override { return 8; }
+	bool operator&&(const Type &) const override;
+	bool operator==(const Type &) const override;
+};
