@@ -155,8 +155,8 @@ block: "{" statements "}" { $$ = $2; D($1, $3); };
 statements: statements statement { $$ = $1->adopt($2); }
           | { $$ = new ASTNode(cmmParser, CMM_BLOCK); };
 
-conditional: "if" expr block "else" block { $$ = $1->adopt({$2, $3, $5}); D($4); }
-           | "if" expr block { $$ = $1->adopt({$2, $3}); };
+conditional: "if" "(" expr ")" statement "else" statement { $$ = $1->adopt({$3, $5, $7}); D($2, $4, $6); }
+           | "if" "(" expr ")" statement { $$ = $1->adopt({$3, $5}); D($2, $4); };
 
 while_loop: "while" expr block { $$ = $1->adopt({$2, $3}); };
 

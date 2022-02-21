@@ -25,24 +25,18 @@ fn int_keybrd(): void {
 	key: u8;
 	asm("$e2 -> $1"::key);
 	// .s("Key: "); asm("<prx $1>":key:); .c('\n');
-	if key == 'a' {
+	if (key == 'a') {
 		.s("You pressed 'a' :)\n");
+	} else if (key == '=') {
+		delay = delay * 11 / 10;
+		.s("Delay: "); .s64(delay); .c('\n');
+	} else if (key == '-') {
+		delay = delay * 10 / 11;
+		.s("Delay: "); .s64(delay); .c('\n');
+	} else if (key == '\n') {
+		asm("%time $1":delay:);
 	} else {
-		if key == '=' {
-			delay = delay * 11 / 10;
-			.s("Delay: "); .s64(delay); .c('\n');
-		} else {
-			if key == '-' {
-				delay = delay * 10 / 11;
-				.s("Delay: "); .s64(delay); .c('\n');
-			} else {
-				if key == '\n' {
-					asm("%time $1":delay:);
-				} else {
-					.s("You pressed '"); .c(key); .c('\''); .c('\n');
-				}
-			}
-		}
+		.s("You pressed '"); .c(key); .c('\''); .c('\n');
 	}
 	asm(": ] %page $e0"::);
 }

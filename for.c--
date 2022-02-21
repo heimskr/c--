@@ -5,17 +5,15 @@
 
 fn main(): void {
 	for i: s64 = 0; i < 50; ++i {
-		if i % 3 == 0 {
+		if (i % 3 == 0)
 			continue;
-		}
 		.s64(i);
 		for j: s64 = 0;; {
 			.c('.');
-			if ++j == i { break; }
+			if (++j == i) break;
 		}
 		.c('\n');
-		if i == 42 {
+		if (i == 42)
 			break;
-		}
 	}
 }

@@ -75,7 +75,7 @@ fn main(argc: u32): void {
 fn scope_test(): s32 {
 	n: s32 = 42;
 	.s("Function-scope n = "); .s32(n); l();
-	if true {
+	if (true) {
 		n: u64 = (u64) -1s64;
 		.s("Block-scope n = "); .u64(n); l();
 		{{{ n = 64; }}}
@@ -104,20 +104,18 @@ fn forever(): void {
 }
 
 fn badfib(x: s64): s64 {
-	if x < 2 {
+	if (x < 2)
 		return 1;
-	} else {
+	else
 		return badfib(x - 2) + badfib(x - 1);
-	}
 }
 
 fn conditional(): s64 {
-	if true {
-		if false {
+	if (true) {
+		if (false)
 			return 1;
-		} else {
+		else
 			return 2;
-		}
 	}
 	return 3;
 }
