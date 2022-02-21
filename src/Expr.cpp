@@ -181,6 +181,12 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
+		case CMMTOK_QUESTION:
+			out = new TernaryExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(2), function)));
+			break;
 		default:
 			throw std::invalid_argument("Unrecognized symbol in Expr::get: " +
 				std::string(cmmParser.getName(node.symbol)));
@@ -878,4 +884,26 @@ void LengthExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 		function.add<SetIInstruction>(destination, array->count * multiplier);
 	else
 		throw NotArrayError(type);
+}
+
+void TernaryExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
+	const std::string base = "." + function.name + "." + std::to_string(function.getNextBlock());
+	const std::string true_label = base + "t", end = base + "e";
+	condition->compile(destination, function, scope);
+	function.add<JumpConditionalInstruction>(true_label, destination, false);
+	ifFalse->compile(destination, function, scope, multiplier);
+	function.add<JumpInstruction>(end);
+	function.add<Label>(true_label);
+	ifTrue->compile(destination, function, scope, multiplier);
+	function.add<Label>(end);
+}
+
+std::unique_ptr<Type> TernaryExpr::getType(ScopePtr scope) const {
+	auto condition_type = condition->getType(scope);
+	if (!(*condition_type && BoolType()))
+		throw ImplicitConversionError(*condition_type, BoolType());
+	auto true_type = ifTrue->getType(scope), false_type = ifFalse->getType(scope);
+	if (!(*true_type && *false_type) || !(*false_type && *true_type))
+		throw ImplicitConversionError(*false_type, *true_type);
+	return true_type;
 }

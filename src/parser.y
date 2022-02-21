@@ -186,6 +186,7 @@ expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
     | "!" expr { $$ = $1->adopt($2); }
     | "~" expr { $$ = $1->adopt($2); }
     | "#" expr { $$ = $1->adopt($2); }
+    | expr "?" expr ":" expr %prec "?" { $$ = $2->adopt({$1, $3, $5}); D($4); }
     | number
     | "-" number %prec UNARY   { $$ = $2->adopt($1); }
     | "&" expr   %prec ADDROF  { $$ = $1->adopt($2); $$->symbol = CMM_ADDROF; }
