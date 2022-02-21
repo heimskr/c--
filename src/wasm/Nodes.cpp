@@ -243,55 +243,57 @@ std::unique_ptr<WhyInstruction> INode::convert(Function &function, VarMap &map) 
 
 	switch (operToken) {
 		case WASMTOK_PERCENT:
-			if (isUnsigned) return std::make_unique<ModuIInstruction>(conv(rs), imm, conv(rd));
-			return std::make_unique<ModIInstruction>(conv(rs), imm, conv(rd));
+			if (isUnsigned)
+				return std::make_unique<ModuIInstruction>(conv(rs), conv(rd), imm);
+			return std::make_unique<ModIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_SLASH:
-			if (isUnsigned) return std::make_unique<DivuIInstruction>(conv(rs), imm, conv(rd));
-			return std::make_unique<DivIInstruction>(conv(rs), imm, conv(rd));
+			if (isUnsigned)
+				return std::make_unique<DivuIInstruction>(conv(rs), conv(rd), imm);
+			return std::make_unique<DivIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_LANGLE:
-			return std::make_unique<ComparisonIInstruction>(conv(rs), imm, conv(rd), Comparison::Lt, isUnsigned);
+			return std::make_unique<ComparisonIInstruction>(conv(rs), conv(rd), imm, Comparison::Lt, isUnsigned);
 		case WASMTOK_LEQ:
-			return std::make_unique<ComparisonIInstruction>(conv(rs), imm, conv(rd), Comparison::Lte, isUnsigned);
+			return std::make_unique<ComparisonIInstruction>(conv(rs), conv(rd), imm, Comparison::Lte, isUnsigned);
 		case WASMTOK_DEQ:
-			return std::make_unique<ComparisonIInstruction>(conv(rs), imm, conv(rd), Comparison::Eq, isUnsigned);
+			return std::make_unique<ComparisonIInstruction>(conv(rs), conv(rd), imm, Comparison::Eq, isUnsigned);
 		case WASMTOK_RANGLE:
-			return std::make_unique<ComparisonIInstruction>(conv(rs), imm, conv(rd), Comparison::Gt, isUnsigned);
+			return std::make_unique<ComparisonIInstruction>(conv(rs), conv(rd), imm, Comparison::Gt, isUnsigned);
 		case WASMTOK_GEQ:
-			return std::make_unique<ComparisonIInstruction>(conv(rs), imm, conv(rd), Comparison::Gte, isUnsigned);
+			return std::make_unique<ComparisonIInstruction>(conv(rs), conv(rd), imm, Comparison::Gte, isUnsigned);
 		case WASMTOK_AND:
-			return std::make_unique<AndIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<AndIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_OR:
-			return std::make_unique<OrIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<OrIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_X:
-			return std::make_unique<XorIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<XorIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_NAND:
-			return std::make_unique<NandIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<NandIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_NOR:
-			return std::make_unique<NorIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<NorIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_XNOR:
-			return std::make_unique<XnorIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<XnorIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_LAND:
-			return std::make_unique<LandIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<LandIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_LOR:
-			return std::make_unique<LorIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<LorIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_LXOR:
-			return std::make_unique<LxorIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<LxorIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_LNAND:
-			return std::make_unique<LnandIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<LnandIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_LNOR:
-			return std::make_unique<LnorIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<LnorIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_LXNOR:
-			return std::make_unique<LxnorIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<LxnorIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_PLUS:
-			return std::make_unique<AddIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<AddIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_MINUS:
-			return std::make_unique<SubIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<SubIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_LL:
-			return std::make_unique<ShiftLeftLogicalIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<ShiftLeftLogicalIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_RL:
-			return std::make_unique<ShiftRightLogicalIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<ShiftRightLogicalIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_RA:
-			return std::make_unique<ShiftRightArithmeticIInstruction>(conv(rs), imm, conv(rd));
+			return std::make_unique<ShiftRightArithmeticIInstruction>(conv(rs), conv(rd), imm);
 		default:
 			throw std::invalid_argument("Unknown operator in INode::convert: " + *oper);
 	}
@@ -388,7 +390,7 @@ WASMLiNode::operator std::string() const {
 }
 
 std::unique_ptr<WhyInstruction> WASMLiNode::convert(Function &function, VarMap &map) {
-	return std::make_unique<LoadIInstruction>(imm, convertVariable(function, map, rd), isByte? 1 : 8);
+	return std::make_unique<LoadIInstruction>(convertVariable(function, map, rd), imm, isByte? 1 : 8);
 }
 
 WASMSiNode::WASMSiNode(ASTNode *rs_, ASTNode *imm_, ASTNode *byte_):
@@ -424,7 +426,7 @@ WASMLniNode::operator std::string() const {
 }
 
 std::unique_ptr<WhyInstruction> WASMLniNode::convert(Function &function, VarMap &map) {
-	return std::make_unique<LoadIndirectIInstruction>(imm, convertVariable(function, map, rd), isByte? 1 : 8);
+	return std::make_unique<LoadIndirectIInstruction>(convertVariable(function, map, rd), imm, isByte? 1 : 8);
 }
 
 WASMHalfMemoryNode::WASMHalfMemoryNode(int sym, ASTNode *rs_, ASTNode *rd_):

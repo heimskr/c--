@@ -458,14 +458,29 @@ struct SizedStackPopInstruction: IType {
 	}
 };
 
-struct JumpInstruction: JType {
-	JumpInstruction(const Immediate &addr, bool link_ = false): JType(addr, link_) {}
+struct Conditional {
+	Condition condition;
+	Conditional(Condition condition_): condition(condition_) {}
+	std::string conditionPrefix() const {
+		switch (condition) {
+			case Condition::Zero:     return "0";
+			case Condition::Negative: return "-";
+			case Condition::Positive: return "+";
+			case Condition::Nonzero:  return "*";
+			default: return "";
+		}
+	}
+};
+
+struct JumpInstruction: JType, Conditional {
+	JumpInstruction(const Immediate &addr, bool link_ = false, Condition condition_ = Condition::None):
+		JType(addr, link_), Conditional(condition_) {}
 	bool isTerminal() const override { return !link; }
 	operator std::vector<std::string>() const override {
-		return {std::string(link? "::" : ":") + " " + stringify(imm)};
+		return {conditionPrefix() + std::string(link? "::" : ":") + " " + stringify(imm)};
 	}
 	std::vector<std::string> colored() const override {
-		return {"\e[1;2m" + std::string(link? "::" : ":") + "\e[22m " + stringify(imm, true)};
+		return {"\e[1;2m" + conditionPrefix() + std::string(link? "::" : ":") + "\e[22m " + stringify(imm, true)};
 	}
 };
 
@@ -1028,5 +1043,30 @@ struct InterruptsInstruction: RType {
 	}
 	std::vector<std::string> colored() const override {
 		return {"\e[34m" + std::string(enable? "%ei" : "%di") + "\e[39m"};
+	}
+};
+
+struct TranslateAddressRInstruction: RType {
+	TranslateAddressRInstruction(VregPtr rs_, VregPtr rd_): RType(rs_, nullptr, rd_) {}
+	operator std::vector<std::string>() const override {
+		return {"translate " + leftSource->regOrID() + " -> " + destination->regOrID()};
+	}
+	std::vector<std::string> colored() const override {
+		return {"translate " + leftSource->regOrID(true) + o("->") + destination->regOrID(true)};
+	}
+};
+
+struct PageStackInstruction: RType {
+	bool isPush;
+	PageStackInstruction(bool is_push, VregPtr rs_): RType(rs_, nullptr, nullptr), isPush(is_push) {}
+	operator std::vector<std::string>() const override {
+		if (!leftSource)
+			return {std::string(isPush? "[" : "]") + " %page"};
+		return {": " + std::string(isPush? "[" : "]") + " %page " + leftSource->regOrID()};
+	}
+	std::vector<std::string> colored() const override {
+		if (!leftSource)
+			return {"\e[2m" + std::string(isPush? "[" : "]") + "\e[22m \e[34m%page\e[39m"};
+		return {"\e[2m: " + std::string(isPush? "[" : "]") + "\e[22m \e[34m%page\e[39m " + leftSource->regOrID(true)};
 	}
 };
