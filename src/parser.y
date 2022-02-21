@@ -96,6 +96,7 @@ using AN = ASTNode;
 %token CMMTOK_PLUSPLUS "++"
 %token CMMTOK_MINUSMINUS "--"
 %token CMMTOK_ASM "asm"
+%token CMMTOK_NAKED "#naked"
 
 %token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY CMM_POSTPLUS CMM_POSTMINUS
 
@@ -148,7 +149,12 @@ declaration: ident ":" type { $$ = $2->adopt({$1, $3}); }
 definition:  ident ":" type "=" expr { $$ = $2->adopt({$1, $3, $5}); D($4); };
 decl_or_def: declaration | definition;
 
-function_def: "fn" ident "(" _arglist ")" ":" type block { $$ = $1->adopt({$2, $7, $4, $8}); D($3, $5, $6); }
+function_def: "fn" ident "(" _arglist ")" ":" type fnattrs block { $$ = $1->adopt({$2, $7, $4, $8, $9}); D($3, $5, $6); }
+
+fnattrs: fnattrs fnattr { $$ = $1->adopt($2); }
+       | { $$ = new ASTNode(cmmParser, CMM_LIST); };
+
+fnattr: "#naked";
 
 block: "{" statements "}" { $$ = $2; D($1, $3); };
 

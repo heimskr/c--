@@ -98,46 +98,60 @@ void Function::compile() {
 		if (!source)
 			throw std::runtime_error("Can't compile " + name + ": no source node");
 
-		if (source->size() != 4)
-			throw std::runtime_error("Expected 4 nodes in " + name + "'s source node, found " +
+		if (source->size() != 5)
+			throw std::runtime_error("Expected 5 nodes in " + name + "'s source node, found " +
 				std::to_string(source->size()));
 
 		for (const ASTNode *child: *source->at(3))
+			switch (child->symbol) {
+				case CMMTOK_NAKED:
+					attributes.insert(Attribute::Naked);
+					break;
+				default:
+					throw std::runtime_error("Invalid fnattr: " + *child->lexerInfo);
+			}
+
+		if (attributes.count(Attribute::Naked) != 0)
+			info() << name << " is a naked function\n";
+
+		for (const ASTNode *child: *source->at(4))
 			compile(*child);
 	}
 
-	extractBlocks();
-	split();
-	updateVregs();
-	makeCFG();
-	computeLiveness();
-	ColoringAllocator allocator(*this);
-	Allocator::Result result;
-	do
-		result = allocator.attempt();
-	while (result != Allocator::Result::Success);
+	if (!isNaked()) {
+		extractBlocks();
+		split();
+		updateVregs();
+		makeCFG();
+		computeLiveness();
+		ColoringAllocator allocator(*this);
+		Allocator::Result result;
+		do
+			result = allocator.attempt();
+		while (result != Allocator::Result::Success);
 
-	auto rt = precolored(Why::returnAddressOffset);
+		auto rt = precolored(Why::returnAddressOffset);
 
-	if (!is_init) {
-		auto gp_regs = usedGPRegisters();
-		auto fp = precolored(Why::framePointerOffset), sp = precolored(Why::stackPointerOffset);
-		if (stackUsage != 0)
-			addFront<SubIInstruction>(sp, sp, stackUsage);
-		addFront<MoveInstruction>(sp, fp);
-		for (int reg: gp_regs)
-			addFront<StackPushInstruction>(precolored(reg));
-		addFront<StackPushInstruction>(fp);
-		addFront<StackPushInstruction>(rt);
-		add<Label>("." + name + ".e");
-		add<MoveInstruction>(fp, sp);
-		for (int reg: gp_regs)
-			add<StackPopInstruction>(precolored(reg));
-		add<StackPopInstruction>(fp);
-		add<StackPopInstruction>(rt);
+		if (!is_init) {
+			auto gp_regs = usedGPRegisters();
+			auto fp = precolored(Why::framePointerOffset), sp = precolored(Why::stackPointerOffset);
+			if (stackUsage != 0)
+				addFront<SubIInstruction>(sp, sp, stackUsage);
+			addFront<MoveInstruction>(sp, fp);
+			for (int reg: gp_regs)
+				addFront<StackPushInstruction>(precolored(reg));
+			addFront<StackPushInstruction>(fp);
+			addFront<StackPushInstruction>(rt);
+			add<Label>("." + name + ".e");
+			add<MoveInstruction>(fp, sp);
+			for (int reg: gp_regs)
+				add<StackPopInstruction>(precolored(reg));
+			add<StackPopInstruction>(fp);
+			add<StackPopInstruction>(rt);
+		}
+
+		add<JumpRegisterInstruction>(rt, false);
 	}
-
-	add<JumpRegisterInstruction>(rt, false);
 }
 
 std::set<int> Function::usedGPRegisters() const {
@@ -183,6 +197,7 @@ size_t Function::addToStack(VariablePtr variable) {
 void Function::compile(const ASTNode &node, const std::string &break_label, const std::string &continue_label) {
 	switch (node.symbol) {
 		case CMMTOK_COLON: {
+			checkNaked(node);
 			const std::string &var_name = *node.front()->lexerInfo;
 			if (currentScope()->doesConflict(var_name))
 				throw NameConflictError(var_name, node.front()->location);
@@ -206,6 +221,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			break;
 		}
 		case CMMTOK_RETURN: {
+			checkNaked(node);
 			auto expr = ExprPtr(Expr::get(*node.front(), this));
 			auto r0 = precolored(Why::returnValueOffset);
 			expr->compile(r0, *this, currentScope());
@@ -215,9 +231,11 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			break;
 		}
 		case CMMTOK_LPAREN:
+			checkNaked(node);
 			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, currentScope());
 			break;
 		case CMMTOK_WHILE: {
+			checkNaked(node);
 			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
 			const std::string label = "." + name + "." + std::to_string(++nextBlock);
 			const std::string start = label + "s", end = label + "e";
@@ -238,6 +256,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			break;
 		}
 		case CMMTOK_FOR: {
+			checkNaked(node);
 			auto scope = newScope();
 			scopeStack.push_back(scope);
 
@@ -263,11 +282,13 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			break;
 		}
 		case CMMTOK_CONTINUE:
+			checkNaked(node);
 			if (continue_label.empty())
 				throw std::runtime_error("Encountered invalid continue statement at " + std::string(node.location));
 			add<JumpInstruction>(continue_label);
 			break;
 		case CMMTOK_BREAK:
+			checkNaked(node);
 			if (break_label.empty())
 				throw std::runtime_error("Encountered invalid break statement at " + std::string(node.location));
 			add<JumpInstruction>(break_label);
@@ -275,10 +296,12 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 		case CMM_EMPTY:
 			break;
 		case CMM_BLOCK:
+			checkNaked(node);
 			for (const ASTNode *child: node)
 				compile(*child, break_label, continue_label);
 			break;
 		case CMMTOK_IF: {
+			checkNaked(node);
 			const std::string end_label = "." + name + "." + std::to_string(++nextBlock) + "end";
 			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
 			auto temp_var = newVar();
@@ -974,4 +997,15 @@ Graph & Function::makeCFG() {
 		cfg.link(blocks.back()->label, "exit");
 
 	return cfg;
+}
+
+bool Function::isNaked() const {
+	return attributes.count(Attribute::Naked) != 0;
+}
+
+void Function::checkNaked(const ASTNode &node) const {
+	if (isNaked()) {
+		node.debug();
+		throw std::runtime_error("Can't translate node in a naked function");
+	}
 }

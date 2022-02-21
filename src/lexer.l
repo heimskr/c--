@@ -72,6 +72,7 @@ CMM_SLCOMMENT	("//"[^\n]*)
 "#author"		{RTOKEN(META_AUTHOR)}
 "#version"		{RTOKEN(META_VERSION)}
 "#orcid"		{RTOKEN(META_ORCID)}
+"#naked"		{RTOKEN(NAKED)}
 "#"				{RTOKEN(HASH)}
 "fn"			{RTOKEN(FN)}
 "return"		{RTOKEN(RETURN)}

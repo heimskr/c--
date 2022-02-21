@@ -28,6 +28,7 @@ class Function {
 		void extractArguments();
 
 	public:
+		enum class Attribute {Naked};
 		Program &program;
 		std::string name = "???";
 		std::list<WhyPtr> instructions;
@@ -41,6 +42,7 @@ class Function {
 		std::map<int, std::shared_ptr<Scope>> scopes;
 		std::list<BasicBlockPtr> blocks;
 		Graph cfg;
+		std::unordered_set<Attribute> attributes;
 
 		TypePtr returnType;
 		std::vector<std::string> arguments;
@@ -148,4 +150,8 @@ class Function {
 		void debug() const;
 
 		Graph & makeCFG();
+
+		bool isNaked() const;
+
+		void checkNaked(const ASTNode &) const;
 };

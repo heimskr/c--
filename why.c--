@@ -5,6 +5,7 @@
 
 table: void*[8];
 delay: s64 = 100000;
+timeup: u8* = "Time's up\n";
 
 fn main(): void {
 	// g: s64;
@@ -41,8 +42,14 @@ fn int_keybrd(): void {
 	asm(": ] %page $e0"::);
 }
 
-fn int_timer(): void {
-	.s("Time's up\n");
+fn int_timer(): void #naked {
+	asm("[ $rt"::);
+	asm("[ $a0"::);
+	asm("timeup -> $a0"::);
+	asm("[$a0] -> $a0"::);
+	asm(":: .s"::);
 	asm("%time $1":delay:);
+	asm("] $a0"::);
+	asm("] $rt"::);
 	asm(": ] %page $e0"::);
 }
