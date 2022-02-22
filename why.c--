@@ -1,7 +1,7 @@
 #name "Why ISA Tests"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "4.0"
+#version "4.1"
 
 table: void*[8];
 delay: s64 = 300000;
@@ -18,9 +18,9 @@ fn add5(n: s64): s64 {
 }
 
 fn main(): void {
-	// g: s64;
-	// asm("$g -> $1"::g);
-	// .s64(g); .c('\n');
+	g: s64;
+	asm("$g -> $1"::g);
+	.s("$g = "); .s64(g); .c('\n');
 	table[2] = timer_ptr;
 	table[7] = int_keybrd;
 	asm("%rit table");
@@ -70,8 +70,7 @@ fn int_keybrd(): void #naked {
 fn int_timer(): void #naked {
 	asm("[ $rt");
 	asm("[ $a0");
-	asm("timeup -> $a0");
-	asm("[$a0] -> $a0");
+	asm("[timeup] -> $a0");
 	asm(":: .s");
 	asm("[delay] -> $a0");
 	asm("%time $a0");
@@ -85,8 +84,7 @@ fn hack(): void {
 	.ptr(what); .c('\n');
 	hacked: bool = false;
 	for i: s64 = 0; i < 1000; ++i {
-		what = what + 1;
-		if (*what == 5s32)
+		if (*++what == 5s32)
 			.s("\x1b[32m");
 		.s64((s64) what);
 		.s(": ");

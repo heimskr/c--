@@ -405,8 +405,13 @@ struct PrefixExpr: Expr {
 	Expr * copy() const override { return new PrefixExpr<O, I>(subexpr->copy()); }
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
 		TypePtr subtype = subexpr->getType(scope);
-		if (!subtype->isInt())
-			throw std::runtime_error("Cannot increment/decrement " + std::string(*subtype));
+		size_t to_add = 1;
+		if (!subtype->isInt()) {
+			if (subtype->isPointer())
+				to_add = dynamic_cast<PointerType &>(*subtype).subtype->getSize();
+			else
+				throw std::runtime_error("Cannot increment/decrement " + std::string(*subtype));
+		}
 		if (!destination)
 			destination = function.newVar();
 		auto addr_variable = function.newVar();
@@ -416,7 +421,7 @@ struct PrefixExpr: Expr {
 			throw LvalueError(*subexpr->getType(scope));
 		function.addComment("Prefix operator" + std::string(O));
 		function.add<LoadRInstruction>(addr_variable, destination, size);
-		function.add<I>(destination, destination, 1); // TODO: implement getMultiplier to handle pointer arithmetic
+		function.add<I>(destination, destination, to_add);
 		function.add<StoreRInstruction>(destination, addr_variable, size);
 
 		if (multiplier != 1)
@@ -441,8 +446,13 @@ struct PostfixExpr: Expr {
 	Expr * copy() const override { return new PostfixExpr<O, I>(subexpr->copy()); }
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
 		TypePtr subtype = subexpr->getType(scope);
-		if (!subtype->isInt())
-			throw std::runtime_error("Cannot increment/decrement " + std::string(*subtype));
+		size_t to_add = 1;
+		if (!subtype->isInt()) {
+			if (subtype->isPointer())
+				to_add = dynamic_cast<PointerType &>(*subtype).subtype->getSize();
+			else
+				throw std::runtime_error("Cannot increment/decrement " + std::string(*subtype));
+		}
 		if (!destination)
 			destination = function.newVar();
 		auto temp_var = function.newVar(), addr_var = function.newVar();
@@ -452,7 +462,7 @@ struct PostfixExpr: Expr {
 			throw LvalueError(*subexpr->getType(scope));
 		function.addComment("Postfix operator" + std::string(O));
 		function.add<LoadRInstruction>(addr_var, destination, size);
-		function.add<I>(destination, temp_var, 1);
+		function.add<I>(destination, temp_var, to_add);
 		function.add<StoreRInstruction>(temp_var, addr_var, size);
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
