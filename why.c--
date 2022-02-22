@@ -1,13 +1,13 @@
 #name "Why ISA Tests"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "3.2"
+#version "4.0"
 
 table: void*[8];
 delay: s64 = 300000;
 timeup: u8* = "Time's up\n";
 timer_ptr: void()* = int_timer;
-fnptr: s64(s64)* = double;
+fnptr: s64(s64)* = add5;
 
 fn double(n: s64): s64 {
 	return n << 1;
@@ -53,6 +53,8 @@ fn int_keybrd_(key: u8): void {
 		hacked_ptr: s64(s64)* = (s64(s64)*) (((s64) fnptr << 1) + 8);
 		.s64(((s64(s64)*)((s64) ((s16*) hacked_ptr - 4s16) / 2))(20));
 		.c('\n');
+	} else if (key == 'h') {
+		hack();
 	} else {
 		.s("You pressed '"); .c(key); .c('\''); .c('\n');
 	}
@@ -76,4 +78,28 @@ fn int_timer(): void #naked {
 	asm("] $a0");
 	asm("] $rt");
 	asm(": ] %page $e0");
+}
+
+fn hack(): void {
+	what: s32* = (s32*) &add5;
+	.ptr(what); .c('\n');
+	hacked: bool = false;
+	for i: s64 = 0; i < 1000; ++i {
+		what = what + 1;
+		if (*what == 5s32)
+			.s("\x1b[32m");
+		.s64((s64) what);
+		.s(": ");
+		asm("<prx $1>":*what);
+		.s("\x1b[0m\n");
+		if (*what == 5s32) {
+			*what = 42s32;
+			.s("hacked =)\n");
+			hacked = true;
+			fnptr = add5;
+			break;
+		}
+	}
+	if (!hacked)
+		.s("not hacked =(\n");
 }

@@ -596,16 +596,9 @@ void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr sc
 }
 
 std::unique_ptr<Type> AddressOfExpr::getType(ScopePtr scope) const {
-	std::unique_ptr<Type> out;
-	if (auto *var_expr = subexpr->cast<VariableExpr>()) {
-		out = var_expr->getType(scope);
-	} else if (auto *deref_expr = subexpr->cast<DerefExpr>()) {
-		out = deref_expr->getType(scope);
-	} else if (auto *access_expr = subexpr->cast<AccessExpr>()) {
-		out = access_expr->getType(scope);
-	} else
+	if (!subexpr->is<VariableExpr>() && !subexpr->is<DerefExpr>() && !subexpr->is<AccessExpr>())
 		throw LvalueError(*subexpr);
-	return std::make_unique<PointerType>(out->copy());
+	return subexpr->getType(scope);
 }
 
 void NotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
@@ -646,7 +639,7 @@ std::string StringExpr::getID(Program &program) const {
 void DerefExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	checkType(scope);
 	subexpr->compile(destination, function, scope, multiplier);
-	function.add<LoadRInstruction>(destination, destination, subexpr->getSize(scope));
+	function.add<LoadRInstruction>(destination, destination, getSize(scope));
 }
 
 size_t DerefExpr::getSize(ScopePtr scope) const {
