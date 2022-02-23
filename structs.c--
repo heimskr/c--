@@ -27,9 +27,7 @@ fn main(): void {
 fn traverse(node: struct LinkedList*): void {
 	if (!node)
 		return;
-	// `s64(node->data);
-	`s64((*node).data);
+	`s64(node->data);
 	`c('\n');
-	// traverse(node->next);
 	traverse((*node).next);
 }

@@ -95,6 +95,9 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 		case CMMTOK_PERIOD:
 			out = new DotExpr(Expr::get(*node.front(), function), *node.at(1)->text);
 			break;
+		case CMMTOK_ARROW:
+			out = new ArrowExpr(Expr::get(*node.front(), function), *node.at(1)->text);
+			break;
 		case CMMTOK_IDENT:
 			if (!function)
 				throw std::runtime_error("Variable expression encountered in functionless context");
@@ -997,5 +1000,47 @@ std::shared_ptr<StructType> DotExpr::checkType(ScopePtr scope) const {
 }
 
 size_t DotExpr::getSize(ScopePtr scope) const {
+	return checkType(scope)->map.at(ident)->getSize();
+}
+
+void ArrowExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
+	auto struct_type = checkType(scope);
+	const size_t field_size = struct_type->getFieldSize(ident);
+	const size_t field_offset = struct_type->getFieldOffset(ident);
+	Util::validateSize(field_size);
+	left->compile(destination, function, scope, 1);
+	if (field_offset != 0)
+		function.add<AddIInstruction>(destination, destination, field_offset);
+	function.add<LoadRInstruction>(destination, destination, field_size);
+	if (multiplier != 1)
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+}
+
+std::unique_ptr<Type> ArrowExpr::getType(ScopePtr scope) const {
+	return std::unique_ptr<Type>(checkType(scope)->map.at(ident)->copy());
+}
+
+bool ArrowExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
+	auto struct_type = checkType(scope);
+	const size_t field_offset = checkType(scope)->getFieldOffset(ident);
+	if (!left->compileAddress(destination, function, scope))
+		throw LvalueError(*left);
+	if (field_offset != 0)
+		function.add<AddIInstruction>(destination, destination, field_offset);
+	return true;
+}
+
+std::shared_ptr<StructType> ArrowExpr::checkType(ScopePtr scope) const {
+	auto left_type = left->getType(scope);
+	if (!left_type->isPointer())
+		throw NotPointerError(std::move(left_type));
+	auto *left_pointer = left_type->cast<PointerType>();
+	TypePtr shared_type = TypePtr(left_pointer->subtype->copy());
+	if (!left_pointer->subtype->isStruct())
+		throw NotStructError(shared_type);
+	return shared_type->ptrcast<StructType>();
+}
+
+size_t ArrowExpr::getSize(ScopePtr scope) const {
 	return checkType(scope)->map.at(ident)->getSize();
 }
