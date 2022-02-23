@@ -54,6 +54,11 @@ struct NotArrayError: std::runtime_error {
 	NotArrayError(std::shared_ptr<Type> type_);
 };
 
+struct NotStructError: std::runtime_error {
+	std::shared_ptr<Type> type;
+	NotStructError(std::shared_ptr<Type> type_);
+};
+
 struct NameConflictError: std::runtime_error {
 	std::string name;
 	ASTLocation location;

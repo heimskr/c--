@@ -15,6 +15,7 @@ namespace Util {
 	std::string escape(const std::string &);
 	bool inRange(ssize_t);
 	std::string unescape(const std::string &);
+	void validateSize(size_t);
 
 	template <template <typename...> typename C, typename T, typename D>
 	std::string join(const C<T> &container, D &&delimiter) {

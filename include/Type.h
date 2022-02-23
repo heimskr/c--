@@ -158,4 +158,6 @@ struct StructType: Type, Makeable<StructType> {
 	bool operator&&(const Type &) const override;
 	bool operator==(const Type &) const override;
 	bool isStruct() const override { return true; }
+	size_t getFieldOffset(const std::string &) const;
+	size_t getFieldSize(const std::string &) const;
 };

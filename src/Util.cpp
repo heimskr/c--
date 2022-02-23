@@ -113,4 +113,9 @@ namespace Util {
 		}
 		return out.str();
 	}
+
+	void validateSize(size_t size) {
+		if (size != 1 && size != 2 && size != 4 && size != 8)
+			throw std::runtime_error("Invalid size: " + std::to_string(size));
+	}
 }

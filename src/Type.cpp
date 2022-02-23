@@ -1,6 +1,7 @@
 #include <sstream>
 
 #include "ASTNode.h"
+#include "Errors.h"
 #include "Expr.h"
 #include "Function.h"
 #include "Lexer.h"
@@ -201,9 +202,9 @@ Type * StructType::copy() const {
 
 StructType::operator std::string() const {
 	std::stringstream out;
-	out << "struct " << name << "{";
+	out << "struct " << name << " {";
 	for (const auto &[field_name, field_type]: order)
-		out << ' ' << field_name << ": " << *field_type;
+		out << ' ' << field_name << ": " << *field_type << ';';
 	if (!order.empty())
 		out << ' ';
 	out << '}';
@@ -225,4 +226,20 @@ bool StructType::operator==(const Type &other) const {
 	if (const auto *other_struct = other.cast<StructType>())
 		return name == other_struct->name;
 	return false;
+}
+
+size_t StructType::getFieldOffset(const std::string &name) const {
+	size_t offset = 0;
+	for (const auto &[field_name, field_type]: order) {
+		if (field_name == name)
+			return offset;
+		offset += field_type->getSize();
+	}
+	throw ResolutionError(name, nullptr);
+}
+
+size_t StructType::getFieldSize(const std::string &name) const {
+	if (map.count(name) == 0)
+		throw ResolutionError(name, nullptr);
+	return map.at(name)->getSize();
 }

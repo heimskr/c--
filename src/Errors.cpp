@@ -28,3 +28,6 @@ NotPointerError::NotPointerError(std::shared_ptr<Type> type_):
 
 NotArrayError::NotArrayError(std::shared_ptr<Type> type_):
 	std::runtime_error("Not an array: " + std::string(*type_)), type(type_) {}
+
+NotStructError::NotStructError(std::shared_ptr<Type> type_):
+	std::runtime_error("Not a struct: " + std::string(*type_)), type(type_) {}

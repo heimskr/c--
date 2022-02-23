@@ -495,4 +495,21 @@ struct TernaryExpr: Expr {
 	bool shouldParenthesize() const override { return true; }
 
 	std::unique_ptr<Type> getType(ScopePtr scope) const override;
+	size_t getSize(ScopePtr) const override;
+};
+
+struct DotExpr: Expr {
+	std::unique_ptr<Expr> left;
+	std::string ident;
+
+	DotExpr(std::unique_ptr<Expr> &&left_, const std::string &ident_): left(std::move(left_)), ident(ident_) {}
+	DotExpr(Expr *left_, const std::string &ident_): left(left_), ident(ident_) {}
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
+	Expr * copy() const override { return new DotExpr(left->copy(), ident); }
+	operator std::string() const override { return stringify(left.get()) + "." + ident; }
+	bool shouldParenthesize() const override { return true; }
+	std::unique_ptr<Type> getType(ScopePtr) const override;
+	bool compileAddress(VregPtr, Function &, ScopePtr) override;
+	std::shared_ptr<StructType> checkType(ScopePtr) const;
+	size_t getSize(ScopePtr) const override;
 };

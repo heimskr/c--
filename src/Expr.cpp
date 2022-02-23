@@ -92,6 +92,9 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 		case CMM_POSTMINUS:
 			out = new PostfixMinusExpr(Expr::get(*node.front(), function));
 			break;
+		case CMMTOK_PERIOD:
+			out = new DotExpr(Expr::get(*node.front(), function), *node.at(1)->text);
+			break;
 		case CMMTOK_IDENT:
 			if (!function)
 				throw std::runtime_error("Variable expression encountered in functionless context");
@@ -598,7 +601,7 @@ void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr sc
 std::unique_ptr<Type> AddressOfExpr::getType(ScopePtr scope) const {
 	if (!subexpr->is<VariableExpr>() && !subexpr->is<DerefExpr>() && !subexpr->is<AccessExpr>())
 		throw LvalueError(*subexpr);
-	return subexpr->getType(scope);
+	return std::make_unique<PointerType>(subexpr->getType(scope)->copy());
 }
 
 void NotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
@@ -831,8 +834,15 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 		right->compile(destination, function, scope, multiplier);
 		access_expr->compileAddress(addr_variable, function, scope);
 		function.add<StoreRInstruction>(destination, addr_variable, access_expr->getSize(scope)); // TODO: verify size
-	} else
-		throw LvalueError(*left->getType(scope));
+	} else {
+		auto addr_variable = function.newVar();
+		if (!destination)
+			destination = function.newVar();
+		right->compile(destination, function, scope, multiplier);
+		if (!left->compileAddress(addr_variable, function, scope))
+			throw LvalueError(*left->getType(scope));
+		function.add<StoreRInstruction>(destination, addr_variable, left->getSize(scope)); // TODO: verify size
+	}
 }
 
 std::unique_ptr<Type> AssignExpr::getType(ScopePtr scope) const {
@@ -944,4 +954,48 @@ std::unique_ptr<Type> TernaryExpr::getType(ScopePtr scope) const {
 	if (!(*true_type && *false_type) || !(*false_type && *true_type))
 		throw ImplicitConversionError(*false_type, *true_type);
 	return true_type;
+}
+
+size_t TernaryExpr::getSize(ScopePtr scope) const {
+	return getType(scope)->getSize();
+}
+
+void DotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
+	auto struct_type = checkType(scope);
+	const size_t field_size = struct_type->getFieldSize(ident);
+	const size_t field_offset = struct_type->getFieldOffset(ident);
+	Util::validateSize(field_size);
+	if (!left->compileAddress(destination, function, scope))
+		throw LvalueError(*left);
+	if (field_offset != 0)
+		function.add<AddIInstruction>(destination, destination, field_offset);
+	function.add<LoadRInstruction>(destination, destination, field_size);
+	if (multiplier != 1)
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+}
+
+std::unique_ptr<Type> DotExpr::getType(ScopePtr scope) const {
+	return std::unique_ptr<Type>(checkType(scope)->map.at(ident)->copy());
+}
+
+bool DotExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
+	auto struct_type = checkType(scope);
+	const size_t field_offset = checkType(scope)->getFieldOffset(ident);
+	if (!left->compileAddress(destination, function, scope))
+		throw LvalueError(*left);
+	if (field_offset != 0)
+		function.add<AddIInstruction>(destination, destination, field_offset);
+	return true;
+}
+
+std::shared_ptr<StructType> DotExpr::checkType(ScopePtr scope) const {
+	auto left_type = left->getType(scope);
+	if (!left_type->isStruct())
+		throw NotStructError(std::move(left_type));
+	TypePtr shared_type = std::move(left_type);
+	return shared_type->ptrcast<StructType>();
+}
+
+size_t DotExpr::getSize(ScopePtr scope) const {
+	return checkType(scope)->map.at(ident)->getSize();
 }

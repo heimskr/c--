@@ -164,7 +164,7 @@ void Program::compile() {
 
 	for (const std::string &line:
 		Util::split("|@`c|\t<prc $a0>|\t: $rt||@`ptr|\t<prc '0'>|\t<prc 'x'>|\t<prx $a0>|\t: $rt||@`s|\t[$a0] -> $mf /b"
-		"|\t: _strprint_print if $mf|\t: $rt|\t@_strprint_print|\t<prc $mf>|\t$a0++|\t: .s||@`s16|\tsext16 $a0 -> $a0|"
+		"|\t: _strprint_print if $mf|\t: $rt|\t@_strprint_print|\t<prc $mf>|\t$a0++|\t: `s||@`s16|\tsext16 $a0 -> $a0|"
 		"\t<prd $a0>|\t: $rt||@`s32|\tsext32 $a0 -> $a0|\t<prd $a0>|\t: $rt||@`s64|\t<prd $a0>|\t: $rt||@`s8|\tsext8 $a"
 		"0 -> $a0|\t<prd $a0>|\t: $rt||@`u16|\t<prd $a0>|\t: $rt||@`u32|\t<prd $a0>|\t: $rt||@`u64|\t<prd $a0>|\t: $rt|"
 		"|@`u8|\t<prd $a0>|\t: $rt||@`bool|\t!$a0 -> $a0|\t!$a0 -> $a0|\t<prd $a0>|\t: $rt", "|", false))
