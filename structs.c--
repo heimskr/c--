@@ -1,7 +1,7 @@
 #name "Structs"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "0.1"
+#version "1.0"
 
 struct LinkedList;
 
@@ -21,11 +21,11 @@ fn main(): void {
 	item3: struct LinkedList;
 	item4: struct LinkedList;
 	item5: struct LinkedList;
-	item1.data.number =  10; item1.next = &item2;
-	item2.data.number =  20; item2.next = &item3;
-	item3.data.number =  40; item3.next = &item4;
-	item4.data.number =  80; item4.next = &item5;
-	item5.data.number = 160; item5.next = (struct LinkedList *) 0;
+	item1.data.str = "Hello"; item1.data.number =  10; item1.next = &item2;
+	item2.data.str = "there"; item2.data.number =  20; item2.next = &item3;
+	item3.data.str = "how";   item3.data.number =  40; item3.next = &item4;
+	item4.data.str = "are";   item4.data.number =  80; item4.next = &item5;
+	item5.data.str = "you";   item5.data.number = 160; item5.next = (struct LinkedList *) 0;
 	traverse(&item1);
 }
 
