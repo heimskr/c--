@@ -10,6 +10,7 @@ struct ASTLocation {
 	size_t column = 0;
 
 	operator std::string() const;
+	operator bool() const;
 };
 
 std::ostream & operator<<(std::ostream &, const ASTLocation &);

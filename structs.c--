@@ -5,8 +5,13 @@
 
 struct LinkedList;
 
+struct Pair {
+	str: u8*;
+	number: s64;
+};
+
 struct LinkedList {
-	data: s64;
+	data: struct Pair;
 	next: struct LinkedList*;
 };
 
@@ -16,18 +21,21 @@ fn main(): void {
 	item3: struct LinkedList;
 	item4: struct LinkedList;
 	item5: struct LinkedList;
-	item1.data =  10; item1.next = &item2;
-	item2.data =  20; item2.next = &item3;
-	item3.data =  40; item3.next = &item4;
-	item4.data =  80; item4.next = &item5;
-	item5.data = 160; item5.next = (struct LinkedList *) 0;
+	item1.data.number =  10; item1.next = &item2;
+	item2.data.number =  20; item2.next = &item3;
+	item3.data.number =  40; item3.next = &item4;
+	item4.data.number =  80; item4.next = &item5;
+	item5.data.number = 160; item5.next = (struct LinkedList *) 0;
 	traverse(&item1);
 }
 
 fn traverse(node: struct LinkedList*): void {
 	if (!node)
 		return;
-	`s64(node->data);
-	`c('\n');
+	`s("(\"");
+	`s(node->data.str);
+	`s("\", ");
+	`s64(node->data.number);
+	`s(")\n");
 	traverse((*node).next);
 }

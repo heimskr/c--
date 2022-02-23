@@ -561,7 +561,7 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, Scope
 		if (auto global = std::dynamic_pointer_cast<Global>(var)) {
 			function.add<SetIInstruction>(destination, global->name);
 		} else if (function.argumentMap.count(name) != 0 || function.stackOffsets.count(var) == 0) {
-			throw NotOnStackError(var);
+			throw NotOnStackError(var, location);
 		} else {
 			const size_t offset = function.stackOffsets.at(var);
 			function.addComment("Get variable lvalue for " + name);

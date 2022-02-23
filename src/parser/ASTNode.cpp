@@ -11,6 +11,10 @@ ASTLocation::operator std::string() const {
 	return std::to_string(line + 1) + ":" + std::to_string(column);
 }
 
+ASTLocation::operator bool() const {
+	return !(line == 0 && column == 0);
+}
+
 std::ostream & operator<<(std::ostream &os, const ASTLocation &location) {
 	os << std::string(location);
 	return os;
