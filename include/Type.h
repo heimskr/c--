@@ -80,7 +80,8 @@ struct UnsignedType: IntType, Makeable<UnsignedType> {
 struct VoidType: Type, Makeable<VoidType> {
 	Type * copy() const override { return new VoidType; }
 	operator std::string() const override { return "void"; }
-	size_t getSize() const override { return 0; }
+	/** Returns 1 for the sake of void pointer arithmetic acting like byte pointer arithmetic. */
+	size_t getSize() const override { return 1; }
 	bool operator&&(const Type &other) const override { return other.isVoid(); }
 	bool operator==(const Type &other) const override { return other.isVoid(); }
 	bool isVoid() const override { return true; }
