@@ -57,6 +57,7 @@ int main(int argc, char **argv) {
 				program.compile();
 				for (const std::string &line: program.lines)
 					std::cout << line << '\n';
+				success() << "Done.\n";
 			} catch (std::exception &err) {
 				std::cerr << "\e[38;5;88;1m    ..............\n\e[38;5;196;1m   ::::::::::::::::::\n\e[38;5;202;1m  :::::::::::::::\n\e[38;5;208;1m :::`::::::: :::     :    \e[0;31m" << demangle(typeid(err).name()) << "\e[0;38;5;208;1m\n\e[38;5;142;1m :::: ::::: :::::    :    \e[0m" << err.what() << "\e[0m\e[38;5;142;1m\n\e[38;5;40;1m :`   :::::;     :..~~    \e[0m";
 				if (auto *located = dynamic_cast<LocatedError *>(&err))
@@ -69,9 +70,9 @@ int main(int argc, char **argv) {
 			program.compile();
 			for (const std::string &line: program.lines)
 				std::cout << line << '\n';
+			success() << "Done.\n";
 		}
 	}
 
 	cmmParser.done();
-	success() << "Done.\n";
 }
