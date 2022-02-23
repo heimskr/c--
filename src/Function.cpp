@@ -219,11 +219,16 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 		}
 		case CMMTOK_RETURN: {
 			checkNaked(node);
-			auto expr = ExprPtr(Expr::get(*node.front(), this));
-			auto r0 = precolored(Why::returnValueOffset);
-			expr->compile(r0, *this, currentScope());
-			auto expr_type = expr->getType(currentScope());
-			typeCheck(*expr_type, *returnType, r0, *this, node.location);
+			if (node.empty()) {
+				if (!returnType->isVoid())
+					throw std::runtime_error("Must return an expression in non-void function " + name);
+			} else {
+				auto expr = ExprPtr(Expr::get(*node.front(), this));
+				auto r0 = precolored(Why::returnValueOffset);
+				expr->compile(r0, *this, currentScope());
+				auto expr_type = expr->getType(currentScope());
+				typeCheck(*expr_type, *returnType, r0, *this, node.location);
+			}
 			add<JumpInstruction>("." + name + ".e");
 			break;
 		}

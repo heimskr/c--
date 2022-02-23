@@ -30,6 +30,8 @@ struct Type: Checkable, std::enable_shared_from_this<Type> {
 	virtual bool isPointer() const { return false; }
 	virtual bool isArray() const { return false; }
 	virtual bool isFunctionPointer() const { return false; }
+	virtual bool isStruct() const { return false; }
+
 	static Type * get(const ASTNode &);
 
 	template <typename T>
@@ -138,4 +140,18 @@ struct FunctionPointerType: Type {
 	bool operator&&(const Type &) const override;
 	bool operator==(const Type &) const override;
 	bool isFunctionPointer() const override { return true; }
+};
+
+struct StructType: Type {
+	std::string name;
+	std::vector<std::pair<std::string, TypePtr>> order;
+	std::map<std::string, TypePtr> map;
+
+	StructType(const std::string &name_, const decltype(order) &order_);
+	Type * copy() const override;
+	operator std::string() const override;
+	size_t getSize() const override;
+	bool operator&&(const Type &) const override;
+	bool operator==(const Type &) const override;
+	bool isStruct() const override { return true; }
 };

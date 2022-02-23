@@ -172,3 +172,43 @@ FunctionPointerType::FunctionPointerType(const Function &function): returnType(f
 	for (const std::string &name: function.arguments)
 		argumentTypes.push_back(function.argumentMap.at(name)->type->copy());
 }
+
+StructType::StructType(const std::string &name_, const decltype(order) &order_): name(name_), order(order_) {
+	for (const auto &pair: order_)
+		map.insert(pair);
+}
+
+Type * StructType::copy() const {
+	decltype(order) order_copy;
+	for (const auto &[field_name, field_type]: order)
+		order_copy.emplace_back(field_name, TypePtr(field_type->copy()));
+	return new StructType(name, order_copy);
+}
+
+StructType::operator std::string() const {
+	std::stringstream out;
+	out << "struct " << name << "{";
+	for (const auto &[field_name, field_type]: order)
+		out << ' ' << field_name << ": " << *field_type;
+	if (!order.empty())
+		out << ' ';
+	out << '}';
+	return out.str();
+}
+
+size_t StructType::getSize() const {
+	size_t out = 0;
+	for (const auto &[field_name, field_type]: order)
+		out += field_type->getSize();
+	return out;
+}
+
+bool StructType::operator&&(const Type &other) const {
+	return *this == other;
+}
+
+bool StructType::operator==(const Type &other) const {
+	if (const auto *other_struct = other.cast<StructType>())
+		return name == other_struct->name;
+	return false;
+}

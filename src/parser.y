@@ -97,6 +97,8 @@ using AN = ASTNode;
 %token CMMTOK_MINUSMINUS "--"
 %token CMMTOK_ASM "asm"
 %token CMMTOK_NAKED "#naked"
+%token CMMTOK_STRUCT "struct"
+%token CMMTOK_ARROW "->"
 
 %token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY CMM_POSTPLUS CMM_POSTMINUS CMM_FNPTR
 
@@ -115,7 +117,7 @@ using AN = ASTNode;
 %left "+" "-"
 %left MULT "/" "%"
 %right "!" "~" "#" DEREF ADDROF PREFIX UNARY CAST
-%left "[" POSTFIX CALL
+%left "[" POSTFIX CALL "." "->"
 %nonassoc "else"
 
 %%
@@ -125,6 +127,8 @@ start: program;
 program: program decl_or_def ";" { $$ = $1->adopt($2); D($3); }
        | program function_def { $$ = $1->adopt($2); }
        | program meta { $$ = $1->adopt($2); }
+       | program forward_decl { $$ = $1->adopt($2); }
+       | program struct_def { $$ = $1->adopt($2); }
        | { $$ = cmmParser.root; };
 
 meta_start: "#name" | "#author" | "#orcid" | "#version";
@@ -138,6 +142,7 @@ statement: block
          | decl_or_def ";" { D($2); }
          | expr ";" { D($2); }
          | "return" expr ";" { $$ = $1->adopt($2); D($3); }
+         | "return" ";" { D($2); }
          | "break" ";" { D($2); }
          | "continue" ";" { D($2); }
          | ";" { $1->symbol = CMM_EMPTY; }
@@ -150,6 +155,13 @@ inline_asm: "asm" "(" string ":" _exprlist ":" _exprlist ")" { $$ = $1->adopt({$
 declaration: ident ":" type { $$ = $2->adopt({$1, $3}); }
 definition:  ident ":" type "=" expr { $$ = $2->adopt({$1, $3, $5}); D($4); };
 decl_or_def: declaration | definition;
+
+forward_decl: "struct" CMMTOK_IDENT ";" { $$ = $1->adopt($2); D($3); };
+
+struct_def: "struct" CMMTOK_IDENT "{" decl_list "}" ";" { $$ = $1->adopt({$2, $4}); D($3, $5, $6); };
+
+decl_list: decl_list CMMTOK_IDENT ":" type ";" { $$ = $1->adopt($2->adopt($4)); D($3, $5); }
+         | { $$ = new ASTNode(cmmParser, CMM_LIST); };
 
 function_def: "fn" ident "(" _arglist ")" ":" type fnattrs block { $$ = $1->adopt({$2, $7, $4, $8, $9}); D($3, $5, $6); }
 
@@ -191,6 +203,8 @@ expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
     | expr "/"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "="  expr { $$ = $2->adopt({$1, $3}); }
     | expr "%"  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "."  CMMTOK_IDENT %prec "."  { $$ = $2->adopt({$1, $3}); }
+    | expr "->" CMMTOK_IDENT %prec "->" { $$ = $2->adopt({$1, $3}); }
     | expr "[" expr "]" %prec "[" { $$ = $2->adopt({$1, $3}); D($4); }
     | function_call %prec CALL
     | "(" expr ")" %prec "(" { $$ = $2; D($1, $3); }
@@ -239,7 +253,9 @@ typelist: typelist "," type { $$ = $1->adopt($3); D($2); }
 
 _typelist: typelist | { $$ = new ASTNode(cmmParser, CMM_LIST); };
 
-type: "bool" | int_type | "void" | pointer_type | array_type | fnptr_type;
+struct_type: "struct" CMMTOK_IDENT { $$ = $1->adopt($2); };
+
+type: "bool" | int_type | "void" | pointer_type | array_type | fnptr_type | struct_type;
 
 arg: ident ":" type { $$ = $1->adopt($3); D($2); };
 

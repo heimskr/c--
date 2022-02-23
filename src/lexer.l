@@ -34,6 +34,7 @@ CMM_SLCOMMENT	("//"[^\n]*)
 "-="			{RTOKEN(MINUSEQ)}
 "++"			{RTOKEN(PLUSPLUS)}
 "--"			{RTOKEN(MINUSMINUS)}
+"->"			{RTOKEN(ARROW)}
 "("				{RTOKEN(LPAREN)}
 ")"				{RTOKEN(RPAREN)}
 "+"				{RTOKEN(PLUS)}
@@ -93,6 +94,7 @@ CMM_SLCOMMENT	("//"[^\n]*)
 "for"			{RTOKEN(FOR)}
 "%"				{RTOKEN(MOD)}
 "asm"			{RTOKEN(ASM)}
+"struct"		{RTOKEN(STRUCT)}
 
 {CMM_CHAR}		{RTOKEN(CHAR)}
 {CMM_STRING}	{RTOKEN(STRING)}

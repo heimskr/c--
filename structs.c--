@@ -1,0 +1,33 @@
+#name "Structs"
+#author "Kai Tamkun"
+#orcid "0000-0001-7405-6654"
+#version "0.1"
+
+struct LinkedList;
+
+struct LinkedList {
+	data: s64;
+	next: struct LinkedList*;
+};
+
+fn main(): void {
+	item1: struct LinkedList;
+	item2: struct LinkedList;
+	item3: struct LinkedList;
+	item4: struct LinkedList;
+	item5: struct LinkedList;
+	item1.data =  10; item1.next = &item2;
+	item2.data =  20; item2.next = &item3;
+	item3.data =  40; item3.next = &item4;
+	item4.data =  80; item4.next = &item5;
+	item5.data = 160; item5.next = (struct LinkedList *) 0;
+	traverse(&item1);
+}
+
+fn traverse(node: struct LinkedList*): void {
+	if (!node)
+		return;
+	.s64(node->data);
+	.c('\n');
+	traverse(node->next);
+}
