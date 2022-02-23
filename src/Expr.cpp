@@ -1023,8 +1023,7 @@ std::unique_ptr<Type> ArrowExpr::getType(ScopePtr scope) const {
 bool ArrowExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
 	auto struct_type = checkType(scope);
 	const size_t field_offset = checkType(scope)->getFieldOffset(ident);
-	if (!left->compileAddress(destination, function, scope))
-		throw LvalueError(*left);
+	left->compile(destination, function, scope);
 	if (field_offset != 0)
 		function.add<AddIInstruction>(destination, destination, field_offset);
 	return true;
