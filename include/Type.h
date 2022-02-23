@@ -10,6 +10,7 @@
 
 class ASTNode;
 class Function;
+struct Program;
 
 struct Type: Checkable, std::enable_shared_from_this<Type> {
 	virtual ~Type() {}
@@ -32,7 +33,7 @@ struct Type: Checkable, std::enable_shared_from_this<Type> {
 	virtual bool isFunctionPointer() const { return false; }
 	virtual bool isStruct() const { return false; }
 
-	static Type * get(const ASTNode &);
+	static Type * get(const ASTNode &, const Program &, bool allow_forward = false);
 
 	template <typename T>
 	std::shared_ptr<T> ptrcast() {
@@ -143,11 +144,13 @@ struct FunctionPointerType: Type {
 	bool isFunctionPointer() const override { return true; }
 };
 
-struct StructType: Type {
+struct StructType: Type, Makeable<StructType> {
 	std::string name;
 	std::vector<std::pair<std::string, TypePtr>> order;
 	std::map<std::string, TypePtr> map;
+	bool isForwardDeclaration = false;
 
+	StructType(const std::string &name_);
 	StructType(const std::string &name_, const decltype(order) &order_);
 	Type * copy() const override;
 	operator std::string() const override;

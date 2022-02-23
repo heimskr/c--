@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -9,6 +10,7 @@
 #include "Signature.h"
 
 class ASTNode;
+struct StructType;
 
 struct Program {
 	std::map<std::string, GlobalPtr> globals;
@@ -18,6 +20,8 @@ struct Program {
 	std::map<std::string, size_t> stringIDs;
 	std::vector<std::string> lines;
 	std::string name, author, orcid, version;
+	std::set<std::string> forwardDeclarations;
+	std::map<std::string, std::shared_ptr<StructType>> structs;
 
 	Program() = default;
 

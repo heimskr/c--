@@ -16,11 +16,10 @@
 #define DEBUG_SPILL
 
 Function::Function(Program &program_, const ASTNode *source_):
-program(program_), source(source_),
-selfScope(FunctionScope::make(*this, GlobalScope::make(program))) {
+program(program_), source(source_), selfScope(FunctionScope::make(*this, GlobalScope::make(program))) {
 	if (source) {
-		name = *source->at(0)->lexerInfo;
-		returnType = TypePtr(Type::get(*source->at(1)));
+		name = *source->at(0)->text;
+		returnType = TypePtr(Type::get(*source->at(1), program));
 	} else
 		returnType = VoidType::make();
 	scopes.emplace(0, selfScope);
@@ -50,9 +49,9 @@ void Function::extractArguments() {
 
 	int i = 0;
 	for (const ASTNode *child: *source->at(2)) {
-		const std::string &argument_name = *child->lexerInfo;
+		const std::string &argument_name = *child->text;
 		arguments.push_back(argument_name);
-		VariablePtr argument = Variable::make(argument_name, TypePtr(Type::get(*child->front())), *this);
+		VariablePtr argument = Variable::make(argument_name, TypePtr(Type::get(*child->front(), program)), *this);
 		argument->init();
 		argumentMap.emplace(argument_name, argument);
 		if (i < Why::argumentCount) {
@@ -108,7 +107,7 @@ void Function::compile() {
 					attributes.insert(Attribute::Naked);
 					break;
 				default:
-					throw std::runtime_error("Invalid fnattr: " + *child->lexerInfo);
+					throw std::runtime_error("Invalid fnattr: " + *child->text);
 			}
 
 		for (const ASTNode *child: *source->at(4))
@@ -195,10 +194,10 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 	switch (node.symbol) {
 		case CMMTOK_COLON: {
 			checkNaked(node);
-			const std::string &var_name = *node.front()->lexerInfo;
+			const std::string &var_name = *node.front()->text;
 			if (currentScope()->doesConflict(var_name))
 				throw NameConflictError(var_name, node.front()->location);
-			VariablePtr variable = Variable::make(var_name, TypePtr(Type::get(*node.at(1))), *this);
+			VariablePtr variable = Variable::make(var_name, TypePtr(Type::get(*node.at(1), program)), *this);
 			variable->init();
 			currentScope()->insert(variable);
 			size_t offset = addToStack(variable);

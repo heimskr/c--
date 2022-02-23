@@ -61,7 +61,7 @@ static Immediate getImmediate(ASTNode *node) {
 	if (node->symbol == WASMTOK_NUMBER)
 		return static_cast<int>(node->atoi());
 	if (node->symbol == WASMTOK_CHAR) {
-		const std::string middle = node->lexerInfo->substr(1, node->lexerInfo->size() - 2);
+		const std::string middle = node->text->substr(1, node->text->size() - 2);
 		if (middle.size() == 1)
 			return middle.front();
 		size_t pos = middle.find_first_not_of("\\");
@@ -74,12 +74,12 @@ static Immediate getImmediate(ASTNode *node) {
 			case 't': return '\t';
 			case 'b': return '\b';
 			case '\'': return '\'';
-			default:  throw std::runtime_error("Invalid character literal: " + *node->lexerInfo);
+			default:  throw std::runtime_error("Invalid character literal: " + *node->text);
 		}
 	}
 	if (node->symbol == WASMTOK_STRING)
 		return node->extractName();
-	return *node->lexerInfo;
+	return *node->text;
 }
 
 WASMBaseNode::WASMBaseNode(int sym): ASTNode(wasmParser, sym) {}
@@ -110,7 +110,7 @@ WASMImmediateNode::operator std::string() const {
 	return stringify(imm, false);
 }
 
-WASMLabelNode::WASMLabelNode(ASTNode *label_): WASMInstructionNode(WASM_LABEL), label(label_->lexerInfo) {
+WASMLabelNode::WASMLabelNode(ASTNode *label_): WASMInstructionNode(WASM_LABEL), label(label_->text) {
 	delete label_;
 }
 
@@ -127,7 +127,7 @@ std::unique_ptr<WhyInstruction> WASMLabelNode::convert(Function &, VarMap &) {
 }
 
 RNode::RNode(ASTNode *rs_, ASTNode *oper_, ASTNode *rt_, ASTNode *rd_, ASTNode *unsigned_):
-WASMInstructionNode(WASM_RNODE), rs(rs_->lexerInfo), oper(oper_->lexerInfo), rt(rt_->lexerInfo), rd(rd_->lexerInfo),
+WASMInstructionNode(WASM_RNODE), rs(rs_->text), oper(oper_->text), rt(rt_->text), rd(rd_->text),
 operToken(oper_->symbol), isUnsigned(!!unsigned_) {
 	delete rs_;
 	delete oper_;
@@ -214,7 +214,7 @@ std::unique_ptr<WhyInstruction> RNode::convert(Function &function, VarMap &map) 
 }
 
 INode::INode(ASTNode *rs_, ASTNode *oper_, ASTNode *imm_, ASTNode *rd_, ASTNode *unsigned_):
-WASMInstructionNode(WASM_INODE), rs(rs_->lexerInfo), oper(oper_->lexerInfo), rd(rd_->lexerInfo),
+WASMInstructionNode(WASM_INODE), rs(rs_->text), oper(oper_->text), rd(rd_->text),
 operToken(oper_->symbol), imm(getImmediate(imm_)), isUnsigned(!!unsigned_) {
 	delete rs_;
 	delete oper_;
@@ -295,7 +295,7 @@ std::unique_ptr<WhyInstruction> INode::convert(Function &function, VarMap &map) 
 }
 
 WASMMemoryNode::WASMMemoryNode(int sym, ASTNode *rs_, ASTNode *rd_, ASTNode *byte_):
-WASMInstructionNode(sym), rs(rs_->lexerInfo), rd(rd_->lexerInfo), isByte(!!byte_) {
+WASMInstructionNode(sym), rs(rs_->text), rd(rd_->text), isByte(!!byte_) {
 	delete rs_;
 	delete rd_;
 	if (byte_)
@@ -351,7 +351,7 @@ std::unique_ptr<WhyInstruction> WASMStoreNode::convert(Function &function, VarMa
 }
 
 WASMSetNode::WASMSetNode(ASTNode *imm_, ASTNode *rd_):
-WASMInstructionNode(WASM_SETNODE), rd(rd_->lexerInfo), imm(getImmediate(imm_)) {
+WASMInstructionNode(WASM_SETNODE), rd(rd_->text), imm(getImmediate(imm_)) {
 	delete imm_;
 	delete rd_;
 }
@@ -369,7 +369,7 @@ std::unique_ptr<WhyInstruction> WASMSetNode::convert(Function &function, VarMap 
 }
 
 WASMLiNode::WASMLiNode(ASTNode *imm_, ASTNode *rd_, ASTNode *byte_):
-WASMInstructionNode(WASM_LINODE), rd(rd_->lexerInfo), imm(getImmediate(imm_)), isByte(!!byte_) {
+WASMInstructionNode(WASM_LINODE), rd(rd_->text), imm(getImmediate(imm_)), isByte(!!byte_) {
 	delete imm_;
 	delete rd_;
 	if (byte_)
@@ -389,7 +389,7 @@ std::unique_ptr<WhyInstruction> WASMLiNode::convert(Function &function, VarMap &
 }
 
 WASMSiNode::WASMSiNode(ASTNode *rs_, ASTNode *imm_, ASTNode *byte_):
-WASMInstructionNode(WASM_SINODE), rs(rs_->lexerInfo), imm(getImmediate(imm_)), isByte(!!byte_) {
+WASMInstructionNode(WASM_SINODE), rs(rs_->text), imm(getImmediate(imm_)), isByte(!!byte_) {
 	delete rs_;
 	delete imm_;
 	if (byte_)
@@ -425,7 +425,7 @@ std::unique_ptr<WhyInstruction> WASMLniNode::convert(Function &function, VarMap 
 }
 
 WASMHalfMemoryNode::WASMHalfMemoryNode(int sym, ASTNode *rs_, ASTNode *rd_):
-WASMInstructionNode(sym), rs(rs_->lexerInfo), rd(rd_->lexerInfo) {
+WASMInstructionNode(sym), rs(rs_->text), rd(rd_->text) {
 	delete rs_;
 	delete rd_;
 }
@@ -479,7 +479,7 @@ std::unique_ptr<WhyInstruction> WASMShNode::convert(Function &function, VarMap &
 }
 
 WASMCmpNode::WASMCmpNode(ASTNode *rs_, ASTNode *rt_):
-WASMInstructionNode(WASM_CMPNODE), rs(rs_->lexerInfo), rt(rt_->lexerInfo) {
+WASMInstructionNode(WASM_CMPNODE), rs(rs_->text), rt(rt_->text) {
 	delete rs_;
 	delete rt_;
 }
@@ -498,7 +498,7 @@ std::unique_ptr<WhyInstruction> WASMCmpNode::convert(Function &function, VarMap 
 }
 
 WASMCmpiNode::WASMCmpiNode(ASTNode *rs_, ASTNode *imm_):
-WASMInstructionNode(WASM_CMPINODE), rs(rs_->lexerInfo), imm(getImmediate(imm_)) {
+WASMInstructionNode(WASM_CMPINODE), rs(rs_->text), imm(getImmediate(imm_)) {
 	delete rs_;
 	delete imm_;
 }
@@ -516,20 +516,20 @@ std::unique_ptr<WhyInstruction> WASMCmpiNode::convert(Function &function, VarMap
 }
 
 WASMSelNode::WASMSelNode(ASTNode *rs_, ASTNode *oper_, ASTNode *rt_, ASTNode *rd_):
-WASMInstructionNode(WASM_SELNODE), rs(rs_->lexerInfo), rt(rt_->lexerInfo), rd(rd_->lexerInfo) {
+WASMInstructionNode(WASM_SELNODE), rs(rs_->text), rt(rt_->text), rd(rd_->text) {
 	delete rs_;
 	delete rt_;
 	delete rd_;
-	if (*oper_->lexerInfo == "=")
+	if (*oper_->text == "=")
 		condition = Condition::Zero;
-	else if (*oper_->lexerInfo == "<")
+	else if (*oper_->text == "<")
 		condition = Condition::Negative;
-	else if (*oper_->lexerInfo == ">")
+	else if (*oper_->text == ">")
 		condition = Condition::Positive;
-	else if (*oper_->lexerInfo == "!=")
+	else if (*oper_->text == "!=")
 		condition = Condition::Nonzero;
 	else
-		wasmerror("Invalid operator: " + *oper_->lexerInfo);
+		wasmerror("Invalid operator: " + *oper_->text);
 	delete oper_;
 }
 
@@ -573,7 +573,7 @@ WASMInstructionNode(WASM_JNODE), addr(getImmediate(addr_)), link(!colons->empty(
 	if (!cond) {
 		condition = Condition::None;
 	} else {
-		condition = getCondition(*cond->lexerInfo);
+		condition = getCondition(*cond->text);
 		delete cond;
 	}
 }
@@ -591,7 +591,7 @@ std::unique_ptr<WhyInstruction> WASMJNode::convert(Function &, VarMap &) {
 }
 
 WASMJcNode::WASMJcNode(WASMJNode *j, ASTNode *rs_):
-WASMInstructionNode(WASM_JCNODE), link(j? j->link : false), addr(j? j->addr : 0), rs(rs_->lexerInfo) {
+WASMInstructionNode(WASM_JCNODE), link(j? j->link : false), addr(j? j->addr : 0), rs(rs_->text) {
 	if (!j) {
 		wasmerror("No WASMCJNode found in jc instruction");
 	} else {
@@ -615,13 +615,13 @@ std::unique_ptr<WhyInstruction> WASMJcNode::convert(Function &function, VarMap &
 }
 
 WASMJrNode::WASMJrNode(ASTNode *cond, ASTNode *colons, ASTNode *rd_):
-WASMInstructionNode(WASM_JRNODE), link(!colons->empty()), rd(rd_->lexerInfo) {
+WASMInstructionNode(WASM_JRNODE), link(!colons->empty()), rd(rd_->text) {
 	delete colons;
 	delete rd_;
 	if (!cond) {
 		condition = Condition::None;
 	} else {
-		condition = getCondition(*cond->lexerInfo);
+		condition = getCondition(*cond->text);
 		delete cond;
 	}
 }
@@ -639,7 +639,7 @@ std::unique_ptr<WhyInstruction> WASMJrNode::convert(Function &function, VarMap &
 }
 
 WASMJrcNode::WASMJrcNode(WASMJrNode *jr, ASTNode *rs_):
-WASMInstructionNode(WASM_JRCNODE), link(jr? jr->link : false), rs(rs_->lexerInfo), rd(jr? jr->rd : nullptr) {
+WASMInstructionNode(WASM_JRCNODE), link(jr? jr->link : false), rs(rs_->text), rd(jr? jr->rd : nullptr) {
 	if (!jr) {
 		wasmerror("No WASMCJrNode found in jr(l)c instruction");
 	} else {
@@ -664,7 +664,7 @@ std::unique_ptr<WhyInstruction> WASMJrcNode::convert(Function &function, VarMap 
 }
 
 WASMSizedStackNode::WASMSizedStackNode(ASTNode *size_, ASTNode *rs_, bool is_push):
-WASMInstructionNode(WASM_SSNODE), size(size_->atoi()), rs(rs_->lexerInfo), isPush(is_push) {
+WASMInstructionNode(WASM_SSNODE), size(size_->atoi()), rs(rs_->text), isPush(is_push) {
 	delete size_;
 	delete rs_;
 }
@@ -685,7 +685,7 @@ std::unique_ptr<WhyInstruction> WASMSizedStackNode::convert(Function &function, 
 }
 
 WASMMultRNode::WASMMultRNode(ASTNode *rs_, ASTNode *rt_, ASTNode *unsigned_):
-WASMInstructionNode(WASM_MULTRNODE), rs(rs_->lexerInfo), rt(rt_->lexerInfo), isUnsigned(!!unsigned_) {
+WASMInstructionNode(WASM_MULTRNODE), rs(rs_->text), rt(rt_->text), isUnsigned(!!unsigned_) {
 	delete rs_;
 	delete rt_;
 	if (unsigned_)
@@ -706,7 +706,7 @@ std::unique_ptr<WhyInstruction> WASMMultRNode::convert(Function &function, VarMa
 }
 
 WASMMultINode::WASMMultINode(ASTNode *rs_, ASTNode *imm_, ASTNode *unsigned_):
-WASMInstructionNode(WASM_MULTINODE), rs(rs_->lexerInfo), imm(getImmediate(imm_)), isUnsigned(!!unsigned_) {
+WASMInstructionNode(WASM_MULTINODE), rs(rs_->text), imm(getImmediate(imm_)), isUnsigned(!!unsigned_) {
 	delete rs_;
 	delete imm_;
 	if (unsigned_)
@@ -726,7 +726,7 @@ std::unique_ptr<WhyInstruction> WASMMultINode::convert(Function &function, VarMa
 }
 
 WASMDiviINode::WASMDiviINode(ASTNode *imm_, ASTNode *rs_, ASTNode *rd_, ASTNode *unsigned_):
-WASMInstructionNode(WASM_DIVIINODE), rs(rs_->lexerInfo), rd(rd_->lexerInfo), imm(getImmediate(imm_)),
+WASMInstructionNode(WASM_DIVIINODE), rs(rs_->text), rd(rd_->text), imm(getImmediate(imm_)),
 isUnsigned(!!unsigned_) {
 	delete rs_;
 	delete rd_;
@@ -749,7 +749,7 @@ std::unique_ptr<WhyInstruction> WASMDiviINode::convert(Function &function, VarMa
 }
 
 WASMLuiNode::WASMLuiNode(ASTNode *imm_, ASTNode *rd_):
-WASMInstructionNode(WASM_LUINODE), rd(rd_->lexerInfo), imm(getImmediate(imm_)) {
+WASMInstructionNode(WASM_LUINODE), rd(rd_->text), imm(getImmediate(imm_)) {
 	delete imm_;
 	delete rd_;
 }
@@ -767,7 +767,7 @@ std::unique_ptr<WhyInstruction> WASMLuiNode::convert(Function &function, VarMap 
 }
 
 WASMStackNode::WASMStackNode(ASTNode *reg_, bool is_push):
-WASMInstructionNode(WASM_STACKNODE), reg(reg_->lexerInfo), isPush(is_push) {
+WASMInstructionNode(WASM_STACKNODE), reg(reg_->text), isPush(is_push) {
 	delete reg_;
 }
 
@@ -847,7 +847,7 @@ std::unique_ptr<WhyInstruction> WASMTimeINode::convert(Function &, VarMap &) {
 	return std::make_unique<TimeIInstruction>(imm);
 }
 
-WASMTimeRNode::WASMTimeRNode(ASTNode *rs_): WASMInstructionNode(WASM_TIMERNODE), rs(rs_->lexerInfo) {
+WASMTimeRNode::WASMTimeRNode(ASTNode *rs_): WASMInstructionNode(WASM_TIMERNODE), rs(rs_->text) {
 	delete rs_;
 }
 
@@ -863,7 +863,7 @@ std::unique_ptr<WhyInstruction> WASMTimeRNode::convert(Function &function, VarMa
 	return std::make_unique<TimeRInstruction>(convertVariable(function, map, rs));
 }
 
-WASMSvtimeNode::WASMSvtimeNode(ASTNode *rd_): WASMInstructionNode(WASM_SVTIMENODE), rd(rd_->lexerInfo) {
+WASMSvtimeNode::WASMSvtimeNode(ASTNode *rd_): WASMInstructionNode(WASM_SVTIMENODE), rd(rd_->text) {
 	delete rd_;
 }
 
@@ -895,7 +895,7 @@ std::unique_ptr<WhyInstruction> WASMRingINode::convert(Function &, VarMap &) {
 	return std::make_unique<RingIInstruction>(imm);
 }
 
-WASMRingRNode::WASMRingRNode(ASTNode *rs_): WASMInstructionNode(WASM_RINGRNODE), rs(rs_->lexerInfo) {
+WASMRingRNode::WASMRingRNode(ASTNode *rs_): WASMInstructionNode(WASM_RINGRNODE), rs(rs_->text) {
 	delete rs_;
 }
 
@@ -911,7 +911,7 @@ std::unique_ptr<WhyInstruction> WASMRingRNode::convert(Function &function, VarMa
 	return std::make_unique<RingRInstruction>(convertVariable(function, map, rs));
 }
 
-WASMSvringNode::WASMSvringNode(ASTNode *rd_): WASMInstructionNode(WASM_SVRINGNODE), rd(rd_->lexerInfo) {
+WASMSvringNode::WASMSvringNode(ASTNode *rd_): WASMInstructionNode(WASM_SVRINGNODE), rd(rd_->text) {
 	delete rd_;
 }
 
@@ -928,9 +928,9 @@ std::unique_ptr<WhyInstruction> WASMSvringNode::convert(Function &function, VarM
 }
 
 WASMPrintNode::WASMPrintNode(ASTNode *rs_, ASTNode *type_):
-WASMInstructionNode(WASM_PRINTNODE), rs(rs_->lexerInfo) {
+WASMInstructionNode(WASM_PRINTNODE), rs(rs_->text) {
 	delete rs_;
-	const std::string &typestr = *type_->lexerInfo;
+	const std::string &typestr = *type_->text;
 	if (typestr == "prx")
 		type = PrintType::Hex;
 	else if (typestr == "prd")
@@ -990,7 +990,7 @@ std::unique_ptr<WhyInstruction> WASMHaltNode::convert(Function &, VarMap &) {
 	return std::make_unique<HaltRInstruction>();
 }
 
-WASMSleepRNode::WASMSleepRNode(ASTNode *rs_): WASMInstructionNode(WASM_SLEEPRNODE), rs(rs_->lexerInfo) {
+WASMSleepRNode::WASMSleepRNode(ASTNode *rs_): WASMInstructionNode(WASM_SLEEPRNODE), rs(rs_->text) {
 	delete rs_;
 }
 
@@ -1037,7 +1037,7 @@ std::unique_ptr<WhyInstruction> WASMSetptINode::convert(Function &, VarMap &) {
 }
 
 WASMSetptRNode::WASMSetptRNode(ASTNode *rs_, ASTNode *rt_):
-WASMInstructionNode(WASM_SETPTRNODE), rs(rs_->lexerInfo), rt(rt_? rt_->lexerInfo : nullptr) {
+WASMInstructionNode(WASM_SETPTRNODE), rs(rs_->text), rt(rt_? rt_->text : nullptr) {
 	delete rs_;
 	delete rt_;
 }
@@ -1060,7 +1060,7 @@ std::unique_ptr<WhyInstruction> WASMSetptRNode::convert(Function &function, VarM
 }
 
 WASMMvNode::WASMMvNode(ASTNode *rs_, ASTNode *rd_):
-WASMInstructionNode(WASM_MVNODE), rs(rs_->lexerInfo), rd(rd_->lexerInfo) {
+WASMInstructionNode(WASM_MVNODE), rs(rs_->text), rd(rd_->text) {
 	delete rs_;
 	delete rd_;
 }
@@ -1079,7 +1079,7 @@ std::unique_ptr<WhyInstruction> WASMMvNode::convert(Function &function, VarMap &
 }
 
 WASMSvpgNode::WASMSvpgNode(ASTNode *rd_):
-WASMInstructionNode(WASM_SVPGNODE), rd(rd_->lexerInfo) {
+WASMInstructionNode(WASM_SVPGNODE), rd(rd_->text) {
 	delete rd_;
 }
 
@@ -1097,7 +1097,7 @@ std::unique_ptr<WhyInstruction> WASMSvpgNode::convert(Function &function, VarMap
 }
 
 WASMQueryNode::WASMQueryNode(QueryType type_, ASTNode *rd_):
-WASMInstructionNode(WASM_QUERYNODE), type(type_), rd(rd_->lexerInfo) {
+WASMInstructionNode(WASM_QUERYNODE), type(type_), rd(rd_->text) {
 	delete rd_;
 }
 
@@ -1178,7 +1178,7 @@ std::unique_ptr<WhyInstruction> WASMInterruptsNode::convert(Function &, VarMap &
 }
 
 WASMInverseShiftNode::WASMInverseShiftNode(ASTNode *rs_, ASTNode *oper_, ASTNode *imm_, ASTNode *rd_):
-WASMInstructionNode(WASM_INVERSESHIFTNODE), rs(rs_->lexerInfo), oper(oper_->lexerInfo), rd(rd_->lexerInfo),
+WASMInstructionNode(WASM_INVERSESHIFTNODE), rs(rs_->text), oper(oper_->text), rd(rd_->text),
 operToken(oper_->symbol), imm(getImmediate(imm_)) {
 	delete rs_;
 	delete oper_;
@@ -1210,7 +1210,7 @@ std::unique_ptr<WhyInstruction> WASMInverseShiftNode::convert(Function &function
 }
 
 WASMSextNode::WASMSextNode(ASTNode *rs_, ASTNode *rd_, ASTNode *size_):
-WASMInstructionNode(WASM_SEXTNODE), rs(rs_->lexerInfo), rd(rd_->lexerInfo) {
+WASMInstructionNode(WASM_SEXTNODE), rs(rs_->text), rd(rd_->text) {
 	delete rs_;
 	delete rd_;
 	switch (size_->symbol) {
@@ -1246,7 +1246,7 @@ std::unique_ptr<WhyInstruction> WASMSextNode::convert(Function &function, VarMap
 }
 
 WASMTransNode::WASMTransNode(const ASTNode *rs_, const ASTNode *rd_):
-WASMInstructionNode(WASM_TRANSNODE), rs(rs_->lexerInfo), rd(rd_->lexerInfo) {
+WASMInstructionNode(WASM_TRANSNODE), rs(rs_->text), rd(rd_->text) {
 	delete rs_;
 	delete rd_;
 }
@@ -1266,7 +1266,7 @@ std::unique_ptr<WhyInstruction> WASMTransNode::convert(Function &function, VarMa
 }
 
 WASMPageStackNode::WASMPageStackNode(bool is_push, const ASTNode *rs_):
-WASMPageStackNode(is_push, rs_->lexerInfo) {
+WASMPageStackNode(is_push, rs_->text) {
 	delete rs_;
 }
 

@@ -57,9 +57,9 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			break;
 		case CMMTOK_NUMBER:
 			if (node.size() == 1) // Contains a "-" child indicating unary negation
-				out = new NumberExpr("-" + *node.lexerInfo);
+				out = new NumberExpr("-" + *node.text);
 			else
-				out = new NumberExpr(*node.lexerInfo);
+				out = new NumberExpr(*node.text);
 			break;
 		case CMMTOK_TRUE:
 		case CMM_EMPTY:
@@ -95,7 +95,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 		case CMMTOK_IDENT:
 			if (!function)
 				throw std::runtime_error("Variable expression encountered in functionless context");
-			out = new VariableExpr(*node.lexerInfo);
+			out = new VariableExpr(*node.text);
 			break;
 		case CMMTOK_LPAREN: {
 			std::vector<ExprPtr> arguments;
@@ -147,7 +147,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
 		case CMM_CAST:
-			out = new CastExpr(Type::get(*node.at(0)), Expr::get(*node.at(1), function));
+			out = new CastExpr(Type::get(*node.at(0), function->program), Expr::get(*node.at(1), function));
 			break;
 		case CMMTOK_LSHIFT:
 			out = new ShiftLeftExpr(

@@ -24,7 +24,7 @@ class ASTNode {
 		Parser *parser;
 		int symbol;
 		ASTLocation location;
-		const std::string *lexerInfo;
+		const std::string *text;
 		ASTNode *parent = nullptr;
 		std::list<ASTNode *> children;
 		int debugIndex = -1;

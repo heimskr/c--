@@ -265,7 +265,7 @@ op_sleep: "<" "sleep" reg ">" { $$ = new WASMSleepRNode($3); D($1, $2, $4); };
 
 op_rest: "<" "rest" ">" { $$ = new WASMRestNode; D($1, $2, $3); };
 
-op_io: "<" "io" ident ">" { $$ = new WASMIONode($3->lexerInfo); D($1, $2, $3, $4); };
+op_io: "<" "io" ident ">" { $$ = new WASMIONode($3->text); D($1, $2, $3, $4); };
 
 op_print: "<" printop reg ">" { $$ = new WASMPrintNode($3, $2); D($1, $4); };
 printop: "print" | "prx" | "prd" | "prc" | "prb";
@@ -304,7 +304,7 @@ _immediate: number | ident | character;
 ident: "memset" | "lui" | "if" | "halt" | "on" | "off" | printop | "p" | WASMTOK_IDENT | "sleep" | "rest" | "io"
      | "translate";
 
-zero: number { if (*$1->lexerInfo != "0") { wasmerror("Invalid number in jump condition: " + *$1->lexerInfo); } };
+zero: number { if (*$1->text != "0") { wasmerror("Invalid number in jump condition: " + *$1->text); } };
 
 reg: WASMTOK_REG;
 number: WASMTOK_NUMBER;

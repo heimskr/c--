@@ -15,62 +15,76 @@ Program compileRoot(const ASTNode &root) {
 	Function &init = out.functions.try_emplace(".init", out, nullptr).first->second;
 	init.name = ".init";
 
-	for (const ASTNode *child: root)
-		switch (child->symbol) {
+	for (const ASTNode *node: root)
+		switch (node->symbol) {
 			case CMMTOK_FN: {
-				const std::string &name = *child->front()->lexerInfo;
+				const std::string &name = *node->front()->text;
 				if (out.signatures.count(name) != 0)
 					throw std::runtime_error("Cannot redefine function " + name);
 				decltype(Signature::argumentTypes) args;
-				for (const ASTNode *arg: *child->at(2))
-					args.emplace_back(Type::get(*arg->front()));
-				out.signatures.try_emplace(name, std::shared_ptr<Type>(Type::get(*child->at(1))), std::move(args));
-				out.functions.try_emplace(name, out, child);
+				for (const ASTNode *arg: *node->at(2))
+					args.emplace_back(Type::get(*arg->front(), out));
+				out.signatures.try_emplace(name, std::shared_ptr<Type>(Type::get(*node->at(1), out)), std::move(args));
+				out.functions.try_emplace(name, out, node);
 				break;
 			}
 			case CMMTOK_COLON: { // Global variable
-				const std::string &name = *child->front()->lexerInfo;
+				const std::string &name = *node->front()->text;
 				if (out.globals.count(name) != 0)
 					throw std::runtime_error("Cannot redefine global " + name);
-				auto type = std::shared_ptr<Type>(Type::get(*child->at(1)));
-				if (child->size() <= 2)
+				auto type = std::shared_ptr<Type>(Type::get(*node->at(1), out));
+				if (node->size() <= 2)
 					out.globalOrder.push_back(out.globals.try_emplace(name,
 						std::make_shared<Global>(name, type, nullptr)).first);
 				else
 					out.globalOrder.push_back(out.globals.try_emplace(name, std::make_shared<Global>(name, type,
-						std::shared_ptr<Expr>(Expr::get(*child->at(2), &init)))).first);
+						std::shared_ptr<Expr>(Expr::get(*node->at(2), &init)))).first);
+				break;
+			}
+			case CMMTOK_STRUCT: {
+				const std::string &struct_name = *node->front()->text;
+				if (node->size() == 1) {
+					if (out.forwardDeclarations.count(struct_name) != 0)
+						throw NameConflictError(struct_name, node->front()->location);
+					out.forwardDeclarations.insert(struct_name);
+				} else {
+					std::vector<std::pair<std::string, TypePtr>> order;
+					for (const ASTNode *field: *node->at(1))
+						order.emplace_back(*field->text, Type::get(*field->front(), out));
+					out.structs.emplace(struct_name, StructType::make(struct_name, order));
+				}
 				break;
 			}
 			case CMMTOK_META_NAME:
-				out.name = *child->front()->lexerInfo;
+				out.name = *node->front()->text;
 				break;
 			case CMMTOK_META_AUTHOR:
-				out.author = *child->front()->lexerInfo;
+				out.author = *node->front()->text;
 				break;
 			case CMMTOK_META_ORCID:
-				out.orcid = *child->front()->lexerInfo;
+				out.orcid = *node->front()->text;
 				break;
 			case CMMTOK_META_VERSION:
-				out.version = *child->front()->lexerInfo;
+				out.version = *node->front()->text;
 				break;
 			default:
 				throw std::runtime_error("Unexpected token under root: " +
-					std::string(cmmParser.getName(child->symbol)));
+					std::string(cmmParser.getName(node->symbol)));
 		}
 
 	// TODO: implement functions
 	auto add_dummy = [&](const std::string &function_name) -> Function & {
-		auto &fn = out.functions.try_emplace("." + function_name, out, nullptr).first->second;
-		fn.name = "." + function_name;
+		auto &fn = out.functions.try_emplace("`" + function_name, out, nullptr).first->second;
+		fn.name = "`" + function_name;
 		return fn;
 	};
-	add_dummy("s").setArguments({{".string", std::make_shared<PointerType>(new UnsignedType(8))}});
-	add_dummy("c").setArguments({{".char", std::make_shared<UnsignedType>(8)}});
-	add_dummy("ptr").setArguments({{".pointer", std::make_shared<PointerType>(new VoidType())}});
-	add_dummy("bool").setArguments({{".boolean", std::make_shared<BoolType>()}});
+	add_dummy("s").setArguments({{"`string", std::make_shared<PointerType>(new UnsignedType(8))}});
+	add_dummy("c").setArguments({{"`char", std::make_shared<UnsignedType>(8)}});
+	add_dummy("ptr").setArguments({{"`pointer", std::make_shared<PointerType>(new VoidType())}});
+	add_dummy("bool").setArguments({{"`boolean", std::make_shared<BoolType>()}});
 	for (size_t i = 8; i <= 64; i *= 2) {
-		add_dummy("s" + std::to_string(i)).setArguments({{".int", std::make_shared<SignedType>(i)}});
-		add_dummy("u" + std::to_string(i)).setArguments({{".int", std::make_shared<UnsignedType>(i)}});
+		add_dummy("s" + std::to_string(i)).setArguments({{"`int", std::make_shared<SignedType>(i)}});
+		add_dummy("u" + std::to_string(i)).setArguments({{"`int", std::make_shared<UnsignedType>(i)}});
 	}
 
 	return out;
@@ -149,11 +163,11 @@ void Program::compile() {
 	lines.push_back("<halt>");
 
 	for (const std::string &line:
-		Util::split("|@.c|\t<prc $a0>|\t: $rt||@.ptr|\t<prc '0'>|\t<prc 'x'>|\t<prx $a0>|\t: $rt||@.s|\t[$a0] -> $mf /b"
-		"|\t: _strprint_print if $mf|\t: $rt|\t@_strprint_print|\t<prc $mf>|\t$a0++|\t: .s||@.s16|\tsext16 $a0 -> $a0|"
-		"\t<prd $a0>|\t: $rt||@.s32|\tsext32 $a0 -> $a0|\t<prd $a0>|\t: $rt||@.s64|\t<prd $a0>|\t: $rt||@.s8|\tsext8 $a"
-		"0 -> $a0|\t<prd $a0>|\t: $rt||@.u16|\t<prd $a0>|\t: $rt||@.u32|\t<prd $a0>|\t: $rt||@.u64|\t<prd $a0>|\t: $rt|"
-		"|@.u8|\t<prd $a0>|\t: $rt||@.bool|\t!$a0 -> $a0|\t!$a0 -> $a0|\t<prd $a0>|\t: $rt", "|", false))
+		Util::split("|@`c|\t<prc $a0>|\t: $rt||@`ptr|\t<prc '0'>|\t<prc 'x'>|\t<prx $a0>|\t: $rt||@`s|\t[$a0] -> $mf /b"
+		"|\t: _strprint_print if $mf|\t: $rt|\t@_strprint_print|\t<prc $mf>|\t$a0++|\t: .s||@`s16|\tsext16 $a0 -> $a0|"
+		"\t<prd $a0>|\t: $rt||@`s32|\tsext32 $a0 -> $a0|\t<prd $a0>|\t: $rt||@`s64|\t<prd $a0>|\t: $rt||@`s8|\tsext8 $a"
+		"0 -> $a0|\t<prd $a0>|\t: $rt||@`u16|\t<prd $a0>|\t: $rt||@`u32|\t<prd $a0>|\t: $rt||@`u64|\t<prd $a0>|\t: $rt|"
+		"|@`u8|\t<prd $a0>|\t: $rt||@`bool|\t!$a0 -> $a0|\t!$a0 -> $a0|\t<prd $a0>|\t: $rt", "|", false))
 		lines.push_back(line);
 
 	for (auto &[name, function]: functions)

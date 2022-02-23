@@ -20,20 +20,20 @@ ASTNode::ASTNode(Parser &parser_, int sym, const ASTLocation &loc, const char *i
 	parser = &parser_;
 	symbol = sym;
 	location = loc;
-	lexerInfo = StringSet::intern(info);
+	text = StringSet::intern(info);
 }
 
 ASTNode::ASTNode(Parser &parser_, int sym, const ASTLocation &loc, const std::string *info):
-	parser(&parser_), symbol(sym), location(loc), lexerInfo(info) {}
+	parser(&parser_), symbol(sym), location(loc), text(info) {}
 
 ASTNode::ASTNode(Parser &parser_, int sym, const std::string *info):
-	parser(&parser_), symbol(sym), location(cmmLexer.location), lexerInfo(info) {}
+	parser(&parser_), symbol(sym), location(cmmLexer.location), text(info) {}
 
 ASTNode::ASTNode(Parser &parser_, int sym, const char *info) {
 	parser = &parser_;
 	symbol = sym;
 	location = cmmLexer.location;
-	lexerInfo = StringSet::intern(info);
+	text = StringSet::intern(info);
 }
 
 ASTNode::ASTNode(Parser &parser_, int sym, const ASTLocation &loc): ASTNode(parser_, sym, loc, "") {}
@@ -104,7 +104,7 @@ ASTNode * ASTNode::absorb(ASTNode *to_absorb) {
 	for (ASTNode *child: to_absorb->children)
 		adopt(child);
 	to_absorb->children.clear();
-	lexerInfo = to_absorb->lexerInfo;
+	text = to_absorb->text;
 	delete to_absorb;
 	return this;
 }
@@ -120,7 +120,7 @@ ASTNode * ASTNode::copy() const {
 	ASTNode *out = new ASTNode();
 	out->symbol = symbol;
 	out->location = location;
-	out->lexerInfo = lexerInfo;
+	out->text = text;
 	out->parent = parent;
 	for (ASTNode *child: children) {
 		ASTNode *copy = child->copy();
@@ -153,26 +153,26 @@ ASTNode * ASTNode::locate(const ASTLocation &loc) {
 }
 
 long ASTNode::atoi() const {
-	if (lexerInfo->substr(0, 2) == "0x")
-		return Util::parseLong(lexerInfo->substr(2), 16);
-	return Util::parseLong(*lexerInfo);
+	if (text->substr(0, 2) == "0x")
+		return Util::parseLong(text->substr(2), 16);
+	return Util::parseLong(*text);
 }
 
 long ASTNode::atoi(int offset) const {
-	return Util::parseLong(lexerInfo->substr(offset));
+	return Util::parseLong(text->substr(offset));
 }
 
 std::string ASTNode::unquote(bool unescape) const {
-	if (lexerInfo->size() < 2 || lexerInfo->front() != '"' || lexerInfo->back() != '"')
-		throw std::runtime_error("Not a quoted string: " + *lexerInfo);
-	const std::string out = lexerInfo->substr(1, lexerInfo->size() - 2);
+	if (text->size() < 2 || text->front() != '"' || text->back() != '"')
+		throw std::runtime_error("Not a quoted string: " + *text);
+	const std::string out = text->substr(1, text->size() - 2);
 	return unescape? Util::unescape(out) : out;
 }
 
 char ASTNode::getChar() const {
-	if (lexerInfo->size() < 2 || lexerInfo->front() != '\'' || lexerInfo->back() != '\'')
-		throw std::runtime_error("Not a quoted character: " + *lexerInfo);
-	const std::string out = lexerInfo->substr(1, lexerInfo->size() - 2);
+	if (text->size() < 2 || text->front() != '\'' || text->back() != '\'')
+		throw std::runtime_error("Not a quoted character: " + *text);
+	const std::string out = text->substr(1, text->size() - 2);
 	if (out == "\\n") return '\n';
 	if (out == "\\r") return '\r';
 	if (out == "\\t") return '\t';
@@ -196,7 +196,7 @@ void ASTNode::debug(int indent, bool is_last, bool suppress_line) const {
 		std::cerr << "\e[0m";
 	}
 
-	std::cerr << style() << getName() << "\e[0;2m " << location << "\x1b[0;35m " << *lexerInfo << " ";
+	std::cerr << style() << getName() << "\e[0;2m " << location << "\x1b[0;35m " << *text << " ";
 	std::cerr << "\e[0m" << debugExtra() << "\n";
 	for (ASTNode *child: children)
 		child->debug(indent + 1, child == children.back());
@@ -212,7 +212,7 @@ std::string ASTNode::style() const {
 
 std::string ASTNode::extractName() const {
 	if ((parser == &wasmParser && symbol == WASMTOK_STRING) || (parser == &cmmParser && symbol == CMMTOK_STRING))
-		return lexerInfo->substr(1, lexerInfo->size() - 2);
+		return text->substr(1, text->size() - 2);
 	throw std::runtime_error("extractName() was called on an inappropriate symbol: " +
 		std::string(parser->getName(symbol)));
 }
