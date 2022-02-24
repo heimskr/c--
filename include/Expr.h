@@ -262,6 +262,16 @@ struct BoolExpr: AtomicExpr {
 	std::unique_ptr<Type> getType(ScopePtr) const override { return std::make_unique<BoolType>(); }
 };
 
+struct NullExpr: AtomicExpr {
+	NullExpr() {}
+	Expr * copy() const override { return new NullExpr(); }
+	operator std::string() const override { return "null"; }
+	ssize_t getValue() const override { return 0; }
+	std::optional<ssize_t> evaluate(ScopePtr) const override { return getValue(); }
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
+	std::unique_ptr<Type> getType(ScopePtr) const override { return std::make_unique<PointerType>(new VoidType); }
+};
+
 struct VariableExpr: Expr {
 	std::string name;
 	VariableExpr(const std::string &name_): name(name_) {}

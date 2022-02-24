@@ -68,6 +68,9 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 		case CMMTOK_FALSE:
 			out = new BoolExpr(false);
 			break;
+		case CMMTOK_NULL:
+			out = new NullExpr;
+			break;
 		case CMM_ADDROF:
 			out = new AddressOfExpr(Expr::get(*node.front(), function));
 			break;
@@ -534,6 +537,11 @@ std::unique_ptr<Type> NumberExpr::getType(ScopePtr scope) const {
 void BoolExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) {
 	if (destination)
 		function.add<SetIInstruction>(destination, value? size_t(multiplier) : 0);
+}
+
+void NullExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t) {
+	if (destination)
+		function.add<SetIInstruction>(destination, 0);
 }
 
 void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
