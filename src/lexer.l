@@ -95,6 +95,7 @@ CMM_SLCOMMENT	("//"[^\n]*)
 "asm"			{RTOKEN(ASM)}
 "struct"		{RTOKEN(STRUCT)}
 "sizeof"		{RTOKEN(SIZEOF)}
+"null"			{RTOKEN(NULL)}
 
 {CMM_CHAR}		{RTOKEN(CHAR)}
 {CMM_STRING}	{RTOKEN(STRING)}

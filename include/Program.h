@@ -10,7 +10,7 @@
 #include "Signature.h"
 
 class ASTNode;
-struct StructType;
+class StructType;
 
 struct Program {
 	std::map<std::string, GlobalPtr> globals;

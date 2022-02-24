@@ -72,6 +72,12 @@ struct NameConflictError: LocatedError {
 		LocatedError(location_, "Name collision encountered: " + name_), name(name_) {}
 };
 
-struct UncolorableError: public std::runtime_error {
+struct UncolorableError: std::runtime_error {
 	UncolorableError(): std::runtime_error("Unable to color graph: not enough colors") {}
+};
+
+struct IncompleteStructError: std::runtime_error {
+	std::string name;
+	IncompleteStructError(const std::string &name_):
+		std::runtime_error("Can't access incomplete struct " + name_), name(name_) {}
 };

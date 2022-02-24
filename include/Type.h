@@ -144,20 +144,27 @@ struct FunctionPointerType: Type {
 	bool isFunctionPointer() const override { return true; }
 };
 
-struct StructType: Type, Makeable<StructType> {
-	std::string name;
-	std::vector<std::pair<std::string, TypePtr>> order;
-	std::map<std::string, TypePtr> map;
-	bool isForwardDeclaration = false;
+class StructType: public Type, public Makeable<StructType> {
+	private:
+		std::map<std::string, TypePtr> map;
+		std::vector<std::pair<std::string, TypePtr>> order;
 
-	StructType(const std::string &name_);
-	StructType(const std::string &name_, const decltype(order) &order_);
-	Type * copy() const override;
-	operator std::string() const override;
-	size_t getSize() const override;
-	bool operator&&(const Type &) const override;
-	bool operator==(const Type &) const override;
-	bool isStruct() const override { return true; }
-	size_t getFieldOffset(const std::string &) const;
-	size_t getFieldSize(const std::string &) const;
+	public:
+		const Program &program;
+		std::string name;
+		bool isForwardDeclaration = false;
+
+		StructType(const Program &, const std::string &name_);
+		StructType(const Program &, const std::string &name_, const decltype(order) &order_);
+		Type * copy() const override;
+		operator std::string() const override;
+		size_t getSize() const override;
+		bool operator&&(const Type &) const override;
+		bool operator==(const Type &) const override;
+		bool isStruct() const override { return true; }
+		size_t getFieldOffset(const std::string &) const;
+		size_t getFieldSize(const std::string &) const;
+		
+		const decltype(order) & getOrder() const;
+		const decltype(map) & getMap() const;
 };

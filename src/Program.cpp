@@ -53,7 +53,7 @@ Program compileRoot(const ASTNode &root) {
 					std::vector<std::pair<std::string, TypePtr>> order;
 					for (const ASTNode *field: *node->at(1))
 						order.emplace_back(*field->text, Type::get(*field->front(), out));
-					out.structs.emplace(struct_name, StructType::make(struct_name, order));
+					out.structs.emplace(struct_name, StructType::make(out, struct_name, order));
 				}
 				break;
 			}

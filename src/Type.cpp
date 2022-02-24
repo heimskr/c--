@@ -43,7 +43,7 @@ bool UnsignedType::operator==(const Type &other) const {
 
 bool PointerType::operator&&(const Type &other) const {
 	if (auto *other_pointer = other.cast<PointerType>()) {
-		if (other_pointer->subtype->cast<VoidType>() || (*subtype && *other_pointer->subtype))
+		if (subtype->isVoid() || other_pointer->subtype->isVoid() || (*subtype && *other_pointer->subtype))
 			return true;
 		if (auto *subtype_array = subtype->cast<ArrayType>())
 			return *subtype_array->subtype && *other_pointer->subtype;
@@ -118,7 +118,7 @@ Type * Type::get(const ASTNode &node, const Program &program, bool allow_forward
 				return program.structs.at(struct_name)->copy();
 			if (program.forwardDeclarations.count(struct_name) != 0) {
 				if (allow_forward)
-					return new StructType(struct_name);
+					return new StructType(program, struct_name);
 				throw std::runtime_error("Can't use forward declaration of " + struct_name + " in this context");
 			}
 			throw ResolutionError(struct_name, nullptr);
@@ -186,27 +186,31 @@ FunctionPointerType::FunctionPointerType(const Function &function): returnType(f
 		argumentTypes.push_back(function.argumentMap.at(name)->type->copy());
 }
 
-StructType::StructType(const std::string &name_):
-	name(name_), isForwardDeclaration(true) {}
+StructType::StructType(const Program &program_, const std::string &name_):
+	program(program_), name(name_), isForwardDeclaration(true) {}
 
-StructType::StructType(const std::string &name_, const decltype(order) &order_): name(name_), order(order_) {
+StructType::StructType(const Program &program_, const std::string &name_, const decltype(order) &order_):
+order(order_), program(program_), name(name_) {
 	for (const auto &pair: order_)
 		map.insert(pair);
 }
 
 Type * StructType::copy() const {
+	if (isForwardDeclaration)
+		return new StructType(program, name);
 	decltype(order) order_copy;
 	for (const auto &[field_name, field_type]: order)
 		order_copy.emplace_back(field_name, TypePtr(field_type->copy()));
-	return new StructType(name, order_copy);
+	return new StructType(program, name, order_copy);
 }
 
 StructType::operator std::string() const {
 	std::stringstream out;
 	out << "struct " << name << " {";
-	for (const auto &[field_name, field_type]: order)
+	const auto &found_order = getOrder();
+	for (const auto &[field_name, field_type]: found_order)
 		out << ' ' << field_name << ": " << *field_type << ';';
-	if (!order.empty())
+	if (!found_order.empty())
 		out << ' ';
 	out << '}';
 	return out.str();
@@ -214,7 +218,7 @@ StructType::operator std::string() const {
 
 size_t StructType::getSize() const {
 	size_t out = 0;
-	for (const auto &[field_name, field_type]: order)
+	for (const auto &[field_name, field_type]: getOrder())
 		out += field_type->getSize();
 	return out;
 }
@@ -231,7 +235,7 @@ bool StructType::operator==(const Type &other) const {
 
 size_t StructType::getFieldOffset(const std::string &name) const {
 	size_t offset = 0;
-	for (const auto &[field_name, field_type]: order) {
+	for (const auto &[field_name, field_type]: getOrder()) {
 		if (field_name == name)
 			return offset;
 		offset += field_type->getSize();
@@ -240,7 +244,27 @@ size_t StructType::getFieldOffset(const std::string &name) const {
 }
 
 size_t StructType::getFieldSize(const std::string &name) const {
-	if (map.count(name) == 0)
+	if (getMap().count(name) == 0)
 		throw ResolutionError(name, nullptr);
-	return map.at(name)->getSize();
+	return getMap().at(name)->getSize();
+}
+
+const decltype(StructType::order) & StructType::getOrder() const {
+	if (isForwardDeclaration) {
+		if (program.structs.count(name) == 0)
+			throw IncompleteStructError(name);
+		return program.structs.at(name)->order;
+	}
+
+	return order;
+}
+
+const decltype(StructType::map) & StructType::getMap() const {
+	if (isForwardDeclaration) {
+		if (program.structs.count(name) == 0)
+			throw IncompleteStructError(name);
+		return program.structs.at(name)->map;
+	}
+
+	return map;
 }

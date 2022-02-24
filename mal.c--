@@ -127,7 +127,7 @@ void free(void* ptr) {
 u64 merge() {
 	u64 count = 0u64;
 	struct BlockMeta* current = base;
-	while (current != (struct BlockMeta*) 0 && current->next) {
+	while (current != (struct BlockMeta*) 0 && current->next != (struct BlockMeta*) 0) {
 		if ((current->free) && (current->next->free)) {
 			current->size = current->size + sizeof(struct BlockMeta) + current->next->size;
 			current->next = current->next->next;

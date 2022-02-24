@@ -373,7 +373,7 @@ std::optional<ssize_t> OrExpr::evaluate(ScopePtr scope) const {
 
 void LandExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	const std::string base = "." + function.name + "." + std::to_string(function.getNextBlock());
-	const std::string success = base + "s", end = base + "e";
+	const std::string success = base + "land.s", end = base + "land.e";
 	left->compile(destination, function, scope);
 	function.add<JumpConditionalInstruction>(success, destination, false);
 	function.add<JumpInstruction>(end);
@@ -398,7 +398,7 @@ std::optional<ssize_t> LandExpr::evaluate(ScopePtr scope) const {
 }
 
 void LorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	const std::string success = "." + function.name + "." + std::to_string(function.getNextBlock()) + "s";
+	const std::string success = "." + function.name + "." + std::to_string(function.getNextBlock()) + "lor.s";
 	left->compile(destination, function, scope);
 	function.add<JumpConditionalInstruction>(success, destination, false);
 	right->compile(destination, function, scope);
@@ -945,7 +945,7 @@ void LengthExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 
 void TernaryExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	const std::string base = "." + function.name + "." + std::to_string(function.getNextBlock());
-	const std::string true_label = base + "t", end = base + "e";
+	const std::string true_label = base + "t.t", end = base + "t.e";
 	condition->compile(destination, function, scope);
 	function.add<JumpConditionalInstruction>(true_label, destination, false);
 	ifFalse->compile(destination, function, scope, multiplier);
@@ -984,7 +984,7 @@ void DotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 }
 
 std::unique_ptr<Type> DotExpr::getType(ScopePtr scope) const {
-	return std::unique_ptr<Type>(checkType(scope)->map.at(ident)->copy());
+	return std::unique_ptr<Type>(checkType(scope)->getMap().at(ident)->copy());
 }
 
 bool DotExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
@@ -1006,7 +1006,7 @@ std::shared_ptr<StructType> DotExpr::checkType(ScopePtr scope) const {
 }
 
 size_t DotExpr::getSize(ScopePtr scope) const {
-	return checkType(scope)->map.at(ident)->getSize();
+	return checkType(scope)->getMap().at(ident)->getSize();
 }
 
 void ArrowExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
@@ -1023,7 +1023,7 @@ void ArrowExpr::compile(VregPtr destination, Function &function, ScopePtr scope,
 }
 
 std::unique_ptr<Type> ArrowExpr::getType(ScopePtr scope) const {
-	return std::unique_ptr<Type>(checkType(scope)->map.at(ident)->copy());
+	return std::unique_ptr<Type>(checkType(scope)->getMap().at(ident)->copy());
 }
 
 bool ArrowExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
@@ -1047,7 +1047,7 @@ std::shared_ptr<StructType> ArrowExpr::checkType(ScopePtr scope) const {
 }
 
 size_t ArrowExpr::getSize(ScopePtr scope) const {
-	return checkType(scope)->map.at(ident)->getSize();
+	return checkType(scope)->getMap().at(ident)->getSize();
 }
 
 void SizeofExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {

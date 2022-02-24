@@ -31,6 +31,9 @@ bool BasicScope::insert(VariablePtr variable) {
 	return true;
 }
 
+FunctionScope::FunctionScope(Function &function_, std::shared_ptr<GlobalScope> parent_):
+	Scope(&function_.program), function(function_), parent(parent_) {}
+
 VariablePtr FunctionScope::lookup(const std::string &name) const {
 	if (function.variables.count(name) == 0)
 		return parent->lookup(name);

@@ -23,7 +23,7 @@ using WhyPtr = std::shared_ptr<WhyInstruction>;
 
 class Function {
 	private:
-		int nextBlock = 0, anons = 0;
+		int nextBlock = 0, nextScope = 0, anons = 0;
 		void compile(const ASTNode &, const std::string &break_label = "", const std::string &continue_label = "");
 		void extractArguments();
 

@@ -168,7 +168,7 @@ VregPtr Function::newVar(TypePtr type) {
 }
 
 ScopePtr Function::newScope(int *id_out) {
-	const int new_id = ++nextBlock;
+	const int new_id = ++nextScope;
 	auto new_scope = std::make_shared<BlockScope>(currentScope());
 	scopes.try_emplace(new_id, new_scope);
 	if (id_out)
@@ -239,7 +239,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			checkNaked(node);
 			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
 			const std::string label = "." + name + "." + std::to_string(++nextBlock);
-			const std::string start = label + "s", end = label + "e";
+			const std::string start = label + "w.s", end = label + "w.e";
 			add<Label>(start);
 			auto temp_var = newVar();
 			const TypePtr condition_type = condition->getType(currentScope());
@@ -262,7 +262,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			scopeStack.push_back(scope);
 
 			const std::string label = "." + name + "." + std::to_string(++nextBlock);
-			const std::string start = label + "s", end = label + "e", next = label + "n";
+			const std::string start = label + "f.s", end = label + "f.e", next = label + "f.n";
 			auto temp_var = newVar();
 
 			compile(*node.front());
@@ -303,7 +303,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			break;
 		case CMMTOK_IF: {
 			checkNaked(node);
-			const std::string end_label = "." + name + "." + std::to_string(++nextBlock) + "end";
+			const std::string base = "." + name + "." + std::to_string(++nextBlock), end_label = base + "if.end";
 			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
 			auto temp_var = newVar();
 			const TypePtr condition_type = condition->getType(currentScope());
@@ -312,7 +312,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			condition->compile(temp_var, *this, currentScope());
 			add<LnotRInstruction>(temp_var, temp_var);
 			if (node.size() == 3) {
-				const std::string else_label = "." + name + "." + std::to_string(nextBlock) + "e";
+				const std::string else_label = base + "if.else";
 				add<JumpConditionalInstruction>(else_label, temp_var);
 				auto scope = newScope();
 				scopeStack.push_back(scope);
@@ -955,6 +955,18 @@ Graph & Function::makeCFG() {
 
 	if (blocks.empty())
 		return cfg;
+
+	if (name == "merge") {
+		info() << name << "\nBlocks:";
+		for (BasicBlockPtr &block: blocks) std::cerr << ' ' << block->label; std::cerr << '\n';
+		for (BasicBlockPtr &block: blocks) {
+			std::cerr << "@" << block->label << '\n';
+			for (const auto &inst: block->instructions) {
+				std::cerr << '\t' << inst->joined(true, "; ") << '\n';
+			}
+		}
+	}
+
 
 	// First pass: add all the nodes.
 	for (BasicBlockPtr &block: blocks) {

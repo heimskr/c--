@@ -99,6 +99,7 @@ using AN = ASTNode;
 %token CMMTOK_STRUCT "struct"
 %token CMMTOK_ARROW "->"
 %token CMMTOK_SIZEOF "sizeof"
+%token CMMTOK_NULL "null"
 
 %token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY CMM_POSTPLUS CMM_POSTMINUS CMM_FNPTR CMM_DECL
 
@@ -225,7 +226,8 @@ expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
     | ident
     | boolean
     | string
-    | CMMTOK_CHAR;
+    | CMMTOK_CHAR
+    | "null";
 
 string: CMMTOK_STRING;
 
