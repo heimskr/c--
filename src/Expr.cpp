@@ -811,6 +811,9 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 				throw ImplicitConversionError(right_type, left_type);
 			if (auto *global = var->cast<Global>()) {
 				function.add<StoreIInstruction>(destination, global->name, global->getSize());
+			} else if (Why::isArgumentRegister(var->reg)) {
+				// TODO: verify
+				function.add<MoveInstruction>(destination, var);
 			} else {
 				auto fp = function.precolored(Why::framePointerOffset);
 				const size_t offset = function.stackOffsets.at(var);
