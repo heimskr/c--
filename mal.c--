@@ -54,9 +54,6 @@ u64 realign(u64 val, u64 alignment) {
 void* allocate(u64 size, u64 alignment) {
 	%BlockMeta* block = null;
 
-	if (size <= 0u64)
-		return null;
-
 	if (!base) {
 		block = requestSpace(null, size, alignment);
 		if (!block)

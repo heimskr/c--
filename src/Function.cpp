@@ -47,22 +47,15 @@ void Function::extractArguments() {
 	if (!source)
 		return;
 
-	int i = 0;
 	for (const ASTNode *child: *source->at(1)) {
 		const std::string &argument_name = *child->text;
 		arguments.push_back(argument_name);
 		VariablePtr argument = Variable::make(argument_name, TypePtr(Type::get(*child->front(), program)), *this);
 		argument->init();
 		argumentMap.emplace(argument_name, argument);
-		if (i < Why::argumentCount) {
-			argument->reg = Why::argumentOffset + i;
-		} else
-			throw std::runtime_error("Functions with greater than " + std::to_string(Why::argumentCount) +
-				" arguments are currently unsupported.");
 		if (selfScope->doesConflict(argument_name))
 			throw NameConflictError(argument_name);
 		variables.emplace(argument_name, argument);
-		++i;
 	}
 }
 
@@ -109,6 +102,19 @@ void Function::compile() {
 				default:
 					throw std::runtime_error("Invalid fnattr: " + *child->text);
 			}
+
+		if (!isNaked()) {
+			int i = 0;
+			VregPtr temp_var = arguments.empty()? nullptr : newVar();
+			VregPtr fp = precolored(Why::framePointerOffset);
+			for (const std::string &argument_name: arguments) {
+				VariablePtr argument = argumentMap.at(argument_name);
+				const size_t offset = addToStack(argument);
+				add<MoveInstruction>(precolored(Why::argumentOffset + i++), argument);
+				add<SubIInstruction>(fp, temp_var, offset);
+				add<StoreRInstruction>(argument, temp_var, 8);
+			}
+		}
 
 		for (const ASTNode *child: *source->at(3))
 			compile(*child);
