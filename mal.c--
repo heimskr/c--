@@ -1,7 +1,7 @@
 #name "Mal"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "0.1"
+#version "0.2"
 
 struct BlockMeta;
 
@@ -9,7 +9,9 @@ MEMORY_ALIGN: u64 = 32;
 allocated: u64 = 0;
 base: struct BlockMeta* = (struct BlockMeta*) 0;
 highestAllocated: u64 = 0;
-
+start: void* = (void*) 0;
+high: void* = (void*) 0;
+end: void* = (void*) 0;
 
 struct BlockMeta {
 	size: u64;
@@ -26,5 +28,85 @@ fn realign(val: u64, alignment: u64): u64 {
 	return val;
 }
 
-fn findFreeBlock(last: struct BlockMeta**, size: u64): u64 {
+fn findFreeBlock(last: struct BlockMeta**, size: u64): struct BlockMeta* {
+	current: struct BlockMeta* = base;
+	while ((s64) current != 0 && !(current->free && size <= current->size)) {
+		*last = current;
+		current = current->next;
+	}
+	return current;
+}
+
+fn requestSpace(last: struct BlockMeta*, size: u64, alignment: u64): struct BlockMeta* {
+	block: struct BlockMeta* = (struct BlockMeta*) realign((u64) end, alignment);
+
+	if (last != (struct BlockMeta*) 0)
+		last->next = block;
+
+	block->size = size;
+	block->next = (struct BlockMeta*) 0;
+	block->free = false;
+
+	end = (u8*) block + block->size + sizeof(struct BlockMeta) + 1;
+	return block;
+}
+
+fn allocate(size: u64, alignment: u64): void* {
+	block: struct BlockMeta* = (struct BlockMeta*) 0;
+
+	if (size <= 0u64)
+		return (void*) 0;
+
+	if (!base) {
+		block = requestSpace((struct BlockMeta*) 0, size, alignment);
+		if (!block)
+			return (void*) 0;
+		base = block;
+	} else {
+		last: struct BlockMeta* = base;
+		block = findFreeBlock(&last, size);
+		if (!block) {
+			block = requestSpace(last, size, alignment);
+			if (!block)
+				return (void*) 0;
+		} else {
+			split(block, size);
+			block->free = false;
+		}
+	}
+
+	allocated = allocated + block->size + sizeof(struct BlockMeta);
+	return block + 1;
+}
+
+fn split(block: struct BlockMeta*, size: u64): void* {
+	if (block->size > size + sizeof(struct BlockMeta)) {
+		// We have enough space to split the block, unless alignment takes up too much.
+		new_block: struct BlockMeta* = (struct BlockMeta*) realign((u64) block + size + sizeof(struct BlockMeta) + 1u64, MEMORY_ALIGN);
+
+		// After we realign, we need to make sure that the new block's new size isn't negative.
+
+		if (block->next != (struct BlockMeta*) 0) {
+			new_size: u64 = (u64) ((void*) block->next - (void*) new_block - sizeof(struct BlockMeta));
+
+			// Realigning the new block can make it too small, so we need to make sure the new block is big enough.
+			if (new_size > 0u64) {
+				new_block->size = new_size;
+				new_block->free = true;
+				new_block->next = block->next;
+				block->next = new_block;
+				block->size = size;
+			}
+		} else {
+			new_size: u64 = (u64) ((void*) block + block->size - (void*) new_block);
+
+			if (new_size > 0u64) {
+				new_block->size = new_size;
+				new_block->free = true;
+				new_block->next = (struct BlockMeta*) 0;
+				block->size = size;
+				block->next = new_block;
+			}
+		}
+	}
 }
