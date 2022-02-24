@@ -114,7 +114,7 @@ Type * Type::get(const ASTNode &node, const Program &program, bool allow_forward
 				argument_types.push_back(Type::get(*child, program));
 			return new FunctionPointerType(Type::get(*node.front(), program), std::move(argument_types));
 		}
-		case CMMTOK_STRUCT: {
+		case CMMTOK_MOD: {
 			const std::string &struct_name = *node.front()->text;
 			if (program.structs.count(struct_name) != 0)
 				return program.structs.at(struct_name)->copy();

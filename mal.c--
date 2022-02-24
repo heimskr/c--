@@ -1,13 +1,13 @@
 #name "Mal"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "0.5"
+#version "0.6"
 
 struct BlockMeta;
 
 u64 MEMORY_ALIGN = 32;
 u64 allocated = 0;
-struct BlockMeta* base = null;
+%BlockMeta* base = null;
 u64 highestAllocated = 0;
 void* start = null;
 void* high = null;
@@ -15,21 +15,21 @@ void* end = null;
 
 struct BlockMeta {
 	u64 size;
-	struct BlockMeta* next;
+	%BlockMeta* next;
 	bool free;
 };
 
 u64 realign(u64 val, u64 alignment) {
 	if (alignment == 0u64)
 		return val;
-	u64 offset = (val + sizeof(struct BlockMeta)) % alignment;
+	u64 offset = (val + sizeof(%BlockMeta)) % alignment;
 	if (offset)
 		val = val + alignment - offset;
 	return val;
 }
 
-struct BlockMeta* findFreeBlock(struct BlockMeta** last, u64 size) {
-	struct BlockMeta* current = base;
+%BlockMeta* findFreeBlock(%BlockMeta** last, u64 size) {
+	%BlockMeta* current = base;
 	while (current && !(current->free && size <= current->size)) {
 		*last = current;
 		current = current->next;
@@ -37,8 +37,8 @@ struct BlockMeta* findFreeBlock(struct BlockMeta** last, u64 size) {
 	return current;
 }
 
-struct BlockMeta* requestSpace(struct BlockMeta* last, u64 size, u64 alignment) {
-	struct BlockMeta* block = (struct BlockMeta*) realign((u64) end, alignment);
+%BlockMeta* requestSpace(%BlockMeta* last, u64 size, u64 alignment) {
+	%BlockMeta* block = (%BlockMeta*) realign((u64) end, alignment);
 
 	if (last)
 		last->next = block;
@@ -47,12 +47,12 @@ struct BlockMeta* requestSpace(struct BlockMeta* last, u64 size, u64 alignment) 
 	block->next = null;
 	block->free = false;
 
-	end = (u8*) block + block->size + sizeof(struct BlockMeta) + 1;
+	end = (u8*) block + block->size + sizeof(%BlockMeta) + 1;
 	return block;
 }
 
 void* allocate(u64 size, u64 alignment) {
-	struct BlockMeta* block = null;
+	%BlockMeta* block = null;
 
 	if (size <= 0u64)
 		return null;
@@ -63,7 +63,7 @@ void* allocate(u64 size, u64 alignment) {
 			return null;
 		base = block;
 	} else {
-		struct BlockMeta* last = base;
+		%BlockMeta* last = base;
 		block = findFreeBlock(&last, size);
 		if (!block) {
 			block = requestSpace(last, size, alignment);
@@ -75,19 +75,19 @@ void* allocate(u64 size, u64 alignment) {
 		}
 	}
 
-	allocated = allocated + block->size + sizeof(struct BlockMeta);
+	allocated = allocated + block->size + sizeof(%BlockMeta);
 	return block + 1;
 }
 
-void* split(struct BlockMeta* block, u64 size) {
-	if (block->size > size + sizeof(struct BlockMeta)) {
+void* split(%BlockMeta* block, u64 size) {
+	if (block->size > size + sizeof(%BlockMeta)) {
 		// We have enough space to split the block, unless alignment takes up too much.
-		struct BlockMeta* new_block = (struct BlockMeta*) realign((u64) block + size + sizeof(struct BlockMeta) + 1u64, MEMORY_ALIGN);
+		%BlockMeta* new_block = (%BlockMeta*) realign((u64) block + size + sizeof(%BlockMeta) + 1u64, MEMORY_ALIGN);
 
 		// After we realign, we need to make sure that the new block's new size isn't negative.
 
 		if (block->next) {
-			u64 new_size = (u64) ((void*) block->next - (void*) new_block - sizeof(struct BlockMeta));
+			u64 new_size = (u64) ((void*) block->next - (void*) new_block - sizeof(%BlockMeta));
 
 			// Realigning the new block can make it too small, so we need to make sure the new block is big enough.
 			if (new_size > 0u64) {
@@ -111,25 +111,25 @@ void* split(struct BlockMeta* block, u64 size) {
 	}
 }
 
-struct BlockMeta* getBlock(void* ptr) {
-	return (struct BlockMeta*) ptr - 1;
+%BlockMeta* getBlock(void* ptr) {
+	return (%BlockMeta*) ptr - 1;
 }
 
 void free(void* ptr) {
 	if (ptr == null)
 		return;
-	struct BlockMeta* block_ptr = getBlock(ptr);
+	%BlockMeta* block_ptr = getBlock(ptr);
 	block_ptr->free = true;
-	allocated = allocated - block_ptr->size + sizeof(struct BlockMeta);
+	allocated = allocated - block_ptr->size + sizeof(%BlockMeta);
 	merge();
 }
 
 u64 merge() {
 	u64 count = 0u64;
-	struct BlockMeta* current = base;
+	%BlockMeta* current = base;
 	while (current && current->next) {
-		if ((current->free) && (current->next->free)) {
-			current->size = current->size + sizeof(struct BlockMeta) + current->next->size;
+		if (current->free && current->next->free) {
+			current->size = current->size + sizeof(%BlockMeta) + current->next->size;
 			current->next = current->next->next;
 			++count;
 		} else

@@ -262,7 +262,7 @@ typelist: typelist "," type { $$ = $1->adopt($3); D($2); }
 
 _typelist: typelist | { $$ = new ASTNode(cmmParser, CMM_LIST); };
 
-struct_type: "struct" CMMTOK_IDENT { $$ = $1->adopt($2); };
+struct_type: "%" CMMTOK_IDENT { $$ = $1->adopt($2); };
 
 type: "bool" | int_type | "void" | pointer_type | array_type | fnptr_type | struct_type;
 
