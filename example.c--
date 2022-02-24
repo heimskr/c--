@@ -1,7 +1,7 @@
 #name "Example"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "5.2"
+#version "5.4"
 
 n: s64 = 38 + 5;
 empty: bool;
@@ -9,15 +9,15 @@ dependent: s64 = n * 2;
 global_addr: s64* = &dependent;
 unsigned: u64 = 60u8;
 
-fn l(): void {
-	.c('\n');
+void l() {
+	`c('\n');
 }
 
-fn triple_and_add(input: s64, addend: s64): s64 {
+s64 triple_and_add(input: s64, addend: s64) {
 	return (input << 1) + input + addend;
 }
 
-fn typecheck(): void {
+void typecheck() {
 	u_8: u8 = 600u16;
 	s_16: s16 = 40u8;
 	s_32: s32 = -10s8;
@@ -28,89 +28,89 @@ fn typecheck(): void {
 }
 
 /*
-fn badcall(): void {
-	.bool("Hello", empty);
+void badcall() {
+	`bool("Hello", empty);
 }
 */
 
-fn main(argc: u32): void {
+void main(argc: u32) {
 	// Functions whose names are "." followed by a type are built-in print functions.
 	val: s64 = n - 1;
 	wow: s64;
 	(void*) typecheck();
 	(void*) 42;
-	.s("n = "); .s64(n); l();
-	.s("empty = "); .bool(empty); l();
-	.s("dependent = "); .s64(dependent); l();
-	.s("global_addr = "); .ptr(global_addr); l();
-	.s("*global_addr = "); .s64(*global_addr); l();
-	.s64(val); .s(" * 3 + 10 != "); .s64(triple_and_add(triple_and_add(val, 10), triple_and_add(0, 0))); l();
+	`s("n = "); `s64(n); l();
+	`s("empty = "); `bool(empty); l();
+	`s("dependent = "); `s64(dependent); l();
+	`s("global_addr = "); `ptr(global_addr); l();
+	`s("*global_addr = "); `s64(*global_addr); l();
+	`s64(val); `s(" * 3 + 10 != "); `s64(triple_and_add(triple_and_add(val, 10), triple_and_add(0, 0))); l();
 	ptr_test();
-	.s("Badfib: ");      .s64(badfib(10));    l();
-	.s("Conditional: "); .s64(conditional()); l();
-	.s("!10 = "); .bool(!10); l();
-	.s("!0  = "); .bool(!0);  l();
-	// .s("z_split: "); .s64(z_split()); l();
+	`s("Badfib: ");      `s64(badfib(10));    l();
+	`s("Conditional: "); `s64(conditional()); l();
+	`s("!10 = "); `bool(!10); l();
+	`s("!0  = "); `bool(!0);  l();
+	// `s("z_split: "); `s64(z_split()); l();
 	scope_out: s32 = scope_test();
-	.s("scope_out() = "); .s32(scope_out); l();
-	.s("Global n = "); .s64(n); l();
-	.s("~100u8 = "); .u8(~(s64)100u8); l();
-	.s("6 to the void and back: "); .u32((u32) (void) 6); l();
-	.bool(!!true); l();
-	.s("true? 2 : 3 == "); .s64(true? 2 : 3); l();
-	.s("   0? 2 : 3 == "); .s64(0? 2 : 3); l();
+	`s("scope_out() = "); `s32(scope_out); l();
+	`s("Global n = "); `s64(n); l();
+	`s("~100u8 = "); `u8(~(s64)100u8); l();
+	`s("6 to the void and back: "); `u32((u32) (void) 6); l();
+	`bool(!!true); l();
+	`s("true? 2 : 3 == "); `s64(true? 2 : 3); l();
+	`s("   0? 2 : 3 == "); `s64(0? 2 : 3); l();
 	wow = 100;
-	.s("wow = "); .s64(wow); .s(" (should be 100)"); l();
+	`s("wow = "); `s64(wow); `s(" (should be 100)"); l();
 	(&(*&wow))[0] = 200;
-	.s("wow = "); .s64(wow); .s(" (should be 200)"); l();
+	`s("wow = "); `s64(wow); `s(" (should be 200)"); l();
 	arr: s32[4];
 	for i: u64 = 0; i < #arr; ++i {
 		arr[i] = (s32) (10u64 * (i + 1u64));
 	}
 	arrptr: s32* = &arr;
-	.s("Should be 30: "); .s32(arrptr[2]); l();
+	`s("Should be 30: "); `s32(arrptr[2]); l();
 	return (void) 0;
 }
 
-fn scope_test(): s32 {
+s32 scope_test() {
 	n: s32 = 42;
-	.s("Function-scope n = "); .s32(n); l();
+	`s("Function-scope n = "); `s32(n); l();
 	if (true) {
 		n: u64 = (u64) -1s64;
-		.s("Block-scope n = "); .u64(n); l();
+		`s("Block-scope n = "); `u64(n); l();
 		{{{ n = 64; }}}
-		.s("Block-scope n = "); .u64(n); l();
+		`s("Block-scope n = "); `u64(n); l();
 	}
-	.s("Function-scope n = "); .s32(n); l();
+	`s("Function-scope n = "); `s32(n); l();
 	return n;
 }
 
-fn ptr_test(): void {
-	.s("ptr_test():\n");
+void ptr_test() {
+	`s("ptr_test():\n");
 	ptr: s64* = &n;
 	vptr: void* = ptr;
-	.ptr(vptr); l();
+	`ptr(vptr); l();
 	val: s64 = 12;
 	valptr: s64* = &val;
 	zero: s64;
 	*(valptr + (zero = 0)) = 16;
-	.s64(val); l();
+	`s64(val); l();
 }
 
-fn forever(): void {
+void forever() {
 	while true {
-		.s("Hello!\n");
+		`s("Hello!\n");
 	}
 }
 
-fn badfib(x: s64): s64 {
+s64 badfib(x: s64) {
 	if (x < 2)
 		return 1;
 	else
 		return badfib(x - 2) + badfib(x - 1);
 }
 
-fn conditional(): s64 {
+s64 conditional() {
 	if (true) {
 		if (false)
 			return 1;
@@ -121,7 +121,7 @@ fn conditional(): s64 {
 }
 
 /*
-fn z_split(): s64 {
+s64 z_split() {
 	var0: s64 = 0;
 	var1: s64 = 1;
 	var2: s64 = 2;

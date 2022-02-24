@@ -18,8 +18,8 @@
 Function::Function(Program &program_, const ASTNode *source_):
 program(program_), source(source_), selfScope(FunctionScope::make(*this, GlobalScope::make(program))) {
 	if (source) {
-		name = *source->at(0)->text;
-		returnType = TypePtr(Type::get(*source->at(1), program));
+		name = *source->text;
+		returnType = TypePtr(Type::get(*source->at(0), program));
 	} else
 		returnType = VoidType::make();
 	scopes.emplace(0, selfScope);
@@ -48,7 +48,7 @@ void Function::extractArguments() {
 		return;
 
 	int i = 0;
-	for (const ASTNode *child: *source->at(2)) {
+	for (const ASTNode *child: *source->at(1)) {
 		const std::string &argument_name = *child->text;
 		arguments.push_back(argument_name);
 		VariablePtr argument = Variable::make(argument_name, TypePtr(Type::get(*child->front(), program)), *this);
@@ -97,11 +97,11 @@ void Function::compile() {
 		if (!source)
 			throw std::runtime_error("Can't compile " + name + ": no source node");
 
-		if (source->size() != 5)
-			throw std::runtime_error("Expected 5 nodes in " + name + "'s source node, found " +
+		if (source->size() != 4)
+			throw std::runtime_error("Expected 4 nodes in " + name + "'s source node, found " +
 				std::to_string(source->size()));
 
-		for (const ASTNode *child: *source->at(3))
+		for (const ASTNode *child: *source->at(2))
 			switch (child->symbol) {
 				case CMMTOK_NAKED:
 					attributes.insert(Attribute::Naked);
@@ -110,7 +110,7 @@ void Function::compile() {
 					throw std::runtime_error("Invalid fnattr: " + *child->text);
 			}
 
-		for (const ASTNode *child: *source->at(4))
+		for (const ASTNode *child: *source->at(3))
 			compile(*child);
 	}
 

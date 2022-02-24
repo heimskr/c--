@@ -68,7 +68,6 @@ using AN = ASTNode;
 %token CMMTOK_QUESTION "?"
 %token CMMTOK_COLON ":"
 %token CMMTOK_HASH "#"
-%token CMMTOK_FN "fn"
 %token CMMTOK_RETURN "return"
 %token CMMTOK_PERIOD "."
 %token CMMTOK_S8 "s8"
@@ -164,7 +163,7 @@ struct_def: "struct" CMMTOK_IDENT "{" decl_list "}" ";" { $$ = $1->adopt({$2, $4
 decl_list: decl_list CMMTOK_IDENT ":" type ";" { $$ = $1->adopt($2->adopt($4)); D($3, $5); }
          | { $$ = new ASTNode(cmmParser, CMM_LIST); };
 
-function_def: "fn" ident "(" _arglist ")" ":" type fnattrs block { $$ = $1->adopt({$2, $7, $4, $8, $9}); D($3, $5, $6); }
+function_def: type ident "(" _arglist ")" fnattrs block { $$ = $2->adopt({$1, $4, $6, $7}); D($3, $5); }
 
 fnattrs: fnattrs fnattr { $$ = $1->adopt($2); }
        | { $$ = new ASTNode(cmmParser, CMM_LIST); };

@@ -17,14 +17,16 @@ Program compileRoot(const ASTNode &root) {
 
 	for (const ASTNode *node: root)
 		switch (node->symbol) {
-			case CMMTOK_FN: {
-				const std::string &name = *node->front()->text;
+			case CMMTOK_IDENT: {
+				if (node->size() != 4)
+					throw std::runtime_error("Ident under program root not a function definition");
+				const std::string &name = *node->text;
 				if (out.signatures.count(name) != 0)
 					throw std::runtime_error("Cannot redefine function " + name);
 				decltype(Signature::argumentTypes) args;
-				for (const ASTNode *arg: *node->at(2))
+				for (const ASTNode *arg: *node->at(1))
 					args.emplace_back(Type::get(*arg->front(), out));
-				out.signatures.try_emplace(name, std::shared_ptr<Type>(Type::get(*node->at(1), out)), std::move(args));
+				out.signatures.try_emplace(name, std::shared_ptr<Type>(Type::get(*node->at(0), out)), std::move(args));
 				out.functions.try_emplace(name, out, node);
 				break;
 			}

@@ -75,7 +75,6 @@ CMM_SLCOMMENT	("//"[^\n]*)
 "#orcid"		{RTOKEN(META_ORCID)}
 "#naked"		{RTOKEN(NAKED)}
 "#"				{RTOKEN(HASH)}
-"fn"			{RTOKEN(FN)}
 "return"		{RTOKEN(RETURN)}
 "."				{RTOKEN(PERIOD)}
 "~"				{RTOKEN(TILDE)}
