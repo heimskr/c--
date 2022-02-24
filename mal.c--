@@ -1,7 +1,7 @@
 #name "Mal"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "1.0"
+#version "1.1"
 
 struct BlockMeta;
 
@@ -192,11 +192,16 @@ void main() {
 	u32* two   = malloc(sizeof(u32));
 	u16* three = malloc(sizeof(u16));
 	u8*  four  = malloc(sizeof(u8));
+	free(one);
+	u64* five  = malloc(sizeof(u64));
 	`u64((u64) one);   `c('\n');
-	`c('('); `u64(two - one); `c(')'); `c('\n');
+	`c('('); `s64(two - one); `c(')'); `c('\n');
 	`u64((u64) two);   `c('\n');
-	`c('('); `u64(three - two); `c(')'); `c('\n');
+	`c('('); `s64(three - two); `c(')'); `c('\n');
 	`u64((u64) three); `c('\n');
-	`c('('); `u64(four - three); `c(')'); `c('\n');
+	`c('('); `s64(four - three); `c(')'); `c('\n');
 	`u64((u64) four);  `c('\n');
+	`c('('); `s64(five - four); `c(')'); `c('\n');
+	`u64((u64) five);  `c('\n');
+
 }
