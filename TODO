@@ -1,3 +1,5 @@
 - offsetof
 - const
 - +=, -=, etc.
+- Put arguments on the stack at the beginning of the function. Currently, it's impossible to take the address of an
+  argument and passing arguments to another function is broken.
