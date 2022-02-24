@@ -956,18 +956,6 @@ Graph & Function::makeCFG() {
 	if (blocks.empty())
 		return cfg;
 
-	if (name == "merge") {
-		info() << name << "\nBlocks:";
-		for (BasicBlockPtr &block: blocks) std::cerr << ' ' << block->label; std::cerr << '\n';
-		for (BasicBlockPtr &block: blocks) {
-			std::cerr << "@" << block->label << '\n';
-			for (const auto &inst: block->instructions) {
-				std::cerr << '\t' << inst->joined(true, "; ") << '\n';
-			}
-		}
-	}
-
-
 	// First pass: add all the nodes.
 	for (BasicBlockPtr &block: blocks) {
 		const std::string &label = block->label;
