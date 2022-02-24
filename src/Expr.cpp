@@ -98,6 +98,9 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 		case CMMTOK_ARROW:
 			out = new ArrowExpr(Expr::get(*node.front(), function), *node.at(1)->text);
 			break;
+		case CMMTOK_SIZEOF:
+			out = new SizeofExpr(TypePtr(Type::get(*node.front(), function->program)));
+			break;
 		case CMMTOK_IDENT:
 			if (!function)
 				throw std::runtime_error("Variable expression encountered in functionless context");
@@ -1042,4 +1045,8 @@ std::shared_ptr<StructType> ArrowExpr::checkType(ScopePtr scope) const {
 
 size_t ArrowExpr::getSize(ScopePtr scope) const {
 	return checkType(scope)->map.at(ident)->getSize();
+}
+
+void SizeofExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
+	function.add<SetIInstruction>(destination, size_t(*evaluate(scope) * multiplier));
 }

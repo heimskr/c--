@@ -1,0 +1,30 @@
+#name "Mal"
+#author "Kai Tamkun"
+#orcid "0000-0001-7405-6654"
+#version "0.1"
+
+struct BlockMeta;
+
+MEMORY_ALIGN: u64 = 32;
+allocated: u64 = 0;
+base: struct BlockMeta* = (struct BlockMeta*) 0;
+highestAllocated: u64 = 0;
+
+
+struct BlockMeta {
+	size: u64;
+	next: struct BlockMeta*;
+	free: bool;
+};
+
+fn realign(val: u64, alignment: u64): u64 {
+	if (alignment == 0u64)
+		return val;
+	offset: u64 = (val + sizeof(struct BlockMeta)) % alignment;
+	if (offset)
+		val = val + alignment - offset;
+	return val;
+}
+
+fn findFreeBlock(last: struct BlockMeta**, size: u64): u64 {
+}

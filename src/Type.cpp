@@ -121,6 +121,7 @@ Type * Type::get(const ASTNode &node, const Program &program, bool allow_forward
 					return new StructType(struct_name);
 				throw std::runtime_error("Can't use forward declaration of " + struct_name + " in this context");
 			}
+			throw ResolutionError(struct_name, nullptr);
 		}
 		default:
 			throw std::invalid_argument("Invalid token in getType: " + std::string(cmmParser.getName(node.symbol)));

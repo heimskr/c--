@@ -99,6 +99,7 @@ using AN = ASTNode;
 %token CMMTOK_NAKED "#naked"
 %token CMMTOK_STRUCT "struct"
 %token CMMTOK_ARROW "->"
+%token CMMTOK_SIZEOF "sizeof"
 
 %token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY CMM_POSTPLUS CMM_POSTMINUS CMM_FNPTR
 
@@ -116,7 +117,7 @@ using AN = ASTNode;
 %left "<<" ">>"
 %left "+" "-"
 %left MULT "/" "%"
-%right "!" "~" "#" DEREF ADDROF PREFIX UNARY CAST
+%right "!" "~" "#" "sizeof" DEREF ADDROF PREFIX UNARY CAST
 %left "[" POSTFIX CALL "." "->"
 %nonassoc "else"
 
@@ -212,6 +213,7 @@ expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
     | "!" expr { $$ = $1->adopt($2); }
     | "~" expr { $$ = $1->adopt($2); }
     | "#" expr { $$ = $1->adopt($2); }
+    | "sizeof" "(" type ")" %prec "sizeof" { $$ = $1->adopt($3); D($2, $4); }
     | expr "?" expr ":" expr %prec "?" { $$ = $2->adopt({$1, $3, $5}); D($4); }
     | number
     | "-" number %prec UNARY   { $$ = $2->adopt($1); }

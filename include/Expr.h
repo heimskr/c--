@@ -529,3 +529,14 @@ struct ArrowExpr: Expr {
 	std::shared_ptr<StructType> checkType(ScopePtr) const;
 	size_t getSize(ScopePtr) const override;
 };
+
+struct SizeofExpr: Expr {
+	TypePtr argument;
+	SizeofExpr(TypePtr argument_): argument(argument_) {}
+	Expr * copy() const override { return new SizeofExpr(argument); }
+	operator std::string() const override { return "sizeof(" + std::string(*argument) + ")"; }
+	std::optional<ssize_t> evaluate(ScopePtr) const override { return argument->getSize(); }
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
+	size_t getSize(ScopePtr) const override { return 8; }
+	std::unique_ptr<Type> getType(ScopePtr) const override { return std::make_unique<UnsignedType>(64); }
+};
