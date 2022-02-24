@@ -1,7 +1,7 @@
 #name "Mal"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "0.7"
+#version "1.0"
 
 struct BlockMeta;
 
@@ -146,6 +146,7 @@ void setBounds(void* new_start, void* new_high) {
 		`s(" through 0x");
 		asm("<prx $1>":new_high);
 		`c('\n');
+		asm("<halt>");
 	}
 	start = (void*) realign((s64) new_start, MEMORY_ALIGN);
 	highestAllocated = (u64) start;
@@ -155,4 +156,50 @@ void setBounds(void* new_start, void* new_high) {
 
 u64 getUnallocated() {
 	return (u64) (high - start) - allocated;
+}
+
+void* malloc(u64 size) {
+	return allocate(size, MEMORY_ALIGN);
+}
+
+void* memset(void* ptr, u8 c, u64 len) {
+	asm("memset $1 x $2 -> $3":len, c, ptr);
+	return ptr;
+}
+
+void* calloc(u64 count, u64 size) {
+	void* chunk = malloc(count * size);
+	if (chunk)
+		memset(chunk, 0, count * size);
+	return chunk;
+}
+
+void* checked_malloc(u64 size) {
+	void* out = malloc(size);
+	if (!out) {
+		`s("Can't allocate ");
+		`u64(size);
+		`s(" bytes: out of memory\n");
+		asm("<halt>");
+	}
+	return out;
+}
+
+void main() {
+	void *g;
+	void *mem;
+	asm("$g -> $1"::g);
+	asm("? mem -> $1"::mem);
+	setBounds(g, mem);
+	u64* one   = malloc(sizeof(u64));
+	u32* two   = malloc(sizeof(u32));
+	u16* three = malloc(sizeof(u16));
+	u8*  four  = malloc(sizeof(u8));
+	`u64((u64) one);   `c('\n');
+	`c('('); `u64(two - one); `c(')'); `c('\n');
+	`u64((u64) two);   `c('\n');
+	`c('('); `u64(three - two); `c(')'); `c('\n');
+	`u64((u64) three); `c('\n');
+	`c('('); `u64(four - three); `c(')'); `c('\n');
+	`u64((u64) four);  `c('\n');
 }
