@@ -100,7 +100,7 @@ using AN = ASTNode;
 %token CMMTOK_ARROW "->"
 %token CMMTOK_SIZEOF "sizeof"
 
-%token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY CMM_POSTPLUS CMM_POSTMINUS CMM_FNPTR
+%token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY CMM_POSTPLUS CMM_POSTMINUS CMM_FNPTR CMM_DECL
 
 %start start
 
@@ -152,15 +152,15 @@ inline_asm: "asm" "(" string ":" _exprlist ":" _exprlist ")" { $$ = $1->adopt({$
           | "asm" "(" string ":" _exprlist ")" { $$ = $1->adopt({$3, $5}); D($2, $4, $6); }
           | "asm" "(" string ")" { $$ = $1->adopt({$3}); D($2, $4); };
 
-declaration: ident ":" type { $$ = $2->adopt({$1, $3}); }
-definition:  ident ":" type "=" expr { $$ = $2->adopt({$1, $3, $5}); D($4); };
+declaration: type ident { $$ = (new ASTNode(cmmParser, CMM_DECL, $1->location))->adopt({$1, $2}); }
+definition:  type ident "=" expr { $$ = (new ASTNode(cmmParser, CMM_DECL, $1->location))->adopt({$1, $2, $4}); D($3); }
 decl_or_def: declaration | definition;
 
 forward_decl: "struct" CMMTOK_IDENT ";" { $$ = $1->adopt($2); D($3); };
 
 struct_def: "struct" CMMTOK_IDENT "{" decl_list "}" ";" { $$ = $1->adopt({$2, $4}); D($3, $5, $6); };
 
-decl_list: decl_list CMMTOK_IDENT ":" type ";" { $$ = $1->adopt($2->adopt($4)); D($3, $5); }
+decl_list: decl_list type CMMTOK_IDENT ";" { $$ = $1->adopt($3->adopt($2)); D($4); }
          | { $$ = new ASTNode(cmmParser, CMM_LIST); };
 
 function_def: type ident "(" _arglist ")" fnattrs block { $$ = $2->adopt({$1, $4, $6, $7}); D($3, $5); }
@@ -258,7 +258,7 @@ struct_type: "struct" CMMTOK_IDENT { $$ = $1->adopt($2); };
 
 type: "bool" | int_type | "void" | pointer_type | array_type | fnptr_type | struct_type;
 
-arg: ident ":" type { $$ = $1->adopt($3); D($2); };
+arg: type ident { $$ = $2->adopt($1); };
 
 arglist: arglist "," arg { $$ = $1->adopt($3); D($2); }
        | arg { $$ = (new ASTNode(cmmParser, CMM_LIST))->locate($1)->adopt($1); };

@@ -30,11 +30,11 @@ Program compileRoot(const ASTNode &root) {
 				out.functions.try_emplace(name, out, node);
 				break;
 			}
-			case CMMTOK_COLON: { // Global variable
-				const std::string &name = *node->front()->text;
+			case CMM_DECL: { // Global variable
+				const std::string &name = *node->at(1)->text;
 				if (out.globals.count(name) != 0)
 					throw std::runtime_error("Cannot redefine global " + name);
-				auto type = std::shared_ptr<Type>(Type::get(*node->at(1), out));
+				auto type = std::shared_ptr<Type>(Type::get(*node->at(0), out));
 				if (node->size() <= 2)
 					out.globalOrder.push_back(out.globals.try_emplace(name,
 						std::make_shared<Global>(name, type, nullptr)).first);

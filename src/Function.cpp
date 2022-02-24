@@ -192,12 +192,12 @@ size_t Function::addToStack(VariablePtr variable) {
 
 void Function::compile(const ASTNode &node, const std::string &break_label, const std::string &continue_label) {
 	switch (node.symbol) {
-		case CMMTOK_COLON: {
+		case CMM_DECL: {
 			checkNaked(node);
-			const std::string &var_name = *node.front()->text;
+			const std::string &var_name = *node.at(1)->text;
 			if (currentScope()->doesConflict(var_name))
-				throw NameConflictError(var_name, node.front()->location);
-			VariablePtr variable = Variable::make(var_name, TypePtr(Type::get(*node.at(1), program)), *this);
+				throw NameConflictError(var_name, node.at(1)->location);
+			VariablePtr variable = Variable::make(var_name, TypePtr(Type::get(*node.at(0), program)), *this);
 			variable->init();
 			currentScope()->insert(variable);
 			size_t offset = addToStack(variable);
