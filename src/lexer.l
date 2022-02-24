@@ -45,6 +45,7 @@ CMM_SLCOMMENT	("//"[^\n]*)
 ";"				{RTOKEN(SEMI)}
 "&&"			{RTOKEN(LAND)}
 "||"			{RTOKEN(LOR)}
+"^^"			{RTOKEN(LXOR)}
 "&"				{RTOKEN(AND)}
 "|"				{RTOKEN(OR)}
 "!"				{RTOKEN(NOT)}

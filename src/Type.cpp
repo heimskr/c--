@@ -42,6 +42,8 @@ bool UnsignedType::operator==(const Type &other) const {
 }
 
 bool PointerType::operator&&(const Type &other) const {
+	if (other.isBool())
+		return true;
 	if (auto *other_pointer = other.cast<PointerType>()) {
 		if (subtype->isVoid() || other_pointer->subtype->isVoid() || (*subtype && *other_pointer->subtype))
 			return true;

@@ -51,6 +51,10 @@ using AN = ASTNode;
 %token CMMTOK_ASSIGN "="
 %token CMMTOK_LAND "&&"
 %token CMMTOK_LOR "||"
+%token CMMTOK_LXOR "^^"
+%token CMMTOK_LNAND "!&&"
+%token CMMTOK_LNOR "!||"
+%token CMMTOK_LXNOR "!^^"
 %token CMMTOK_AND "&"
 %token CMMTOK_OR "|"
 %token CMMTOK_LTE "<="
@@ -108,10 +112,11 @@ using AN = ASTNode;
 %left ";"
 %right "?" "=" "+=" "-="
 %left "||"
+%left "^^"
 %left "&&"
-%left "|"
-%left "^"
-%left BITWISE_AND
+%left "|" "~|"
+%left "^" "~^"
+%left BITWISE_AND "~&"
 %left "==" "!="
 %left "<" "<=" ">" ">="
 %left "<<" ">>"
@@ -186,26 +191,27 @@ for_loop: "for" _decl_or_def ";" _expr ";" _expr block { $$ = $1->adopt({$2, $4,
 _expr: expr | { $$ = new ASTNode(cmmParser, CMM_EMPTY); };
 _decl_or_def: decl_or_def | { $$ = new ASTNode(cmmParser, CMM_EMPTY); };
 
-expr: expr "&&" expr { $$ = $2->adopt({$1, $3}); }
-    | expr "||" expr { $$ = $2->adopt({$1, $3}); }
-    | expr "&"  expr %prec BITWISE_AND { $$ = $2->adopt({$1, $3}); }
-    | expr "|"  expr { $$ = $2->adopt({$1, $3}); }
-    | expr "==" expr { $$ = $2->adopt({$1, $3}); }
-    | expr "!=" expr { $$ = $2->adopt({$1, $3}); }
-    | expr "<<" expr { $$ = $2->adopt({$1, $3}); }
-    | expr ">>" expr { $$ = $2->adopt({$1, $3}); }
-    | expr "<"  expr { $$ = $2->adopt({$1, $3}); }
-    | expr ">"  expr { $$ = $2->adopt({$1, $3}); }
-    | expr "<=" expr { $$ = $2->adopt({$1, $3}); }
-    | expr ">=" expr { $$ = $2->adopt({$1, $3}); }
-    | expr "+"  expr { $$ = $2->adopt({$1, $3}); }
-    | expr "-"  expr { $$ = $2->adopt({$1, $3}); }
-    | expr "*"  expr %prec MULT { $$ = $2->adopt({$1, $3}); }
-    | expr "/"  expr { $$ = $2->adopt({$1, $3}); }
-    | expr "="  expr { $$ = $2->adopt({$1, $3}); }
-    | expr "%"  expr { $$ = $2->adopt({$1, $3}); }
-    | expr "."  CMMTOK_IDENT %prec "."  { $$ = $2->adopt({$1, $3}); }
-    | expr "->" CMMTOK_IDENT %prec "->" { $$ = $2->adopt({$1, $3}); }
+expr: expr "&&"  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "||"  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "&"   expr %prec BITWISE_AND { $$ = $2->adopt({$1, $3}); }
+    | expr "|"   expr { $$ = $2->adopt({$1, $3}); }
+    | expr "^^"  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "=="  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "!="  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "<<"  expr { $$ = $2->adopt({$1, $3}); }
+    | expr ">>"  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "<"   expr { $$ = $2->adopt({$1, $3}); }
+    | expr ">"   expr { $$ = $2->adopt({$1, $3}); }
+    | expr "<="  expr { $$ = $2->adopt({$1, $3}); }
+    | expr ">="  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "+"   expr { $$ = $2->adopt({$1, $3}); }
+    | expr "-"   expr { $$ = $2->adopt({$1, $3}); }
+    | expr "*"   expr %prec MULT { $$ = $2->adopt({$1, $3}); }
+    | expr "/"   expr { $$ = $2->adopt({$1, $3}); }
+    | expr "="   expr { $$ = $2->adopt({$1, $3}); }
+    | expr "%"   expr { $$ = $2->adopt({$1, $3}); }
+    | expr "."   CMMTOK_IDENT %prec "."  { $$ = $2->adopt({$1, $3}); }
+    | expr "->"  CMMTOK_IDENT %prec "->" { $$ = $2->adopt({$1, $3}); }
     | expr "[" expr "]" %prec "[" { $$ = $2->adopt({$1, $3}); D($4); }
     | function_call %prec CALL
     | "(" expr ")" %prec "(" { $$ = $2; D($1, $3); }

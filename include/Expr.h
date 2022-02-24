@@ -90,6 +90,23 @@ struct BinaryExpr: Expr {
 	}
 };
 
+template <fixstr::fixed_string O>
+struct LogicExpr: BinaryExpr<O> {
+	using BinaryExpr<O>::BinaryExpr;
+
+	size_t getSize(ScopePtr scope) const override { return this->left->getSize(scope); }
+
+	std::unique_ptr<Type> getType(ScopePtr scope) const override {
+		auto left_type = this->left->getType(scope), right_type = this->right->getType(scope);
+		auto bool_type = std::make_unique<BoolType>();
+		if (!(*left_type && *bool_type))
+			throw ImplicitConversionError(*left_type, *bool_type);
+		if (!(*right_type && *bool_type))
+			throw ImplicitConversionError(*right_type, *bool_type);
+		return bool_type;
+	}
+};
+
 // TODO: signedness
 template <fixstr::fixed_string O, template <typename T> typename CompFn, typename R>
 struct CompExpr: BinaryExpr<O> {
@@ -210,17 +227,21 @@ struct OrExpr: BinaryExpr<"&"> {
 	std::optional<ssize_t> evaluate(ScopePtr) const override;
 };
 
-struct LandExpr: BinaryExpr<"&&"> {
-	using BinaryExpr::BinaryExpr;
+struct LandExpr: LogicExpr<"&&"> {
+	using LogicExpr::LogicExpr;
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
-	size_t getSize(ScopePtr) const override;
 	std::optional<ssize_t> evaluate(ScopePtr) const override;
 };
 
-struct LorExpr: BinaryExpr<"||"> {
-	using BinaryExpr::BinaryExpr;
+struct LorExpr: LogicExpr<"||"> {
+	using LogicExpr::LogicExpr;
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
-	size_t getSize(ScopePtr) const override;
+	std::optional<ssize_t> evaluate(ScopePtr) const override;
+};
+
+struct LxorExpr: LogicExpr<"^^"> {
+	using LogicExpr::LogicExpr;
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	std::optional<ssize_t> evaluate(ScopePtr) const override;
 };
 

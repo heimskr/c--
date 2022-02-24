@@ -186,6 +186,11 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
+		case CMMTOK_LXOR:
+			out = new LxorExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		case CMMTOK_LOR:
 			out = new LorExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
@@ -388,10 +393,6 @@ void LandExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
-size_t LandExpr::getSize(ScopePtr scope) const {
-	return left->getSize(scope);
-}
-
 std::optional<ssize_t> LandExpr::evaluate(ScopePtr scope) const {
 	auto left_value  = left?  left->evaluate(scope)  : std::nullopt,
 	     right_value = right? right->evaluate(scope) : std::nullopt;
@@ -410,11 +411,24 @@ void LorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
-size_t LorExpr::getSize(ScopePtr scope) const {
-	return left->getSize(scope);
+std::optional<ssize_t> LorExpr::evaluate(ScopePtr scope) const {
+	auto left_value  = left?  left->evaluate(scope)  : std::nullopt,
+	     right_value = right? right->evaluate(scope) : std::nullopt;
+	if (left_value && right_value)
+		return *left_value || *right_value;
+	return std::nullopt;
 }
 
-std::optional<ssize_t> LorExpr::evaluate(ScopePtr scope) const {
+void LxorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
+	auto temp_var = function.newVar();
+	left->compile(destination, function, scope);
+	right->compile(temp_var, function, scope);
+	function.add<LxorRInstruction>(destination, temp_var, destination);
+	if (multiplier != 1)
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+}
+
+std::optional<ssize_t> LxorExpr::evaluate(ScopePtr scope) const {
 	auto left_value  = left?  left->evaluate(scope)  : std::nullopt,
 	     right_value = right? right->evaluate(scope) : std::nullopt;
 	if (left_value && right_value)
