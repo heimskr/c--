@@ -764,9 +764,6 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 		};
 	}
 
-	for (i = 0; i < to_push; ++i)
-		fn.add<StackPushInstruction>(fn.precolored(Why::argumentOffset + i));
-
 	i = 0;
 	for (const auto &argument: arguments) {
 		auto argument_register = fn.precolored(Why::argumentOffset + i);
@@ -781,9 +778,6 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 	}
 
 	add_jump();
-
-	for (i = to_push; 0 < i; --i)
-		fn.add<StackPopInstruction>(fn.precolored(Why::argumentOffset + i - 1));
 
 	if (!found_return_type->isVoid() && destination) {
 		if (multiplier == 1)
