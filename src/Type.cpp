@@ -209,10 +209,9 @@ StructType::operator std::string() const {
 		return "struct " + name;
 	std::stringstream out;
 	out << "struct " << name << " {";
-	const auto &found_order = getOrder();
-	for (const auto &[field_name, field_type]: found_order)
+	for (const auto &[field_name, field_type]: order)
 		out << ' ' << field_name << ": " << *field_type << ';';
-	if (!found_order.empty())
+	if (!order.empty())
 		out << ' ';
 	out << '}';
 	return out.str();
