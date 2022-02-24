@@ -205,6 +205,8 @@ Type * StructType::copy() const {
 }
 
 StructType::operator std::string() const {
+	if (isForwardDeclaration)
+		return "struct " + name;
 	std::stringstream out;
 	out << "struct " << name << " {";
 	const auto &found_order = getOrder();
