@@ -1,4 +1,3 @@
 - offsetof
 - const
 - +=, -=, etc.
-- Memset reports its "destination" as a written variable, but it's actually a read variable.

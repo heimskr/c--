@@ -819,6 +819,45 @@ struct MemsetInstruction: RType {
 				destination->regOrID(true)
 		};
 	}
+	std::vector<VregPtr> getRead() override { return {leftSource, rightSource, destination}; }
+	std::vector<VregPtr> getWritten() override { return {}; }
+
+	virtual bool replaceRead(VregPtr from, VregPtr to) override {
+		bool changed = false;
+		if (leftSource == from) {
+			leftSource = to;
+			changed = true;
+		}
+		if (rightSource == from) {
+			rightSource = to;
+			changed = true;
+		}
+		if (destination == from) {
+			destination = to;
+			changed = true;
+		}
+		return changed;
+	}
+
+	virtual bool canReplaceRead(VregPtr vreg) const override {
+		return doesRead(vreg);
+	}
+
+	virtual bool replaceWritten(VregPtr, VregPtr) override {
+		return false;
+	}
+
+	virtual bool canReplaceWritten(VregPtr) const override {
+		return false;
+	}
+
+	virtual bool doesRead(VregPtr vreg) const override {
+		return vreg == leftSource || vreg == rightSource || vreg == destination;
+	}
+
+	virtual bool doesWrite(VregPtr) const override {
+		return false;
+	}
 };
 
 struct CompareRInstruction: RType {
