@@ -276,8 +276,8 @@ void MinusExpr::compile(VregPtr destination, Function &function, ScopePtr scope,
 		right->compile(right_var, function, scope, left_subtype->getSize());
 	} else if (left_type->isInt() && right_type->isPointer()) {
 		throw std::runtime_error("Cannot subtract " + std::string(*right_type) + " from " + std::string(*left_type));
-	} else if (!(*left_type && *right_type)) {
-		throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()));
+	} else if (!(*left_type && *right_type) && !(left_type->isPointer() && right_type->isPointer())) {
+		throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()), location);
 	} else {
 		left->compile(left_var, function, scope);
 		right->compile(right_var, function, scope);
@@ -291,6 +291,17 @@ void MultExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 	left->compile(left_var, function, scope, 1);
 	right->compile(right_var, function, scope, multiplier); // TODO: verify
 	function.add<MultRInstruction>(left_var, right_var, destination);
+}
+
+std::unique_ptr<Type> MinusExpr::getType(ScopePtr scope) const {
+	auto left_type = left->getType(scope), right_type = right->getType(scope);
+	if (left_type->isPointer() && right_type->isInt())
+		return left_type;
+	if (left_type->isPointer() && right_type->isPointer())
+		return std::make_unique<SignedType>(64);
+	if (!(*left_type && *right_type) || !(*right_type && *left_type))
+		throw ImplicitConversionError(*left_type, *right_type);
+	return left_type;
 }
 
 void ShiftLeftExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {

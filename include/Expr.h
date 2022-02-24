@@ -176,14 +176,7 @@ struct MinusExpr: BinaryExpr<"-"> {
 		return std::nullopt;
 	}
 
-	std::unique_ptr<Type> getType(ScopePtr scope) const override {
-		auto left_type = left->getType(scope), right_type = right->getType(scope);
-		if (left_type->isPointer() && right_type->isInt())
-			return left_type;
-		if (!(*left_type && *right_type) || !(*right_type && *left_type))
-			throw ImplicitConversionError(*left_type, *right_type);
-		return left_type;
-	}
+	std::unique_ptr<Type> getType(ScopePtr scope) const override;
 };
 
 struct MultExpr: BinaryExpr<"*"> {

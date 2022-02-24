@@ -1,7 +1,7 @@
 #name "Mal"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "0.6"
+#version "0.7"
 
 struct BlockMeta;
 
@@ -79,7 +79,7 @@ void* allocate(u64 size, u64 alignment) {
 	return block + 1;
 }
 
-void* split(%BlockMeta* block, u64 size) {
+void split(%BlockMeta* block, u64 size) {
 	if (block->size > size + sizeof(%BlockMeta)) {
 		// We have enough space to split the block, unless alignment takes up too much.
 		%BlockMeta* new_block = (%BlockMeta*) realign((u64) block + size + sizeof(%BlockMeta) + 1u64, MEMORY_ALIGN);
@@ -87,7 +87,7 @@ void* split(%BlockMeta* block, u64 size) {
 		// After we realign, we need to make sure that the new block's new size isn't negative.
 
 		if (block->next) {
-			u64 new_size = (u64) ((void*) block->next - (void*) new_block - sizeof(%BlockMeta));
+			u64 new_size = (u64) ((void*) block->next - (void*) new_block - (s64) sizeof(%BlockMeta));
 
 			// Realigning the new block can make it too small, so we need to make sure the new block is big enough.
 			if (new_size > 0u64) {
@@ -137,4 +137,22 @@ u64 merge() {
 	}
 
 	return count;
+}
+
+void setBounds(void* new_start, void* new_high) {
+	if (new_high <= new_start) {
+		`s("Invalid heap bounds: 0x");
+		asm("<prx $1>":new_start);
+		`s(" through 0x");
+		asm("<prx $1>":new_high);
+		`c('\n');
+	}
+	start = (void*) realign((s64) new_start, MEMORY_ALIGN);
+	highestAllocated = (u64) start;
+	high = new_high;
+	end = new_start;
+}
+
+u64 getUnallocated() {
+	return (u64) (high - start) - allocated;
 }
