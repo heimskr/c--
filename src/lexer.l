@@ -105,6 +105,7 @@ CMM_SLCOMMENT	("//"[^\n]*)
 "struct"		{RTOKEN(STRUCT)}
 "sizeof"		{RTOKEN(SIZEOF)}
 "null"			{RTOKEN(NULL)}
+"const"			{RTOKEN(CONST)}
 
 {CMM_CHAR}		{RTOKEN(CHAR)}
 {CMM_STRING}	{RTOKEN(STRING)}

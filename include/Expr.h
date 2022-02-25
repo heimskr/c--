@@ -391,6 +391,9 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 		return left_type;
 	}
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
+		TypePtr left_type = this->left->getType(scope);
+		if (left_type->isConst)
+			throw ConstError("Can't assign", *left_type, this->location);
 		auto temp_var = function.newVar();
 		if (!destination)
 			destination = function.newVar();
@@ -400,7 +403,7 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 			function.add<RU>(destination, temp_var, destination);
 		else
 			function.add<RS>(destination, temp_var, destination);
-		TypePtr right_type = this->right->getType(scope), left_type = this->left->getType(scope);
+		TypePtr right_type = this->right->getType(scope);
 		if (!tryCast(*right_type, *left_type, destination, function))
 			throw ImplicitConversionError(right_type, left_type);
 		if (!this->left->compileAddress(temp_var, function, scope))
@@ -500,6 +503,8 @@ struct PrefixExpr: Expr {
 	Expr * copy() const override { return new PrefixExpr<O, I>(subexpr->copy()); }
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
 		TypePtr subtype = subexpr->getType(scope);
+		if (subtype->isConst)
+			throw ConstError("Can't modify", *subtype, location);
 		size_t to_add = 1;
 		if (!subtype->isInt()) {
 			if (subtype->isPointer())
@@ -512,7 +517,7 @@ struct PrefixExpr: Expr {
 		auto addr_variable = function.newVar();
 		const auto size = subexpr->getSize(scope);
 		subexpr->compile(function.newVar(), function, scope, multiplier);
-		if (!subexpr->compileAddress(addr_variable, function, scope))		
+		if (!subexpr->compileAddress(addr_variable, function, scope))
 			throw LvalueError(*subexpr->getType(scope));
 		function.addComment("Prefix operator" + std::string(O));
 		function.add<LoadRInstruction>(addr_variable, destination, size);
@@ -541,6 +546,8 @@ struct PostfixExpr: Expr {
 	Expr * copy() const override { return new PostfixExpr<O, I>(subexpr->copy()); }
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
 		TypePtr subtype = subexpr->getType(scope);
+		if (subtype->isConst)
+			throw ConstError("Can't modify", *subtype, location);
 		size_t to_add = 1;
 		if (!subtype->isInt()) {
 			if (subtype->isPointer())

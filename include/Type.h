@@ -13,9 +13,10 @@ class Function;
 struct Program;
 
 struct Type: Checkable, std::enable_shared_from_this<Type> {
+	bool isConst = false;
 	virtual ~Type() {}
 	virtual Type * copy() const = 0;
-	virtual operator std::string() const = 0;
+	operator std::string() const;
 	virtual bool isNumber(size_t = 0) const { return false; }
 	virtual bool isSigned(size_t = 0) const { return false; }
 	virtual bool isUnsigned(size_t = 0) const { return false; }
@@ -32,6 +33,7 @@ struct Type: Checkable, std::enable_shared_from_this<Type> {
 	virtual bool isArray() const { return false; }
 	virtual bool isFunctionPointer() const { return false; }
 	virtual bool isStruct() const { return false; }
+	Type * setConst(bool is_const) { isConst = is_const; return this; }
 
 	static Type * get(const ASTNode &, const Program &, bool allow_forward = false);
 
@@ -44,6 +46,9 @@ struct Type: Checkable, std::enable_shared_from_this<Type> {
 	std::shared_ptr<const T> ptrcast() const {
 		return std::dynamic_pointer_cast<const T>(shared_from_this());
 	}
+
+	protected:
+		virtual std::string stringify() const = 0;
 };
 
 using TypePtr = std::shared_ptr<Type>;
@@ -62,39 +67,43 @@ struct IntType: Type {
 
 struct SignedType: IntType, Makeable<SignedType> {
 	SignedType(size_t width_): IntType(width_) {}
-	Type * copy() const override { return new SignedType(width); }
+	Type * copy() const override { return (new SignedType(width))->setConst(isConst); }
 	bool isSigned(size_t width_) const override { return isNumber(width_); }
-	operator std::string() const override { return "s" + std::to_string(width); }
 	bool operator&&(const Type &) const override;
 	bool operator==(const Type &) const override;
+	protected:
+		std::string stringify() const override { return "s" + std::to_string(width); }
 };
 
 struct UnsignedType: IntType, Makeable<UnsignedType> {
 	UnsignedType(size_t width_): IntType(width_) {}
-	Type * copy() const override { return new UnsignedType(width); }
+	Type * copy() const override { return (new UnsignedType(width))->setConst(isConst); }
 	bool isUnsigned(size_t width_) const override { return isNumber(width_); }
-	operator std::string() const override { return "u" + std::to_string(width); }
 	bool operator&&(const Type &) const override;
 	bool operator==(const Type &) const override;
+	protected:
+		std::string stringify() const override { return "u" + std::to_string(width); }
 };
 
 struct VoidType: Type, Makeable<VoidType> {
-	Type * copy() const override { return new VoidType; }
-	operator std::string() const override { return "void"; }
+	Type * copy() const override { return (new VoidType)->setConst(isConst); }
 	/** Returns 1 for the sake of void pointer arithmetic acting like byte pointer arithmetic. */
 	size_t getSize() const override { return 1; }
 	bool operator&&(const Type &other) const override { return other.isVoid(); }
 	bool operator==(const Type &other) const override { return other.isVoid(); }
 	bool isVoid() const override { return true; }
+	protected:
+		std::string stringify() const override { return "void"; }
 };
 
 struct BoolType: Type, Makeable<BoolType> {
-	Type * copy() const override { return new BoolType; }
-	operator std::string() const override { return "bool"; }
+	Type * copy() const override { return (new BoolType)->setConst(isConst); }
 	size_t getSize() const override { return 1; }
 	bool operator&&(const Type &other) const override { return other.isBool(); }
 	bool operator==(const Type &other) const override { return other.isBool(); }
 	bool isBool() const override { return true; }
+	protected:
+		std::string stringify() const override { return "bool"; }
 };
 
 struct SuperType: Type {
@@ -106,25 +115,29 @@ struct SuperType: Type {
 
 struct PointerType: SuperType {
 	using SuperType::SuperType;
-	Type * copy() const override { return new PointerType(subtype? subtype->copy() : nullptr); }
-	operator std::string() const override { return subtype? std::string(*subtype) + "*" : "???*"; }
+	Type * copy() const override { return (new PointerType(subtype? subtype->copy() : nullptr))->setConst(isConst); }
 	size_t getSize() const override { return 8; }
 	bool operator&&(const Type &) const override;
 	bool operator==(const Type &) const override;
 	bool isPointer() const override { return true; }
+	protected:
+		std::string stringify() const override { return subtype? std::string(*subtype) + "*" : "???*"; }
 };
 
 struct ArrayType: SuperType {
 	size_t count;
 	ArrayType(Type *subtype_, size_t count_): SuperType(subtype_), count(count_) {}
-	Type * copy() const override { return new ArrayType(subtype? subtype->copy() : nullptr, count); }
-	operator std::string() const override {
-		return (subtype? std::string(*subtype) : "???") + "[" + std::to_string(count) + "]";
+	Type * copy() const override {
+		return (new ArrayType(subtype? subtype->copy() : nullptr, count))->setConst(isConst);
 	}
 	size_t getSize() const override { return subtype? subtype->getSize() * count : 0; }
 	bool operator&&(const Type &) const override;
 	bool operator==(const Type &) const override;
 	bool isArray() const override { return true; }
+	protected:
+		std::string stringify() const override {
+			return (subtype? std::string(*subtype) : "???") + "[" + std::to_string(count) + "]";
+		}
 };
 
 /** Owns all its subtypes. */
@@ -137,11 +150,12 @@ struct FunctionPointerType: Type {
 	FunctionPointerType & operator=(const FunctionPointerType &) = delete;
 	~FunctionPointerType();
 	Type * copy() const override;
-	operator std::string() const override;
 	size_t getSize() const override { return 8; }
 	bool operator&&(const Type &) const override;
 	bool operator==(const Type &) const override;
 	bool isFunctionPointer() const override { return true; }
+	protected:
+		std::string stringify() const override;
 };
 
 class StructType: public Type, public Makeable<StructType> {
@@ -157,14 +171,16 @@ class StructType: public Type, public Makeable<StructType> {
 		StructType(const Program &, const std::string &name_);
 		StructType(const Program &, const std::string &name_, const decltype(order) &order_);
 		Type * copy() const override;
-		operator std::string() const override;
 		size_t getSize() const override;
 		bool operator&&(const Type &) const override;
 		bool operator==(const Type &) const override;
 		bool isStruct() const override { return true; }
 		size_t getFieldOffset(const std::string &) const;
 		size_t getFieldSize(const std::string &) const;
-		
+
 		const decltype(order) & getOrder() const;
 		const decltype(map) & getMap() const;
+
+	protected:
+		std::string stringify() const override;
 };

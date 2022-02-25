@@ -81,3 +81,9 @@ struct IncompleteStructError: std::runtime_error {
 	IncompleteStructError(const std::string &name_):
 		std::runtime_error("Can't access incomplete struct " + name_), name(name_) {}
 };
+
+struct ConstError: LocatedError {
+	std::string typeString;
+	ConstError(const std::string &start, const std::string &type_string, const ASTLocation &location_ = {}):
+		LocatedError(location_, (start.empty()? "" : start + ": ") + type_string + " is const") {}
+};

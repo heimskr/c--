@@ -877,13 +877,16 @@ std::unique_ptr<Type> CallExpr::getType(ScopePtr scope) const {
 }
 
 void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
+	TypePtr left_type = left->getType(scope);
+	if (left_type->isConst)
+		throw ConstError("Can't assign", *left_type, location);
 	if (auto *var_expr = left->cast<VariableExpr>()) {
 		if (auto var = scope->lookup(var_expr->name)) {
 			if (!destination)
 				destination = function.newVar();
 			// TODO!: that's not how multipliers are supposed to work.
 			right->compile(destination, function, scope, multiplier);
-			TypePtr right_type = right->getType(scope), left_type = left->getType(scope);
+			TypePtr right_type = right->getType(scope);
 			if (!tryCast(*right_type, *left_type, destination, function))
 				throw ImplicitConversionError(right_type, left_type);
 			if (auto *global = var->cast<Global>()) {

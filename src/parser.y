@@ -112,6 +112,7 @@ using AN = ASTNode;
 %token CMMTOK_ANDEQ   "&="
 %token CMMTOK_OREQ    "|="
 %token CMMTOK_XOREQ   "^="
+%token CMMTOK_CONST   "const"
 
 %token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY CMM_POSTPLUS CMM_POSTMINUS CMM_FNPTR CMM_DECL
 
@@ -282,7 +283,7 @@ _typelist: typelist | { $$ = new ASTNode(cmmParser, CMM_LIST); };
 
 struct_type: "%" CMMTOK_IDENT { $$ = $1->adopt($2); };
 
-type: "bool" | int_type | "void" | pointer_type | array_type | fnptr_type | struct_type;
+type: "bool" | int_type | "void" | pointer_type | array_type | fnptr_type | struct_type | type "const" { $$ = $2->adopt($1); };
 
 arg: type ident { $$ = $2->adopt($1); };
 

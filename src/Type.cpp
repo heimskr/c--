@@ -9,6 +9,12 @@
 #include "Program.h"
 #include "Type.h"
 
+Type::operator std::string() const {
+	if (isConst)
+		return stringify() + " const";
+	return stringify();
+}
+
 std::ostream & operator<<(std::ostream &os, const Type &type) {
 	return os << std::string(type);
 }
@@ -125,6 +131,11 @@ Type * Type::get(const ASTNode &node, const Program &program, bool allow_forward
 			}
 			throw ResolutionError(struct_name, nullptr);
 		}
+		case CMMTOK_CONST: {
+			Type *subtype = Type::get(*node.front(), program, allow_forward);
+			subtype->isConst = true;
+			return subtype;
+		}
 		default:
 			throw std::invalid_argument("Invalid token in getType: " + std::string(cmmParser.getName(node.symbol)));
 	}
@@ -144,10 +155,10 @@ Type * FunctionPointerType::copy() const {
 	arguments_copy.reserve(argumentTypes.size());
 	for (const Type *type: argumentTypes)
 		arguments_copy.push_back(type->copy());
-	return new FunctionPointerType(returnType->copy(), std::move(arguments_copy));
+	return (new FunctionPointerType(returnType->copy(), std::move(arguments_copy)))->setConst(isConst);
 }
 
-FunctionPointerType::operator std::string() const {
+std::string FunctionPointerType::stringify() const {
 	std::stringstream out;
 	out << *returnType << "(";
 	bool first = true;
@@ -203,10 +214,10 @@ Type * StructType::copy() const {
 	decltype(order) order_copy;
 	for (const auto &[field_name, field_type]: order)
 		order_copy.emplace_back(field_name, TypePtr(field_type->copy()));
-	return new StructType(program, name, order_copy);
+	return (new StructType(program, name, order_copy))->setConst(isConst);
 }
 
-StructType::operator std::string() const {
+std::string StructType::stringify() const {
 	if (isForwardDeclaration)
 		return "struct " + name;
 	std::stringstream out;

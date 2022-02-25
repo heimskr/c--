@@ -1,0 +1,16 @@
+#name "Const Test"
+#author "Kai Tamkun"
+#orcid "0000-0001-7405-6654"
+#version "1.0"
+
+void main() {
+	u64 const foo = 42;
+	// These should all cause errors:
+	// foo = 40;
+	// foo += 40;
+	// *&foo = 40;
+	// (&foo)[0] = 40;
+	// ++foo;
+	// foo--;
+	`u64(foo); `c('\n');
+}
