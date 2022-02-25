@@ -142,6 +142,7 @@ start: program;
 
 program: program decl_or_def ";" { $$ = $1->adopt($2); D($3); }
        | program function_def { $$ = $1->adopt($2); }
+       | program function_decl { $$ = $1->adopt($2); }
        | program meta { $$ = $1->adopt($2); }
        | program forward_decl { $$ = $1->adopt($2); }
        | program struct_def { $$ = $1->adopt($2); }
@@ -179,7 +180,9 @@ struct_def: "struct" CMMTOK_IDENT "{" decl_list "}" ";" { $$ = $1->adopt({$2, $4
 decl_list: decl_list type CMMTOK_IDENT ";" { $$ = $1->adopt($3->adopt($2)); D($4); }
          | { $$ = new ASTNode(cmmParser, CMM_LIST); };
 
-function_def: type ident "(" _arglist ")" fnattrs block { $$ = $2->adopt({$1, $4, $6, $7}); D($3, $5); }
+function_def: type ident "(" _arglist ")" fnattrs block { $$ = $2->adopt({$1, $4, $6, $7}); D($3, $5); };
+
+function_decl: type ident "(" _arglist ")" fnattrs ";" { $$ = $2->adopt({$1, $4, $6}); D($3, $5, $7); };
 
 fnattrs: fnattrs fnattr { $$ = $1->adopt($2); }
        | { $$ = new ASTNode(cmmParser, CMM_LIST); };

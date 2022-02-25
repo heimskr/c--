@@ -17,9 +17,16 @@ struct LinkedList {
 
 %Pair global_pair = ["Global", 42u32];
 
+void* malloc(u64 size);
+void free(void* ptr);
+
 void main() {
 	%LinkedList item5 = [["you", 160u32], null];
+	// %LinkedList* item5 = malloc(sizeof(%LinkedList));
+	// item5->data = ["you", 160u32];
+	// item5->next = null;
 	%LinkedList item4 = [["are", 80u32], &item5];
+	// %LinkedList item4 = [["are", 80u32], item5];
 	%LinkedList item3 = [["how", 40u32], &item4];
 	%LinkedList item2 = [["there", 20u32], &item3];
 	%LinkedList item1 = [["Hello", 10u32], &item2];

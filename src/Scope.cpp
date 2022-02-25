@@ -63,8 +63,11 @@ VariablePtr GlobalScope::lookup(const std::string &name) const {
 }
 
 Function * GlobalScope::lookupFunction(const std::string &name) const {
-	if (program.functions.count(name) == 0)
-		return nullptr;
+	if (program.functions.count(name) == 0) {
+		if (program.functionDeclarations.count(name) == 0)
+			return nullptr;
+		return &program.functionDeclarations.at(name);
+	}
 	return &program.functions.at(name);
 }
 
