@@ -1,13 +1,13 @@
 #name "Structs"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "2.0"
+#version "2.2"
 
 struct LinkedList;
 
 struct Pair {
 	u8* str;
-	s64 number;
+	u32 number;
 };
 
 struct LinkedList {
@@ -15,22 +15,29 @@ struct LinkedList {
 	%LinkedList* next;
 };
 
+%Pair global_pair = ["Global", 42u32];
+
 void main() {
-	%LinkedList item5 = [["you", 160], null];
-	%LinkedList item4 = [["are", 80], &item5];
-	%LinkedList item3 = [["how", 40], &item4];
-	%LinkedList item2 = [["there", 20], &item3];
-	%LinkedList item1 = [["Hello", 10], &item2];
+	%LinkedList item5 = [["you", 160u32], null];
+	%LinkedList item4 = [["are", 80u32], &item5];
+	%LinkedList item3 = [["how", 40u32], &item4];
+	%LinkedList item2 = [["there", 20u32], &item3];
+	%LinkedList item1 = [["Hello", 10u32], &item2];
 	traverse(&item1);
+}
+
+void print_pair(%Pair* pair) {
+	`s("(\"");
+	`s(pair->str);
+	`s("\", ");
+	`u32(pair->number);
+	`s(")");
 }
 
 void traverse(%LinkedList* node) {
 	if (!node)
 		return;
-	`s("(\"");
-	`s(node->data.str);
-	`s("\", ");
-	`s64(node->data.number);
-	`s(")\n");
+	print_pair(&(node->data));
+	`c('\n');
 	traverse((*node).next);
 }

@@ -111,9 +111,10 @@ void Program::compile() {
 	auto &init = functions.at(".init");
 
 	for (const auto &iter: globalOrder) {
+		const auto &global_name = iter->first;
 		const auto &expr = iter->second->value;
 		lines.push_back("");
-		lines.push_back("@" + iter->first);
+		lines.push_back("@" + global_name);
 		auto type = iter->second->type;
 		auto size = type->getSize();
 		if (expr) {
@@ -129,11 +130,16 @@ void Program::compile() {
 			} else {
 				lines.push_back("\t%fill " + std::to_string(size) + " 0");
 				TypePtr expr_type = expr->getType(init.selfScope);
-				VregPtr vreg = std::make_shared<VirtualRegister>(init)->init();
-				expr->compile(vreg, init, init_scope);
-				if (!tryCast(*expr_type, *type, vreg, init))
-					throw ImplicitConversionError(expr_type, type);
-				init.add<StoreIInstruction>(vreg, iter->first, size);
+				VregPtr vreg = init.newVar();
+				if (auto *initializer = expr->cast<InitializerExpr>()) {
+					init.add<SetIInstruction>(vreg, global_name);
+					initializer->fullCompile(vreg, init, init_scope);
+				} else {
+					expr->compile(vreg, init, init_scope);
+					if (!tryCast(*expr_type, *type, vreg, init))
+						throw ImplicitConversionError(expr_type, type);
+					init.add<StoreIInstruction>(vreg, iter->first, size);
+				}
 			}
 		} else if (size == 1) {
 			lines.push_back("\t%1b 0");
