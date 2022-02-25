@@ -37,7 +37,7 @@ void print_pair(%Pair* pair) {
 void traverse(%LinkedList* node) {
 	if (!node)
 		return;
-	print_pair(&(node->data));
+	print_pair(&node->data);
 	`c('\n');
 	traverse((*node).next);
 }

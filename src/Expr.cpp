@@ -697,7 +697,8 @@ void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr sc
 
 std::unique_ptr<Type> AddressOfExpr::getType(ScopePtr scope) const {
 	if (!subexpr->is<VariableExpr>() && !subexpr->is<DerefExpr>() && !subexpr->is<AccessExpr>())
-		throw LvalueError(*subexpr);
+		if (!subexpr->is<ArrowExpr>() && !subexpr->is<DotExpr>())
+			throw LvalueError(*subexpr);
 	return std::make_unique<PointerType>(subexpr->getType(scope)->copy());
 }
 
