@@ -110,8 +110,8 @@ Type * Type::get(const ASTNode &node, const Program &program, bool allow_forward
 			auto expr = std::unique_ptr<Expr>(Expr::get(*node.at(1)));
 			auto count = expr->evaluate(nullptr);
 			if (!count)
-				throw std::runtime_error("Array size expression must be a compile-time constant: " + std::string(*expr)
-					+ " (at " + std::string(expr->location) + ")");
+				throw LocatedError(node.location, "Array size expression must be a compile-time constant: " +
+					std::string(*expr) + " (at " + std::string(expr->location) + ")");
 			return new ArrayType(Type::get(*node.front(), program), *count);
 		}
 		case CMM_FNPTR: {
@@ -128,7 +128,8 @@ Type * Type::get(const ASTNode &node, const Program &program, bool allow_forward
 			if (program.forwardDeclarations.count(struct_name) != 0) {
 				if (allow_forward)
 					return new StructType(program, struct_name);
-				throw std::runtime_error("Can't use forward declaration of " + struct_name + " in this context");
+				throw LocatedError(node.location, "Can't use forward declaration of " + struct_name +
+					" in this context");
 			}
 			throw ResolutionError(struct_name, nullptr);
 		}
@@ -138,7 +139,8 @@ Type * Type::get(const ASTNode &node, const Program &program, bool allow_forward
 			return subtype;
 		}
 		default:
-			throw std::invalid_argument("Invalid token in getType: " + std::string(cmmParser.getName(node.symbol)));
+			throw LocatedError(node.location, "Invalid token in getType: " +
+				std::string(cmmParser.getName(node.symbol)));
 	}
 }
 

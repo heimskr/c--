@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "ASTNode.h"
 #include "BasicBlock.h"
 #include "Graph.h"
 #include "Type.h"
@@ -153,5 +154,7 @@ class Function {
 
 		bool isNaked() const;
 
-		void checkNaked(const ASTNode &) const;
+		void checkNaked(const ASTNode &) const;	
+
+		ASTLocation getLocation() const { return source? source->location : ASTLocation(); }
 };

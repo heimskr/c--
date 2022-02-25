@@ -19,10 +19,10 @@ Program compileRoot(const ASTNode &root) {
 		switch (node->symbol) {
 			case CMMTOK_IDENT: {
 				if (node->size() != 4)
-					throw std::runtime_error("Ident under program root not a function definition");
+					throw LocatedError(node->location, "Ident under program root not a function definition");
 				const std::string &name = *node->text;
 				if (out.signatures.count(name) != 0)
-					throw std::runtime_error("Cannot redefine function " + name);
+					throw LocatedError(node->location, "Cannot redefine function " + name);
 				decltype(Signature::argumentTypes) args;
 				for (const ASTNode *arg: *node->at(1))
 					args.emplace_back(Type::get(*arg->front(), out));
@@ -33,7 +33,7 @@ Program compileRoot(const ASTNode &root) {
 			case CMM_DECL: { // Global variable
 				const std::string &name = *node->at(1)->text;
 				if (out.globals.count(name) != 0)
-					throw std::runtime_error("Cannot redefine global " + name);
+					throw LocatedError(node->location, "Cannot redefine global " + name);
 				auto type = std::shared_ptr<Type>(Type::get(*node->at(0), out));
 				if (node->size() <= 2)
 					out.globalOrder.push_back(out.globals.try_emplace(name,
@@ -70,7 +70,7 @@ Program compileRoot(const ASTNode &root) {
 				out.version = *node->front()->text;
 				break;
 			default:
-				throw std::runtime_error("Unexpected token under root: " +
+				throw LocatedError(node->location, "Unexpected token under root: " +
 					std::string(cmmParser.getName(node->symbol)));
 		}
 

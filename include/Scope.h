@@ -23,7 +23,8 @@ struct Scope {
 	Scope & setProgram(Program &program_) { program = &program_; return *this; }
 	virtual Program & getProgram() const {
 		if (!program)
-			throw std::runtime_error(std::string(typeid(*this).name()) + " instance isn't connected to a program instance");
+			throw std::runtime_error(std::string(typeid(*this).name()) +
+				" instance isn't connected to a program instance");
 		return *program;
 	}
 };

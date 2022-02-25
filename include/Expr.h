@@ -115,7 +115,7 @@ struct CompExpr: BinaryExpr<O> {
 
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
 		if (multiplier != 1)
-			throw std::runtime_error("Cannot multiply in CompExpr");
+			throw LocatedError(this->location, "Cannot multiply in CompExpr");
 		VregPtr left_var = function.newVar(), right_var = function.newVar();
 		this->left->compile(left_var, function, scope, 1);
 		this->right->compile(right_var, function, scope, multiplier);
@@ -510,7 +510,7 @@ struct PrefixExpr: Expr {
 			if (subtype->isPointer())
 				to_add = dynamic_cast<PointerType &>(*subtype).subtype->getSize();
 			else
-				throw std::runtime_error("Cannot increment/decrement " + std::string(*subtype));
+				throw LocatedError(location, "Cannot increment/decrement " + std::string(*subtype));
 		}
 		if (!destination)
 			destination = function.newVar();
@@ -553,7 +553,7 @@ struct PostfixExpr: Expr {
 			if (subtype->isPointer())
 				to_add = dynamic_cast<PointerType &>(*subtype).subtype->getSize();
 			else
-				throw std::runtime_error("Cannot increment/decrement " + std::string(*subtype));
+				throw LocatedError(location, "Cannot increment/decrement " + std::string(*subtype));
 		}
 		if (!destination)
 			destination = function.newVar();
@@ -649,4 +649,5 @@ struct InitializerExpr: Expr {
 	InitializerExpr(const std::vector<ExprPtr> &children_): children(children_) {}
 	Expr * copy() const override;
 	std::unique_ptr<Type> getType(ScopePtr) const override;
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 };

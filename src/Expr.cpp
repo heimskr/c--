@@ -106,7 +106,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			break;
 		case CMMTOK_IDENT:
 			if (!function)
-				throw std::runtime_error("Variable expression encountered in functionless context");
+				throw LocatedError(node.location, "Variable expression encountered in functionless context");
 			out = new VariableExpr(*node.text);
 			break;
 		case CMMTOK_LPAREN: {
@@ -265,7 +265,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			break;
 		}
 		default:
-			throw std::invalid_argument("Unrecognized symbol in Expr::get: " +
+			throw LocatedError(node.location, "Unrecognized symbol in Expr::get: " +
 				std::string(cmmParser.getName(node.symbol)));
 	}
 
@@ -282,13 +282,13 @@ void PlusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 
 	if (left_type->isPointer() && right_type->isInt()) {
 		if (multiplier != 1)
-			throw std::invalid_argument("Cannot multiply in pointer arithmetic PlusExpr");
+			throw LocatedError(location, "Cannot multiply in pointer arithmetic PlusExpr");
 		auto *left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
 		left->compile(left_var, function, scope, 1);
 		right->compile(right_var, function, scope, left_subtype->getSize());
 	} else if (left_type->isInt() && right_type->isPointer()) {
 		if (multiplier != 1)
-			throw std::invalid_argument("Cannot multiply in pointer arithmetic PlusExpr");
+			throw LocatedError(location, "Cannot multiply in pointer arithmetic PlusExpr");
 		auto *right_subtype = dynamic_cast<PointerType &>(*right_type).subtype;
 		left->compile(left_var, function, scope, right_subtype->getSize());
 		right->compile(right_var, function, scope, 1);
@@ -327,12 +327,13 @@ void MinusExpr::compile(VregPtr destination, Function &function, ScopePtr scope,
 
 	if (left_type->isPointer() && right_type->isInt()) {
 		if (multiplier != 1)
-			throw std::invalid_argument("Cannot multiply in pointer arithmetic MinusExpr");
+			throw LocatedError(location, "Cannot multiply in pointer arithmetic MinusExpr");
 		auto *left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
 		left->compile(left_var, function, scope, 1);
 		right->compile(right_var, function, scope, left_subtype->getSize());
 	} else if (left_type->isInt() && right_type->isPointer()) {
-		throw std::runtime_error("Cannot subtract " + std::string(*right_type) + " from " + std::string(*left_type));
+		throw LocatedError(location, "Cannot subtract " + std::string(*right_type) + " from " +
+			std::string(*left_type));
 	} else if (!(*left_type && *right_type) && !(left_type->isPointer() && right_type->isPointer())) {
 		throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()), location);
 	} else {
@@ -599,11 +600,11 @@ size_t NumberExpr::getSize(ScopePtr) const {
 			out_of_range = value < -256 || 255 < value;
 			break;
 		default:
-			throw std::invalid_argument("Invalid numeric literal size (in bytes): " + std::to_string(size));
+			throw LocatedError(location, "Invalid numeric literal size (in bytes): " + std::to_string(size));
 	}
 
 	if (out_of_range)
-		throw std::out_of_range("Numeric literal cannot fit in " + std::to_string(size) + " byte" +
+		throw LocatedError(location, "Numeric literal cannot fit in " + std::to_string(size) + " byte" +
 			(size == 1? "" : "s") + ": " + std::to_string(value));
 
 	return size;
@@ -685,7 +686,7 @@ std::unique_ptr<Type> VariableExpr::getType(ScopePtr scope) const {
 
 void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	if (multiplier != 1)
-		throw std::invalid_argument("Cannot multiply in AddressOfExpr");
+		throw LocatedError(location, "Cannot multiply in AddressOfExpr");
 
 	if (!destination)
 		return;
@@ -716,7 +717,7 @@ void LnotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 
 void StringExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) {
 	if (multiplier != 1)
-		throw std::invalid_argument("Cannot multiply in StringExpr");
+		throw LocatedError(location, "Cannot multiply in StringExpr");
 	if (destination)
 		function.add<SetIInstruction>(destination, getID(function.program));
 }
@@ -774,12 +775,12 @@ Expr * CallExpr::copy() const {
 void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_t multiplier) {
 	size_t i;
 
-	std::function<const Type &(size_t)> get_arg_type = [](size_t) -> const Type & {
-		throw std::logic_error("get_arg_type not redefined");
+	std::function<const Type &(size_t)> get_arg_type = [this](size_t) -> const Type & {
+		throw LocatedError(location, "get_arg_type not redefined");
 	};
 
-	std::function<void()> add_jump = [] {
-		throw std::logic_error("add_jump not redefined");
+	std::function<void()> add_jump = [this] {
+		throw LocatedError(location, "add_jump not redefined");
 	};
 
 	TypePtr found_return_type = nullptr;
@@ -794,7 +795,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 
 		if (found) {
 			if (found->arguments.size() != arguments.size())
-				throw std::runtime_error("Invalid number of arguments in call to " + found->name + " at " +
+				throw LocatedError(location, "Invalid number of arguments in call to " + found->name + " at " +
 					std::string(location) + ": " + std::to_string(arguments.size()) + " (expected " +
 					std::to_string(found->arguments.size()) + ")");
 
@@ -975,7 +976,7 @@ std::unique_ptr<Type> AccessExpr::getType(ScopePtr scope) const {
 		return std::unique_ptr<Type>(casted->subtype->copy());
 	if (auto *casted = array_type->cast<const PointerType>())
 		return std::unique_ptr<Type>(casted->subtype->copy());
-	throw std::runtime_error("Can't get array access result type: array expression isn't an array or pointer type");
+	throw LocatedError(location, "Can't get array access result type: array expression isn't an array or pointer type");
 }
 
 bool AccessExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
@@ -1143,4 +1144,8 @@ Expr * InitializerExpr::copy() const {
 
 std::unique_ptr<Type> InitializerExpr::getType(ScopePtr scope) const {
 	return std::make_unique<InitializerType>(children, scope);
+}
+
+void InitializerExpr::compile(VregPtr, Function &, ScopePtr, ssize_t) {
+	throw LocatedError(location, "Can't compile initializers directly");
 }

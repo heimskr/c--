@@ -71,7 +71,7 @@ void Function::setArguments(const std::vector<std::pair<std::string, TypePtr>> &
 		if (i < Why::argumentCount) {
 			argument->reg = Why::argumentOffset + i;
 		} else
-			throw std::runtime_error("Functions with greater than " + std::to_string(Why::argumentCount) +
+			throw LocatedError(getLocation(), "Functions with greater than " + std::to_string(Why::argumentCount) +
 				" arguments are currently unsupported.");
 		if (selfScope->doesConflict(argument_name))
 			throw NameConflictError(argument_name);
@@ -88,10 +88,10 @@ void Function::compile() {
 			return;
 
 		if (!source)
-			throw std::runtime_error("Can't compile " + name + ": no source node");
+			throw LocatedError(getLocation(), "Can't compile " + name + ": no source node");
 
 		if (source->size() != 4)
-			throw std::runtime_error("Expected 4 nodes in " + name + "'s source node, found " +
+			throw LocatedError(getLocation(), "Expected 4 nodes in " + name + "'s source node, found " +
 				std::to_string(source->size()));
 
 		for (const ASTNode *child: *source->at(2))
@@ -100,7 +100,7 @@ void Function::compile() {
 					attributes.insert(Attribute::Naked);
 					break;
 				default:
-					throw std::runtime_error("Invalid fnattr: " + *child->text);
+					throw LocatedError(getLocation(), "Invalid fnattr: " + *child->text);
 			}
 
 		if (!isNaked()) {
@@ -191,7 +191,7 @@ VregPtr Function::precolored(int reg) {
 
 size_t Function::addToStack(VariablePtr variable) {
 	if (stackOffsets.count(variable) != 0)
-		throw std::runtime_error("Variable already on the stack in function " + name + ": " + variable->name);
+		throw LocatedError(getLocation(), "Variable already on the stack in function " + name + ": " + variable->name);
 	stackOffsets.emplace(variable, stackUsage += variable->type->getSize());
 	return stackUsage;
 }
@@ -226,7 +226,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			checkNaked(node);
 			if (node.empty()) {
 				if (!returnType->isVoid())
-					throw std::runtime_error("Must return an expression in non-void function " + name);
+					throw LocatedError(getLocation(), "Must return an expression in non-void function " + name);
 			} else {
 				auto expr = ExprPtr(Expr::get(*node.front(), this));
 				auto r0 = precolored(Why::returnValueOffset);
@@ -291,13 +291,13 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 		case CMMTOK_CONTINUE:
 			checkNaked(node);
 			if (continue_label.empty())
-				throw std::runtime_error("Encountered invalid continue statement at " + std::string(node.location));
+				throw LocatedError(node.location, "Encountered invalid continue statement");
 			add<JumpInstruction>(continue_label);
 			break;
 		case CMMTOK_BREAK:
 			checkNaked(node);
 			if (break_label.empty())
-				throw std::runtime_error("Encountered invalid break statement at " + std::string(node.location));
+				throw LocatedError(node.location, "Encountered invalid break statement");
 			add<JumpInstruction>(break_label);
 			break;
 		case CMM_EMPTY:
@@ -357,7 +357,8 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				const size_t  output_count = output_exprs? output_exprs->size() : 0;
 
 				if (isNaked() && (input_count != 0 || output_count != 0))
-					throw std::runtime_error("Can't supply inputs or outputs to asm nodes in a naked function");
+					throw LocatedError(node.location,
+						"Can't supply inputs or outputs to asm nodes in a naked function");
 
 				VarMap map;
 				std::map<std::string, ExprPtr> out_exprs;
@@ -634,7 +635,7 @@ bool Function::spill(VregPtr vreg) {
 	if (vreg->writers.empty()) {
 		debug();
 		warn() << *vreg;
-		throw std::runtime_error("Can't spill vreg " + vreg->regOrID() + " in function " + name +
+		throw LocatedError(getLocation(), "Can't spill vreg " + vreg->regOrID() + " in function " + name +
 			": no definitions");
 	}
 
@@ -703,7 +704,7 @@ size_t Function::getSpill(VregPtr variable, bool create, bool *created) {
 		// TODO: verify (see ff5e26da04a0d8846f026ba6c4e31370f3511110)
 		return spillLocations[variable] = stackUsage += Why::wordSize;
 	}
-	throw std::out_of_range("Couldn't find a spill location for " + variable->regOrID());
+	throw LocatedError(getLocation(), "Couldn't find a spill location for " + variable->regOrID());
 }
 
 void Function::markSpilled(VregPtr vreg) {
@@ -723,7 +724,7 @@ bool Function::canSpill(VregPtr vreg) {
 		auto single_def = vreg->writers.begin()->lock();
 		if (!single_def) {
 			warn() << *vreg << '\n';
-			throw std::runtime_error("Can't lock single writer of instruction");
+			throw LocatedError(getLocation(), "Can't lock single writer of instruction");
 		}
 		auto *store = dynamic_cast<StackStoreInstruction *>(single_def.get());
 		if (store && store->leftSource == vreg) {
@@ -822,7 +823,7 @@ WhyPtr Function::insertAfter(WhyPtr base, WhyPtr new_instruction, bool reindex) 
 	BasicBlockPtr block = base->parent.lock();
 	if (!block) {
 		std::cerr << "\e[31;1m!\e[0m " << base->joined(true, "; ") << '\n';
-		throw std::runtime_error("Couldn't lock instruction's parent block");
+		throw LocatedError(getLocation(), "Couldn't lock instruction's parent block");
 	}
 
 	// if (new_instruction->debugIndex == -1)
@@ -863,11 +864,11 @@ WhyPtr Function::insertBefore(WhyPtr base, WhyPtr new_instruction, bool reindex,
 	BasicBlockPtr block = base->parent.lock();
 	if (!block) {
 		error() << *base << "\n";
-		throw std::runtime_error("Couldn't lock instruction's parent block");
+		throw LocatedError(getLocation(), "Couldn't lock instruction's parent block");
 	}
 
 	if (&block->function != this)
-		throw std::runtime_error("Block parent isn't equal to this in Function::insertBefore");
+		throw LocatedError(getLocation(), "Block parent isn't equal to this in Function::insertBefore");
 
 	// if (new_instruction->debugIndex == -1)
 	// 	new_instruction->debugIndex = base->debugIndex;
@@ -877,7 +878,7 @@ WhyPtr Function::insertBefore(WhyPtr base, WhyPtr new_instruction, bool reindex,
 	auto instructionIter = std::find(instructions.begin(), instructions.end(), base);
 	if (linear_warn && instructionIter == instructions.end()) {
 		warn() << "Couldn't find instruction in instructions field of function " << name << ": " << *base << '\n';
-		throw std::runtime_error("Couldn't find instruction in instructions field of function " + name);
+		throw LocatedError(getLocation(), "Couldn't find instruction in instructions field of function " + name);
 	}
 
 	auto blockIter = std::find(block->instructions.begin(), block->instructions.end(), base);
@@ -890,7 +891,7 @@ WhyPtr Function::insertBefore(WhyPtr base, WhyPtr new_instruction, bool reindex,
 		std::cerr << '\n';
 		for (const auto &block_instruction: block->instructions)
 			std::cerr << '\t' << *block_instruction << '\n';
-		throw std::runtime_error("Instruction not found in block");
+		throw LocatedError(getLocation(), "Instruction not found in block");
 	}
 
 	const bool can_insert_linear = instructionIter != instructions.end();
@@ -990,7 +991,7 @@ Graph & Function::makeCFG() {
 		for (const auto &weak_pred: block->predecessors) {
 			auto pred = weak_pred.lock();
 			if (!pred)
-				throw std::runtime_error("Couldn't lock predecessor of " + label);
+				throw LocatedError(getLocation(), "Couldn't lock predecessor of " + label);
 			if (cfg.hasLabel(pred->label)) {
 				cfg.link(pred->label, label);
 			} else {
@@ -1030,6 +1031,6 @@ bool Function::isNaked() const {
 void Function::checkNaked(const ASTNode &node) const {
 	if (isNaked()) {
 		node.debug();
-		throw std::runtime_error("Can't translate node in a naked function");
+		throw LocatedError(node.location, "Can't translate node in a naked function");
 	}
 }

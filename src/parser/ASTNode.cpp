@@ -2,6 +2,7 @@
 #include <sstream>
 
 #include "ASTNode.h"
+#include "Errors.h"
 #include "StringSet.h"
 #include "Parser.h"
 #include "Lexer.h"
@@ -168,14 +169,14 @@ long ASTNode::atoi(int offset) const {
 
 std::string ASTNode::unquote(bool unescape) const {
 	if (text->size() < 2 || text->front() != '"' || text->back() != '"')
-		throw std::runtime_error("Not a quoted string: " + *text);
+		throw LocatedError(location, "Not a quoted string: " + *text);
 	const std::string out = text->substr(1, text->size() - 2);
 	return unescape? Util::unescape(out) : out;
 }
 
 char ASTNode::getChar() const {
 	if (text->size() < 2 || text->front() != '\'' || text->back() != '\'')
-		throw std::runtime_error("Not a quoted character: " + *text);
+		throw LocatedError(location, "Not a quoted character: " + *text);
 	const std::string out = text->substr(1, text->size() - 2);
 	if (out == "\\n") return '\n';
 	if (out == "\\r") return '\r';
@@ -217,7 +218,7 @@ std::string ASTNode::style() const {
 std::string ASTNode::extractName() const {
 	if ((parser == &wasmParser && symbol == WASMTOK_STRING) || (parser == &cmmParser && symbol == CMMTOK_STRING))
 		return text->substr(1, text->size() - 2);
-	throw std::runtime_error("extractName() was called on an inappropriate symbol: " +
+	throw LocatedError(location, "extractName() was called on an inappropriate symbol: " +
 		std::string(parser->getName(symbol)));
 }
 
