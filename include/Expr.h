@@ -650,4 +650,5 @@ struct InitializerExpr: Expr {
 	Expr * copy() const override;
 	std::unique_ptr<Type> getType(ScopePtr) const override;
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
+	void fullCompile(VregPtr start, Function &function, ScopePtr scope);
 };

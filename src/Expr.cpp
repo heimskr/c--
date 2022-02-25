@@ -891,15 +891,21 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 		throw ConstError("Can't assign", *left_type, location);
 	if (!destination)
 		destination = function.newVar();
-	right->compile(destination, function, scope);
 	TypePtr right_type = right->getType(scope);
-	if (!tryCast(*right_type, *left_type, destination, function))
-		throw ImplicitConversionError(right_type, left_type);
 	if (!left->compileAddress(addr_var, function, scope))
 		throw LvalueError(*left->getType(scope));
-	function.add<StoreRInstruction>(destination, addr_var, getSize(scope));
-	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+	if (right_type->isInitializer()) {
+		if (!tryCast(*right_type, *left_type, nullptr, function))
+			throw ImplicitConversionError(right_type, left_type);
+		right->cast<InitializerExpr>()->fullCompile(addr_var, function, scope);
+	} else {
+		right->compile(destination, function, scope);
+		if (!tryCast(*right_type, *left_type, destination, function))
+			throw ImplicitConversionError(right_type, left_type);
+		function.add<StoreRInstruction>(destination, addr_var, getSize(scope));
+		if (multiplier != 1)
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+	}
 }
 
 std::unique_ptr<Type> AssignExpr::getType(ScopePtr scope) const {
@@ -1111,4 +1117,21 @@ std::unique_ptr<Type> InitializerExpr::getType(ScopePtr scope) const {
 
 void InitializerExpr::compile(VregPtr, Function &, ScopePtr, ssize_t) {
 	throw LocatedError(location, "Can't compile initializers directly");
+}
+
+void InitializerExpr::fullCompile(VregPtr address, Function &function, ScopePtr scope) {
+	if (children.empty())
+		return;
+	auto temp_var = function.newVar();
+	for (const auto &child: children) {
+		auto child_type = child->getType(scope);
+		if (child_type->isInitializer()) {
+			child->cast<InitializerExpr>()->fullCompile(address, function, scope);
+		} else {
+			child->compile(temp_var, function, scope);
+			const size_t size = child->getSize(scope);
+			function.add<StoreRInstruction>(temp_var, address, size);
+			function.add<AddIInstruction>(address, address, size);
+		}
+	}
 }
