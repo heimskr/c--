@@ -1,7 +1,7 @@
 #name "Const Test"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "1.0"
+#version "1.1"
 
 void main() {
 	u64 const foo = 42;
@@ -12,5 +12,6 @@ void main() {
 	// (&foo)[0] = 40;
 	// ++foo;
 	// foo--;
+	*(u64*) &foo = 50;
 	`u64(foo); `c('\n');
 }
