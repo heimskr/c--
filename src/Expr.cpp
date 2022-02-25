@@ -885,58 +885,21 @@ std::unique_ptr<Type> CallExpr::getType(ScopePtr scope) const {
 }
 
 void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
+	auto addr_var = function.newVar();
 	TypePtr left_type = left->getType(scope);
 	if (left_type->isConst)
 		throw ConstError("Can't assign", *left_type, location);
-	if (auto *var_expr = left->cast<VariableExpr>()) {
-		if (auto var = scope->lookup(var_expr->name)) {
-			if (!destination)
-				destination = function.newVar();
-			// TODO!: that's not how multipliers are supposed to work.
-			right->compile(destination, function, scope, multiplier);
-			TypePtr right_type = right->getType(scope);
-			if (!tryCast(*right_type, *left_type, destination, function))
-				throw ImplicitConversionError(right_type, left_type);
-			if (auto *global = var->cast<Global>()) {
-				function.add<StoreIInstruction>(destination, global->name, global->getSize());
-			} else {
-				auto fp = function.precolored(Why::framePointerOffset);
-				const size_t offset = function.stackOffsets.at(var);
-				if (offset == 0) {
-					function.add<StoreRInstruction>(destination, fp, var->getSize());
-				} else {
-					auto temp = function.newVar();
-					function.add<SubIInstruction>(fp, temp, offset);
-					function.add<StoreRInstruction>(destination, temp, var->getSize());
-				}
-			}
-		} else
-			throw ResolutionError(var_expr->name, scope);
-	} else if (auto *deref_expr = left->cast<DerefExpr>()) {
-		deref_expr->checkType(scope);
-		auto addr_variable = function.newVar();
-		if (!destination)
-			destination = function.newVar();
-		right->compile(destination, function, scope, multiplier);
-		deref_expr->subexpr->compile(addr_variable, function, scope);
-		function.add<StoreRInstruction>(destination, addr_variable, deref_expr->getSize(scope)); // TODO: verify size
-	} else if (auto *access_expr = left->cast<AccessExpr>()) {
-		access_expr->check(scope);
-		auto addr_variable = function.newVar();
-		if (!destination)
-			destination = function.newVar();
-		right->compile(destination, function, scope, multiplier);
-		access_expr->compileAddress(addr_variable, function, scope);
-		function.add<StoreRInstruction>(destination, addr_variable, access_expr->getSize(scope)); // TODO: verify size
-	} else {
-		auto addr_variable = function.newVar();
-		if (!destination)
-			destination = function.newVar();
-		right->compile(destination, function, scope, multiplier);
-		if (!left->compileAddress(addr_variable, function, scope))
-			throw LvalueError(*left->getType(scope));
-		function.add<StoreRInstruction>(destination, addr_variable, left->getSize(scope)); // TODO: verify size
-	}
+	if (!destination)
+		destination = function.newVar();
+	right->compile(destination, function, scope);
+	TypePtr right_type = right->getType(scope);
+	if (!tryCast(*right_type, *left_type, destination, function))
+		throw ImplicitConversionError(right_type, left_type);
+	if (!left->compileAddress(addr_var, function, scope))
+		throw LvalueError(*left->getType(scope));
+	function.add<StoreRInstruction>(destination, addr_var, getSize(scope));
+	if (multiplier != 1)
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
 std::unique_ptr<Type> AssignExpr::getType(ScopePtr scope) const {
