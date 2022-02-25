@@ -23,7 +23,6 @@ void typecheck() {
 	s32 s_32 = -10s8;
 	s64* s64_ptr = (s64*) &s_32;
 	void* void_ptr = s64_ptr;
-	// s64* badcast = void_ptr; // Shouldn't compile
 	s64* recast = (s64*) void_ptr;
 }
 
