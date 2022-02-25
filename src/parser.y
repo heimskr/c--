@@ -193,9 +193,9 @@ statements: statements statement { $$ = $1->adopt($2); }
 conditional: "if" "(" expr ")" statement "else" statement { $$ = $1->adopt({$3, $5, $7}); D($2, $4, $6); }
            | "if" "(" expr ")" statement { $$ = $1->adopt({$3, $5}); D($2, $4); };
 
-while_loop: "while" expr block { $$ = $1->adopt({$2, $3}); };
+while_loop: "while" "(" expr ")" statement { $$ = $1->adopt({$3, $5}); D($2, $4); };
 
-for_loop: "for" _decl_or_def ";" _expr ";" _expr block { $$ = $1->adopt({$2, $4, $6, $7}); D($3, $5); };
+for_loop: "for" "(" _decl_or_def ";" _expr ";" _expr ")" statement { $$ = $1->adopt({$3, $5, $7, $9}); D($2, $4, $6, $8); };
 
 _expr: expr | { $$ = new ASTNode(cmmParser, CMM_EMPTY); };
 _decl_or_def: decl_or_def | { $$ = new ASTNode(cmmParser, CMM_EMPTY); };

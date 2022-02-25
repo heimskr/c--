@@ -7,7 +7,7 @@ s64 n = 38 + 5;
 bool empty;
 s64 dependent = n * 2;
 s64* global_addr = &dependent;
-u64  unsigned = 60u8;
+u64 unsigned = 60u8;
 
 void l() {
 	`c('\n');
@@ -64,7 +64,7 @@ void main(u32 argc) {
 	(&(*&wow))[0] = 200;
 	`s("wow = "); `s64(wow); `s(" (should be 200)"); l();
 	s32[4] arr;
-	for u64 i = 0; i < #arr; ++i {
+	for (u64 i = 0; i < #arr; ++i) {
 		arr[i] = (s32) (10u64 * (i + 1u64));
 	}
 	s32* arrptr = &arr;
@@ -98,9 +98,8 @@ void ptr_test() {
 }
 
 void forever() {
-	while true {
+	while (true)
 		`s("Hello!\n");
-	}
 }
 
 s64 badfib(s64 x) {

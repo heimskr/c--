@@ -24,9 +24,8 @@ void main() {
 	table[2] = timer_ptr;
 	table[7] = int_keybrd;
 	asm("%rit table");
-	while true {
+	while (true)
 		asm("<rest>");
-	}
 }
 
 s64(s64)* swap(s64(s64)* f) {
@@ -83,7 +82,7 @@ void hack() {
 	s32* what = (s32*) &add5;
 	`ptr(what); `c('\n');
 	bool hacked = false;
-	for s64 i = 0; i < 1000; ++i {
+	for (s64 i = 0; i < 1000; ++i) {
 		if (*++what == 5s32)
 			`s("\x1b[32m");
 		`s64((s64) what);
