@@ -50,7 +50,11 @@ void Function::extractArguments() {
 	for (const ASTNode *child: *source->at(1)) {
 		const std::string &argument_name = *child->text;
 		arguments.push_back(argument_name);
-		VariablePtr argument = Variable::make(argument_name, TypePtr(Type::get(*child->front(), program)), *this);
+		auto type = TypePtr(Type::get(*child->front(), program));
+		if (type->isStruct())
+			throw LocatedError(child->location, "Functions cannot directly take structs as function arguments; "
+				"use a pointer");
+		VariablePtr argument = Variable::make(argument_name, type, *this);
 		argument->init();
 		argumentMap.emplace(argument_name, argument);
 		if (selfScope->doesConflict(argument_name))
