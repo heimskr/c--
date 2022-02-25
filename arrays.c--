@@ -1,37 +1,27 @@
 #name "Arrays"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "2.1"
+#version "3.0"
 
-n: s64 = 10;
-array: s64[10];
+s64 n = 10;
+s64[10] array;
 
-fn main(): void {
-	c: s64 = -1;
-	array[++c] = 0;
-	array[++c] = 10;
-	array[++c] = 210;
-	array[++c] = 3210;
-	array[++c] = 43210;
-	array[++c] = 543210;
-	array[++c] = 6543210;
-	array[++c] = 76543210;
-	array[++c] = 876543210;
-	array[++c] = 9876543210;
-	for i: s64 = #array; 0 < i; --i {
-		.s64(array[i - 1]);
-		.c('\n');
+void main() {
+	array = [0, 10, 210, 3210, 43210, 543210, 6543210, 76543210, 876543210, 9876543210];
+	for (s64 i = #array; 0 < i; --i) {
+		`s64(array[i - 1]);
+		`c('\n');
 	}
-	c = 0;
-	multidim: s64[5][5];
-	for row: u64 = 0; row < #multidim; ++row {
-		for col: u64 = 0; col < #multidim[0]; ++col {
+	s64 c = 0;
+	s64[5][5] multidim;
+	for (u64 row = 0; row < #multidim; ++row) {
+		for (u64 col = 0; col < #multidim[0]; ++col) {
 			multidim[row][col] = (++c)++;
 		}
 	}
-	for row: u64 = 0; row < #multidim; ++row {
-		for col: u64 = 0; col < #multidim[0]; ++col {
-			.s("multidim["); .u64(row); .s("]["); .u64(col); .s("]: "); .s64(multidim[row][col]); .c('\n');
+	for (u64 row = 0; row < #multidim; ++row) {
+		for (u64 col = 0; col < #multidim[0]; ++col) {
+			`s("multidim["); `u64(row); `s("]["); `u64(col); `s("]: "); `s64(multidim[row][col]); `c('\n');
 		}
 	}
 }

@@ -642,3 +642,11 @@ struct SizeofExpr: Expr {
 	size_t getSize(ScopePtr) const override { return 8; }
 	std::unique_ptr<Type> getType(ScopePtr) const override { return std::make_unique<UnsignedType>(64); }
 };
+
+struct InitializerExpr: Expr {
+	std::vector<ExprPtr> children;
+	InitializerExpr(std::vector<ExprPtr> &&children_): children(std::move(children_)) {}
+	InitializerExpr(const std::vector<ExprPtr> &children_): children(children_) {}
+	Expr * copy() const override;
+	std::unique_ptr<Type> getType(ScopePtr) const override;
+};

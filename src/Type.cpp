@@ -7,6 +7,7 @@
 #include "Lexer.h"
 #include "Parser.h"
 #include "Program.h"
+#include "Scope.h"
 #include "Type.h"
 
 Type::operator std::string() const {
@@ -281,4 +282,79 @@ const decltype(StructType::map) & StructType::getMap() const {
 	}
 
 	return map;
+}
+
+InitializerType::InitializerType(const std::vector<ExprPtr> &exprs, ScopePtr scope) {
+	for (const auto &expr: exprs)
+		children.emplace_back(expr->getType(scope));
+}
+
+Type * InitializerType::copy() const {
+	std::vector<TypePtr> children_copy;
+	for (const auto &child: children)
+		children_copy.emplace_back(child->copy());
+	return (new InitializerType(std::move(children_copy)))->setConst(isConst);
+}
+
+bool InitializerType::operator&&(const Type &other) const {
+	if (const auto *other_init = other.cast<InitializerType>()) {
+		const size_t max = children.size();
+		if (other_init->children.size() != max)
+			return false;
+		for (size_t i = 0; i < max; ++i)
+			if (!(*children[i] && *other_init->children[i]))
+				return false;
+		return true;
+	} else if (const auto *other_struct = other.cast<StructType>()) {
+		const auto &fields = other_struct->getOrder();
+		const size_t max = children.size();
+		if (fields.size() != max)
+			return false;
+		for (size_t i = 0; i < max; ++i)
+			if (*children[i] != *fields[i].second)
+				return false;
+		return true;
+	} else if (const auto *other_array = other.cast<ArrayType>()) {
+		if (other_array->count != children.size())
+			return false;
+		for (const auto &child: children)
+			if (*child != *other_array->subtype)
+				return false;
+		return true;
+	}
+
+	return false;
+}
+
+bool InitializerType::operator==(const Type &other) const {
+	if (const auto *other_init = other.cast<InitializerType>()) {
+		const size_t max = children.size();
+		if (other_init->children.size() != max)
+			return false;
+		for (size_t i = 0; i < max; ++i)
+			if (*children[i] != *other_init->children[i])
+				return false;
+		return true;
+	}
+
+	return false;
+}
+
+size_t InitializerType::getSize() const {
+	throw std::runtime_error("Can't get size of initializer");
+}
+
+std::string InitializerType::stringify() const {
+	std::stringstream out;
+	out << '[';
+	bool first = true;
+	for (const auto &child: children) {
+		if (first)
+			first = false;
+		else
+			out << ", ";
+		out << *child;
+	}
+	out << ']';
+	return out.str();
 }

@@ -257,6 +257,13 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
+		case CMM_INITIALIZER: {
+			std::vector<ExprPtr> exprs;
+			for (const ASTNode *child: node)
+				exprs.emplace_back(Expr::get(*child, function));
+			out = new InitializerExpr(std::move(exprs));
+			break;
+		}
 		default:
 			throw std::invalid_argument("Unrecognized symbol in Expr::get: " +
 				std::string(cmmParser.getName(node.symbol)));
@@ -1125,4 +1132,15 @@ size_t ArrowExpr::getSize(ScopePtr scope) const {
 
 void SizeofExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	function.add<SetIInstruction>(destination, size_t(*evaluate(scope) * multiplier));
+}
+
+Expr * InitializerExpr::copy() const {
+	std::vector<ExprPtr> children_copy;
+	for (const auto &child: children)
+		children_copy.emplace_back(child->copy());
+	return new InitializerExpr(children_copy);
+}
+
+std::unique_ptr<Type> InitializerExpr::getType(ScopePtr scope) const {
+	return std::make_unique<InitializerType>(children, scope);
 }

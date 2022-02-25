@@ -10,7 +10,9 @@
 
 class ASTNode;
 class Function;
+struct Expr;
 struct Program;
+struct Scope;
 
 struct Type: Checkable, std::enable_shared_from_this<Type> {
 	bool isConst = false;
@@ -33,6 +35,7 @@ struct Type: Checkable, std::enable_shared_from_this<Type> {
 	virtual bool isArray() const { return false; }
 	virtual bool isFunctionPointer() const { return false; }
 	virtual bool isStruct() const { return false; }
+	virtual bool isInitializer() const { return false; }
 	Type * setConst(bool is_const) { isConst = is_const; return this; }
 
 	static Type * get(const ASTNode &, const Program &, bool allow_forward = false);
@@ -181,6 +184,20 @@ class StructType: public Type, public Makeable<StructType> {
 		const decltype(order) & getOrder() const;
 		const decltype(map) & getMap() const;
 
+	protected:
+		std::string stringify() const override;
+};
+
+struct InitializerType: Type, Makeable<InitializerType> {
+	std::vector<TypePtr> children;
+	InitializerType(const std::vector<std::shared_ptr<Expr>> &, std::shared_ptr<Scope>);
+	InitializerType(const std::vector<TypePtr> &children_): children(children_) {}
+	InitializerType(std::vector<TypePtr> &&children_): children(std::move(children_)) {}
+	Type * copy() const override;
+	bool isInitializer() const override { return true; }
+	bool operator&&(const Type &) const override;
+	bool operator==(const Type &) const override;
+	size_t getSize() const override;
 	protected:
 		std::string stringify() const override;
 };

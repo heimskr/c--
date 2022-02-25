@@ -115,6 +115,7 @@ using AN = ASTNode;
 %token CMMTOK_CONST   "const"
 
 %token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY CMM_POSTPLUS CMM_POSTMINUS CMM_FNPTR CMM_DECL
+%token CMM_INITIALIZER
 
 %start start
 
@@ -252,6 +253,7 @@ expr: expr "&&"  expr { $$ = $2->adopt({$1, $3}); }
     | boolean
     | string
     | CMMTOK_CHAR
+    | "[" _exprlist "]" { $$ = $2; $$->symbol = CMM_INITIALIZER; D($1, $3); }
     | "null";
 
 string: CMMTOK_STRING;
