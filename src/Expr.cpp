@@ -825,9 +825,12 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 	i = 0;
 	for (const auto &argument: arguments) {
 		auto argument_register = fn.precolored(Why::argumentOffset + i);
+		auto argument_type = argument->getType(scope);
+		if (argument_type->isStruct())
+			throw LocatedError(argument->location, "Structs cannot be directly passed to functions; use a pointer");
 		argument->compile(argument_register, fn, scope);
 		try {
-			typeCheck(*argument->getType(scope), get_arg_type(i), argument_register, fn, location);
+			typeCheck(*argument_type, get_arg_type(i), argument_register, fn, location);
 		} catch (std::out_of_range &err) {
 			std::cerr << "\e[31mBad function argument at " << argument->location << "\e[39m\n";
 			throw;
