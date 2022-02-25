@@ -282,6 +282,7 @@ struct NullExpr: AtomicExpr {
 	Expr * copy() const override { return new NullExpr(); }
 	operator std::string() const override { return "null"; }
 	ssize_t getValue() const override { return 0; }
+	size_t getSize(ScopePtr) const override { return 8; }
 	std::optional<ssize_t> evaluate(ScopePtr) const override { return getValue(); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	std::unique_ptr<Type> getType(ScopePtr) const override { return std::make_unique<PointerType>(new VoidType); }

@@ -1,35 +1,30 @@
 #name "Structs"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "1.0"
+#version "2.0"
 
 struct LinkedList;
 
 struct Pair {
-	str: u8*;
-	number: s64;
+	u8* str;
+	s64 number;
 };
 
 struct LinkedList {
-	data: struct Pair;
-	next: struct LinkedList*;
+	%Pair data;
+	%LinkedList* next;
 };
 
-fn main(): void {
-	item1: struct LinkedList;
-	item2: struct LinkedList;
-	item3: struct LinkedList;
-	item4: struct LinkedList;
-	item5: struct LinkedList;
-	item1.data.str = "Hello"; item1.data.number =  10; item1.next = &item2;
-	item2.data.str = "there"; item2.data.number =  20; item2.next = &item3;
-	item3.data.str = "how";   item3.data.number =  40; item3.next = &item4;
-	item4.data.str = "are";   item4.data.number =  80; item4.next = &item5;
-	item5.data.str = "you";   item5.data.number = 160; item5.next = (struct LinkedList *) 0;
+void main() {
+	%LinkedList item5 = [["you", 160], null];
+	%LinkedList item4 = [["are", 80], &item5];
+	%LinkedList item3 = [["how", 40], &item4];
+	%LinkedList item2 = [["there", 20], &item3];
+	%LinkedList item1 = [["Hello", 10], &item2];
 	traverse(&item1);
 }
 
-fn traverse(node: struct LinkedList*): void {
+void traverse(%LinkedList* node) {
 	if (!node)
 		return;
 	`s("(\"");

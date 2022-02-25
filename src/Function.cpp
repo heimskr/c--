@@ -209,15 +209,21 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			size_t offset = addToStack(variable);
 			if (node.size() == 3) {
 				auto expr = ExprPtr(Expr::get(*node.at(2), this));
-				expr->compile(variable, *this, currentScope());
-				typeCheck(*expr->getType(currentScope()), *variable->type, variable, *this);
-				VregPtr fp = precolored(Why::framePointerOffset);
-				if (offset == 0) {
-					add<StoreRInstruction>(variable, fp, variable->getSize());
+				auto fp = precolored(Why::framePointerOffset);
+				if (auto *initializer = expr->cast<InitializerExpr>()) {
+					auto addr_var = newVar();
+					add<SubIInstruction>(fp, addr_var, offset);
+					initializer->fullCompile(addr_var, *this, currentScope());
 				} else {
-					VregPtr m0 = mx(0);
-					add<SubIInstruction>(fp, m0, offset);
-					add<StoreRInstruction>(variable, m0, variable->getSize());
+					expr->compile(variable, *this, currentScope());
+					typeCheck(*expr->getType(currentScope()), *variable->type, variable, *this);
+					if (offset == 0) {
+						add<StoreRInstruction>(variable, fp, variable->getSize());
+					} else {
+						VregPtr m0 = mx(0);
+						add<SubIInstruction>(fp, m0, offset);
+						add<StoreRInstruction>(variable, m0, variable->getSize());
+					}
 				}
 			}
 			break;

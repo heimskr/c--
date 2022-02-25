@@ -33,7 +33,7 @@ $(OUTPUT): $(OBJECTS)
 	$(COMPILER) -o $@ $^ $(LDFLAGS)
 
 test: $(OUTPUT)
-	./$(OUTPUT) arrays.c-- -d
+	./$(OUTPUT) structs.c-- -d
 
 %.o: %.cpp $(PARSERHDR) $(WASMPARSERHDR)
 	$(COMPILER) $(CFLAGS) -c $< -o $@

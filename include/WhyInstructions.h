@@ -262,7 +262,12 @@ struct BareMultIInstruction: IType {
 
 struct SizedInstruction {
 	size_t size;
-	SizedInstruction(size_t size_): size(size_) {}
+	SizedInstruction(size_t size_): size(size_) {
+		switch (size) {
+			case 1: case 2: case 4: case 8: break;
+			default: throw std::out_of_range("Invalid instruction size: " + std::to_string(size));
+		}
+	}
 
 	protected:
 		std::string suffix(bool colored = false) const {
@@ -271,7 +276,8 @@ struct SizedInstruction {
 				case 2: return colored? " \e[2m/s\e[22m" : " /s";
 				case 4: return colored? " \e[2m/h\e[22m" : " /h";
 				case 8: return "";
-				default: throw std::out_of_range("Invalid instruction size: " + std::to_string(size));
+				default:
+					throw std::out_of_range("Invalid instruction size: " + std::to_string(size));
 			}
 		}
 };

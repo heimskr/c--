@@ -20,6 +20,7 @@ struct Instruction {
 	virtual std::vector<std::string> colored() const { return std::vector<std::string>(*this); }
 	Instruction & setParent(std::weak_ptr<BasicBlock> parent_) { parent = parent_; return *this; }
 	Instruction & setIndex(int index_) { index = index_; return *this; }
+	std::string singleLine() const;
 };
 
 using InstructionPtr = std::shared_ptr<Instruction>;
