@@ -106,6 +106,7 @@ CMM_SLCOMMENT	("//"[^\n]*)
 "sizeof"		{RTOKEN(SIZEOF)}
 "null"			{RTOKEN(NULL)}
 "const"			{RTOKEN(CONST)}
+"offsetof"		{RTOKEN(OFFSETOF)}
 
 {CMM_CHAR}		{RTOKEN(CHAR)}
 {CMM_STRING}	{RTOKEN(STRING)}

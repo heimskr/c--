@@ -644,6 +644,18 @@ struct SizeofExpr: Expr {
 	std::unique_ptr<Type> getType(ScopePtr) const override { return std::make_unique<UnsignedType>(64); }
 };
 
+struct OffsetofExpr: Expr {
+	std::string structName, fieldName;
+	OffsetofExpr(const std::string &struct_name, const std::string &field_name):
+		structName(struct_name), fieldName(field_name) {}
+	Expr * copy() const override { return new OffsetofExpr(structName, fieldName); }
+	operator std::string() const override { return "offsetof(%" + structName  + ", " + fieldName + ")"; }
+	std::optional<ssize_t> evaluate(ScopePtr) const override;
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
+	size_t getSize(ScopePtr) const override { return 8; }
+	std::unique_ptr<Type> getType(ScopePtr) const override { return std::make_unique<UnsignedType>(64); }
+};
+
 struct InitializerExpr: Expr {
 	std::vector<ExprPtr> children;
 	InitializerExpr(std::vector<ExprPtr> &&children_): children(std::move(children_)) {}

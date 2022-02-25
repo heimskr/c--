@@ -112,7 +112,8 @@ using AN = ASTNode;
 %token CMMTOK_ANDEQ   "&="
 %token CMMTOK_OREQ    "|="
 %token CMMTOK_XOREQ   "^="
-%token CMMTOK_CONST   "const"
+%token CMMTOK_CONST "const"
+%token CMMTOK_OFFSETOF "offsetof"
 
 %token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY CMM_POSTPLUS CMM_POSTMINUS CMM_FNPTR CMM_DECL
 %token CMM_INITIALIZER
@@ -132,7 +133,7 @@ using AN = ASTNode;
 %left "<<" ">>"
 %left "+" "-"
 %left MULT "/" "%"
-%right "!" "~" "#" "sizeof" DEREF ADDROF PREFIX UNARY CAST
+%right "!" "~" "#" "sizeof" "offsetof" DEREF ADDROF PREFIX UNARY CAST
 %left "[" POSTFIX CALL "." "->"
 %nonassoc "else"
 
@@ -243,6 +244,7 @@ expr: expr "&&"  expr { $$ = $2->adopt({$1, $3}); }
     | "~" expr { $$ = $1->adopt($2); }
     | "#" expr { $$ = $1->adopt($2); }
     | "sizeof" "(" type ")" %prec "sizeof" { $$ = $1->adopt($3); D($2, $4); }
+    | "offsetof" "(" "%" CMMTOK_IDENT "," CMMTOK_IDENT ")" %prec "offsetof" { $$ = $1->adopt({$4, $6}); D($2, $3, $5, $7); }
     | expr "?" expr ":" expr %prec "?" { $$ = $2->adopt({$1, $3, $5}); D($4); }
     | number
     | "-" number %prec UNARY   { $$ = $2->adopt($1); }

@@ -44,6 +44,10 @@ Function * FunctionScope::lookupFunction(const std::string &name) const {
 	return parent->lookupFunction(name);
 }
 
+TypePtr FunctionScope::lookupType(const std::string &name) const {
+	return parent->lookupType(name);
+}
+
 bool FunctionScope::doesConflict(const std::string &name) const {
 	// It's fine for local variables to shadow global variables.
 	return function.variables.count(name) != 0;
@@ -69,6 +73,12 @@ Function * GlobalScope::lookupFunction(const std::string &name) const {
 		return &program.functionDeclarations.at(name);
 	}
 	return &program.functions.at(name);
+}
+
+TypePtr GlobalScope::lookupType(const std::string &name) const {
+	if (program.structs.count(name) != 0)
+		return program.structs.at(name);
+	return nullptr;
 }
 
 bool GlobalScope::doesConflict(const std::string &name) const {
@@ -126,6 +136,10 @@ VariablePtr BlockScope::lookup(const std::string &name) const {
 
 Function * BlockScope::lookupFunction(const std::string &name) const {
 	return parent->lookupFunction(name);
+}
+
+TypePtr BlockScope::lookupType(const std::string &name) const {
+	return parent->lookupType(name);
 }
 
 bool BlockScope::doesConflict(const std::string &name) const {

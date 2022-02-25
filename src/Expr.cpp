@@ -104,6 +104,9 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 		case CMMTOK_SIZEOF:
 			out = new SizeofExpr(TypePtr(Type::get(*node.front(), function->program)));
 			break;
+		case CMMTOK_OFFSETOF:
+			out = new OffsetofExpr(*node.front()->text, *node.at(1)->text);
+			break;
 		case CMMTOK_IDENT:
 			if (!function)
 				throw LocatedError(node.location, "Variable expression encountered in functionless context");
@@ -1105,6 +1108,29 @@ size_t ArrowExpr::getSize(ScopePtr scope) const {
 }
 
 void SizeofExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
+	function.add<SetIInstruction>(destination, size_t(*evaluate(scope) * multiplier));
+}
+
+std::optional<ssize_t> OffsetofExpr::evaluate(ScopePtr scope) const {
+	auto type = scope->lookupType(structName);
+	StructType *struct_type;
+	if (!type || !(struct_type = type->cast<StructType>()))
+		throw LocatedError(location, "Unknown or incomplete struct in offsetof expression: " + structName);
+	ssize_t offset = 0;
+	bool found = false;
+	for (const auto &[field_name, field_type]: struct_type->getOrder()) {
+		if (field_name == fieldName) {
+			found = true;
+			break;
+		}
+		offset += field_type->getSize();
+	}
+	if (!found)
+		throw LocatedError(location, "Struct " + structName + " has no field " + fieldName);
+	return offset;
+}
+
+void OffsetofExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	function.add<SetIInstruction>(destination, size_t(*evaluate(scope) * multiplier));
 }
 
