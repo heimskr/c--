@@ -1,26 +1,26 @@
 #name "Why ISA Tests"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "4.1"
+#version "4.2"
 
-table: void*[8];
-delay: s64 = 300000;
-timeup: u8* = "Time's up\n";
-timer_ptr: void()* = int_timer;
-fnptr: s64(s64)* = add5;
+void*[8] table;
+s64 delay = 300000;
+u8* timeup = "Time's up\n";
+void()* timer_ptr = int_timer;
+s64(s64)* fnptr = add5;
 
-fn double(n: s64): s64 {
+s64 double(s64 n) {
 	return n << 1;
 }
 
-fn add5(n: s64): s64 {
+s64 add5(s64 n) {
 	return n + 5;
 }
 
-fn main(): void {
-	g: s64;
+void main() {
+	s64 g;
 	asm("$g -> $1"::g);
-	.s("$g = "); .s64(g); .c('\n');
+	`s("$g = "); `s64(g); `c('\n');
 	table[2] = timer_ptr;
 	table[7] = int_keybrd;
 	asm("%rit table");
@@ -29,49 +29,49 @@ fn main(): void {
 	}
 }
 
-fn swap(f: s64(s64)*): s64(s64)* {
+s64(s64)* swap(s64(s64)* f) {
 	if (f == double)
 		return add5;
 	return double;
 }
 
-fn int_keybrd_(key: u8): void {
+void int_keybrd_(u8 key) {
 	if (key == 'a') {
-		.s("You pressed 'a' :)\n");
+		`s("You pressed 'a' :)\n");
 	} else if (key == '=') {
 		delay = delay * 11 / 10;
-		.s("Delay: "); .s64(delay); .c('\n');
+		`s("Delay: "); `s64(delay); `c('\n');
 	} else if (key == '-') {
 		delay = delay * 10 / 11;
-		.s("Delay: "); .s64(delay); .c('\n');
+		`s("Delay: "); `s64(delay); `c('\n');
 	} else if (key == '\n') {
 		asm("%time $1":delay:);
 	} else if (key == ' ') {
 		fnptr = swap(fnptr);
 	} else if (key == '*') {
-		.s("20 -> ");
-		hacked_ptr: s64(s64)* = (s64(s64)*) (((s64) fnptr << 1) + 8);
-		.s64(((s64(s64)*)((s64) ((s16*) hacked_ptr - 4s16) / 2))(20));
-		.c('\n');
+		`s("20 -> ");
+		s64(s64)* hacked_ptr = (s64(s64)*) (((s64) fnptr << 1) + 8);
+		`s64(((s64(s64)*)((s64) ((s16*) hacked_ptr - 4s16) / 2))(20));
+		`c('\n');
 	} else if (key == 'h') {
 		hack();
 	} else {
-		.s("You pressed '"); .c(key); .c('\''); .c('\n');
+		`s("You pressed '"); `c(key); `c('\''); `c('\n');
 	}
 }
 
-fn int_keybrd(): void #naked {
+void int_keybrd() #naked {
 	asm("[ $rt; [ $a0");
 	asm("$e2 -> $a0; :: int_keybrd_");
 	asm("] $a0; ] $rt");
 	asm(": ] %page $e0");
 }
 
-fn int_timer(): void #naked {
+void int_timer() #naked {
 	asm("[ $rt");
 	asm("[ $a0");
 	asm("[timeup] -> $a0");
-	asm(":: .s");
+	asm(":: `s");
 	asm("[delay] -> $a0");
 	asm("%time $a0");
 	asm("] $a0");
@@ -79,25 +79,25 @@ fn int_timer(): void #naked {
 	asm(": ] %page $e0");
 }
 
-fn hack(): void {
-	what: s32* = (s32*) &add5;
-	.ptr(what); .c('\n');
-	hacked: bool = false;
-	for i: s64 = 0; i < 1000; ++i {
+void hack() {
+	s32* what = (s32*) &add5;
+	`ptr(what); `c('\n');
+	bool hacked = false;
+	for s64 i = 0; i < 1000; ++i {
 		if (*++what == 5s32)
-			.s("\x1b[32m");
-		.s64((s64) what);
-		.s(": ");
+			`s("\x1b[32m");
+		`s64((s64) what);
+		`s(": ");
 		asm("<prx $1>":*what);
-		.s("\x1b[0m\n");
+		`s("\x1b[0m\n");
 		if (*what == 5s32) {
 			*what = 42s32;
-			.s("hacked =)\n");
+			`s("hacked =)\n");
 			hacked = true;
 			fnptr = add5;
 			break;
 		}
 	}
 	if (!hacked)
-		.s("not hacked =(\n");
+		`s("not hacked =(\n");
 }
