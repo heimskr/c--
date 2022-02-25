@@ -33,7 +33,7 @@ void badcall() {
 */
 
 void main(u32 argc) {
-	// Functions whose names are "." followed by a type are built-in print functions.
+	// Functions whose names are "`" followed by a type are built-in print functions.
 	s64 val = n - 1;
 	s64 wow;
 	(void*) typecheck();
