@@ -71,6 +71,8 @@ namespace Util {
 				out << "\\n";
 			else if (ch == '\r')
 				out << "\\r";
+			else if (ch == '\e')
+				out << "\\e";
 			else
 				out << ch;
 		}
