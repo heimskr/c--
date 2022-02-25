@@ -409,7 +409,15 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 		case CMM_POSTPLUS:
 		case CMM_POSTMINUS:
 		case CMMTOK_PLUSEQ:
-		case CMMTOK_MINUSEQ: {
+		case CMMTOK_MINUSEQ:
+		case CMMTOK_DIVEQ:
+		case CMMTOK_TIMESEQ:
+		case CMMTOK_MODEQ:
+		case CMMTOK_SREQ:
+		case CMMTOK_SLEQ:
+		case CMMTOK_ANDEQ:
+		case CMMTOK_OREQ:
+		case CMMTOK_XOREQ: {
 			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, currentScope());
 			break;
 		}

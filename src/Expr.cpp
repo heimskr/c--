@@ -207,6 +207,56 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(2), function)));
 			break;
+		case CMMTOK_PLUSEQ:
+			out = new PlusAssignExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
+		case CMMTOK_MINUSEQ:
+			out = new MinusAssignExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
+		case CMMTOK_DIVEQ:
+			out = new DivAssignExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
+		case CMMTOK_TIMESEQ:
+			out = new MultAssignExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
+		case CMMTOK_MODEQ:
+			out = new ModAssignExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
+		case CMMTOK_SREQ:
+			out = new ShiftRightAssignExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
+		case CMMTOK_SLEQ:
+			out = new ShiftLeftAssignExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
+		case CMMTOK_ANDEQ:
+			out = new AndAssignExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
+		case CMMTOK_OREQ:
+			out = new OrAssignExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
+		case CMMTOK_XOREQ:
+			out = new XorAssignExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
 		default:
 			throw std::invalid_argument("Unrecognized symbol in Expr::get: " +
 				std::string(cmmParser.getName(node.symbol)));
@@ -715,7 +765,6 @@ Expr * CallExpr::copy() const {
 }
 
 void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_t multiplier) {
-	const size_t to_push = arguments.size();
 	size_t i;
 
 	std::function<const Type &(size_t)> get_arg_type = [](size_t) -> const Type & {
@@ -832,6 +881,7 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 		if (auto var = scope->lookup(var_expr->name)) {
 			if (!destination)
 				destination = function.newVar();
+			// TODO!: that's not how multipliers are supposed to work.
 			right->compile(destination, function, scope, multiplier);
 			TypePtr right_type = right->getType(scope), left_type = left->getType(scope);
 			if (!tryCast(*right_type, *left_type, destination, function))
@@ -883,10 +933,6 @@ std::unique_ptr<Type> AssignExpr::getType(ScopePtr scope) const {
 	if (!(*right_type && *left_type))
 			throw ImplicitConversionError(*right_type, *left_type);
 	return left_type;
-}
-
-size_t AssignExpr::getSize(ScopePtr scope) const {
-	return left->getSize(scope);
 }
 
 std::optional<ssize_t> AssignExpr::evaluate(ScopePtr scope) const {

@@ -32,6 +32,14 @@ CMM_SLCOMMENT	("//"[^\n]*)
 
 "+="			{RTOKEN(PLUSEQ)}
 "-="			{RTOKEN(MINUSEQ)}
+"/="			{RTOKEN(DIVEQ)}
+"*="			{RTOKEN(TIMESEQ)}
+"%="			{RTOKEN(MODEQ)}
+">>="			{RTOKEN(SREQ)}
+"<<="			{RTOKEN(SLEQ)}
+"&="			{RTOKEN(ANDEQ)}
+"|="			{RTOKEN(OREQ)}
+"^="			{RTOKEN(XOREQ)}
 "++"			{RTOKEN(PLUSPLUS)}
 "--"			{RTOKEN(MINUSMINUS)}
 "->"			{RTOKEN(ARROW)}

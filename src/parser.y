@@ -104,13 +104,21 @@ using AN = ASTNode;
 %token CMMTOK_ARROW "->"
 %token CMMTOK_SIZEOF "sizeof"
 %token CMMTOK_NULL "null"
+%token CMMTOK_DIVEQ   "/="
+%token CMMTOK_TIMESEQ "*="
+%token CMMTOK_MODEQ   "%="
+%token CMMTOK_SREQ    ">>="
+%token CMMTOK_SLEQ    "<<="
+%token CMMTOK_ANDEQ   "&="
+%token CMMTOK_OREQ    "|="
+%token CMMTOK_XOREQ   "^="
 
 %token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY CMM_POSTPLUS CMM_POSTMINUS CMM_FNPTR CMM_DECL
 
 %start start
 
 %left ";"
-%right "?" "=" "+=" "-="
+%right "?" "=" "+=" "-=" "*=" "/=" "%=" "<<=" ">>=" "&=" "|=" "^="
 %left "||"
 %left "^^"
 %left "&&"
@@ -210,6 +218,16 @@ expr: expr "&&"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "/"   expr { $$ = $2->adopt({$1, $3}); }
     | expr "="   expr { $$ = $2->adopt({$1, $3}); }
     | expr "%"   expr { $$ = $2->adopt({$1, $3}); }
+    | expr "+="  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "-="  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "*="  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "/="  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "%="  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "<<=" expr { $$ = $2->adopt({$1, $3}); }
+    | expr ">>=" expr { $$ = $2->adopt({$1, $3}); }
+    | expr "&="  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "|="  expr { $$ = $2->adopt({$1, $3}); }
+    | expr "^="  expr { $$ = $2->adopt({$1, $3}); }
     | expr "."   CMMTOK_IDENT %prec "."  { $$ = $2->adopt({$1, $3}); }
     | expr "->"  CMMTOK_IDENT %prec "->" { $$ = $2->adopt({$1, $3}); }
     | expr "[" expr "]" %prec "[" { $$ = $2->adopt({$1, $3}); D($4); }

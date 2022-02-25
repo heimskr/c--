@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "ASTNode.h"
+#include "Casting.h"
 #include "Checkable.h"
 #include "Errors.h"
 #include "fixed_string.h"
@@ -375,10 +376,80 @@ struct AssignExpr: BinaryExpr<"="> {
 	bool shouldParenthesize() const override { return false; }
 	std::unique_ptr<Type> getType(ScopePtr scope) const override;
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
-	size_t getSize(ScopePtr) const override;
+	size_t getSize(ScopePtr scope) const override { return left->getSize(scope); }
 	std::optional<ssize_t> evaluate(ScopePtr) const override;
 	bool compileAddress(VregPtr, Function &, ScopePtr) override;
 };
+
+template <fixstr::fixed_string O, typename RS, typename FnS, typename RU = RS, typename FnU = FnS>
+struct CompoundAssignExpr: BinaryExpr<O> {
+	using BinaryExpr<O>::BinaryExpr;
+	std::unique_ptr<Type> getType(ScopePtr scope) const override {
+		auto left_type = this->left->getType(scope), right_type = this->right->getType(scope);
+		if (!(*right_type && *left_type))
+				throw ImplicitConversionError(*right_type, *left_type);
+		return left_type;
+	}
+	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
+		auto temp_var = function.newVar();
+		if (!destination)
+			destination = function.newVar();
+		this->left->compile(destination, function, scope);
+		this->right->compile(temp_var, function, scope);
+		if (this->left->getType(scope)->isUnsigned())
+			function.add<RU>(destination, temp_var, destination);
+		else
+			function.add<RS>(destination, temp_var, destination);
+		TypePtr right_type = this->right->getType(scope), left_type = this->left->getType(scope);
+		if (!tryCast(*right_type, *left_type, destination, function))
+			throw ImplicitConversionError(right_type, left_type);
+		if (!this->left->compileAddress(temp_var, function, scope))
+			throw LvalueError(*this->left->getType(scope));
+		function.add<StoreRInstruction>(destination, temp_var, getSize(scope));
+		if (multiplier != 1)
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+	}
+	size_t getSize(ScopePtr scope) const override {
+		return this->left->getSize(scope);
+	}
+	std::optional<ssize_t> evaluate(ScopePtr scope) const override {
+		auto left_value  = this->left?  this->left->evaluate(scope)  : std::nullopt,
+		     right_value = this->right? this->right->evaluate(scope) : std::nullopt;
+		if (left_value && right_value) {
+			if (this->left->getType(scope)->isUnsigned())
+				return FnU()(*left_value, *right_value);
+			return FnS()(*left_value, *right_value);
+		}
+		return std::nullopt;
+	}
+	bool compileAddress(VregPtr destination, Function &function, ScopePtr scope) override {
+		return this->left? this->left->compileAddress(destination, function, scope) : false;
+	}
+};
+
+struct Add  { ssize_t operator()(ssize_t left, ssize_t right) const { return left + right; } };
+struct Sub  { ssize_t operator()(ssize_t left, ssize_t right) const { return left - right; } };
+struct Mult { ssize_t operator()(ssize_t left, ssize_t right) const { return left * right; } };
+struct Div  { ssize_t operator()(ssize_t left, ssize_t right) const { return left / right; } };
+struct DivU { ssize_t operator()(size_t  left, size_t  right) const { return left / right; } };
+struct Mod  { ssize_t operator()(ssize_t left, ssize_t right) const { return left % right; } };
+struct ModU { ssize_t operator()(size_t  left, size_t  right) const { return left % right; } };
+struct ShL  { ssize_t operator()(ssize_t left, ssize_t right) const { return left << right; } };
+struct ShR  { ssize_t operator()(ssize_t left, ssize_t right) const { return left >> right; } };
+struct ShRU { ssize_t operator()(size_t  left, size_t  right) const { return left >> right; } };
+struct And  { ssize_t operator()(ssize_t left, ssize_t right) const { return left & right; } };
+struct Or   { ssize_t operator()(ssize_t left, ssize_t right) const { return left | right; } };
+struct Xor  { ssize_t operator()(ssize_t left, ssize_t right) const { return left ^ right; } };
+struct PlusAssignExpr:  CompoundAssignExpr<"+=", AddRInstruction, Add>  { using CompoundAssignExpr::CompoundAssignExpr; };
+struct MinusAssignExpr: CompoundAssignExpr<"-=", SubRInstruction, Sub>  { using CompoundAssignExpr::CompoundAssignExpr; };
+struct MultAssignExpr:  CompoundAssignExpr<"*=", MultRInstruction, Mult> { using CompoundAssignExpr::CompoundAssignExpr; };
+struct DivAssignExpr:   CompoundAssignExpr<"/=", DivRInstruction, Div, DivuRInstruction, DivU> { using CompoundAssignExpr::CompoundAssignExpr; };
+struct ModAssignExpr:   CompoundAssignExpr<"%=", ModRInstruction, Mod, ModuRInstruction, ModU> { using CompoundAssignExpr::CompoundAssignExpr; };
+struct AndAssignExpr:   CompoundAssignExpr<"&=", AndRInstruction, And> { using CompoundAssignExpr::CompoundAssignExpr; };
+struct OrAssignExpr:    CompoundAssignExpr<"|=", OrRInstruction, Or>  { using CompoundAssignExpr::CompoundAssignExpr; };
+struct XorAssignExpr:   CompoundAssignExpr<"^=", XorRInstruction, Xor> { using CompoundAssignExpr::CompoundAssignExpr; };
+struct ShiftLeftAssignExpr:  CompoundAssignExpr<"<<=", ShiftLeftLogicalRInstruction, ShL> { using CompoundAssignExpr::CompoundAssignExpr; };
+struct ShiftRightAssignExpr: CompoundAssignExpr<">>=", ShiftRightArithmeticRInstruction, ShR, ShiftRightLogicalRInstruction, ShRU> { using CompoundAssignExpr::CompoundAssignExpr; };
 
 struct CastExpr: Expr {
 	std::unique_ptr<Type> targetType;
