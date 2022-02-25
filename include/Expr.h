@@ -625,7 +625,7 @@ struct ArrowExpr: Expr {
 	ArrowExpr(Expr *left_, const std::string &ident_): left(left_), ident(ident_) {}
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	Expr * copy() const override { return new ArrowExpr(left->copy(), ident); }
-	operator std::string() const override { return stringify(left.get()) + "." + ident; }
+	operator std::string() const override { return stringify(left.get()) + "->" + ident; }
 	bool shouldParenthesize() const override { return true; }
 	std::unique_ptr<Type> getType(ScopePtr) const override;
 	bool compileAddress(VregPtr, Function &, ScopePtr) override;
