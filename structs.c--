@@ -1,7 +1,7 @@
 #name "Structs"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "3.0"
+#version "3.1"
 
 struct LinkedList;
 
@@ -31,9 +31,15 @@ void main() {
 	%LinkedList item2 = [["there", 20u32], &item3];
 	%LinkedList item1 = [["Hello", 10u32], &item2];
 	`s("offsetof(%Pair, str)    == "); `u64(offsetof(%Pair, str)); `c('\n');
+	`s("  sizeof(%Pair, str)    == "); `u64(sizeof(%Pair, str)); `c('\n');
 	`s("offsetof(%Pair, number) == "); `u64(offsetof(%Pair, number)); `c('\n');
+	`s("  sizeof(%Pair, number) == "); `u64(sizeof(%Pair, number)); `c('\n');
+	`s("sizeof(%Pair) == "); `u64(sizeof(%Pair)); `c('\n');
 	`s("offsetof(%LinkedList, data) == "); `u64(offsetof(%LinkedList, data)); `c('\n');
+	`s("  sizeof(%LinkedList, data) == "); `u64(sizeof(%LinkedList, data)); `c('\n');
 	`s("offsetof(%LinkedList, next) == "); `u64(offsetof(%LinkedList, next)); `c('\n');
+	`s("  sizeof(%LinkedList, next) == "); `u64(sizeof(%LinkedList, next)); `c('\n');
+	`s("sizeof(%LinkedList) == "); `u64(sizeof(%LinkedList)); `c('\n');
 	traverse(&item1);
 }
 

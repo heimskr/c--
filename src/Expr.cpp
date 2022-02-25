@@ -102,7 +102,10 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			out = new ArrowExpr(Expr::get(*node.front(), function), *node.at(1)->text);
 			break;
 		case CMMTOK_SIZEOF:
-			out = new SizeofExpr(TypePtr(Type::get(*node.front(), function->program)));
+			if (node.size() == 2)
+				out = new SizeofMemberExpr(*node.front()->text, *node.at(1)->text);
+			else
+				out = new SizeofExpr(TypePtr(Type::get(*node.front(), function->program)));
 			break;
 		case CMMTOK_OFFSETOF:
 			out = new OffsetofExpr(*node.front()->text, *node.at(1)->text);
@@ -1131,6 +1134,21 @@ std::optional<ssize_t> OffsetofExpr::evaluate(ScopePtr scope) const {
 }
 
 void OffsetofExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
+	function.add<SetIInstruction>(destination, size_t(*evaluate(scope) * multiplier));
+}
+
+std::optional<ssize_t> SizeofMemberExpr::evaluate(ScopePtr scope) const {
+	auto type = scope->lookupType(structName);
+	StructType *struct_type;
+	if (!type || !(struct_type = type->cast<StructType>()))
+		throw LocatedError(location, "Unknown or incomplete struct in sizeof expression: " + structName);
+	const auto &map = struct_type->getMap();
+	if (map.count(fieldName) == 0)
+		throw LocatedError(location, "Struct " + structName + " has no field " + fieldName);
+	return map.at(fieldName)->getSize();
+}
+
+void SizeofMemberExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	function.add<SetIInstruction>(destination, size_t(*evaluate(scope) * multiplier));
 }
 

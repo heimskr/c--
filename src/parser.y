@@ -244,6 +244,7 @@ expr: expr "&&"  expr { $$ = $2->adopt({$1, $3}); }
     | "~" expr { $$ = $1->adopt($2); }
     | "#" expr { $$ = $1->adopt($2); }
     | "sizeof" "(" type ")" %prec "sizeof" { $$ = $1->adopt($3); D($2, $4); }
+    | "sizeof" "(" "%" CMMTOK_IDENT "," CMMTOK_IDENT ")" %prec "sizeof" { $$ = $1->adopt({$4, $6}); D($2, $3, $5, $7); }
     | "offsetof" "(" "%" CMMTOK_IDENT "," CMMTOK_IDENT ")" %prec "offsetof" { $$ = $1->adopt({$4, $6}); D($2, $3, $5, $7); }
     | expr "?" expr ":" expr %prec "?" { $$ = $2->adopt({$1, $3, $5}); D($4); }
     | number
