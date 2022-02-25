@@ -1,7 +1,7 @@
 #name "Compound Assign Operators"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "1.0"
+#version "1.1"
 
 void main() {
 	s64 n = 0;
@@ -17,8 +17,8 @@ void main() {
 	n ^= 1;  `s64(n); `c('\n'); // 4
 
 	n = -10;
-	n /= 2; `s64(n); `c('\n'); // -5
+	n %= 3; `s64(n); `c('\n'); // -1?
 
-	u64 u = -10;
-	u /= 2; `u64(n); `c('\n'); // something absurd?
+	u64 u = -10u64;
+	u %= 3; `u64(n); `c('\n'); // something absurd?
 }
