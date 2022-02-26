@@ -73,6 +73,12 @@ namespace Util {
 				out << "\\r";
 			else if (ch == '\e')
 				out << "\\e";
+			else if (ch == '\a')
+				out << "\\a";
+			else if (ch == '\b')
+				out << "\\b";
+			else if (ch == '\0')
+				out << "\\0";
 			else
 				out << ch;
 		}
@@ -96,7 +102,11 @@ namespace Util {
 				switch (str[++i]) {
 					case 'n':  out << '\n'; break;
 					case 'r':  out << '\r'; break;
+					case 'a':  out << '\a'; break;
 					case 't':  out << '\t'; break;
+					case 'b':  out << '\b'; break;
+					case 'e':  out << '\e'; break;
+					case '0':  out << '\0'; break;
 					case '\\': out << '\\'; break;
 					case '"':  out << '"';  break;
 					case 'x': {

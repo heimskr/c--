@@ -180,7 +180,11 @@ char ASTNode::getChar() const {
 	const std::string out = text->substr(1, text->size() - 2);
 	if (out == "\\n") return '\n';
 	if (out == "\\r") return '\r';
+	if (out == "\\a") return '\a';
 	if (out == "\\t") return '\t';
+	if (out == "\\b") return '\b';
+	if (out == "\\e") return '\e';
+	if (out == "\\0") return '\0';
 	if (out == "\\'") return '\'';
 	return out.front();
 }
