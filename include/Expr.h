@@ -86,7 +86,7 @@ struct BinaryExpr: Expr {
 	std::unique_ptr<Type> getType(ScopePtr scope) const override {
 		auto left_type = left->getType(scope), right_type = right->getType(scope);
 		if (!(*left_type && *right_type) || !(*right_type && *left_type))
-			throw ImplicitConversionError(*left_type, *right_type);
+			throw ImplicitConversionError(*left_type, *right_type, location);
 		return left_type;
 	}
 };
@@ -101,9 +101,9 @@ struct LogicExpr: BinaryExpr<O> {
 		auto left_type = this->left->getType(scope), right_type = this->right->getType(scope);
 		auto bool_type = std::make_unique<BoolType>();
 		if (!(*left_type && *bool_type))
-			throw ImplicitConversionError(*left_type, *bool_type);
+			throw ImplicitConversionError(*left_type, *bool_type, this->location);
 		if (!(*right_type && *bool_type))
-			throw ImplicitConversionError(*right_type, *bool_type);
+			throw ImplicitConversionError(*right_type, *bool_type, this->location);
 		return bool_type;
 	}
 };
@@ -135,7 +135,7 @@ struct CompExpr: BinaryExpr<O> {
 	std::unique_ptr<Type> getType(ScopePtr scope) const override {
 		auto left_type = this->left->getType(scope), right_type = this->right->getType(scope);
 		if (!(*left_type && *right_type) || !(*right_type && *left_type))
-			throw ImplicitConversionError(*left_type, *right_type);
+			throw ImplicitConversionError(*left_type, *right_type, this->location);
 		return std::make_unique<BoolType>();
 	}
 };
@@ -152,7 +152,7 @@ struct LteExpr:  CompExpr<"<=", std::less_equal,    LteRInstruction> { using Com
 struct GtExpr:   CompExpr<">",  std::greater,        GtRInstruction>  { using CompExpr::CompExpr; };
 struct GteExpr:  CompExpr<">=", std::greater_equal, GteRInstruction> { using CompExpr::CompExpr; };
 struct EqExpr:   CompExpr<"==", std::greater_equal,  EqRInstruction> { using CompExpr::CompExpr; };
-struct NeqExpr:  CompExpr<"<=", std::greater_equal, NeqRInstruction> { using CompExpr::CompExpr; };
+struct NeqExpr:  CompExpr<"!=", std::greater_equal, NeqRInstruction> { using CompExpr::CompExpr; };
 
 struct PlusExpr: BinaryExpr<"+"> {
 	using BinaryExpr::BinaryExpr;
@@ -388,7 +388,7 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 	std::unique_ptr<Type> getType(ScopePtr scope) const override {
 		auto left_type = this->left->getType(scope), right_type = this->right->getType(scope);
 		if (!(*right_type && *left_type))
-				throw ImplicitConversionError(*right_type, *left_type);
+				throw ImplicitConversionError(*right_type, *left_type, this->location);
 		return left_type;
 	}
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
@@ -406,9 +406,9 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 			function.add<RS>(destination, temp_var, destination);
 		TypePtr right_type = this->right->getType(scope);
 		if (!tryCast(*right_type, *left_type, destination, function))
-			throw ImplicitConversionError(right_type, left_type);
+			throw ImplicitConversionError(right_type, left_type, this->location);
 		if (!this->left->compileAddress(temp_var, function, scope))
-			throw LvalueError(*this->left->getType(scope));
+			throw LvalueError(*this->left->getType(scope), this->location);
 		function.add<StoreRInstruction>(destination, temp_var, getSize(scope));
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
@@ -444,8 +444,6 @@ struct ShRU { ssize_t operator()(size_t  left, size_t  right) const { return lef
 struct And  { ssize_t operator()(ssize_t left, ssize_t right) const { return left & right; } };
 struct Or   { ssize_t operator()(ssize_t left, ssize_t right) const { return left | right; } };
 struct Xor  { ssize_t operator()(ssize_t left, ssize_t right) const { return left ^ right; } };
-struct PlusAssignExpr:  CompoundAssignExpr<"+=", AddRInstruction, Add>  { using CompoundAssignExpr::CompoundAssignExpr; };
-struct MinusAssignExpr: CompoundAssignExpr<"-=", SubRInstruction, Sub>  { using CompoundAssignExpr::CompoundAssignExpr; };
 struct MultAssignExpr:  CompoundAssignExpr<"*=", MultRInstruction, Mult> { using CompoundAssignExpr::CompoundAssignExpr; };
 struct DivAssignExpr:   CompoundAssignExpr<"/=", DivRInstruction, Div, DivuRInstruction, DivU> { using CompoundAssignExpr::CompoundAssignExpr; };
 struct ModAssignExpr:   CompoundAssignExpr<"%=", ModRInstruction, Mod, ModuRInstruction, ModU> { using CompoundAssignExpr::CompoundAssignExpr; };
@@ -454,6 +452,30 @@ struct OrAssignExpr:    CompoundAssignExpr<"|=", OrRInstruction, Or>  { using Co
 struct XorAssignExpr:   CompoundAssignExpr<"^=", XorRInstruction, Xor> { using CompoundAssignExpr::CompoundAssignExpr; };
 struct ShiftLeftAssignExpr:  CompoundAssignExpr<"<<=", ShiftLeftLogicalRInstruction, ShL> { using CompoundAssignExpr::CompoundAssignExpr; };
 struct ShiftRightAssignExpr: CompoundAssignExpr<">>=", ShiftRightArithmeticRInstruction, ShR, ShiftRightLogicalRInstruction, ShRU> { using CompoundAssignExpr::CompoundAssignExpr; };
+
+template <fixstr::fixed_string O, typename R, typename Fn>
+struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {
+	using CompoundAssignExpr<O, R, Fn>::CompoundAssignExpr;
+	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
+		TypePtr left_type = this->left->getType(scope), right_type = this->right->getType(scope);
+		if (left_type->isConst)
+			throw ConstError("Can't assign", *left_type, this->location);
+		auto temp_var = function.newVar();
+		if (!destination)
+			destination = function.newVar();
+		function.doPointerArithmetic(left_type, right_type, *this->left, *this->right, destination, temp_var, scope,
+			this->location);
+		function.add<R>(destination, temp_var, destination);
+		if (!this->left->compileAddress(temp_var, function, scope))
+			throw LvalueError(*this->left->getType(scope), this->location);
+		function.add<StoreRInstruction>(destination, temp_var, this->getSize(scope));
+		if (multiplier != 1)
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+	}
+};
+
+struct PlusAssignExpr:  PointerArithmeticAssignExpr<"+=", AddRInstruction, Add> { using PointerArithmeticAssignExpr::PointerArithmeticAssignExpr; };
+struct MinusAssignExpr: PointerArithmeticAssignExpr<"-=", SubRInstruction, Sub> { using PointerArithmeticAssignExpr::PointerArithmeticAssignExpr; };
 
 struct CastExpr: Expr {
 	std::unique_ptr<Type> targetType;
