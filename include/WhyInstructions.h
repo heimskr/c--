@@ -630,7 +630,6 @@ struct BinaryRType: RType {
 struct LtRInstruction:    BinaryRType<"<">   { using BinaryRType::BinaryRType; };
 struct LteRInstruction:   BinaryRType<"<=">  { using BinaryRType::BinaryRType; };
 struct EqRInstruction:    BinaryRType<"==">  { using BinaryRType::BinaryRType; };
-struct NeqRInstruction:   BinaryRType<"!=">  { using BinaryRType::BinaryRType; };
 struct AddRInstruction:   BinaryRType<"+">   { using BinaryRType::BinaryRType; };
 struct SubRInstruction:   BinaryRType<"-">   { using BinaryRType::BinaryRType; };
 struct AndRInstruction:   BinaryRType<"&">   { using BinaryRType::BinaryRType; };
@@ -650,6 +649,22 @@ struct ModRInstruction:   BinaryRType<"%">   { using BinaryRType::BinaryRType; }
 struct ShiftLeftLogicalRInstruction:     BinaryRType<"<<">  { using BinaryRType::BinaryRType; };
 struct ShiftRightArithmeticRInstruction: BinaryRType<">>">  { using BinaryRType::BinaryRType; };
 struct ShiftRightLogicalRInstruction:    BinaryRType<">>>"> { using BinaryRType::BinaryRType; };
+
+struct NeqRInstruction: RType {
+	using RType::RType;
+	operator std::vector<std::string>() const override {
+		return {
+			leftSource->regOrID() + " == " + rightSource->regOrID() + " -> " + destination->regOrID(),
+			destination->regOrID() + " -> " + destination->regOrID()
+		};
+	}
+	std::vector<std::string> colored() const override {
+		return {
+			leftSource->regOrID(true) + o("==") + rightSource->regOrID(true) + o("->") + destination->regOrID(true),
+			destination->regOrID(true) + o("->") + destination->regOrID(true)
+		};
+	}
+};
 
 template <fixstr::fixed_string O>
 struct BinaryIType: IType {
