@@ -1,7 +1,7 @@
 #name "Why ISA Tests"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "5.0"
+#version "5.1"
 
 void*[8] table;
 s64 delay = 300000;
@@ -59,13 +59,21 @@ void int_keybrd_(u8 key) {
 	} else if (key == 'h') {
 		hack();
 	} else if (key == 's') {
-		%String str;
-		str_new("Hello there.", &str);
-		`s("ptr: "); `ptr(str.data); `c('\n');
-		`s("data: "); `s(str.data); `c('\n');
-		`s("size: "); `u64(str.size); `c('\n');
-		`s("capacity: "); `u64(str.capacity); `c('\n');
-		str_free(&str);
+		%String str1 = [null, 0, 0];
+		%String str2 = [null, 0, 0];
+		// %String str3 = [null, 0, 0];
+		str_new("Hello", &str1);
+		str_new(" there.", &str2);
+
+		str_append(&str1, &str2);
+
+		`s("ptr: "); `ptr(str1.data); `c('\n');
+		`s("data: "); `s(str1.data); `c('\n');
+		`s("size: "); `u64(str1.size); `c('\n');
+		`s("capacity: "); `u64(str1.capacity); `c('\n');
+		str_free(&str1);
+		str_free(&str2);
+		// str_free(&str3);
 	} else {
 		`s("You pressed '"); `c(key); `c('\''); `c('\n');
 	}
@@ -113,7 +121,7 @@ void hack() {
 		`s("not hacked =(\n");
 }
 
-void memcpy(void* source, void* destination, u64 count) {
+void memcpy(void* destination, void* source, u64 count) {
 	while (8u64 <= count) {
 		asm("[$1] -> [$2]":source, destination);
 		count -= 8u64;
@@ -150,19 +158,19 @@ u8* str_copy(%String* source, u64* new_capacity) {
 	if (*new_capacity <= source->size)
 		*new_capacity = source->size + 1u64;
 	u8* out = checked_malloc(*new_capacity);
-	memcpy(source->data, out, source->size);
+	memcpy(out, source->data, source->size);
 	out[source->size] = '\0';
 	return out;
 }
 
 void str_append(%String* destination, %String* source) {
 	u64 required = source->size + destination->size + 1u64;
-	if (required < destination->capacity) {
+	if (required < destination->capacity)
 		destination->data = str_copy(destination, &required);
-	}
-
 	memcpy(destination->data + destination->size, source->data, source->size);
-	destination->data[destination->size += source->size] = '\0';
+	destination->size += source->size;
+	destination->capacity = required;
+	destination->data[destination->size] = '\0';
 }
 
 u64 strlen(u8* string) {
@@ -174,7 +182,7 @@ u64 strlen(u8* string) {
 u8* strcpy(u8* string) {
 	u64 const len = strlen(string);
 	u8* out = checked_malloc(len + 1u64);
-	memcpy(string, out, len);
+	memcpy(out, string, len);
 	out[len] = '\0';
 	return out;
 }
