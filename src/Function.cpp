@@ -260,13 +260,13 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			auto temp_var = newVar();
 			const TypePtr condition_type = condition->getType(currentScope());
 			if (!(*condition_type && BoolType()))
-				throw ImplicitConversionError(condition_type, BoolType::make());
+				throw ImplicitConversionError(condition_type, BoolType::make(), condition->location);
 			condition->compile(temp_var, *this, currentScope());
 			add<LnotRInstruction>(temp_var, temp_var);
 			add<JumpConditionalInstruction>(end, temp_var);
 			auto scope = newScope();
 			scopeStack.push_back(scope);
-			compile(*node.at(1), break_label, continue_label);
+			compile(*node.at(1), end, start);
 			scopeStack.pop_back();
 			add<JumpInstruction>(start);
 			add<Label>(end);
@@ -286,7 +286,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			ExprPtr condition = ExprPtr(Expr::get(*node.at(1), this));
 			const TypePtr condition_type = condition->getType(currentScope());
 			if (!(*condition_type && BoolType()))
-				throw ImplicitConversionError(condition_type, BoolType::make());
+				throw ImplicitConversionError(condition_type, BoolType::make(), condition->location);
 			condition->compile(temp_var, *this, currentScope());
 			add<LnotRInstruction>(temp_var, temp_var);
 			add<JumpConditionalInstruction>(end, temp_var);
@@ -324,7 +324,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			auto temp_var = newVar();
 			const TypePtr condition_type = condition->getType(currentScope());
 			if (!(*condition_type && BoolType()))
-				throw ImplicitConversionError(condition_type, BoolType::make());
+				throw ImplicitConversionError(condition_type, BoolType::make(), condition->location);
 			condition->compile(temp_var, *this, currentScope());
 			add<LnotRInstruction>(temp_var, temp_var);
 			if (node.size() == 3) {
@@ -1042,5 +1042,23 @@ void Function::checkNaked(const ASTNode &node) const {
 	if (isNaked()) {
 		node.debug();
 		throw LocatedError(node.location, "Can't translate node in a naked function");
+	}
+}
+
+void Function::doPointerArithmetic(TypePtr left_type, TypePtr right_type, Expr &left, Expr &right, VregPtr left_var,
+                                   VregPtr right_var, ScopePtr scope, const ASTLocation &location) {
+	if (left_type->isPointer() && right_type->isInt()) {
+		auto *left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
+		left.compile(left_var, *this, scope, 1);
+		right.compile(right_var, *this, scope, left_subtype->getSize());
+	} else if (left_type->isInt() && right_type->isPointer()) {
+		auto *right_subtype = dynamic_cast<PointerType &>(*right_type).subtype;
+		left.compile(left_var, *this, scope, right_subtype->getSize());
+		right.compile(right_var, *this, scope, 1);
+	} else if (!(*left_type && *right_type)) {
+		throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()), location);
+	} else {
+		left.compile(left_var, *this, scope);
+		right.compile(right_var, *this, scope);
 	}
 }
