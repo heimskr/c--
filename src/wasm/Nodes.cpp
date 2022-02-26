@@ -73,6 +73,8 @@ static Immediate getImmediate(ASTNode *node) {
 			case 'a': return '\a';
 			case 't': return '\t';
 			case 'b': return '\b';
+			case 'e': return '\e';
+			case '0': return '\0';
 			case '\'': return '\'';
 			default:  throw std::runtime_error("Invalid character literal: " + *node->text);
 		}
@@ -420,14 +422,14 @@ std::unique_ptr<WhyInstruction> WASMLniNode::convert(Function &function, VarMap 
 	return std::make_unique<LoadIndirectIInstruction>(convertVariable(function, map, rd), imm, isByte? 1 : 8);
 }
 
-WASMHalfMemoryNode::WASMHalfMemoryNode(int sym, ASTNode *rs_, ASTNode *rd_):
+WASMMidMemoryNode::WASMMidMemoryNode(int sym, ASTNode *rs_, ASTNode *rd_):
 WASMInstructionNode(sym), rs(rs_->text), rd(rd_->text) {
 	delete rs_;
 	delete rd_;
 }
 
 WASMChNode::WASMChNode(ASTNode *rs_, ASTNode *rd_):
-	WASMHalfMemoryNode(WASM_CHNODE, rs_, rd_) {}
+	WASMMidMemoryNode(WASM_CHNODE, rs_, rd_) {}
 
 std::string WASMChNode::debugExtra() const {
 	return dim("[") + cyan(*rs) + dim("] -> [") + cyan(*rd) + dim("]") + " /h";
@@ -443,7 +445,7 @@ std::unique_ptr<WhyInstruction> WASMChNode::convert(Function &function, VarMap &
 }
 
 WASMLhNode::WASMLhNode(ASTNode *rs_, ASTNode *rd_):
-	WASMHalfMemoryNode(WASM_LHNODE, rs_, rd_) {}
+	WASMMidMemoryNode(WASM_LHNODE, rs_, rd_) {}
 
 std::string WASMLhNode::debugExtra() const {
 	return dim("[") + cyan(*rs) + dim("] -> ") + cyan(*rd) + " /h";
@@ -459,7 +461,7 @@ std::unique_ptr<WhyInstruction> WASMLhNode::convert(Function &function, VarMap &
 }
 
 WASMShNode::WASMShNode(ASTNode *rs_, ASTNode *rd_):
-	WASMHalfMemoryNode(WASM_SHNODE, rs_, rd_) {}
+	WASMMidMemoryNode(WASM_SHNODE, rs_, rd_) {}
 
 std::string WASMShNode::debugExtra() const {
 	return cyan(*rs) + dim(" -> [") + cyan(*rd) + dim("]") + " /h";
@@ -472,6 +474,54 @@ WASMShNode::operator std::string() const {
 std::unique_ptr<WhyInstruction> WASMShNode::convert(Function &function, VarMap &map) {
 	auto conv = [&](const std::string *str) { return convertVariable(function, map, str); };
 	return std::make_unique<StoreRInstruction>(conv(rs), conv(rd), 4);
+}
+
+WASMCsNode::WASMCsNode(ASTNode *rs_, ASTNode *rd_):
+	WASMMidMemoryNode(WASM_CSNODE, rs_, rd_) {}
+
+std::string WASMCsNode::debugExtra() const {
+	return dim("[") + cyan(*rs) + dim("] -> [") + cyan(*rd) + dim("]") + " /s";
+}
+
+WASMCsNode::operator std::string() const {
+	return "[" + *rs + "] -> [" + *rd + "] /s";
+}
+
+std::unique_ptr<WhyInstruction> WASMCsNode::convert(Function &function, VarMap &map) {
+	auto conv = [&](const std::string *str) { return convertVariable(function, map, str); };
+	return std::make_unique<CopyRInstruction>(conv(rs), conv(rd), 2);
+}
+
+WASMLsNode::WASMLsNode(ASTNode *rs_, ASTNode *rd_):
+	WASMMidMemoryNode(WASM_LSNODE, rs_, rd_) {}
+
+std::string WASMLsNode::debugExtra() const {
+	return dim("[") + cyan(*rs) + dim("] -> ") + cyan(*rd) + " /s";
+}
+
+WASMLsNode::operator std::string() const {
+	return "[" + *rs + "] -> " + *rd + " /s";
+}
+
+std::unique_ptr<WhyInstruction> WASMLsNode::convert(Function &function, VarMap &map) {
+	auto conv = [&](const std::string *str) { return convertVariable(function, map, str); };
+	return std::make_unique<LoadRInstruction>(conv(rs), conv(rd), 2);
+}
+
+WASMSsNode::WASMSsNode(ASTNode *rs_, ASTNode *rd_):
+	WASMMidMemoryNode(WASM_SSNODE, rs_, rd_) {}
+
+std::string WASMSsNode::debugExtra() const {
+	return cyan(*rs) + dim(" -> [") + cyan(*rd) + dim("]") + " /s";
+}
+
+WASMSsNode::operator std::string() const {
+	return *rs + " -> [" + *rd + "] /s";
+}
+
+std::unique_ptr<WhyInstruction> WASMSsNode::convert(Function &function, VarMap &map) {
+	auto conv = [&](const std::string *str) { return convertVariable(function, map, str); };
+	return std::make_unique<StoreRInstruction>(conv(rs), conv(rd), 2);
 }
 
 WASMCmpNode::WASMCmpNode(ASTNode *rs_, ASTNode *rt_):
@@ -660,7 +710,7 @@ std::unique_ptr<WhyInstruction> WASMJrcNode::convert(Function &function, VarMap 
 }
 
 WASMSizedStackNode::WASMSizedStackNode(ASTNode *size_, ASTNode *rs_, bool is_push):
-WASMInstructionNode(WASM_SSNODE), size(size_->atoi()), rs(rs_->text), isPush(is_push) {
+WASMInstructionNode(WASM_SIZEDSTACKNODE), size(size_->atoi()), rs(rs_->text), isPush(is_push) {
 	delete size_;
 	delete rs_;
 }

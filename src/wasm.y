@@ -141,7 +141,8 @@ using AN = ASTNode;
 %token WASM_LUINODE WASM_STACKNODE WASM_NOPNODE WASM_INTINODE WASM_RITINODE WASM_TIMEINODE WASM_TIMERNODE WASM_RINGINODE
 %token WASM_RINGRNODE WASM_PRINTNODE WASM_HALTNODE WASM_SLEEPRNODE WASM_PAGENODE WASM_SETPTINODE WASM_MVNODE WASM_LABEL
 %token WASM_SETPTRNODE WASM_SVPGNODE WASM_QUERYNODE WASM_PSEUDOPRINTNODE WASM_RESTNODE WASM_IONODE WASM_INTERRUPTSNODE
-%token WASM_INVERSESHIFTNODE WASM_SEXTNODE WASM_TRANSNODE WASM_PAGESTACKNODE WASM_SVRINGNODE WASM_SVTIMENODE
+%token WASM_INVERSESHIFTNODE WASM_SEXTNODE WASM_TRANSNODE WASM_PAGESTACKNODE WASM_SVRINGNODE WASM_SVTIMENODE WASM_CSNODE
+%token WASM_LSNODE WASM_SIZEDSTACKNODE
 
 %start start
 
@@ -161,7 +162,7 @@ operation: op_r    | op_mult   | op_multi  | op_lui   | op_i      | op_c     | o
          | op_j    | op_jc     | op_jr     | op_jrc   | op_mv     | op_spush | op_spop  | op_nop  | op_int   | op_rit
          | op_time | op_timei  | op_ext    | op_ringi | op_sspush | op_sspop | op_ring  | op_page | op_setpt | label
          | op_svpg | op_qmem   | op_di     | op_ei    | op_sllii  | op_srlii | op_sraii | op_sext | op_trans | op_ppush
-         | op_ppop | op_svring | op_svtime;
+         | op_ppop | op_svring | op_svtime | op_cs    | op_ls     | op_ss;
 
 label: "@" ident { $$ = new WASMLabelNode($2); D($1); };
 
@@ -210,6 +211,12 @@ op_ch: "[" reg "]" "->" "[" reg "]" "/h" { $$ = new WASMChNode($2, $6); D($1, $3
 op_lh: "[" reg "]" "->" reg "/h" { $$ = new WASMLhNode($2, $5); D($1, $3, $4, $6); };
 
 op_sh: reg "->" "[" reg "]" "/h" { $$ = new WASMShNode($1, $4); D($2, $3, $5, $6); };
+
+op_cs: "[" reg "]" "->" "[" reg "]" "/s" { $$ = new WASMCsNode($2, $6); D($1, $3, $4, $5, $7, $8); };
+
+op_ls: "[" reg "]" "->" reg "/s" { $$ = new WASMLsNode($2, $5); D($1, $3, $4, $6); };
+
+op_ss: reg "->" "[" reg "]" "/s" { $$ = new WASMSsNode($1, $4); D($2, $3, $5, $6); };
 
 op_trans: "translate" reg "->" reg { $$ = new WASMTransNode($2, $4); D($1, $3); };
 
