@@ -299,7 +299,7 @@ void PlusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 		left->compile(left_var, function, scope, right_subtype->getSize());
 		right->compile(right_var, function, scope, 1);
 	} else if (!(*left_type && *right_type)) {
-		throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()));
+		throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()), location);
 	} else {
 		left->compile(left_var, function, scope);
 		right->compile(right_var, function, scope);
@@ -323,7 +323,7 @@ std::unique_ptr<Type> PlusExpr::getType(ScopePtr scope) const {
 	if (left_type->isInt() && right_type->isPointer())
 		return right_type;
 	if (!(*left_type && *right_type) || !(*right_type && *left_type))
-		throw ImplicitConversionError(*left_type, *right_type);
+		throw ImplicitConversionError(*left_type, *right_type, location);
 	return left_type;
 }
 
@@ -364,7 +364,7 @@ std::unique_ptr<Type> MinusExpr::getType(ScopePtr scope) const {
 	if (left_type->isPointer() && right_type->isPointer())
 		return std::make_unique<SignedType>(64);
 	if (!(*left_type && *right_type) || !(*right_type && *left_type))
-		throw ImplicitConversionError(*left_type, *right_type);
+		throw ImplicitConversionError(*left_type, *right_type, location);
 	return left_type;
 }
 
@@ -637,9 +637,6 @@ void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr sco
 	if (VariablePtr var = scope->lookup(name)) {
 		if (auto global = std::dynamic_pointer_cast<Global>(var)) {
 			function.add<LoadIInstruction>(destination, global->name, global->getSize());
-		} else if (function.argumentMap.count(name) != 0) {
-			function.addComment("Load argument " + name);
-			function.add<MoveInstruction>(function.argumentMap.at(name), destination);
 		} else if (function.stackOffsets.count(var) == 0) {
 			throw NotOnStackError(var);
 		} else {
@@ -660,7 +657,7 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, Scope
 	if (VariablePtr var = scope->lookup(name)) {
 		if (auto global = std::dynamic_pointer_cast<Global>(var)) {
 			function.add<SetIInstruction>(destination, global->name);
-		} else if (function.argumentMap.count(name) != 0 || function.stackOffsets.count(var) == 0) {
+		} else if (function.stackOffsets.count(var) == 0) {
 			throw NotOnStackError(var, location);
 		} else {
 			const size_t offset = function.stackOffsets.at(var);
@@ -762,7 +759,7 @@ std::unique_ptr<Type> DerefExpr::getType(ScopePtr scope) const {
 std::unique_ptr<Type> DerefExpr::checkType(ScopePtr scope) const {
 	auto type = subexpr->getType(scope);
 	if (!type->isPointer())
-		throw NotPointerError(TypePtr(type->copy()));
+		throw NotPointerError(TypePtr(type->copy()), location);
 	return type;
 }
 
@@ -906,12 +903,12 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 		throw LvalueError(*left->getType(scope));
 	if (right_type->isInitializer()) {
 		if (!tryCast(*right_type, *left_type, nullptr, function))
-			throw ImplicitConversionError(right_type, left_type);
+			throw ImplicitConversionError(right_type, left_type, location);
 		right->cast<InitializerExpr>()->fullCompile(addr_var, function, scope);
 	} else {
 		right->compile(destination, function, scope);
 		if (!tryCast(*right_type, *left_type, destination, function))
-			throw ImplicitConversionError(right_type, left_type);
+			throw ImplicitConversionError(right_type, left_type, location);
 		function.add<StoreRInstruction>(destination, addr_var, getSize(scope));
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
@@ -921,7 +918,7 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 std::unique_ptr<Type> AssignExpr::getType(ScopePtr scope) const {
 	auto left_type = left->getType(scope), right_type = right->getType(scope);
 	if (!(*right_type && *left_type))
-			throw ImplicitConversionError(*right_type, *left_type);
+			throw ImplicitConversionError(*right_type, *left_type, location);
 	return left_type;
 }
 
@@ -1018,10 +1015,10 @@ void TernaryExpr::compile(VregPtr destination, Function &function, ScopePtr scop
 std::unique_ptr<Type> TernaryExpr::getType(ScopePtr scope) const {
 	auto condition_type = condition->getType(scope);
 	if (!(*condition_type && BoolType()))
-		throw ImplicitConversionError(*condition_type, BoolType());
+		throw ImplicitConversionError(*condition_type, BoolType(), location);
 	auto true_type = ifTrue->getType(scope), false_type = ifFalse->getType(scope);
 	if (!(*true_type && *false_type) || !(*false_type && *true_type))
-		throw ImplicitConversionError(*false_type, *true_type);
+		throw ImplicitConversionError(*false_type, *true_type, location);
 	return true_type;
 }
 
@@ -1060,7 +1057,7 @@ bool DotExpr::compileAddress(VregPtr destination, Function &function, ScopePtr s
 std::shared_ptr<StructType> DotExpr::checkType(ScopePtr scope) const {
 	auto left_type = left->getType(scope);
 	if (!left_type->isStruct())
-		throw NotStructError(std::move(left_type));
+		throw NotStructError(std::move(left_type), location);
 	TypePtr shared_type = std::move(left_type);
 	return shared_type->ptrcast<StructType>();
 }
@@ -1098,11 +1095,11 @@ bool ArrowExpr::compileAddress(VregPtr destination, Function &function, ScopePtr
 std::shared_ptr<StructType> ArrowExpr::checkType(ScopePtr scope) const {
 	auto left_type = left->getType(scope);
 	if (!left_type->isPointer())
-		throw NotPointerError(std::move(left_type));
+		throw NotPointerError(std::move(left_type), location);
 	auto *left_pointer = left_type->cast<PointerType>();
 	TypePtr shared_type = TypePtr(left_pointer->subtype->copy());
 	if (!left_pointer->subtype->isStruct())
-		throw NotStructError(shared_type);
+		throw NotStructError(shared_type, location);
 	return shared_type->ptrcast<StructType>();
 }
 
