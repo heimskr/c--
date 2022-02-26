@@ -140,7 +140,7 @@ void Program::compile() {
 				} else {
 					expr->compile(vreg, init, init_scope);
 					if (!tryCast(*expr_type, *type, vreg, init))
-						throw ImplicitConversionError(expr_type, type);
+						throw ImplicitConversionError(expr_type, type, expr->location);
 					init.add<StoreIInstruction>(vreg, iter->first, size);
 				}
 			}
