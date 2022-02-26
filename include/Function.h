@@ -15,11 +15,14 @@
 #include "Variable.h"
 
 class ASTNode;
+struct Expr;
 struct Instruction;
 struct Program;
 struct Scope;
 struct WhyInstruction;
 
+using ExprPtr = std::shared_ptr<Expr>;
+using ScopePtr = std::shared_ptr<Scope>;
 using WhyPtr = std::shared_ptr<WhyInstruction>;
 
 class Function {
@@ -157,4 +160,7 @@ class Function {
 		void checkNaked(const ASTNode &) const;	
 
 		ASTLocation getLocation() const { return source? source->location : ASTLocation(); }
+
+		void doPointerArithmetic(TypePtr left_type, TypePtr right_type, Expr &left, Expr &right, VregPtr left_var,
+                                 VregPtr right_var, ScopePtr scope, const ASTLocation &location);
 };
