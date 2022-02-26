@@ -1,7 +1,7 @@
 #name "Why ISA Tests"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "4.2"
+#version "5.0"
 
 void*[8] table;
 s64 delay = 300000;
@@ -18,9 +18,13 @@ s64 add5(s64 n) {
 }
 
 void main() {
-	s64 g;
+	void* g;
 	asm("$g -> $1"::g);
-	`s("$g = "); `s64(g); `c('\n');
+	`s("$g = "); `u64((u64) g); `c('\n');
+	void *mem;
+	asm("$g -> $1"::g);
+	asm("? mem -> $1"::mem);
+	setBounds(g, mem);
 	table[2] = timer_ptr;
 	table[7] = int_keybrd;
 	asm("%rit table");
@@ -54,6 +58,14 @@ void int_keybrd_(u8 key) {
 		`c('\n');
 	} else if (key == 'h') {
 		hack();
+	} else if (key == 's') {
+		%String str;
+		str_new("Hello there.", &str);
+		`s("ptr: "); `ptr(str.data); `c('\n');
+		`s("data: "); `s(str.data); `c('\n');
+		`s("size: "); `u64(str.size); `c('\n');
+		`s("capacity: "); `u64(str.capacity); `c('\n');
+		str_free(&str);
 	} else {
 		`s("You pressed '"); `c(key); `c('\''); `c('\n');
 	}
@@ -99,4 +111,275 @@ void hack() {
 	}
 	if (!hacked)
 		`s("not hacked =(\n");
+}
+
+void memcpy(void* source, void* destination, u64 count) {
+	while (8u64 <= count) {
+		asm("[$1] -> [$2]":source, destination);
+		count -= 8u64;
+		source += 8u64;
+		destination += 8u64;
+	}
+	while (4u64 <= count) {
+		asm("[$1] -> [$2] /h":source, destination);
+		count -= 4u64;
+		source += 4u64;
+		destination += 4u64;
+	}
+	while (2u64 <= count) {
+		asm("[$1] -> [$2] /s":source, destination);
+		count -= 2u64;
+		source += 2u64;
+		destination += 2u64;
+	}
+	while (0u64 < count) {
+		asm("[$1] -> [$2] /b":source, destination);
+		--count;
+		++source;
+		++destination;
+	}
+}
+
+struct String {
+	u8* data;
+	u64 size;
+	u64 capacity;
+};
+
+u8* str_copy(%String* source, u64* new_capacity) {
+	if (*new_capacity <= source->size)
+		*new_capacity = source->size + 1u64;
+	u8* out = checked_malloc(*new_capacity);
+	memcpy(source->data, out, source->size);
+	out[source->size] = '\0';
+	return out;
+}
+
+void str_append(%String* destination, %String* source) {
+	u64 required = source->size + destination->size + 1u64;
+	if (required < destination->capacity) {
+		destination->data = str_copy(destination, &required);
+	}
+
+	memcpy(destination->data + destination->size, source->data, source->size);
+	destination->data[destination->size += source->size] = '\0';
+}
+
+u64 strlen(u8* string) {
+	u64 out = 0u64;
+	for (; string[out]; ++out);
+	return out;
+}
+
+u8* strcpy(u8* string) {
+	u64 const len = strlen(string);
+	u8* out = checked_malloc(len + 1u64);
+	memcpy(string, out, len);
+	out[len] = '\0';
+	return out;
+}
+
+void str_new(u8* data, %String *out) {
+	u64 len = strlen(data);
+	out->data = strcpy(data);
+	out->capacity = (out->size = len) + 1u64;
+}
+
+void str_free(%String *out) {
+	if (out->data) {
+		free(out->data);
+		out->data = null;
+	}
+	out->size = 0u64;
+	out->capacity = 0u64;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+struct BlockMeta;
+
+u64 MEMORY_ALIGN = 32u64;
+u64 allocated = 0u64;
+%BlockMeta* base = null;
+u64 highestAllocated = 0u64;
+void* start = null;
+void* high = null;
+void* end = null;
+
+struct BlockMeta {
+	u64 size;
+	%BlockMeta* next;
+	bool free;
+};
+
+u64 realign(u64 val, u64 alignment) {
+	if (alignment == 0u64)
+		return val;
+	u64 offset = (val + sizeof(%BlockMeta)) % alignment;
+	if (offset)
+		val = val + alignment - offset;
+	return val;
+}
+
+%BlockMeta* findFreeBlock(%BlockMeta** last, u64 size) {
+	%BlockMeta* current = base;
+	while (current && !(current->free && size <= current->size)) {
+		*last = current;
+		current = current->next;
+	}
+	return current;
+}
+
+%BlockMeta* requestSpace(%BlockMeta* last, u64 size, u64 alignment) {
+	%BlockMeta* block = (%BlockMeta*) realign((u64) end, alignment);
+
+	if (last)
+		last->next = block;
+
+	block->size = size;
+	block->next = null;
+	block->free = false;
+
+	end = (u8*) block + block->size + sizeof(%BlockMeta) + 1;
+	return block;
+}
+
+void* allocate(u64 size, u64 alignment) {
+	%BlockMeta* block = null;
+
+	if (!base) {
+		block = requestSpace(null, size, alignment);
+		if (!block)
+			return null;
+		base = block;
+	} else {
+		%BlockMeta* last = base;
+		block = findFreeBlock(&last, size);
+		if (!block) {
+			block = requestSpace(last, size, alignment);
+			if (!block)
+				return null;
+		} else {
+			split(block, size);
+			block->free = false;
+		}
+	}
+
+	allocated = allocated + block->size + sizeof(%BlockMeta);
+	return block + 1;
+}
+
+void split(%BlockMeta* block, u64 size) {
+	if (block->size > size + sizeof(%BlockMeta)) {
+		// We have enough space to split the block, unless alignment takes up too much.
+		%BlockMeta* new_block = (%BlockMeta*) realign((u64) block + size + sizeof(%BlockMeta) + 1u64, MEMORY_ALIGN);
+
+		// After we realign, we need to make sure that the new block's new size isn't negative.
+
+		if (block->next) {
+			u64 new_size = (u64) ((void*) block->next - (void*) new_block - (s64) sizeof(%BlockMeta));
+
+			// Realigning the new block can make it too small, so we need to make sure the new block is big enough.
+			if (new_size > 0u64) {
+				new_block->size = new_size;
+				new_block->free = true;
+				new_block->next = block->next;
+				block->next = new_block;
+				block->size = size;
+			}
+		} else {
+			u64 new_size = (u64) ((void*) block + block->size - (void*) new_block);
+
+			if (new_size > 0u64) {
+				new_block->size = new_size;
+				new_block->free = true;
+				new_block->next = null;
+				block->size = size;
+				block->next = new_block;
+			}
+		}
+	}
+}
+
+%BlockMeta* getBlock(void* ptr) {
+	return (%BlockMeta*) ptr - 1;
+}
+
+void free(void* ptr) {
+	if (ptr == null)
+		return;
+	%BlockMeta* block_ptr = getBlock(ptr);
+	block_ptr->free = true;
+	allocated = allocated - block_ptr->size + sizeof(%BlockMeta);
+	merge();
+}
+
+u64 merge() {
+	u64 count = 0u64;
+	%BlockMeta* current = base;
+	while (current && current->next) {
+		if (current->free && current->next->free) {
+			current->size = current->size + sizeof(%BlockMeta) + current->next->size;
+			current->next = current->next->next;
+			++count;
+		} else
+			current = current->next;
+	}
+
+	return count;
+}
+
+void setBounds(void* new_start, void* new_high) {
+	if (new_high <= new_start) {
+		`s("Invalid heap bounds: 0x");
+		asm("<prx $1>":new_start);
+		`s(" through 0x");
+		asm("<prx $1>":new_high);
+		`c('\n');
+		asm("<halt>");
+	}
+	start = (void*) realign((s64) new_start, MEMORY_ALIGN);
+	highestAllocated = (u64) start;
+	high = new_high;
+	end = new_start;
+}
+
+u64 getUnallocated() {
+	return (u64) (high - start) - allocated;
+}
+
+void* malloc(u64 size) {
+	return allocate(size, MEMORY_ALIGN);
+}
+
+void* memset(void* ptr, u8 c, u64 len) {
+	asm("memset $1 x $2 -> $3":len, c, ptr);
+	return ptr;
+}
+
+void* calloc(u64 count, u64 size) {
+	void* chunk = malloc(count * size);
+	if (chunk)
+		memset(chunk, 0, count * size);
+	return chunk;
+}
+
+void* checked_malloc(u64 size) {
+	void* out = malloc(size);
+	if (!out) {
+		`s("Can't allocate ");
+		`u64(size);
+		`s(" bytes: out of memory\n");
+		asm("<halt>");
+	}
+	return out;
 }
