@@ -177,6 +177,8 @@ class Function: public Makeable<Function> {
 
 		bool isMatch(TypePtr return_type, const std::vector<TypePtr> &argument_types, const std::string &struct_name)
 			const;
+
+		TypePtr & getArgumentType(size_t) const;
 };
 
 using FunctionPtr = std::shared_ptr<Function>;

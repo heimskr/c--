@@ -1191,3 +1191,7 @@ const {
 
 	return struct_name.empty();
 }
+
+TypePtr & Function::getArgumentType(size_t index) const {
+	return argumentMap.at(arguments.at(index))->type;
+}

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <sstream>
 
 #include "Errors.h"
@@ -6,10 +7,41 @@
 #include "Scope.h"
 #include "Util.h"
 
+static Functions filterResults(const Functions &results, const Types &arg_types) {
+	if (results.empty())
+		return {};
+
+	const size_t fn_count = results.size(), arg_count = arg_types.size();
+	std::vector<std::pair<int, int>> scores(fn_count); // Pair: (== matches, && matches)
+
+	for (size_t i = 0; i < fn_count; ++i) {
+		FunctionPtr fn = results[i];
+		for (size_t j = 0; j < arg_count; ++j) {
+			Type &fn_type = *fn->getArgumentType(j);
+			Type &arg_type = *arg_types[j];
+			if (arg_type == fn_type)
+				++scores[i].first;
+			else if (arg_type && fn_type)
+				++scores[i].second;
+		}
+	}
+
+	auto compare = [](const std::pair<int, int> &left, const std::pair<int, int> &right) -> bool {
+		if (left.first > right.first)
+			return true;
+		if (left.first < right.first)
+			return false;
+		return left.second > right.second;
+	};
+
+	return {results.at(std::min_element(scores.cbegin(), scores.cend(), compare) - scores.cbegin())};
+}
+
 FunctionPtr Scope::lookupFunction(const std::string &function_name, TypePtr return_type, const Types &arg_types,
                                   const std::string &struct_name, const ASTLocation &location) const {
-	Functions results = lookupFunctions(function_name, return_type, arg_types, struct_name);
-	if (1 < results.size()) {
+	Functions filtered = filterResults(lookupFunctions(function_name, return_type, arg_types, struct_name), arg_types);
+
+	if (1 < filtered.size()) {
 		std::stringstream error;
 		error << "Multiple results found for ";
 		if (return_type)
@@ -23,17 +55,17 @@ FunctionPtr Scope::lookupFunction(const std::string &function_name, TypePtr retu
 		error << ')';
 		if (!struct_name.empty())
 			error << " for %" << struct_name;
-		for (const auto &result: results)
+		for (const auto &result: filtered)
 			warn() << result->mangle() << '\n';
 		throw LocatedError(location, error.str());
 	}
 
-	return results.empty()? nullptr : results.front();
+	return filtered.empty()? nullptr : filtered.front();
 }
 
 FunctionPtr Scope::lookupFunction(const std::string &function_name, const Types &arg_types,
                                   const std::string &struct_name, const ASTLocation &location) const {
-	Functions results = lookupFunctions(function_name, arg_types, struct_name);
+	Functions results = filterResults(lookupFunctions(function_name, arg_types, struct_name), arg_types);
 	if (1 < results.size()) {
 		std::stringstream error;
 		error << "Multiple results found for " << function_name << '(';
