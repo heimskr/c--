@@ -174,13 +174,11 @@ Type * Type::get(const char * &mangled, const Program &program) {
 		case 's':
 		case 'u': {
 			const char start = mangled[0];
-			size_t width = 0;
-			for (++mangled; std::isdigit(mangled[0]); ++mangled)
-				width = width * 10 + (mangled[0] - '0');
-			++mangled; // Move past the underscore
+			size_t width = *++mangled - '0';
+			++mangled;
 			if (start == 's')
-				return new SignedType(width);
-			return new UnsignedType(width);
+				return new SignedType(width * 8);
+			return new UnsignedType(width * 8);
 		}
 		case 'p':
 			return new PointerType(get(++mangled, program));

@@ -68,7 +68,6 @@ std::ostream & operator<<(std::ostream &, const Type &);
 struct IntType: Type {
 	size_t width; // in bits
 	bool isNumber(size_t width_) const override { return width_ == 0 || width_ == width; }
-	std::string mangle() const override { return stringify() + "_"; }
 	size_t getSize() const override { return width / 8; }
 	bool isInt() const override { return true; }
 
@@ -82,6 +81,7 @@ struct SignedType: IntType, Makeable<SignedType> {
 	bool isSigned(size_t width_) const override { return isNumber(width_); }
 	bool operator&&(const Type &) const override;
 	bool operator==(const Type &) const override;
+	std::string mangle() const override { return "s" + std::to_string(width / 8); }
 	protected:
 		std::string stringify() const override { return "s" + std::to_string(width); }
 };
@@ -92,6 +92,7 @@ struct UnsignedType: IntType, Makeable<UnsignedType> {
 	bool isUnsigned(size_t width_) const override { return isNumber(width_); }
 	bool operator&&(const Type &) const override;
 	bool operator==(const Type &) const override;
+	std::string mangle() const override { return "u" + std::to_string(width / 8); }
 	protected:
 		std::string stringify() const override { return "u" + std::to_string(width); }
 };
