@@ -67,6 +67,8 @@ void int_keybrd_(u8 key) {
 		str1::debug();
 		str1::free();
 		str2::free();
+	} else if (key == 't') {
+		traverse_blocks();
 	} else {
 		`s("You pressed '"); `c(key); `c('\''); `c('\n');
 	}
@@ -158,7 +160,7 @@ u8* String::copyData(u64* new_capacity) {
 
 void String::append(%String* source) {
 	u64 required = source->size + this->size + 1u64;
-	if (required < this->capacity) {
+	if (this->capacity < required) {
 		if (this->data)
 			free(this->data);
 		this->data = (*this)::copyData(&required);
@@ -171,12 +173,24 @@ void String::append(%String* source) {
 
 void String::append(u8 ch) {
 	u64 required = this->size + 2u64;
-	if (required < this->capacity) {
+	if (this->capacity < required) {
 		if (this->data)
 			free(this->data);
 		this->data = (*this)::copyData(&required);
 	}
 	this->data[this->size++] = ch;
+	this->capacity = required;
+	this->data[this->size] = '\0';
+}
+
+void String::set(u8* new_data) {
+	u64 required = strlen(new_data) + 1u64;
+	if (this->capacity < required) {
+		if (this->data)
+			free(this->data);
+		this->data = (*this)::copyData(&required);
+	}
+	memcpy(this->data, new_data, required - 1u64);
 	this->capacity = required;
 	this->data[this->size] = '\0';
 }
@@ -216,7 +230,6 @@ void String::debug() {
 	`s("size: "); `u64(this->size); `c('\n');
 	`s("capacity: "); `u64(this->capacity); `c('\n');
 }
-
 
 
 
@@ -297,8 +310,17 @@ void* allocate(u64 size, u64 alignment) {
 		}
 	}
 
-	allocated = allocated + block->size + sizeof(%BlockMeta);
+	allocated += block->size + sizeof(%BlockMeta);
 	return block + 1;
+}
+
+void traverse_blocks() {
+	%BlockMeta* block = base;
+	`s("Total allocated: "); `u64(allocated); `c('\n');
+	while (block) {
+		`ptr(block); `c(' '); `bool(block->free); `c(' '); `u64(block->size); `c('\n');
+		block = block->next;
+	}
 }
 
 void split(%BlockMeta* block, u64 size) {
@@ -342,7 +364,7 @@ void free(void* ptr) {
 		return;
 	%BlockMeta* block_ptr = getBlock(ptr);
 	block_ptr->free = true;
-	allocated = allocated - block_ptr->size + sizeof(%BlockMeta);
+	allocated -= block_ptr->size + sizeof(%BlockMeta);
 	merge();
 }
 
@@ -351,7 +373,7 @@ u64 merge() {
 	%BlockMeta* current = base;
 	while (current && current->next) {
 		if (current->free && current->next->free) {
-			current->size = current->size + sizeof(%BlockMeta) + current->next->size;
+			current->size += sizeof(%BlockMeta) + current->next->size;
 			current->next = current->next->next;
 			++count;
 		} else
