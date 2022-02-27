@@ -18,7 +18,7 @@ Program compileRoot(const ASTNode &root) {
 	for (const ASTNode *node: root)
 		switch (node->symbol) {
 			case CMMTOK_IDENT: {
-				if (node->size() != 4 && node->size() != 3)
+				if (node->size() != 4 && node->size() != 5)
 					throw LocatedError(node->location, "Ident under program root not a function definition");
 				const std::string &name = *node->text;
 				if (out.signatures.count(name) != 0)
@@ -27,10 +27,32 @@ Program compileRoot(const ASTNode &root) {
 				for (const ASTNode *arg: *node->at(1))
 					args.emplace_back(Type::get(*arg->front(), out));
 				out.signatures.try_emplace(name, TypePtr(Type::get(*node->at(0), out)), std::move(args));
-				if (node->size() == 3)
-					out.functionDeclarations.try_emplace(name, out, node);
-				else
-					out.functions.try_emplace(name, out, node);
+				Function &fn = out.functions.try_emplace(name, out, node).first->second;
+				if (node->size() == 5) {
+					const std::string &struct_name = *node->at(4)->text;
+					if (out.structs.count(struct_name) == 0)
+						throw LocatedError(node->at(4)->location, "Can't define function " + struct_name + "::" + name
+							+ ": struct not defined");
+					fn.structParent = out.structs.at(struct_name);
+				}
+				break;
+			}
+			case CMM_FNDECL: {
+				const std::string &name = *node->text;
+				if (out.signatures.count(name) != 0)
+					throw LocatedError(node->location, "Cannot redefine function " + name);
+				decltype(Signature::argumentTypes) args;
+				for (const ASTNode *arg: *node->at(1))
+					args.emplace_back(Type::get(*arg->front(), out));
+				out.signatures.try_emplace(name, TypePtr(Type::get(*node->at(0), out)), std::move(args));
+				Function &fn = out.functionDeclarations.try_emplace(name, out, node).first->second;
+				if (node->size() == 4) {
+					const std::string &struct_name = *node->at(3)->text;
+					if (out.structs.count(struct_name) == 0)
+						throw LocatedError(node->at(3)->location, "Can't declare function " + struct_name + "::" + name
+							+ ": struct not defined");
+					fn.structParent = out.structs.at(struct_name);
+				}
 				break;
 			}
 			case CMM_DECL: { // Global variable

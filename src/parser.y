@@ -114,9 +114,10 @@ using AN = ASTNode;
 %token CMMTOK_XOREQ   "^="
 %token CMMTOK_CONST "const"
 %token CMMTOK_OFFSETOF "offsetof"
+%token CMMTOK_SCOPE "::"
 
 %token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY CMM_POSTPLUS CMM_POSTMINUS CMM_FNPTR CMM_DECL
-%token CMM_INITIALIZER
+%token CMM_INITIALIZER CMM_FNDECL
 
 %start start
 
@@ -181,9 +182,11 @@ struct_def: "struct" CMMTOK_IDENT "{" decl_list "}" ";" { $$ = $1->adopt({$2, $4
 decl_list: decl_list type CMMTOK_IDENT ";" { $$ = $1->adopt($3->adopt($2)); D($4); }
          | { $$ = new ASTNode(cmmParser, CMM_LIST); };
 
-function_def: type ident "(" _arglist ")" fnattrs block { $$ = $2->adopt({$1, $4, $6, $7}); D($3, $5); };
+function_def: type ident "(" _arglist ")" fnattrs block { $$ = $2->adopt({$1, $4, $6, $7}); D($3, $5); }
+            | type ident "::" ident "(" _arglist ")" fnattrs block { $$ = $4->adopt({$1, $6, $8, $9, $2}); D($3, $5, $7); }
 
-function_decl: type ident "(" _arglist ")" fnattrs ";" { $$ = $2->adopt({$1, $4, $6}); D($3, $5, $7); };
+function_decl: type ident "(" _arglist ")" fnattrs ";" { $$ = $2->adopt({$1, $4, $6}); $$->symbol = CMM_FNDECL; D($3, $5, $7); }
+             | type ident "::" ident "(" _arglist ")" fnattrs ";" { $$ = $4->adopt({$1, $6, $8, $2}); $$->symbol = CMM_FNDECL; D($3, $5, $7, $9); };
 
 fnattrs: fnattrs fnattr { $$ = $1->adopt($2); }
        | { $$ = new ASTNode(cmmParser, CMM_LIST); };
@@ -267,7 +270,8 @@ string: CMMTOK_STRING;
 boolean: "true" | "false";
 
 function_call: ident "(" _exprlist ")" { $$ = $2->adopt({$1, $3}); D($4); };
-             | "(" expr ")" "(" _exprlist ")" { $$ = $1->adopt({$2, $5}); D($3, $4, $6); };
+             | "(" expr ")" "(" _exprlist ")" { $$ = $1->adopt({$2, $5}); D($3, $4, $6); }
+             | ident "::" ident "(" _exprlist ")" { $$ = $4->adopt({$3, $5, $1}); D($2, $6); };
 
 exprlist: exprlist "," expr { $$ = $1->adopt($3); D($2); }
         | expr { $$ = (new ASTNode(cmmParser, CMM_LIST))->locate($1)->adopt($1); };

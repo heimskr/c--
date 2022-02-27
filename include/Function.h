@@ -58,6 +58,7 @@ class Function {
 		/** Maps basic blocks to their corresponding CFG nodes. */
 		std::unordered_map<const BasicBlock *, Node *> bbNodeMap;
 		std::vector<std::shared_ptr<Scope>> scopeStack;
+		std::shared_ptr<StructType> structParent;
 
 		Function(Program &, const ASTNode *);
 
