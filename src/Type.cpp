@@ -71,11 +71,13 @@ int PointerType::affinity(const Type &other) const {
 		return 1;
 	if (auto *other_pointer = other.cast<PointerType>()) {
 		if (subtype->isVoid())
-			return other_pointer->subtype->isVoid()? 2 : 1;
+			return other_pointer->subtype->isVoid()? 3 : 2;
+		if (other_pointer->subtype->isVoid())
+			return 2;
 		if (*subtype == *other_pointer->subtype)
-			return subtype->affinity(*other_pointer->subtype);
+			return subtype->affinity(*other_pointer->subtype) + 1;
 		if (auto *subtype_array = subtype->cast<ArrayType>())
-			return subtype->affinity(*subtype_array->subtype);
+			return subtype->affinity(*subtype_array->subtype) + 1;
 	}
 	return 0;
 }

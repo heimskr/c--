@@ -3,11 +3,18 @@
 #orcid "0000-0001-7405-6654"
 #version "6.1"
 
+struct String {
+	u8* data;
+	u64 size;
+	u64 capacity;
+};
+
 void*[8] table;
 s64 delay = 300000;
 u8* timeup = "Time's up\n";
 void()* timer_ptr = int_timer;
 s64(s64)* fnptr = add5;
+%String input;
 
 s64 double(s64 n) {
 	return n << 1;
@@ -25,6 +32,7 @@ void main() {
 	asm("$g -> $1"::g);
 	asm("? mem -> $1"::mem);
 	setBounds(g, mem);
+	%String::init(&input, "");
 	table[2] = timer_ptr;
 	table[7] = int_keybrd;
 	asm("%rit table");
@@ -38,47 +46,51 @@ s64(s64)* swap(s64(s64)* f) {
 	return double;
 }
 
-void int_keybrd_(u8 key) {
-	if (key == 'a') {
-		p("You pressed 'a' :)\n");
-	} else if (key == '=') {
-		delay = delay * 11 / 10;
-		p("Delay: "); p(delay); p('\n');
-	} else if (key == '-') {
-		delay = delay * 10 / 11;
-		p("Delay: "); p(delay); p('\n');
-	} else if (key == '\n') {
-		asm("%time $1":delay:);
-	} else if (key == ' ') {
-		fnptr = swap(fnptr);
-	} else if (key == '*') {
-		p("20 -> ");
-		s64(s64)* hacked_ptr = (s64(s64)*) (((s64) fnptr << 1) + 8);
-		p(((s64(s64)*)((s64) ((s16*) hacked_ptr - 4s16) / 2))(20));
-		p('\n');
-	} else if (key == 'h') {
-		hack();
-	} else if (key == 's') {
-		%String str1 = [null, 0, 0];
-		%String str2 = [null, 0, 0];
-		%String::new(&str1, "Hello");
-		%String::new(&str2, " there");
-		str1::append(&str2);
-		str1::append(", how are you");
-		str1::append('?');
-		str1::debug();
-		str1::free();
-		str2::free();
-	} else if (key == 't') {
-		traverse_blocks();
+void int_keybrd_(u64 key_full) {
+	u8 key = (u8) key_full;
+	bool ctrl = (bool) ((key_full >> 34u64) & 1u64);
+	if (ctrl) {
+		if (key == 'a') {
+			p("You pressed ^a :)\n");
+		} else if (key == '=') {
+			delay = delay * 11 / 10;
+			p("Delay: "); p(delay); p('\n');
+		} else if (key == '-') {
+			delay = delay * 10 / 11;
+			p("Delay: "); p(delay); p('\n');
+		} else if (key == '\n') {
+			asm("%time $1":delay:);
+		} else if (key == ' ') {
+			fnptr = swap(fnptr);
+		} else if (key == '*') {
+			p("20 -> ");
+			s64(s64)* hacked_ptr = (s64(s64)*) (((s64) fnptr << 1) + 8);
+			p(((s64(s64)*)((s64) ((s16*) hacked_ptr - 4s16) / 2))(20));
+			p('\n');
+		} else if (key == 'h') {
+			hack();
+		} else if (key == 's') {
+			%String str1 = [null, 0, 0];
+			%String str2 = [null, 0, 0];
+			%String::init(&str1, "Hello");
+			%String::init(&str2, " there");
+			str1::append(&str2);
+			str1::append(", how are you");
+			str1::append('?');
+			str1::debug();
+			str1::free();
+			str2::free();
+		} else if (key == 't') {
+			traverse_blocks();
+		}
 	} else {
-		p("You pressed '"); p(key); p('\''); p('\n');
+		p("You pressed '"); p(key); p('\''); p(" ~ "); asm("<prx $1>":key_full); p('\n');
 	}
 }
 
 void int_keybrd() #naked {
 	asm("[ $rt; [ $a0");
-	asm("$e2 -> $a0; :: _11int_keybrd_v1u1");
+	asm("$e2 -> $a0; :: _11int_keybrd_v1u8");
 	asm("] $a0; ] $rt");
 	asm(": ] %page $e0");
 }
@@ -148,15 +160,9 @@ void memcpy(void* destination, void* source, u64 count) {
 	}
 }
 
-struct String {
-	u8* data;
-	u64 size;
-	u64 capacity;
-};
-
 u8* String::copyData(u64* new_capacity) {
 	if (*new_capacity <= this->size)
-		*new_capacity = this->size + 1u64;
+		*new_capacity = roundUp(this->size + 1u64);
 	u8* out = new(*new_capacity);
 	memcpy(out, this->data, this->size);
 	out[this->size] = '\0';
@@ -230,7 +236,7 @@ void String::debug() {
 	p(" \e[2mcap:\e[22m "); p(this->capacity); p('\n');
 }
 
-static void String::new(%String* out, u8* data) {
+static void String::init(%String* out, u8* data) {
 	u64 len = strlen(data);
 	out->data = strcpy(data);
 	out->capacity = (out->size = len) + 1u64;
@@ -445,4 +451,15 @@ void* new(u64 size) {
 		asm("<halt>");
 	}
 	return out;
+}
+
+u64 roundUp(u64 value) {
+	--value;
+	value |= value >> 1u64;
+	value |= value >> 2u64;
+	value |= value >> 4u64;
+	value |= value >> 8u64;
+	value |= value >> 16u64;
+	value |= value >> 32u64;
+	return ++value;
 }
