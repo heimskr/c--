@@ -154,9 +154,9 @@ struct GteRInstruction;
 struct EqRInstruction;
 struct NeqRInstruction;
 
-struct LtExpr:   CompExpr<"<",  std::less,           LtRInstruction>  { using CompExpr::CompExpr; };
+struct LtExpr:   CompExpr<"<",  std::less,           LtRInstruction> { using CompExpr::CompExpr; };
 struct LteExpr:  CompExpr<"<=", std::less_equal,    LteRInstruction> { using CompExpr::CompExpr; };
-struct GtExpr:   CompExpr<">",  std::greater,        GtRInstruction>  { using CompExpr::CompExpr; };
+struct GtExpr:   CompExpr<">",  std::greater,        GtRInstruction> { using CompExpr::CompExpr; };
 struct GteExpr:  CompExpr<">=", std::greater_equal, GteRInstruction> { using CompExpr::CompExpr; };
 struct EqExpr:   CompExpr<"==", std::greater_equal,  EqRInstruction> { using CompExpr::CompExpr; };
 struct NeqExpr:  CompExpr<"!=", std::greater_equal, NeqRInstruction> { using CompExpr::CompExpr; };

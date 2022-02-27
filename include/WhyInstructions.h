@@ -655,13 +655,13 @@ struct NeqRInstruction: RType {
 	operator std::vector<std::string>() const override {
 		return {
 			leftSource->regOrID() + " == " + rightSource->regOrID() + " -> " + destination->regOrID(),
-			destination->regOrID() + " -> " + destination->regOrID()
+			"!" + destination->regOrID() + " -> " + destination->regOrID()
 		};
 	}
 	std::vector<std::string> colored() const override {
 		return {
 			leftSource->regOrID(true) + o("==") + rightSource->regOrID(true) + o("->") + destination->regOrID(true),
-			destination->regOrID(true) + o("->") + destination->regOrID(true)
+			"\e[2m!\e[22m" + destination->regOrID(true) + o("->") + destination->regOrID(true)
 		};
 	}
 };
