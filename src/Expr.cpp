@@ -794,7 +794,6 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 	Context context(scope);
 	context.structName = getStructName(scope);
 
-	auto fnptr_type = subexpr->getType(context);
 	bool function_found = false;
 	int argument_offset = Why::argumentOffset;
 
@@ -827,7 +826,10 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 		add_jump = [found, &fn] { fn.add<JumpInstruction>(found->mangle(), true); };
 	}
 
+	std::unique_ptr<Type> fnptr_type;
+
 	if (!function_found) {
+		fnptr_type = subexpr->getType(context);
 		if (!fnptr_type->isFunctionPointer())
 			throw FunctionPointerError(*fnptr_type);
 		const auto *subfn = fnptr_type->cast<FunctionPointerType>();
