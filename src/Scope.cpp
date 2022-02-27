@@ -7,34 +7,53 @@
 #include "Scope.h"
 #include "Util.h"
 
+struct Score {
+	int exact;
+	int approximate;
+	FunctionPtr function;
+	bool match(const Score &other) const { return exact == other.exact && approximate == other.approximate; }
+};
+
 static Functions filterResults(const Functions &results, const Types &arg_types) {
 	if (results.empty())
 		return {};
 
 	const size_t fn_count = results.size(), arg_count = arg_types.size();
-	std::vector<std::pair<int, int>> scores(fn_count); // Pair: (== matches, && matches)
+	std::vector<Score> scores(fn_count); // Pair: (== matches, && matches)
 
 	for (size_t i = 0; i < fn_count; ++i) {
 		FunctionPtr fn = results[i];
+		scores[i].function = fn;
 		for (size_t j = 0; j < arg_count; ++j) {
 			Type &fn_type = *fn->getArgumentType(j);
 			Type &arg_type = *arg_types[j];
 			if (arg_type == fn_type)
-				++scores[i].first;
+				++scores[i].exact;
 			else if (arg_type && fn_type)
-				++scores[i].second;
+				++scores[i].approximate;
 		}
 	}
 
-	auto compare = [](const std::pair<int, int> &left, const std::pair<int, int> &right) -> bool {
-		if (left.first > right.first)
+	auto compare = [](const Score &left, const Score &right) -> bool {
+		if (left.exact > right.exact)
 			return true;
-		if (left.first < right.first)
+		if (left.exact < right.exact)
 			return false;
-		return left.second > right.second;
+		return left.approximate > right.approximate;
 	};
 
-	return {results.at(std::min_element(scores.cbegin(), scores.cend(), compare) - scores.cbegin())};
+	std::sort(scores.begin(), scores.end(), compare);
+	const auto &first_score = scores.front();
+
+	Functions out;
+
+	for (size_t i = 0; i < fn_count; ++i)
+		if (first_score.match(scores[i]))
+			out.push_back(scores[i].function);
+		else
+			break;
+
+	return out;
 }
 
 FunctionPtr Scope::lookupFunction(const std::string &function_name, TypePtr return_type, const Types &arg_types,

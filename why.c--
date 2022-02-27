@@ -1,7 +1,7 @@
 #name "Why ISA Tests"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "5.1"
+#version "6.0"
 
 void*[8] table;
 s64 delay = 300000;
@@ -20,7 +20,7 @@ s64 add5(s64 n) {
 void main() {
 	void* g;
 	asm("$g -> $1"::g);
-	`s("$g = "); `u64((u64) g); `c('\n');
+	p("$g = "); p((u64) g); p('\n');
 	void *mem;
 	asm("$g -> $1"::g);
 	asm("? mem -> $1"::mem);
@@ -40,22 +40,22 @@ s64(s64)* swap(s64(s64)* f) {
 
 void int_keybrd_(u8 key) {
 	if (key == 'a') {
-		`s("You pressed 'a' :)\n");
+		p("You pressed 'a' :)\n");
 	} else if (key == '=') {
 		delay = delay * 11 / 10;
-		`s("Delay: "); `s64(delay); `c('\n');
+		p("Delay: "); p(delay); p('\n');
 	} else if (key == '-') {
 		delay = delay * 10 / 11;
-		`s("Delay: "); `s64(delay); `c('\n');
+		p("Delay: "); p(delay); p('\n');
 	} else if (key == '\n') {
 		asm("%time $1":delay:);
 	} else if (key == ' ') {
 		fnptr = swap(fnptr);
 	} else if (key == '*') {
-		`s("20 -> ");
+		p("20 -> ");
 		s64(s64)* hacked_ptr = (s64(s64)*) (((s64) fnptr << 1) + 8);
-		`s64(((s64(s64)*)((s64) ((s16*) hacked_ptr - 4s16) / 2))(20));
-		`c('\n');
+		p(((s64(s64)*)((s64) ((s16*) hacked_ptr - 4s16) / 2))(20));
+		p('\n');
 	} else if (key == 'h') {
 		hack();
 	} else if (key == 's') {
@@ -72,7 +72,7 @@ void int_keybrd_(u8 key) {
 	} else if (key == 't') {
 		traverse_blocks();
 	} else {
-		`s("You pressed '"); `c(key); `c('\''); `c('\n');
+		p("You pressed '"); p(key); p('\''); p('\n');
 	}
 }
 
@@ -101,24 +101,24 @@ void hack() {
 	if (hacked)
 		return;
 	s32* what = (s32*) &add5;
-	`ptr(what); `c('\n');
+	p(what); p('\n');
 	for (s64 i = 0; i < 1000; ++i) {
 		if (*++what == 5s32)
-			`s("\x1b[32m");
-		`s64((s64) what);
-		`s(": ");
+			p("\x1b[32m");
+		p((s64) what);
+		p(": ");
 		asm("<prx $1>":*what);
-		`s("\x1b[0m\n");
+		p("\x1b[0m\n");
 		if (*what == 5s32) {
 			*what = 42s32;
-			`s("hacked =)\n");
+			p("hacked =)\n");
 			hacked = true;
 			fnptr = add5;
 			break;
 		}
 	}
 	if (!hacked)
-		`s("not hacked =(\n");
+		p("not hacked =(\n");
 }
 
 void memcpy(void* destination, void* source, u64 count) {
@@ -157,7 +157,7 @@ struct String {
 u8* String::copyData(u64* new_capacity) {
 	if (*new_capacity <= this->size)
 		*new_capacity = this->size + 1u64;
-	u8* out = checked_malloc(*new_capacity);
+	u8* out = new(*new_capacity);
 	memcpy(out, this->data, this->size);
 	out[this->size] = '\0';
 	return out;
@@ -224,10 +224,10 @@ void String::free() {
 }
 
 void String::debug() {
-	`s(" \e[2mptr:\e[22m "); `ptr(this->data); `c('\n');
-	`s("\e[2mdata:\e[22m "); `s(this->data); `c('\n');
-	`s("\e[2msize:\e[22m "); `u64(this->size); `c('\n');
-	`s(" \e[2mcap:\e[22m "); `u64(this->capacity); `c('\n');
+	p(" \e[2mptr:\e[22m "); `ptr(this->data); p('\n');
+	p("\e[2mdata:\e[22m "); p(this->data); p('\n');
+	p("\e[2msize:\e[22m "); p(this->size); p('\n');
+	p(" \e[2mcap:\e[22m "); p(this->capacity); p('\n');
 }
 
 u64 strlen(u8* string) {
@@ -238,7 +238,7 @@ u64 strlen(u8* string) {
 
 u8* strcpy(u8* string) {
 	u64 const len = strlen(string);
-	u8* out = checked_malloc(len + 1u64);
+	u8* out = new(len + 1u64);
 	memcpy(out, string, len);
 	out[len] = '\0';
 	return out;
@@ -254,9 +254,29 @@ void str_new(u8* data, %String *out) {
 
 
 
+void p(u8* s) {
+	`s(s);
+}
 
+void p(u64 n) {
+	`u64(n);
+}
 
+void p(s64 n) {
+	`s64(n);
+}
 
+void p(void* ptr) {
+	`ptr(ptr);
+}
+
+void p(u8 ch) {
+	`c(ch);
+}
+
+void p(bool b) {
+	`s(b? "true" : "false");
+}
 
 
 struct BlockMeta;
@@ -334,9 +354,9 @@ void* allocate(u64 size, u64 alignment) {
 
 void traverse_blocks() {
 	%BlockMeta* block = base;
-	`s("Total allocated: "); `u64(allocated); `c('\n');
+	p("Total allocated: "); p(allocated); p('\n');
 	while (block) {
-		`ptr(block); `c(' '); `bool(block->free); `c(' '); `u64(block->size); `c('\n');
+		p(block); p(' '); p(block->free); p(' '); p(block->size); p('\n');
 		block = block->next;
 	}
 }
@@ -405,11 +425,11 @@ u64 merge() {
 
 void setBounds(void* new_start, void* new_high) {
 	if (new_high <= new_start) {
-		`s("Invalid heap bounds: 0x");
+		p("Invalid heap bounds: 0x");
 		asm("<prx $1>":new_start);
-		`s(" through 0x");
+		p(" through 0x");
 		asm("<prx $1>":new_high);
-		`c('\n');
+		p('\n');
 		asm("<halt>");
 	}
 	start = (void*) realign((u64) new_start, MEMORY_ALIGN);
@@ -438,12 +458,12 @@ void* calloc(u64 count, u64 size) {
 	return chunk;
 }
 
-void* checked_malloc(u64 size) {
+void* new(u64 size) {
 	void* out = malloc(size);
 	if (!out) {
-		`s("Can't allocate ");
-		`u64(size);
-		`s(" bytes: out of memory\n");
+		p("Can't allocate ");
+		p(size);
+		p(" bytes: out of memory\n");
 		asm("<halt>");
 	}
 	return out;
