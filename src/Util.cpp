@@ -135,7 +135,7 @@ namespace Util {
 						const char first = str[++i], second = str[++i];
 						if (!isxdigit(first) || !isxdigit(second))
 							throw std::runtime_error(std::string("Invalid hexadecimal escape: \\x") + first + second);
-						out << static_cast<char>(strtol((std::string(1, first) + second).c_str(), nullptr, 16));
+						out << char(strtol((std::string(1, first) + second).c_str(), nullptr, 16));
 						break;
 					}
 					default: throw std::runtime_error("Unrecognized character: \\" + std::string(1, str[i]));

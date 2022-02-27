@@ -178,14 +178,33 @@ char ASTNode::getChar() const {
 	if (text->size() < 2 || text->front() != '\'' || text->back() != '\'')
 		throw LocatedError(location, "Not a quoted character: " + *text);
 	const std::string out = text->substr(1, text->size() - 2);
-	if (out == "\\n") return '\n';
-	if (out == "\\r") return '\r';
-	if (out == "\\a") return '\a';
-	if (out == "\\t") return '\t';
-	if (out == "\\b") return '\b';
-	if (out == "\\e") return '\e';
-	if (out == "\\0") return '\0';
-	if (out == "\\'") return '\'';
+
+	if (out.front() == '\\') {
+		if (out.size() == 1)
+			throw std::runtime_error("Expected characters after backslash in escape sequence");
+		switch (out[1]) {
+			case 'n':  return '\n';
+			case 'r':  return '\r';
+			case 'a':  return '\a';
+			case 't':  return '\t';
+			case 'b':  return '\b';
+			case 'e':  return '\e';
+			case '0':  return '\0';
+			case '\\': return '\\';
+			case '\'':  return '\'';
+			case 'x': {
+				if (out.size() <= 3)
+					throw std::runtime_error("Hexadecimal escape is too close to end of string");
+				const char first = out[2], second = out[3];
+				if (!isxdigit(first) || !isxdigit(second))
+					throw std::runtime_error(std::string("Invalid hexadecimal escape: \\x") + first + second);
+				return char(strtol((std::string(1, first) + second).c_str(), nullptr, 16));
+			}
+			default:
+				throw std::runtime_error("Unrecognized character: \\" + std::string(1, out[1]));
+		}
+	}
+
 	return out.front();
 }
 
