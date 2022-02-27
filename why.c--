@@ -1,7 +1,7 @@
 #name "Why ISA Tests"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "6.1"
+#version "6.2"
 
 struct String {
 	u8* data;
@@ -69,6 +69,11 @@ void int_keybrd_(u64 key_full) {
 			p('\n');
 		} else if (key == 'h') {
 			hack();
+		} else if (key == 'r') {
+			s64[18] examples = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
+			for (u64 i = 0; i < #examples; ++i) {
+				p(examples[i]); p(": "); p(roundUp((u64) examples[i])); p('\n');
+			}
 		} else if (key == 's') {
 			%String str1 = [null, 0, 0];
 			%String str2 = [null, 0, 0];
@@ -161,9 +166,7 @@ void memcpy(void* destination, void* source, u64 count) {
 }
 
 u8* String::copyData(u64* new_capacity) {
-	if (*new_capacity <= this->size)
-		*new_capacity = roundUp(this->size + 1u64);
-	u8* out = new(*new_capacity);
+	u8* out = new(*new_capacity = roundUp(this->size + 1u64));
 	memcpy(out, this->data, this->size);
 	out[this->size] = '\0';
 	return out;
