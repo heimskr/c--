@@ -81,67 +81,73 @@ bool ArrayType::operator==(const Type &other) const {
 }
 
 Type * Type::get(const ASTNode &node, const Program &program, bool allow_forward) {
-	switch (node.symbol) {
-		case CMMTOK_VOID:
-			return new VoidType;
-		case CMMTOK_BOOL:
-			return new BoolType;
-		case CMMTOK_S8:
-			return new SignedType(8);
-		case CMMTOK_S16:
-			return new SignedType(16);
-		case CMMTOK_S32:
-			return new SignedType(32);
-		case CMMTOK_S64:
-			return new SignedType(64);
-		case CMMTOK_U8:
-			return new UnsignedType(8);
-		case CMMTOK_U16:
-			return new UnsignedType(16);
-		case CMMTOK_U32:
-			return new UnsignedType(32);
-		case CMMTOK_U64:
-			return new UnsignedType(64);
-		case CMMTOK_TIMES:
-			return new PointerType(Type::get(*node.front(), program, true));
-		case CMMTOK_STRING:
-			return new PointerType(new UnsignedType(8));
-		case CMMTOK_LSQUARE: {
-			auto expr = std::unique_ptr<Expr>(Expr::get(*node.at(1)));
-			auto count = expr->evaluate(nullptr);
-			if (!count)
-				throw LocatedError(node.location, "Array size expression must be a compile-time constant: " +
-					std::string(*expr) + " (at " + std::string(expr->location) + ")");
-			return new ArrayType(Type::get(*node.front(), program), *count);
-		}
-		case CMM_FNPTR: {
-			std::vector<Type *> argument_types;
-			argument_types.reserve(node.at(1)->size());
-			for (const ASTNode *child: *node.at(1))
-				argument_types.push_back(Type::get(*child, program));
-			return new FunctionPointerType(Type::get(*node.front(), program), std::move(argument_types));
-		}
-		case CMMTOK_MOD: {
-			const std::string &struct_name = *node.front()->text;
-			if (program.structs.count(struct_name) != 0)
-				return program.structs.at(struct_name)->copy();
-			if (program.forwardDeclarations.count(struct_name) != 0) {
-				if (allow_forward)
-					return new StructType(program, struct_name);
-				throw LocatedError(node.location, "Can't use forward declaration of " + struct_name +
-					" in this context");
+	auto g = [&]() -> Type * {
+		switch (node.symbol) {
+			case CMMTOK_VOID:
+				return new VoidType;
+			case CMMTOK_BOOL:
+				return new BoolType;
+			case CMMTOK_S8:
+				return new SignedType(8);
+			case CMMTOK_S16:
+				return new SignedType(16);
+			case CMMTOK_S32:
+				return new SignedType(32);
+			case CMMTOK_S64:
+				return new SignedType(64);
+			case CMMTOK_U8:
+				return new UnsignedType(8);
+			case CMMTOK_U16:
+				return new UnsignedType(16);
+			case CMMTOK_U32:
+				return new UnsignedType(32);
+			case CMMTOK_U64:
+				return new UnsignedType(64);
+			case CMMTOK_TIMES:
+				return new PointerType(Type::get(*node.front(), program, true));
+			case CMMTOK_STRING:
+				return new PointerType(new UnsignedType(8));
+			case CMMTOK_LSQUARE: {
+				auto expr = std::unique_ptr<Expr>(Expr::get(*node.at(1)));
+				auto count = expr->evaluate(nullptr);
+				if (!count)
+					throw LocatedError(node.location, "Array size expression must be a compile-time constant: " +
+						std::string(*expr) + " (at " + std::string(expr->location) + ")");
+				return new ArrayType(Type::get(*node.front(), program), *count);
 			}
-			throw ResolutionError(struct_name, nullptr);
+			case CMM_FNPTR: {
+				std::vector<Type *> argument_types;
+				argument_types.reserve(node.at(1)->size());
+				for (const ASTNode *child: *node.at(1))
+					argument_types.push_back(Type::get(*child, program));
+				return new FunctionPointerType(Type::get(*node.front(), program), std::move(argument_types));
+			}
+			case CMMTOK_MOD: {
+				const std::string &struct_name = *node.front()->text;
+				if (program.structs.count(struct_name) != 0)
+					return program.structs.at(struct_name)->copy();
+				if (program.forwardDeclarations.count(struct_name) != 0) {
+					if (allow_forward)
+						return new StructType(program, struct_name);
+					throw LocatedError(node.location, "Can't use forward declaration of " + struct_name +
+						" in this context");
+				}
+				throw ResolutionError(struct_name, nullptr);
+			}
+			case CMMTOK_CONST: {
+				Type *subtype = Type::get(*node.front(), program, allow_forward);
+				subtype->isConst = true;
+				return subtype;
+			}
+			default:
+				throw LocatedError(node.location, "Invalid token in getType: " +
+					std::string(cmmParser.getName(node.symbol)));
 		}
-		case CMMTOK_CONST: {
-			Type *subtype = Type::get(*node.front(), program, allow_forward);
-			subtype->isConst = true;
-			return subtype;
-		}
-		default:
-			throw LocatedError(node.location, "Invalid token in getType: " +
-				std::string(cmmParser.getName(node.symbol)));
-	}
+	};
+
+	Type *out = g();
+	info() << *out << ": " << out->mangle() << '\n';
+	return out;
 }
 
 FunctionPointerType::FunctionPointerType(Type *return_type, std::vector<Type *> &&argument_types):
@@ -159,6 +165,14 @@ Type * FunctionPointerType::copy() const {
 	for (const Type *type: argumentTypes)
 		arguments_copy.push_back(type->copy());
 	return (new FunctionPointerType(returnType->copy(), std::move(arguments_copy)))->setConst(isConst);
+}
+
+std::string FunctionPointerType::mangle() const {
+	std::stringstream out;
+	out << 'F' << returnType->mangle() << argumentTypes.size();
+	for (const Type *argument_type: argumentTypes)
+		out << argument_type->mangle();
+	return out.str();
 }
 
 std::string FunctionPointerType::stringify() const {

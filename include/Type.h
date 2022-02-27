@@ -19,6 +19,7 @@ struct Type: Checkable, std::enable_shared_from_this<Type> {
 	virtual ~Type() {}
 	virtual Type * copy() const = 0;
 	operator std::string() const;
+	virtual std::string mangle() const = 0;
 	virtual bool isNumber(size_t = 0) const { return false; }
 	virtual bool isSigned(size_t = 0) const { return false; }
 	virtual bool isUnsigned(size_t = 0) const { return false; }
@@ -61,6 +62,7 @@ std::ostream & operator<<(std::ostream &, const Type &);
 struct IntType: Type {
 	size_t width; // in bits
 	bool isNumber(size_t width_) const override { return width_ == 0 || width_ == width; }
+	std::string mangle() const override { return stringify() + "_"; }
 	size_t getSize() const override { return width / 8; }
 	bool isInt() const override { return true; }
 
@@ -90,6 +92,7 @@ struct UnsignedType: IntType, Makeable<UnsignedType> {
 
 struct VoidType: Type, Makeable<VoidType> {
 	Type * copy() const override { return (new VoidType)->setConst(isConst); }
+	std::string mangle() const override { return "v"; }
 	/** Returns 1 for the sake of void pointer arithmetic acting like byte pointer arithmetic. */
 	size_t getSize() const override { return 1; }
 	bool operator&&(const Type &other) const override { return other.isVoid(); }
@@ -101,6 +104,7 @@ struct VoidType: Type, Makeable<VoidType> {
 
 struct BoolType: Type, Makeable<BoolType> {
 	Type * copy() const override { return (new BoolType)->setConst(isConst); }
+	std::string mangle() const override { return "b"; }
 	size_t getSize() const override { return 1; }
 	bool operator&&(const Type &other) const override { return other.isBool(); }
 	bool operator==(const Type &other) const override { return other.isBool(); }
@@ -119,6 +123,7 @@ struct SuperType: Type {
 struct PointerType: SuperType {
 	using SuperType::SuperType;
 	Type * copy() const override { return (new PointerType(subtype? subtype->copy() : nullptr))->setConst(isConst); }
+	std::string mangle() const override { return "p" + subtype->mangle(); }
 	size_t getSize() const override { return 8; }
 	bool operator&&(const Type &) const override;
 	bool operator==(const Type &) const override;
@@ -133,6 +138,7 @@ struct ArrayType: SuperType {
 	Type * copy() const override {
 		return (new ArrayType(subtype? subtype->copy() : nullptr, count))->setConst(isConst);
 	}
+	std::string mangle() const override { return "a" + std::to_string(count) + subtype->mangle(); }
 	size_t getSize() const override { return subtype? subtype->getSize() * count : 0; }
 	bool operator&&(const Type &) const override;
 	bool operator==(const Type &) const override;
@@ -153,6 +159,7 @@ struct FunctionPointerType: Type {
 	FunctionPointerType & operator=(const FunctionPointerType &) = delete;
 	~FunctionPointerType();
 	Type * copy() const override;
+	std::string mangle() const override;
 	size_t getSize() const override { return 8; }
 	bool operator&&(const Type &) const override;
 	bool operator==(const Type &) const override;
@@ -174,6 +181,7 @@ class StructType: public Type, public Makeable<StructType> {
 		StructType(const Program &, const std::string &name_);
 		StructType(const Program &, const std::string &name_, const decltype(order) &order_);
 		Type * copy() const override;
+		std::string mangle() const override { return "S" + std::to_string(name.size()) + name; }
 		size_t getSize() const override;
 		bool operator&&(const Type &) const override;
 		bool operator==(const Type &) const override;
@@ -194,6 +202,7 @@ struct InitializerType: Type, Makeable<InitializerType> {
 	InitializerType(const std::vector<TypePtr> &children_): children(children_) {}
 	InitializerType(std::vector<TypePtr> &&children_): children(std::move(children_)) {}
 	Type * copy() const override;
+	std::string mangle() const override { throw std::runtime_error("Cannot mangle InitializerType"); }
 	bool isInitializer() const override { return true; }
 	bool operator&&(const Type &) const override;
 	bool operator==(const Type &) const override;
