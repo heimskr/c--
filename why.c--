@@ -1,7 +1,7 @@
 #name "Why ISA Tests"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "6.2"
+#version "7.0"
 
 struct String {
 	u8* data;
@@ -49,7 +49,10 @@ s64(s64)* swap(s64(s64)* f) {
 void int_keybrd_(u64 key_full) {
 	u8 key = (u8) key_full;
 	bool ctrl = (bool) ((key_full >> 34u64) & 1u64);
-	if (ctrl) {
+	if (key_full == 0u64) { // Ctrl-Space, for some reason.
+		fnptr = swap(fnptr);
+		p("Swapped function pointers.\n");
+	} else if (ctrl) {
 		if (key == 'a') {
 			p("You pressed ^a :)\n");
 		} else if (key == '=') {
@@ -58,22 +61,15 @@ void int_keybrd_(u64 key_full) {
 		} else if (key == '-') {
 			delay = delay * 10 / 11;
 			p("Delay: "); p(delay); p('\n');
-		} else if (key == '\n') {
+		} else if (key == '\x0d') { // Ctrl-Enter, for some reason.
 			asm("%time $1":delay:);
-		} else if (key == ' ') {
-			fnptr = swap(fnptr);
-		} else if (key == '*') {
+		} else if (key == '8') {
 			p("20 -> ");
 			s64(s64)* hacked_ptr = (s64(s64)*) (((s64) fnptr << 1) + 8);
 			p(((s64(s64)*)((s64) ((s16*) hacked_ptr - 4s16) / 2))(20));
 			p('\n');
 		} else if (key == 'h') {
 			hack();
-		} else if (key == 'r') {
-			s64[18] examples = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
-			for (u64 i = 0; i < #examples; ++i) {
-				p(examples[i]); p(": "); p(roundUp((u64) examples[i])); p('\n');
-			}
 		} else if (key == 's') {
 			%String str1 = [null, 0, 0];
 			%String str2 = [null, 0, 0];
@@ -88,8 +84,20 @@ void int_keybrd_(u64 key_full) {
 		} else if (key == 't') {
 			traverse_blocks();
 		}
+		else { p("You pressed '"); p(key); p('\''); p(" ~ "); asm("<prx $1>":key); p(" ~ "); asm("<prx $1>":key_full); p('\n'); }
+	} else if (key == '\x7f') { // Backspace
+		input::pop();
+		p("\e[2K\e[G");
+		p(input.data);
+	} else if (key == '\n') {
+		input::clear();
+		p("\e[2K\e[G");
+		p(input.data);
 	} else {
-		p("You pressed '"); p(key); p('\''); p(" ~ "); asm("<prx $1>":key_full); p('\n');
+		input::append(key);
+		p("\e[2K\e[G");
+		p(input.data);
+		p(' '); p(input.size);
 	}
 }
 
@@ -237,6 +245,19 @@ void String::debug() {
 	p("\e[2mdata:\e[22m "); p(this->data); p('\n');
 	p("\e[2msize:\e[22m "); p(this->size); p('\n');
 	p(" \e[2mcap:\e[22m "); p(this->capacity); p('\n');
+}
+
+void String::pop() {
+	if (this->size == 0u64)
+		return;
+	this->data[--this->size] = '\0';
+}
+
+void String::clear() {
+	if (this->capacity != 0u64) {
+		this->size = 0u64;
+		this->data[0] = '\0';
+	}
 }
 
 static void String::init(%String* out, u8* data) {
