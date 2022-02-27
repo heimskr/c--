@@ -23,14 +23,20 @@ struct Scope {
 	Scope(Program *program_ = nullptr): program(program_) {}
 	virtual ~Scope() {}
 	virtual VariablePtr lookup(const std::string &) const = 0;
+
 	virtual Functions lookupFunctions(const std::string &function_name, TypePtr, const Types &,
 		const std::string &struct_name) const { (void) function_name; (void) struct_name; return {}; }
 	FunctionPtr lookupFunction(const std::string &function_name, TypePtr, const Types &, const std::string &struct_name,
 		const ASTLocation & = {}) const;
+
 	virtual Functions lookupFunctions(const std::string &function_name, const Types &,
 		const std::string &struct_name) const { (void) function_name; (void) struct_name; return {}; }
 	FunctionPtr lookupFunction(const std::string &function_name, const Types &, const std::string &struct_name,
 		const ASTLocation & = {}) const;
+
+	virtual Functions lookupFunctions(const std::string &) const { return {}; }
+	FunctionPtr lookupFunction(const std::string &, const ASTLocation & = {}) const;
+
 	virtual TypePtr lookupType(const std::string &) const { return nullptr; }
 	virtual bool doesConflict(const std::string &) const = 0;
 	/** Returns whether the insertion was successful. Insertion can fail due to conflicts. */
@@ -70,6 +76,7 @@ struct FunctionScope: Scope, Makeable<FunctionScope> {
 	VariablePtr lookup(const std::string &) const override;
 	Functions lookupFunctions(const std::string &, TypePtr, const Types &, const std::string &) const override;
 	Functions lookupFunctions(const std::string &, const Types &, const std::string &) const override;
+	Functions lookupFunctions(const std::string &) const override;
 	TypePtr lookupType(const std::string &) const override;
 	bool doesConflict(const std::string &) const override;
 	bool insert(VariablePtr) override;
@@ -81,6 +88,7 @@ struct GlobalScope: Scope, Makeable<GlobalScope> {
 	VariablePtr lookup(const std::string &) const override;
 	Functions lookupFunctions(const std::string &, TypePtr, const Types &, const std::string &) const override;
 	Functions lookupFunctions(const std::string &, const Types &, const std::string &) const override;
+	Functions lookupFunctions(const std::string &) const override;
 	TypePtr lookupType(const std::string &) const override;
 	bool doesConflict(const std::string &) const override;
 	bool insert(VariablePtr) override;
@@ -93,6 +101,7 @@ struct BlockScope: Scope, Makeable<BlockScope> {
 	VariablePtr lookup(const std::string &) const override;
 	Functions lookupFunctions(const std::string &, TypePtr, const Types &, const std::string &) const override;
 	Functions lookupFunctions(const std::string &, const Types &, const std::string &) const override;
+	Functions lookupFunctions(const std::string &) const override;
 	TypePtr lookupType(const std::string &) const override;
 	bool doesConflict(const std::string &) const override;
 	bool insert(VariablePtr) override;

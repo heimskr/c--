@@ -33,7 +33,7 @@ $(OUTPUT): $(OBJECTS)
 	$(COMPILER) -o $@ $^ $(LDFLAGS)
 
 test: $(OUTPUT)
-	./$(OUTPUT) methods.c-- -d
+	./$(OUTPUT) why.c-- -d
 
 %.o: %.cpp $(PARSERHDR) $(WASMPARSERHDR)
 	$(COMPILER) $(CFLAGS) -c $< -o $@

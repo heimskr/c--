@@ -51,6 +51,13 @@ FunctionPtr Scope::lookupFunction(const std::string &function_name, const Types 
 	return results.empty()? nullptr : results.front();
 }
 
+FunctionPtr Scope::lookupFunction(const std::string &function_name, const ASTLocation &location) const {
+	Functions results = lookupFunctions(function_name);
+	if (1 < results.size())
+		throw LocatedError(location, "Multiple results found for " + function_name);
+	return results.empty()? nullptr : results.front();
+}
+
 VariablePtr EmptyScope::lookup(const std::string &) const {
 	return nullptr;
 }
@@ -97,6 +104,10 @@ Functions FunctionScope::lookupFunctions(const std::string &function_name, TypeP
 Functions FunctionScope::lookupFunctions(const std::string &function_name, const Types &arg_types,
                                          const std::string &struct_name) const {
 	return parent->lookupFunctions(function_name, arg_types, struct_name);
+}
+
+Functions FunctionScope::lookupFunctions(const std::string &function_name) const {
+	return parent->lookupFunctions(function_name);
 }
 
 TypePtr FunctionScope::lookupType(const std::string &name) const {
@@ -157,7 +168,8 @@ Functions GlobalScope::lookupFunctions(const std::string &function_name, TypePtr
 	return out;
 }
 
-Functions GlobalScope::lookupFunctions(const std::string &function_name, const Types &arg_types, const std::string &struct_name) const {
+Functions GlobalScope::lookupFunctions(const std::string &function_name, const Types &arg_types,
+                                       const std::string &struct_name) const {
 	Functions out;
 	std::set<std::string> found_manglings;
 
@@ -175,6 +187,28 @@ Functions GlobalScope::lookupFunctions(const std::string &function_name, const T
 				if (found_manglings.count(iter->second->mangle()) == 0)
 					out.push_back(iter->second);
 	}
+
+	return out;
+}
+
+Functions GlobalScope::lookupFunctions(const std::string &function_name) const {
+	Functions out;
+	std::set<std::string> found_manglings;
+
+	{
+		auto [begin, end] = program.bareFunctions.equal_range(function_name);
+		for (auto iter = begin; iter != end; ++iter)
+			if (!iter->second->structParent) {
+				out.push_back(iter->second);
+				found_manglings.insert(iter->second->mangle());
+			}
+	} {
+		auto [begin, end] = program.bareFunctionDeclarations.equal_range(function_name);
+		for (auto iter = begin; iter != end; ++iter)
+			if (!iter->second->structParent && found_manglings.count(iter->second->mangle()) == 0)
+				out.push_back(iter->second);
+	}
+
 
 	return out;
 }
@@ -214,6 +248,10 @@ Functions BlockScope::lookupFunctions(const std::string &function_name, TypePtr 
 Functions BlockScope::lookupFunctions(const std::string &function_name, const Types &arg_types,
                                       const std::string &struct_name) const {
 	return parent->lookupFunctions(function_name, arg_types, struct_name);
+}
+
+Functions BlockScope::lookupFunctions(const std::string &function_name) const {
+	return parent->lookupFunctions(function_name);
 }
 
 TypePtr BlockScope::lookupType(const std::string &name) const {

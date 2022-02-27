@@ -1103,6 +1103,8 @@ void Function::doPointerArithmetic(TypePtr left_type, TypePtr right_type, Expr &
 }
 
 Function * Function::demangle(const std::string &mangled, Program &program) {
+	// TODO: insert "this" argument as appropriate
+
 	if (mangled.size() < 3 || (mangled.front() != '_' && mangled.front() != '.'))
 		throw std::runtime_error("Invalid mangled function: \"" + mangled + "\"");
 	const char *c_str = mangled.c_str();
@@ -1163,26 +1165,48 @@ bool Function::isDeclaredOnly() const {
 
 bool Function::isMatch(TypePtr return_type, const std::vector<TypePtr> &argument_types, const std::string &struct_name)
 const {
-	if (return_type && *returnType != *return_type)
+	auto x = [&] {
+	if (return_type && *returnType != *return_type) {
+		error() << __LINE__ << '\n';
 		return false;
-
-	if (structParent) {
-		if (argument_types.size() + 1 != arguments.size())
-			return false;
-
-		for (size_t i = 1, max = arguments.size(); i < max; ++i)
-			if (!(*argument_types.at(i - 1) && *argumentMap.at(arguments.at(i))->type))
-				return false;
-
-		return structParent->name == struct_name;
 	}
 
-	if (argument_types.size() != arguments.size())
+	if (structParent) {
+		if (structParent->name != struct_name) {
+			error() << __LINE__ << '\n';
+			return false;
+		}
+
+		if (argument_types.size() != argumentCount()) {
+			error() << __LINE__ << "(" << (argument_types.size() + 1) << ", " << argumentCount() << ")\n";
+			std::cerr << "    " << Util::join(arguments, ", ") << '\n';
+			return false;
+		}
+
+		for (size_t i = 1, max = arguments.size(); i < max; ++i)
+			if (!(*argument_types.at(i - 1) && *argumentMap.at(arguments.at(i))->type)) {
+				error() << __LINE__ << ' ' << i << '\n';
+				return false;
+			}
+
+		return true;
+	}
+
+	if (argument_types.size() != arguments.size()) {
+		error() << __LINE__ << '\n';
 		return false;
+	}
 
 	for (size_t i = 0, max = arguments.size(); i < max; ++i)
-		if (!(*argument_types.at(i) && *argumentMap.at(arguments.at(i))->type))
+		if (!(*argument_types.at(i) && *argumentMap.at(arguments.at(i))->type)) {
+			error() << __LINE__ << '\n';
 			return false;
+		}
 
 	return struct_name.empty();
+	};
+
+	bool out = x();
+	std::cerr << mangle() << " : " << Util::getSignature(return_type, argument_types) << " -> " << out << '\n';
+	return out;
 }

@@ -651,7 +651,7 @@ void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr sco
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 		return;
-	} else if (const auto fn = scope->lookupFunction(name, nullptr, {}, location)) {
+	} else if (const auto fn = scope->lookupFunction(name, location)) {
 		function.add<SetIInstruction>(destination, fn->mangle());
 	} else
 		throw ResolutionError(name, scope, location);
@@ -668,7 +668,7 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, Scope
 			function.addComment("Get variable lvalue for " + name);
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset);
 		}
-	} else if (const auto fn = scope->lookupFunction(name, nullptr, {}, location)) {
+	} else if (const auto fn = scope->lookupFunction(name, location)) {
 		function.add<SetIInstruction>(destination, fn->mangle());
 	} else
 		throw ResolutionError(name, scope, location);
@@ -912,7 +912,9 @@ FunctionPtr CallExpr::findFunction(const std::string &name, const Context &conte
 	arg_types.reserve(arguments.size());
 	for (const auto &expr: arguments)
 		arg_types.push_back(expr->getType(context));
-	return context.scope->lookupFunction(name, arg_types, getStructName(context), location);
+	auto out = context.scope->lookupFunction(name, arg_types, getStructName(context), location);
+	info() << Util::getSignature(nullptr, arg_types) << " -> " << out.get() << '\n';
+	return out;
 }
 
 std::string CallExpr::getStructName(const Context &context) const {

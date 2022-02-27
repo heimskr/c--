@@ -63,13 +63,13 @@ void int_keybrd_(u8 key) {
 		%String str2 = [null, 0, 0];
 		str_new("Hello", &str1);
 		str_new(" there.", &str2);
-		str_append(&str1, &str2);
+		str1::append(&str2);
 		`s("ptr: "); `ptr(str1.data); `c('\n');
 		`s("data: "); `s(str1.data); `c('\n');
 		`s("size: "); `u64(str1.size); `c('\n');
 		`s("capacity: "); `u64(str1.capacity); `c('\n');
-		str_free(&str1);
-		str_free(&str2);
+		str1::free();
+		str2::free();
 	} else {
 		`s("You pressed '"); `c(key); `c('\''); `c('\n');
 	}
@@ -159,14 +159,14 @@ u8* str_copy(%String* source, u64* new_capacity) {
 	return out;
 }
 
-void str_append(%String* destination, %String* source) {
-	u64 required = source->size + destination->size + 1u64;
-	if (required < destination->capacity)
-		destination->data = str_copy(destination, &required);
-	memcpy(destination->data + destination->size, source->data, source->size);
-	destination->size += source->size;
-	destination->capacity = required;
-	destination->data[destination->size] = '\0';
+void String::append(%String* source) {
+	u64 required = source->size + this->size + 1u64;
+	if (required < this->capacity)
+		this->data = str_copy(this, &required);
+	memcpy(this->data + this->size, source->data, source->size);
+	this->size += source->size;
+	this->capacity = required;
+	this->data[this->size] = '\0';
 }
 
 u64 strlen(u8* string) {
@@ -189,13 +189,13 @@ void str_new(u8* data, %String *out) {
 	out->capacity = (out->size = len) + 1u64;
 }
 
-void str_free(%String *out) {
-	if (out->data) {
-		free(out->data);
-		out->data = null;
+void String::free() {
+	if (this->data) {
+		free(this->data);
+		this->data = null;
 	}
-	out->size = 0u64;
-	out->capacity = 0u64;
+	this->size = 0u64;
+	this->capacity = 0u64;
 }
 
 
@@ -351,7 +351,7 @@ void setBounds(void* new_start, void* new_high) {
 		`c('\n');
 		asm("<halt>");
 	}
-	start = (void*) realign((s64) new_start, MEMORY_ALIGN);
+	start = (void*) realign((u64) new_start, MEMORY_ALIGN);
 	highestAllocated = (u64) start;
 	high = new_high;
 	end = new_start;
