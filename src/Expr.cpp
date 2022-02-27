@@ -650,7 +650,8 @@ void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr sco
 		}
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
-	} else if (const auto fn = scope->lookupFunction(name)) {
+		return;
+	} else if (const auto fn = scope->lookupFunction(name, nullptr, {}, location)) {
 		function.add<SetIInstruction>(destination, fn->mangle());
 	} else
 		throw ResolutionError(name, scope, location);
@@ -667,7 +668,7 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, Scope
 			function.addComment("Get variable lvalue for " + name);
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset);
 		}
-	} else if (const auto fn = scope->lookupFunction(name)) {
+	} else if (const auto fn = scope->lookupFunction(name, nullptr, {}, location)) {
 		function.add<SetIInstruction>(destination, fn->mangle());
 	} else
 		throw ResolutionError(name, scope, location);
@@ -677,7 +678,7 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, Scope
 size_t VariableExpr::getSize(const Context &context) const {
 	if (VariablePtr var = context.scope->lookup(name))
 		return var->getSize();
-	else if (context.scope->lookupFunction(name))
+	else if (context.scope->lookupFunction(name, nullptr, {}, location))
 		return Why::wordSize;
 	throw ResolutionError(name, context.scope, location);
 }
