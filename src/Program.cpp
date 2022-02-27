@@ -82,8 +82,8 @@ Program compileRoot(const ASTNode &root) {
 					for (const ASTNode *child: *node->at(1))
 						if (child->symbol != CMM_FNDECL)
 							order.emplace_back(*child->text, Type::get(*child->front(), out));
-					auto type = out.structs.emplace(struct_name, StructType::make(out, struct_name, order)).first->
-						second;
+					auto struct_type = out.structs.emplace(struct_name, StructType::make(out, struct_name, order))
+						.first->second;
 					for (const ASTNode *child: *node->at(1))
 						if (child->symbol == CMM_FNDECL) {
 							const std::string &name = *child->text;
@@ -91,6 +91,7 @@ Program compileRoot(const ASTNode &root) {
 							for (const ASTNode *arg: *child->at(1))
 								args.emplace_back(Type::get(*arg->front(), out));
 							FunctionPtr fn = Function::make(out, child);
+							fn->structParent = struct_type;
 							fn->setStatic(child->attributes.count("static") != 0);
 							const std::string mangled = fn->mangle();
 							if (out.signatures.count(mangled) != 0)
