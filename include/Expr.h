@@ -361,6 +361,8 @@ struct DerefExpr: Expr {
 
 struct CallExpr: Expr {
 	std::unique_ptr<Expr> subexpr;
+	/** This will be null unless the call is for a non-static struct method. */
+	std::unique_ptr<Expr> structExpr;
 	std::vector<ExprPtr> arguments;
 	/** Takes ownership of the subexpr argument. */
 	CallExpr(Expr *subexpr_, const std::vector<ExprPtr> &arguments_):

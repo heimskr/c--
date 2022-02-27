@@ -120,7 +120,10 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			arguments.reserve(node.at(1)->size());
 			for (const ASTNode *child: *node.at(1))
 				arguments.emplace_back(Expr::get(*child, function));
-			out = new CallExpr(Expr::get(*node.front(), function), arguments);
+			CallExpr *call = new CallExpr(Expr::get(*node.front(), function), arguments);
+			if (node.size() == 3) // Non-static struct method call
+				call->structExpr = std::unique_ptr<Expr>(Expr::get(*node.at(2), function));
+			out = call;
 			break;
 		}
 		case CMMTOK_STRING:
@@ -777,8 +780,6 @@ Expr * CallExpr::copy() const {
 }
 
 void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_t multiplier) {
-	size_t i;
-
 	std::function<const Type &(size_t)> get_arg_type = [this](size_t) -> const Type & {
 		throw LocatedError(location, "get_arg_type not redefined");
 	};
@@ -808,7 +809,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 			get_arg_type = [found](size_t i) -> const Type & {
 				return *found->argumentMap.at(found->arguments.at(i))->type;
 			};
-			add_jump = [&name, &fn] { fn.add<JumpInstruction>(name, true); };
+			add_jump = [found, &fn] { fn.add<JumpInstruction>(found->mangle(), true); };
 		}
 	}
 
@@ -825,9 +826,19 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 		};
 	}
 
-	i = 0;
+	size_t i = 0;
+	int argument_offset = Why::argumentOffset;
+
+	if (structExpr) {
+		auto struct_expr_type = structExpr->getType(scope);
+		if (!struct_expr_type->isStruct())
+			throw LocatedError(structExpr->location, "Not a struct: " + std::string(*structExpr));
+		if (!structExpr->compileAddress(fn.precolored(argument_offset++), fn, scope))
+			throw LvalueError(*struct_expr_type, structExpr->location);
+	}
+
 	for (const auto &argument: arguments) {
-		auto argument_register = fn.precolored(Why::argumentOffset + i);
+		auto argument_register = fn.precolored(argument_offset + i);
 		auto argument_type = argument->getType(scope);
 		if (argument_type->isStruct())
 			throw LocatedError(argument->location, "Structs cannot be directly passed to functions; use a pointer");

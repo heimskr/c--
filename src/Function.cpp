@@ -8,6 +8,7 @@
 #include "Function.h"
 #include "Lexer.h"
 #include "Parser.h"
+#include "Program.h"
 #include "Scope.h"
 #include "Util.h"
 #include "WhyInstructions.h"
@@ -42,10 +43,17 @@ std::vector<std::string> Function::stringify(bool colored) const {
 }
 
 std::string Function::mangle() const {
+	if (!structParent && (name == "main" || isBuiltin()))
+		return name;
 	std::stringstream out;
-	out << '_' << name.size() << name << returnType->mangle() << arguments.size();
+	if (structParent)
+		out << '.' << structParent->name.size() << structParent->name;
+	else
+		out << '_';
+	out << name.size() << name << returnType->mangle() << (arguments.size() - argumentMap.count("this"));
 	for (const std::string &argument: arguments)
-		out << argumentMap.at(argument)->type->mangle();
+		if (argument != "this")
+			out << argumentMap.at(argument)->type->mangle();
 	return out.str();
 }
 
@@ -102,7 +110,23 @@ void Function::compile() {
 		if (!source)
 			throw LocatedError(getLocation(), "Can't compile " + name + ": no source node");
 
-		if (source->size() != 4)
+		if (source->size() == 5) {
+			const std::string &struct_name = *source->at(4)->text;
+			if (program.structs.count(struct_name) == 0)
+				throw LocatedError(getLocation(), "Couldn't find struct " + struct_name + " for function " + struct_name
+					+ "::" + name);
+			if (argumentMap.count("this") != 0)
+				throw LocatedError(getLocation(), "Scope method " + struct_name + "::" + name + " cannot take a "
+					"parameter named \"this\"");
+			std::vector<std::string> new_arguments {"this"};
+			new_arguments.insert(new_arguments.end(), arguments.cbegin(), arguments.cend());
+			arguments = std::move(new_arguments);
+			structParent = program.structs.at(struct_name);
+			auto this_var = Variable::make("this", PointerType::make(structParent->copy()), *this);
+			this_var->init();
+			argumentMap.emplace("this", this_var);
+			variables.emplace("this", this_var);
+		} else if (source->size() != 4)
 			throw LocatedError(getLocation(), "Expected 4 nodes in " + name + "'s source node, found " +
 				std::to_string(source->size()));
 
@@ -1072,18 +1096,29 @@ void Function::doPointerArithmetic(TypePtr left_type, TypePtr right_type, Expr &
 }
 
 Function * Function::demangle(const std::string &mangled, Program &program) {
-	if (mangled.size() < 3 || mangled.front() != '_')
+	if (mangled.size() < 3 || (mangled.front() != '_' && mangled.front() != '.'))
 		throw std::runtime_error("Invalid mangled function: \"" + mangled + "\"");
-	const char *c_str = mangled.c_str() + 1;
+	const char *c_str = mangled.c_str();
+
+	std::string struct_name;
+
+	if (*c_str == '.') {
+		size_t struct_name_size = 0;
+		for (++c_str; std::isdigit(*c_str); ++c_str)
+			struct_name_size = struct_name_size * 10 + (*c_str - '0');
+		struct_name = std::string(c_str, struct_name_size);
+	} else
+		++c_str;
+
 	size_t name_size = 0;
-	for (; std::isdigit(c_str[0]); ++c_str)
-		name_size = name_size * 10 + (c_str[0] - '0');
+	for (; std::isdigit(*c_str); ++c_str)
+		name_size = name_size * 10 + (*c_str - '0');
 	const std::string name(c_str, name_size);
 	c_str += name_size;
 	size_t argument_count = 0;
 	auto return_type = TypePtr(Type::get(c_str, program));
-	for (; std::isdigit(c_str[0]); ++c_str)
-		argument_count = argument_count * 10 + (c_str[0] - '0');
+	for (; std::isdigit(*c_str); ++c_str)
+		argument_count = argument_count * 10 + (*c_str - '0');
 	std::vector<TypePtr> argument_types;
 	std::vector<std::string> argument_names;
 	for (size_t i = 0; i < argument_count; ++i) {
@@ -1101,10 +1136,20 @@ Function * Function::demangle(const std::string &mangled, Program &program) {
 			const std::string &argument_name = out->arguments.at(i);
 			out->argumentMap.emplace(argument_name, Variable::make(argument_name, argument_types.at(i), *out));
 		}
+		if (!struct_name.empty()) {
+			if (program.structs.count(struct_name) == 0)
+				throw std::runtime_error("Error demangling function " + struct_name + "::" + name + ": struct " +
+					struct_name + " not defined");
+			out->structParent = program.structs.at(struct_name);
+		}
 	} catch (...) {
 		delete out;
 		throw;
 	}
 
 	return out;
+}
+
+bool Function::isDeclaredOnly() const {
+	return !source && !isBuiltin();
 }

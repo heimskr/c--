@@ -1,0 +1,20 @@
+#name "Methods"
+#author "Kai Tamkun"
+#orcid "0000-0001-7405-6654"
+#version "0.1"
+
+struct Foo {
+	u8 ch;
+	void print();
+};
+
+void Foo::print() {
+	`s("char: '");
+	`c(this->ch);
+	`s("'\n");
+}
+
+void main() {
+	%Foo foo = ['!'];
+	foo::print();
+}

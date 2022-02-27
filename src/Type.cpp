@@ -317,20 +317,28 @@ bool StructType::operator==(const Type &other) const {
 	return false;
 }
 
-size_t StructType::getFieldOffset(const std::string &name) const {
+size_t StructType::getFieldOffset(const std::string &field_name) const {
 	size_t offset = 0;
-	for (const auto &[field_name, field_type]: getOrder()) {
-		if (field_name == name)
+	for (const auto &[order_name, order_type]: getOrder()) {
+		if (order_name == field_name)
 			return offset;
-		offset += field_type->getSize();
+		offset += order_type->getSize();
 	}
-	throw ResolutionError(name, nullptr);
+	throw ResolutionError(field_name, nullptr);
 }
 
-size_t StructType::getFieldSize(const std::string &name) const {
-	if (getMap().count(name) == 0)
-		throw ResolutionError(name, nullptr);
-	return getMap().at(name)->getSize();
+size_t StructType::getFieldSize(const std::string &field_name) const {
+	if (getMap().count(field_name) == 0)
+		throw ResolutionError(field_name, nullptr);
+	return getMap().at(field_name)->getSize();
+}
+
+Function * StructType::getMethod(const std::string &method_name) {
+	if (definedMethods.count(method_name) != 0)
+		return definedMethods.at(method_name);
+	if (declaredMethods.count(method_name) != 0)
+		return declaredMethods.at(method_name);
+	return nullptr;
 }
 
 const decltype(StructType::order) & StructType::getOrder() const {

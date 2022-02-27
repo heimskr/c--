@@ -133,7 +133,7 @@ class Function {
 		WhyPtr insertBefore(WhyPtr base, WhyPtr new_instruction, bool reindex = true, bool linear_warn = true,
 			bool *should_relinearize_out = nullptr);
 
-		bool isBuiltin() const { return !name.empty() && (name.front() == '.' || name.front() == '`'); }
+		bool isBuiltin() const { return !name.empty() && (name == ".init" || name.front() == '`'); }
 
 		template <typename T, typename... Args>
 		std::shared_ptr<T> add(Args &&...args) {
@@ -168,4 +168,6 @@ class Function {
 		                         VregPtr right_var, ScopePtr scope, const ASTLocation &location);
 
 		static Function * demangle(const std::string &, Program &);
+
+		bool isDeclaredOnly() const;
 };

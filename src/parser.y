@@ -178,16 +178,16 @@ decl_or_def: declaration | definition;
 
 forward_decl: "struct" CMMTOK_IDENT ";" { $$ = $1->adopt($2); D($3); };
 
-struct_def: "struct" CMMTOK_IDENT "{" decl_list "}" ";" { $$ = $1->adopt({$2, $4}); D($3, $5, $6); };
+struct_def: "struct" CMMTOK_IDENT "{" struct_list "}" ";" { $$ = $1->adopt({$2, $4}); D($3, $5, $6); };
 
-decl_list: decl_list type CMMTOK_IDENT ";" { $$ = $1->adopt($3->adopt($2)); D($4); }
-         | { $$ = new ASTNode(cmmParser, CMM_LIST); };
+struct_list: struct_list type CMMTOK_IDENT ";" { $$ = $1->adopt($3->adopt($2)); D($4); }
+           | struct_list function_decl { $$ = $1->adopt($2); }
+           | { $$ = new ASTNode(cmmParser, CMM_LIST); };
 
 function_def: type ident "(" _arglist ")" fnattrs block { $$ = $2->adopt({$1, $4, $6, $7}); D($3, $5); }
             | type ident "::" ident "(" _arglist ")" fnattrs block { $$ = $4->adopt({$1, $6, $8, $9, $2}); D($3, $5, $7); }
 
-function_decl: type ident "(" _arglist ")" fnattrs ";" { $$ = $2->adopt({$1, $4, $6}); $$->symbol = CMM_FNDECL; D($3, $5, $7); }
-             | type ident "::" ident "(" _arglist ")" fnattrs ";" { $$ = $4->adopt({$1, $6, $8, $2}); $$->symbol = CMM_FNDECL; D($3, $5, $7, $9); };
+function_decl: type ident "(" _arglist ")" fnattrs ";" { $$ = $2->adopt({$1, $4, $6}); $$->symbol = CMM_FNDECL; D($3, $5, $7); };
 
 fnattrs: fnattrs fnattr { $$ = $1->adopt($2); }
        | { $$ = new ASTNode(cmmParser, CMM_LIST); };
@@ -259,7 +259,7 @@ expr: expr "&&"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "++"  %prec POSTFIX { $$ = $2->adopt($1); $$->symbol = CMM_POSTPLUS; }
     | "--" expr  %prec PREFIX  { $$ = $1->adopt($2); }
     | expr "--"  %prec POSTFIX { $$ = $2->adopt($1); $$->symbol = CMM_POSTMINUS; }
-    | ident
+    | CMMTOK_IDENT
     | boolean
     | string
     | CMMTOK_CHAR

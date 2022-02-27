@@ -45,14 +45,7 @@ Program compileRoot(const ASTNode &root) {
 				for (const ASTNode *arg: *node->at(1))
 					args.emplace_back(Type::get(*arg->front(), out));
 				out.signatures.try_emplace(name, TypePtr(Type::get(*node->at(0), out)), std::move(args));
-				Function &fn = out.functionDeclarations.try_emplace(name, out, node).first->second;
-				if (node->size() == 4) {
-					const std::string &struct_name = *node->at(3)->text;
-					if (out.structs.count(struct_name) == 0)
-						throw LocatedError(node->at(3)->location, "Can't declare function " + struct_name + "::" + name
-							+ ": struct not defined");
-					fn.structParent = out.structs.at(struct_name);
-				}
+				out.functionDeclarations.try_emplace(name, out, node);
 				break;
 			}
 			case CMM_DECL: { // Global variable
@@ -206,7 +199,7 @@ void Program::compile() {
 	for (auto &[name, function]: functions)
 		if (name == ".init" || !function.isBuiltin()) {
 			lines.push_back("");
-			lines.push_back("@" + function.name);
+			lines.push_back("@" + function.mangle());
 			for (const std::string &line: function.stringify())
 				lines.push_back("\t" + line);
 		}
