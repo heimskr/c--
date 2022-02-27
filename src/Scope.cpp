@@ -1,6 +1,29 @@
+#include <sstream>
+
+#include "Errors.h"
 #include "Function.h"
 #include "Program.h"
 #include "Scope.h"
+
+FunctionPtr Scope::lookupFunction(const std::string &name, TypePtr return_type, const Types &arg_types,
+                                  const ASTLocation &location) const {
+	Functions results = lookupFunctions(name, return_type, arg_types);
+	if (results.size() != 1) {
+		std::stringstream signature;
+		signature << *return_type << ' ' << name << '(';
+		for (size_t i = 0, max = arg_types.size(); i < max; ++i) {
+			if (i != 0)
+				signature << ", ";
+			signature << *arg_types.at(i);
+		}
+		signature << ")";
+		if (1 < results.size())
+			throw LocatedError(location, "Multiple results found for " + signature.str());
+		throw LocatedError(location, "No results found for " + signature.str());
+	}
+
+	return results.front();
+}
 
 VariablePtr EmptyScope::lookup(const std::string &) const {
 	return nullptr;
@@ -40,8 +63,9 @@ VariablePtr FunctionScope::lookup(const std::string &name) const {
 	return function.variables.at(name);
 }
 
-FunctionPtr FunctionScope::lookupFunction(const std::string &name) const {
-	return parent->lookupFunction(name);
+Functions FunctionScope::lookupFunctions(const std::string &name, TypePtr return_type,
+                                         const Types &arg_types) const {
+	return parent->lookupFunctions(name, return_type, arg_types);
 }
 
 TypePtr FunctionScope::lookupType(const std::string &name) const {
@@ -66,13 +90,26 @@ VariablePtr GlobalScope::lookup(const std::string &name) const {
 	return program.globals.at(name);
 }
 
-FunctionPtr GlobalScope::lookupFunction(const std::string &name) const {
-	if (program.functions.count(name) == 0) {
-		if (program.functionDeclarations.count(name) == 0)
-			return nullptr;
-		return program.functionDeclarations.at(name);
+Functions GlobalScope::lookupFunctions(const std::string &name, TypePtr return_type, const Types &arg_types) const {
+	Functions out;
+	std::set<std::string> found_manglings;
+
+	{
+		auto [begin, end] = program.bareFunctions.equal_range(name);
+		for (auto iter = begin; iter != end; ++iter)
+			if (!return_type || iter->second->isMatch(return_type, arg_types, "TODO")) {
+				out.push_back(iter->second);
+				found_manglings.insert(iter->second->mangle());
+			}
+	} {
+		auto [begin, end] = program.bareFunctionDeclarations.equal_range(name);
+		for (auto iter = begin; iter != end; ++iter)
+			if (!return_type || iter->second->isMatch(return_type, arg_types, "TODO"))
+				if (found_manglings.count(iter->second->mangle()) == 0)
+					out.push_back(iter->second);
 	}
-	return program.functions.at(name);
+
+	return out;
 }
 
 TypePtr GlobalScope::lookupType(const std::string &name) const {
@@ -96,46 +133,14 @@ bool GlobalScope::insert(VariablePtr variable) {
 	return true;
 }
 
-VariablePtr MultiScope::lookup(const std::string &name) const {
-	for (const auto &scope: scopes)
-		if (auto var = scope->lookup(name))
-			return var;
-	return nullptr;
-}
-
-FunctionPtr MultiScope::lookupFunction(const std::string &name) const {
-	for (const auto &scope: scopes)
-		if (auto function = scope->lookupFunction(name))
-			return function;
-	return nullptr;
-}
-
-bool MultiScope::doesConflict(const std::string &name) const {
-	for (const auto &scope: scopes)
-		if (scope->doesConflict(name))
-			return true;
-	return false;
-}
-
-bool MultiScope::insert(VariablePtr variable) {
-	if (scopes.empty())
-		throw std::runtime_error("Can't insert variable into an empty MultiScope");
-
-	if (doesConflict(variable->name))
-		return false;
-
-	scopes.front()->insert(variable);
-	return true;
-}
-
 VariablePtr BlockScope::lookup(const std::string &name) const {
 	if (variables.count(name) != 0)
 		return variables.at(name);
 	return parent->lookup(name);
 }
 
-FunctionPtr BlockScope::lookupFunction(const std::string &name) const {
-	return parent->lookupFunction(name);
+Functions BlockScope::lookupFunctions(const std::string &name, TypePtr return_type, const Types &arg_types) const {
+	return parent->lookupFunctions(name, return_type, arg_types);
 }
 
 TypePtr BlockScope::lookupType(const std::string &name) const {

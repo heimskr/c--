@@ -685,7 +685,7 @@ size_t VariableExpr::getSize(const Context &context) const {
 std::unique_ptr<Type> VariableExpr::getType(const Context &context) const {
 	if (VariablePtr var = context.scope->lookup(name))
 		return std::unique_ptr<Type>(var->type->copy());
-	else if (const auto fn = context.scope->lookupFunction(name))
+	else if (const auto fn = context.scope->lookupFunction(name, context.structName))
 		return std::make_unique<FunctionPointerType>(*fn);
 	throw ResolutionError(name, context.scope, location);
 }

@@ -16,7 +16,14 @@ struct Program {
 	std::map<std::string, GlobalPtr> globals;
 	std::vector<decltype(globals)::iterator> globalOrder;
 	std::map<std::string, Signature> signatures;
-	std::map<std::string, FunctionPtr> functions, functionDeclarations;
+	/** Maps mangled names to functions. */
+	std::map<std::string, FunctionPtr> functions;
+	/** Maps mangled names to function declarations. */
+	std::map<std::string, FunctionPtr> functionDeclarations;
+	/** Maps unmangled names to functions. */
+	std::multimap<std::string, FunctionPtr> bareFunctions;
+	/** Maps unmangled names to function declarations. */
+	std::multimap<std::string, FunctionPtr> bareFunctionDeclarations;
 	std::map<std::string, size_t> stringIDs;
 	std::vector<std::string> lines;
 	std::string name, author, orcid, version;

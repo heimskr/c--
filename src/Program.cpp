@@ -14,6 +14,7 @@ Program compileRoot(const ASTNode &root) {
 
 	FunctionPtr init = Function::make(out, nullptr);
 	out.functions.emplace(".init", init);
+	out.bareFunctions.emplace(".init", init);
 	init->name = ".init";
 
 	for (const ASTNode *node: root)
@@ -31,6 +32,7 @@ Program compileRoot(const ASTNode &root) {
 				const std::string mangled = fn->mangle();
 				out.signatures.try_emplace(mangled, TypePtr(Type::get(*node->at(0), out)), std::move(args));
 				out.functions.emplace(mangled, fn);
+				out.bareFunctions.emplace(name, fn);
 				if (node->size() == 5) {
 					const std::string &struct_name = *node->at(4)->text;
 					if (out.structs.count(struct_name) == 0)
@@ -51,6 +53,7 @@ Program compileRoot(const ASTNode &root) {
 				const std::string mangled = fn->mangle();
 				out.signatures.try_emplace(mangled, TypePtr(Type::get(*node->at(0), out)), std::move(args));
 				out.functionDeclarations.emplace(mangled, fn);
+				out.bareFunctionDeclarations.emplace(name, fn);
 				break;
 			}
 			case CMM_DECL: { // Global variable

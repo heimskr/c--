@@ -1154,3 +1154,15 @@ Function * Function::demangle(const std::string &mangled, Program &program) {
 bool Function::isDeclaredOnly() const {
 	return !source && !isBuiltin();
 }
+
+bool Function::isMatch(TypePtr return_type, const std::vector<TypePtr> &argument_types, const std::string &/* struct_name */)
+const {
+	if (*returnType != *return_type || argument_types.size() != arguments.size())
+		return false;
+
+	for (size_t i = 0, max = arguments.size(); i < max; ++i)
+		if (!(*argument_types.at(i) && *argumentMap.at(arguments.at(i))->type))
+			return false;
+
+	return true;
+}

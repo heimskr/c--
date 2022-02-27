@@ -171,6 +171,9 @@ class Function: public Makeable<Function> {
 		static Function * demangle(const std::string &, Program &);
 
 		bool isDeclaredOnly() const;
+
+		bool isMatch(TypePtr return_type, const std::vector<TypePtr> &argument_types, const std::string &struct_name)
+			const;
 };
 
 using FunctionPtr = std::shared_ptr<Function>;
