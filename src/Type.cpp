@@ -21,7 +21,7 @@ std::ostream & operator<<(std::ostream &os, const Type &type) {
 }
 
 bool SignedType::operator&&(const Type &other) const {
-	if (other.cast<BoolType>())
+	if (other.isBool())
 		return true;
 	if (auto *other_signed = other.cast<SignedType>())
 		return other_signed->width == width;

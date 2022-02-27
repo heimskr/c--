@@ -150,21 +150,30 @@ struct String {
 	u64 capacity;
 };
 
-u8* str_copy(%String* source, u64* new_capacity) {
-	if (*new_capacity <= source->size)
-		*new_capacity = source->size + 1u64;
+u8* String::copyData(u64* new_capacity) {
+	if (*new_capacity <= this->size)
+		*new_capacity = this->size + 1u64;
 	u8* out = checked_malloc(*new_capacity);
-	memcpy(out, source->data, source->size);
-	out[source->size] = '\0';
+	memcpy(out, this->data, this->size);
+	out[this->size] = '\0';
 	return out;
 }
 
 void String::append(%String* source) {
 	u64 required = source->size + this->size + 1u64;
 	if (required < this->capacity)
-		this->data = str_copy(this, &required);
+		this->data = (*this)::copyData(&required);
 	memcpy(this->data + this->size, source->data, source->size);
 	this->size += source->size;
+	this->capacity = required;
+	this->data[this->size] = '\0';
+}
+
+void String::append(u8 ch) {
+	u64 required = this->size + 2u64;
+	if (required < this->capacity)
+		this->data = (*this)::copyData(&required);
+	this->data[this->size++] = ch;
 	this->capacity = required;
 	this->data[this->size] = '\0';
 }

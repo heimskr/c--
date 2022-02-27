@@ -13,10 +13,8 @@ FunctionPtr Scope::lookupFunction(const std::string &function_name, TypePtr retu
 		std::stringstream error;
 		error << "Multiple results found for ";
 		if (return_type)
-			error << *return_type;
-		else
-			error << '?';
-		error << ' ' << function_name << '(';
+			error << *return_type << ' ';
+		error << function_name << '(';
 		for (size_t i = 0, max = arg_types.size(); i < max; ++i) {
 			if (i != 0)
 				error << ", ";
@@ -24,7 +22,7 @@ FunctionPtr Scope::lookupFunction(const std::string &function_name, TypePtr retu
 		}
 		error << ')';
 		if (!struct_name.empty())
-			error << " for struct " << struct_name;
+			error << " for %" << struct_name;
 		for (const auto &result: results)
 			warn() << result->mangle() << '\n';
 		throw LocatedError(location, error.str());
@@ -45,6 +43,10 @@ FunctionPtr Scope::lookupFunction(const std::string &function_name, const Types 
 			error << *arg_types.at(i);
 		}
 		error << ')';
+		if (!struct_name.empty())
+			error << " for %" << struct_name;
+		for (const auto &result: results)
+			warn() << result->mangle() << '\n';
 		throw LocatedError(location, error.str());
 	}
 

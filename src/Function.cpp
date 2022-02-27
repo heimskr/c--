@@ -1169,11 +1169,14 @@ const {
 		return false;
 
 	if (structParent) {
-		if (structParent->name != struct_name || argument_types.size() != argumentCount())
+		const size_t count = argumentCount();
+
+		if (structParent->name != struct_name || argument_types.size() != count)
 			return false;
 
-		for (size_t i = 1, max = arguments.size(); i < max; ++i)
-			if (!(*argument_types.at(i - 1) && *argumentMap.at(arguments.at(i))->type))
+		size_t offset = count == arguments.size()? 0 : 1;
+		for (size_t i = offset; i < count; ++i)
+			if (!(*argument_types.at(i - offset) && *argumentMap.at(arguments.at(i))->type))
 				return false;
 
 		return true;
