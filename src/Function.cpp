@@ -1165,48 +1165,26 @@ bool Function::isDeclaredOnly() const {
 
 bool Function::isMatch(TypePtr return_type, const std::vector<TypePtr> &argument_types, const std::string &struct_name)
 const {
-	auto x = [&] {
-	if (return_type && *returnType != *return_type) {
-		error() << __LINE__ << '\n';
+	if (return_type && *returnType != *return_type)
 		return false;
-	}
 
 	if (structParent) {
-		if (structParent->name != struct_name) {
-			error() << __LINE__ << '\n';
+		if (structParent->name != struct_name || argument_types.size() != argumentCount())
 			return false;
-		}
-
-		if (argument_types.size() != argumentCount()) {
-			error() << __LINE__ << "(" << (argument_types.size() + 1) << ", " << argumentCount() << ")\n";
-			std::cerr << "    " << Util::join(arguments, ", ") << '\n';
-			return false;
-		}
 
 		for (size_t i = 1, max = arguments.size(); i < max; ++i)
-			if (!(*argument_types.at(i - 1) && *argumentMap.at(arguments.at(i))->type)) {
-				error() << __LINE__ << ' ' << i << '\n';
+			if (!(*argument_types.at(i - 1) && *argumentMap.at(arguments.at(i))->type))
 				return false;
-			}
 
 		return true;
 	}
 
-	if (argument_types.size() != arguments.size()) {
-		error() << __LINE__ << '\n';
+	if (argument_types.size() != arguments.size())
 		return false;
-	}
 
 	for (size_t i = 0, max = arguments.size(); i < max; ++i)
-		if (!(*argument_types.at(i) && *argumentMap.at(arguments.at(i))->type)) {
-			error() << __LINE__ << '\n';
+		if (!(*argument_types.at(i) && *argumentMap.at(arguments.at(i))->type))
 			return false;
-		}
 
 	return struct_name.empty();
-	};
-
-	bool out = x();
-	std::cerr << mangle() << " : " << Util::getSignature(return_type, argument_types) << " -> " << out << '\n';
-	return out;
 }

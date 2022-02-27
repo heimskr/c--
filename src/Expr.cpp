@@ -912,9 +912,7 @@ FunctionPtr CallExpr::findFunction(const std::string &name, const Context &conte
 	arg_types.reserve(arguments.size());
 	for (const auto &expr: arguments)
 		arg_types.push_back(expr->getType(context));
-	auto out = context.scope->lookupFunction(name, arg_types, getStructName(context), location);
-	info() << Util::getSignature(nullptr, arg_types) << " -> " << out.get() << '\n';
-	return out;
+	return context.scope->lookupFunction(name, arg_types, getStructName(context), location);
 }
 
 std::string CallExpr::getStructName(const Context &context) const {
