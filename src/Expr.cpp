@@ -319,8 +319,8 @@ std::optional<ssize_t> PlusExpr::evaluate(ScopePtr scope) const {
 	return std::nullopt;
 }
 
-std::unique_ptr<Type> PlusExpr::getType(ScopePtr scope) const {
-	auto left_type = left->getType(scope), right_type = right->getType(scope);
+std::unique_ptr<Type> PlusExpr::getType(const Context &context) const {
+	auto left_type = left->getType(context), right_type = right->getType(context);
 	if (left_type->isPointer() && right_type->isInt())
 		return left_type;
 	if (left_type->isInt() && right_type->isPointer())
@@ -360,8 +360,8 @@ void MultExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 	function.add<MultRInstruction>(left_var, right_var, destination);
 }
 
-std::unique_ptr<Type> MinusExpr::getType(ScopePtr scope) const {
-	auto left_type = left->getType(scope), right_type = right->getType(scope);
+std::unique_ptr<Type> MinusExpr::getType(const Context &context) const {
+	auto left_type = left->getType(context), right_type = right->getType(context);
 	if (left_type->isPointer() && right_type->isInt())
 		return left_type;
 	if (left_type->isPointer() && right_type->isPointer())
@@ -378,8 +378,8 @@ void ShiftLeftExpr::compile(VregPtr destination, Function &function, ScopePtr sc
 	function.add<ShiftLeftLogicalRInstruction>(temp_var, destination, destination);
 }
 
-size_t ShiftLeftExpr::getSize(ScopePtr scope) const {
-	return left->getSize(scope);
+size_t ShiftLeftExpr::getSize(const Context &context) const {
+	return left->getSize(context);
 }
 
 std::optional<ssize_t> ShiftLeftExpr::evaluate(ScopePtr scope) const {
@@ -400,8 +400,8 @@ void ShiftRightExpr::compile(VregPtr destination, Function &function, ScopePtr s
 		function.add<ShiftRightArithmeticRInstruction>(temp_var, destination, destination);
 }
 
-size_t ShiftRightExpr::getSize(ScopePtr scope) const {
-	return left->getSize(scope);
+size_t ShiftRightExpr::getSize(const Context &context) const {
+	return left->getSize(context);
 }
 
 std::optional<ssize_t> ShiftRightExpr::evaluate(ScopePtr scope) const {
@@ -424,8 +424,8 @@ void AndExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
-size_t AndExpr::getSize(ScopePtr scope) const {
-	return left->getSize(scope);
+size_t AndExpr::getSize(const Context &context) const {
+	return left->getSize(context);
 }
 
 std::optional<ssize_t> AndExpr::evaluate(ScopePtr scope) const {
@@ -445,8 +445,8 @@ void OrExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ss
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
-size_t OrExpr::getSize(ScopePtr scope) const {
-	return left->getSize(scope);
+size_t OrExpr::getSize(const Context &context) const {
+	return left->getSize(context);
 }
 
 std::optional<ssize_t> OrExpr::evaluate(ScopePtr scope) const {
@@ -524,8 +524,8 @@ void DivExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 		function.add<DivRInstruction>(temp_var, destination, destination);
 }
 
-size_t DivExpr::getSize(ScopePtr scope) const {
-	return left->getSize(scope);
+size_t DivExpr::getSize(const Context &context) const {
+	return left->getSize(context);
 }
 
 std::optional<ssize_t> DivExpr::evaluate(ScopePtr scope) const {
@@ -549,8 +549,8 @@ void ModExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 		function.add<ModRInstruction>(temp_var, destination, destination);
 }
 
-size_t ModExpr::getSize(ScopePtr scope) const {
-	return left->getSize(scope);
+size_t ModExpr::getSize(const Context &context) const {
+	return left->getSize(context);
 }
 
 std::optional<ssize_t> ModExpr::evaluate(ScopePtr scope) const {
@@ -565,13 +565,13 @@ std::optional<ssize_t> ModExpr::evaluate(ScopePtr scope) const {
 }
 
 ssize_t NumberExpr::getValue() const {
-	getSize(nullptr);
+	getSize({});
 	return Util::parseLong(literal.substr(0, literal.find_first_of("su")));
 }
 
 void NumberExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	const ssize_t multiplied = getValue() * multiplier;
-	getSize(scope);
+	getSize({scope});
 	if (!destination)
 		return;
 	if (Util::inRange(multiplied)) {
@@ -584,7 +584,7 @@ void NumberExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 	}
 }
 
-size_t NumberExpr::getSize(ScopePtr) const {
+size_t NumberExpr::getSize(const Context &) const {
 	const size_t suffix = literal.find_first_of("su");
 
 	// TODO: bounds checking for unsigned literals
@@ -619,8 +619,8 @@ size_t NumberExpr::getSize(ScopePtr) const {
 	return size;
 }
 
-std::unique_ptr<Type> NumberExpr::getType(ScopePtr scope) const {
-	const size_t bits = getSize(scope) * 8;
+std::unique_ptr<Type> NumberExpr::getType(const Context &context) const {
+	const size_t bits = getSize(context) * 8;
 	if (literal.find('u') != std::string::npos)
 		return std::make_unique<UnsignedType>(bits);
 	return std::make_unique<SignedType>(bits);
@@ -653,7 +653,7 @@ void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr sco
 	} else if (const auto fn = scope->lookupFunction(name)) {
 		function.add<SetIInstruction>(destination, fn->mangle());
 	} else
-		throw ResolutionError(name, scope);
+		throw ResolutionError(name, scope, location);
 }
 
 bool VariableExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
@@ -670,24 +670,24 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, Scope
 	} else if (const auto fn = scope->lookupFunction(name)) {
 		function.add<SetIInstruction>(destination, fn->mangle());
 	} else
-		throw ResolutionError(name, scope);
+		throw ResolutionError(name, scope, location);
 	return true;
 }
 
-size_t VariableExpr::getSize(ScopePtr scope) const {
-	if (VariablePtr var = scope->lookup(name))
+size_t VariableExpr::getSize(const Context &context) const {
+	if (VariablePtr var = context.scope->lookup(name))
 		return var->getSize();
-	else if (scope->lookupFunction(name))
+	else if (context.scope->lookupFunction(name))
 		return Why::wordSize;
-	throw ResolutionError(name, scope);
+	throw ResolutionError(name, context.scope, location);
 }
 
-std::unique_ptr<Type> VariableExpr::getType(ScopePtr scope) const {
-	if (VariablePtr var = scope->lookup(name))
+std::unique_ptr<Type> VariableExpr::getType(const Context &context) const {
+	if (VariablePtr var = context.scope->lookup(name))
 		return std::unique_ptr<Type>(var->type->copy());
-	else if (const auto fn = scope->lookupFunction(name))
+	else if (const auto fn = context.scope->lookupFunction(name))
 		return std::make_unique<FunctionPointerType>(*fn);
-	throw ResolutionError(name, scope);
+	throw ResolutionError(name, context.scope, location);
 }
 
 void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
@@ -701,11 +701,11 @@ void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr sc
 		throw LvalueError(*subexpr);
 }
 
-std::unique_ptr<Type> AddressOfExpr::getType(ScopePtr scope) const {
+std::unique_ptr<Type> AddressOfExpr::getType(const Context &context) const {
 	if (!subexpr->is<VariableExpr>() && !subexpr->is<DerefExpr>() && !subexpr->is<AccessExpr>())
 		if (!subexpr->is<ArrowExpr>() && !subexpr->is<DotExpr>())
 			throw LvalueError(*subexpr);
-	return std::make_unique<PointerType>(subexpr->getType(scope)->copy());
+	return std::make_unique<PointerType>(subexpr->getType(context.scope)->copy());
 }
 
 void NotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
@@ -729,7 +729,7 @@ void StringExpr::compile(VregPtr destination, Function &function, ScopePtr, ssiz
 		function.add<SetIInstruction>(destination, getID(function.program));
 }
 
-std::unique_ptr<Type> StringExpr::getType(ScopePtr) const {
+std::unique_ptr<Type> StringExpr::getType(const Context &) const {
 	return std::make_unique<PointerType>(new UnsignedType(8));
 }
 
@@ -746,16 +746,16 @@ std::string StringExpr::getID(Program &program) const {
 void DerefExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	checkType(scope);
 	subexpr->compile(destination, function, scope, multiplier);
-	function.add<LoadRInstruction>(destination, destination, getSize(scope));
+	function.add<LoadRInstruction>(destination, destination, getSize({scope}));
 }
 
-size_t DerefExpr::getSize(ScopePtr scope) const {
-	auto type = checkType(scope);
+size_t DerefExpr::getSize(const Context &context) const {
+	auto type = checkType(context.scope);
 	return dynamic_cast<PointerType &>(*type).subtype->getSize();
 }
 
-std::unique_ptr<Type> DerefExpr::getType(ScopePtr scope) const {
-	auto type = checkType(scope);
+std::unique_ptr<Type> DerefExpr::getType(const Context &context) const {
+	auto type = checkType(context.scope);
 	return std::unique_ptr<Type>(dynamic_cast<PointerType &>(*type).subtype->copy());
 }
 
@@ -790,7 +790,9 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 
 	TypePtr found_return_type = nullptr;
 
-	auto fnptr_type = subexpr->getType(scope);
+	// auto subtype = 
+
+	auto fnptr_type = subexpr->getType({scope});
 
 	bool function_found = false;
 
@@ -880,22 +882,22 @@ CallExpr::operator std::string() const {
 	return out.str();
 }
 
-size_t CallExpr::getSize(ScopePtr scope) const {
-	return getType(scope)->getSize();
+size_t CallExpr::getSize(const Context &context) const {
+	return getType(context)->getSize();
 }
 
-std::unique_ptr<Type> CallExpr::getType(ScopePtr scope) const {
+std::unique_ptr<Type> CallExpr::getType(const Context &context) const {
 	if (auto *var_expr = subexpr->cast<VariableExpr>()) {
-		if (const auto fn = scope->lookupFunction(var_expr->name))
+		if (const auto fn = context.scope->lookupFunction(var_expr->name))
 			return std::unique_ptr<Type>(fn->returnType->copy());
-		if (auto var = scope->lookup(var_expr->name)) {
+		if (auto var = context.scope->lookup(var_expr->name)) {
 			if (auto *fnptr = var->type->cast<FunctionPointerType>())
 				return std::unique_ptr<Type>(fnptr->returnType->copy());
 			throw FunctionPointerError(*var->type);
 		}
-		throw ResolutionError(var_expr->name, scope);
+		throw ResolutionError(var_expr->name, context.scope, location);
 	} else {
-		auto type = subexpr->getType(scope);
+		auto type = subexpr->getType(context);
 		if (const auto *fnptr = type->cast<FunctionPointerType>())
 				return std::unique_ptr<Type>(fnptr->returnType->copy());
 		throw FunctionPointerError(*type);
@@ -920,14 +922,14 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 		right->compile(destination, function, scope);
 		if (!tryCast(*right_type, *left_type, destination, function))
 			throw ImplicitConversionError(right_type, left_type, location);
-		function.add<StoreRInstruction>(destination, addr_var, getSize(scope));
+		function.add<StoreRInstruction>(destination, addr_var, getSize({scope}));
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 	}
 }
 
-std::unique_ptr<Type> AssignExpr::getType(ScopePtr scope) const {
-	auto left_type = left->getType(scope), right_type = right->getType(scope);
+std::unique_ptr<Type> AssignExpr::getType(const Context &context) const {
+	auto left_type = left->getType(context), right_type = right->getType(context);
 	if (!(*right_type && *left_type))
 			throw ImplicitConversionError(*right_type, *left_type, location);
 	return left_type;
@@ -946,19 +948,19 @@ void CastExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 	tryCast(*subexpr->getType(scope), *targetType, destination, function);
 }
 
-std::unique_ptr<Type> CastExpr::getType(ScopePtr) const {
+std::unique_ptr<Type> CastExpr::getType(const Context &) const {
 	return std::unique_ptr<Type>(targetType->copy());
 }
 
 void AccessExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	compileAddress(destination, function, scope);
-	function.add<LoadRInstruction>(destination, destination, getSize(scope));
+	function.add<LoadRInstruction>(destination, destination, getSize({scope}));
 	if (multiplier != 1)
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
-std::unique_ptr<Type> AccessExpr::getType(ScopePtr scope) const {
-	auto array_type = array->getType(scope);
+std::unique_ptr<Type> AccessExpr::getType(const Context &context) const {
+	auto array_type = array->getType(context);
 	if (auto *casted = array_type->cast<const ArrayType>())
 		return std::unique_ptr<Type>(casted->subtype->copy());
 	if (auto *casted = array_type->cast<const PointerType>())
@@ -971,7 +973,7 @@ bool AccessExpr::compileAddress(VregPtr destination, Function &function, ScopePt
 		array->compile(destination, function, scope);
 	else if (!array->compileAddress(destination, function, scope))
 		throw LvalueError(std::string(*array->getType(scope)));
-	const auto element_size = getSize(scope);
+	const auto element_size = getSize({scope});
 	const auto subscript_value = subscript->evaluate(scope);
 	if (subscript_value) {
 		if (*subscript_value != 0)
@@ -1023,22 +1025,22 @@ void TernaryExpr::compile(VregPtr destination, Function &function, ScopePtr scop
 	function.add<Label>(end);
 }
 
-std::unique_ptr<Type> TernaryExpr::getType(ScopePtr scope) const {
-	auto condition_type = condition->getType(scope);
+std::unique_ptr<Type> TernaryExpr::getType(const Context &context) const {
+	auto condition_type = condition->getType(context);
 	if (!(*condition_type && BoolType()))
 		throw ImplicitConversionError(*condition_type, BoolType(), location);
-	auto true_type = ifTrue->getType(scope), false_type = ifFalse->getType(scope);
+	auto true_type = ifTrue->getType(context), false_type = ifFalse->getType(context);
 	if (!(*true_type && *false_type) || !(*false_type && *true_type))
 		throw ImplicitConversionError(*false_type, *true_type, location);
 	return true_type;
 }
 
-size_t TernaryExpr::getSize(ScopePtr scope) const {
-	return getType(scope)->getSize();
+size_t TernaryExpr::getSize(const Context &context) const {
+	return getType(context)->getSize();
 }
 
 void DotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	auto struct_type = checkType(scope);
+	auto struct_type = checkType({scope});
 	const size_t field_size = struct_type->getFieldSize(ident);
 	const size_t field_offset = struct_type->getFieldOffset(ident);
 	Util::validateSize(field_size);
@@ -1051,8 +1053,8 @@ void DotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
-std::unique_ptr<Type> DotExpr::getType(ScopePtr scope) const {
-	auto struct_type = checkType(scope);
+std::unique_ptr<Type> DotExpr::getType(const Context &context) const {
+	auto struct_type = checkType(context.scope);
 	auto out = std::unique_ptr<Type>(struct_type->getMap().at(ident)->copy());
 	if (struct_type->isConst)
 		out->setConst(true);
@@ -1077,8 +1079,8 @@ std::shared_ptr<StructType> DotExpr::checkType(ScopePtr scope) const {
 	return shared_type->ptrcast<StructType>();
 }
 
-size_t DotExpr::getSize(ScopePtr scope) const {
-	return checkType(scope)->getMap().at(ident)->getSize();
+size_t DotExpr::getSize(const Context &context) const {
+	return checkType(context.scope)->getMap().at(ident)->getSize();
 }
 
 void ArrowExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
@@ -1094,8 +1096,8 @@ void ArrowExpr::compile(VregPtr destination, Function &function, ScopePtr scope,
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
-std::unique_ptr<Type> ArrowExpr::getType(ScopePtr scope) const {
-	auto struct_type = checkType(scope);
+std::unique_ptr<Type> ArrowExpr::getType(const Context &context) const {
+	auto struct_type = checkType(context.scope);
 	auto out = std::unique_ptr<Type>(struct_type->getMap().at(ident)->copy());
 	if (struct_type->isConst)
 		out->setConst(true);
@@ -1122,8 +1124,8 @@ std::shared_ptr<StructType> ArrowExpr::checkType(ScopePtr scope) const {
 	return shared_type->ptrcast<StructType>();
 }
 
-size_t ArrowExpr::getSize(ScopePtr scope) const {
-	return checkType(scope)->getMap().at(ident)->getSize();
+size_t ArrowExpr::getSize(const Context &context) const {
+	return checkType(context.scope)->getMap().at(ident)->getSize();
 }
 
 void SizeofExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
@@ -1175,8 +1177,8 @@ Expr * InitializerExpr::copy() const {
 	return new InitializerExpr(children_copy);
 }
 
-std::unique_ptr<Type> InitializerExpr::getType(ScopePtr scope) const {
-	return std::make_unique<InitializerType>(children, scope);
+std::unique_ptr<Type> InitializerExpr::getType(const Context &context) const {
+	return std::make_unique<InitializerType>(children, context.scope);
 }
 
 void InitializerExpr::compile(VregPtr, Function &, ScopePtr, ssize_t) {
@@ -1193,7 +1195,7 @@ void InitializerExpr::fullCompile(VregPtr address, Function &function, ScopePtr 
 			child->cast<InitializerExpr>()->fullCompile(address, function, scope);
 		} else {
 			child->compile(temp_var, function, scope);
-			const size_t size = child->getSize(scope);
+			const size_t size = child->getSize({scope});
 			function.add<StoreRInstruction>(temp_var, address, size);
 			function.add<AddIInstruction>(address, address, size);
 		}
