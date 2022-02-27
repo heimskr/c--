@@ -1,0 +1,3 @@
+- Check for const in ArrowExpr and DotExpr
+- Struct methods
+- Overloading
