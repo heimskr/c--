@@ -1,0 +1,23 @@
+#name "Overloads"
+#author "Kai Tamkun"
+#orcid "0000-0001-7405-6654"
+#version "0.1"
+
+void main() {
+	print("Hello");
+	print(',');
+	print(" World!\n");
+	print(42u64);
+}
+
+void print(u8 ch) {
+	`c(ch);
+}
+
+void print(u8* s) {
+	`s(s);
+}
+
+void print(u64 n) {
+	`u64(n);
+}
