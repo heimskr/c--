@@ -81,73 +81,124 @@ bool ArrayType::operator==(const Type &other) const {
 }
 
 Type * Type::get(const ASTNode &node, const Program &program, bool allow_forward) {
-	auto g = [&]() -> Type * {
-		switch (node.symbol) {
-			case CMMTOK_VOID:
-				return new VoidType;
-			case CMMTOK_BOOL:
-				return new BoolType;
-			case CMMTOK_S8:
-				return new SignedType(8);
-			case CMMTOK_S16:
-				return new SignedType(16);
-			case CMMTOK_S32:
-				return new SignedType(32);
-			case CMMTOK_S64:
-				return new SignedType(64);
-			case CMMTOK_U8:
-				return new UnsignedType(8);
-			case CMMTOK_U16:
-				return new UnsignedType(16);
-			case CMMTOK_U32:
-				return new UnsignedType(32);
-			case CMMTOK_U64:
-				return new UnsignedType(64);
-			case CMMTOK_TIMES:
-				return new PointerType(Type::get(*node.front(), program, true));
-			case CMMTOK_STRING:
-				return new PointerType(new UnsignedType(8));
-			case CMMTOK_LSQUARE: {
-				auto expr = std::unique_ptr<Expr>(Expr::get(*node.at(1)));
-				auto count = expr->evaluate(nullptr);
-				if (!count)
-					throw LocatedError(node.location, "Array size expression must be a compile-time constant: " +
-						std::string(*expr) + " (at " + std::string(expr->location) + ")");
-				return new ArrayType(Type::get(*node.front(), program), *count);
-			}
-			case CMM_FNPTR: {
-				std::vector<Type *> argument_types;
-				argument_types.reserve(node.at(1)->size());
-				for (const ASTNode *child: *node.at(1))
-					argument_types.push_back(Type::get(*child, program));
-				return new FunctionPointerType(Type::get(*node.front(), program), std::move(argument_types));
-			}
-			case CMMTOK_MOD: {
-				const std::string &struct_name = *node.front()->text;
-				if (program.structs.count(struct_name) != 0)
-					return program.structs.at(struct_name)->copy();
-				if (program.forwardDeclarations.count(struct_name) != 0) {
-					if (allow_forward)
-						return new StructType(program, struct_name);
-					throw LocatedError(node.location, "Can't use forward declaration of " + struct_name +
-						" in this context");
-				}
-				throw ResolutionError(struct_name, nullptr);
-			}
-			case CMMTOK_CONST: {
-				Type *subtype = Type::get(*node.front(), program, allow_forward);
-				subtype->isConst = true;
-				return subtype;
-			}
-			default:
-				throw LocatedError(node.location, "Invalid token in getType: " +
-					std::string(cmmParser.getName(node.symbol)));
+	switch (node.symbol) {
+		case CMMTOK_VOID:
+			return new VoidType;
+		case CMMTOK_BOOL:
+			return new BoolType;
+		case CMMTOK_S8:
+			return new SignedType(8);
+		case CMMTOK_S16:
+			return new SignedType(16);
+		case CMMTOK_S32:
+			return new SignedType(32);
+		case CMMTOK_S64:
+			return new SignedType(64);
+		case CMMTOK_U8:
+			return new UnsignedType(8);
+		case CMMTOK_U16:
+			return new UnsignedType(16);
+		case CMMTOK_U32:
+			return new UnsignedType(32);
+		case CMMTOK_U64:
+			return new UnsignedType(64);
+		case CMMTOK_TIMES:
+			return new PointerType(Type::get(*node.front(), program, true));
+		case CMMTOK_STRING:
+			return new PointerType(new UnsignedType(8));
+		case CMMTOK_LSQUARE: {
+			auto expr = std::unique_ptr<Expr>(Expr::get(*node.at(1)));
+			auto count = expr->evaluate(nullptr);
+			if (!count)
+				throw LocatedError(node.location, "Array size expression must be a compile-time constant: " +
+					std::string(*expr) + " (at " + std::string(expr->location) + ")");
+			return new ArrayType(Type::get(*node.front(), program), *count);
 		}
-	};
+		case CMM_FNPTR: {
+			std::vector<Type *> argument_types;
+			argument_types.reserve(node.at(1)->size());
+			for (const ASTNode *child: *node.at(1))
+				argument_types.push_back(Type::get(*child, program));
+			return new FunctionPointerType(Type::get(*node.front(), program), std::move(argument_types));
+		}
+		case CMMTOK_MOD: {
+			const std::string &struct_name = *node.front()->text;
+			if (program.structs.count(struct_name) != 0)
+				return program.structs.at(struct_name)->copy();
+			if (program.forwardDeclarations.count(struct_name) != 0) {
+				if (allow_forward)
+					return new StructType(program, struct_name);
+				throw LocatedError(node.location, "Can't use forward declaration of " + struct_name +
+					" in this context");
+			}
+			throw ResolutionError(struct_name, nullptr);
+		}
+		case CMMTOK_CONST: {
+			Type *subtype = Type::get(*node.front(), program, allow_forward);
+			subtype->isConst = true;
+			return subtype;
+		}
+		default:
+			throw LocatedError(node.location, "Invalid token in getType: " +
+				std::string(cmmParser.getName(node.symbol)));
+	}
+}
 
-	Type *out = g();
-	info() << *out << ": " << out->mangle() << '\n';
-	return out;
+Type * Type::get(const std::string &mangled, const Program &program) {
+	const char *c_str = mangled.c_str();
+	return get(c_str, program);
+}
+
+Type * Type::get(const char * &mangled, const Program &program) {
+	switch (mangled[0]) {
+		case 'v':
+			return new VoidType;
+		case 'b':
+			return new BoolType;
+		case 's':
+		case 'u': {
+			const char start = mangled[0];
+			size_t width = 0;
+			for (++mangled; std::isdigit(mangled[0]); ++mangled)
+				width = width * 10 + (mangled[0] - '0');
+			++mangled; // Move past the underscore
+			if (start == 's')
+				return new SignedType(width);
+			return new UnsignedType(width);
+		}
+		case 'p':
+			return new PointerType(get(++mangled, program));
+		case 'a': {
+			size_t count = 0;
+			for (++mangled; std::isdigit(mangled[0]); ++mangled)
+				count = count * 10 + (mangled[0] - '0');
+			return new ArrayType(Type::get(mangled, program), count);
+		}
+		case 'F': {
+			Type *return_type = Type::get(++mangled, program);
+			std::vector<Type *> argument_types;
+			size_t argument_count = 0;
+			for (; std::isdigit(mangled[0]); ++mangled)
+				argument_count = argument_count * 10 + (mangled[0] - '0');
+			for (size_t i = 0; i < argument_count; ++i)
+				argument_types.push_back(Type::get(mangled, program));
+			return new FunctionPointerType(return_type, std::move(argument_types));
+		}
+		case 'S': {
+			size_t width = 0;
+			for (++mangled; std::isdigit(mangled[0]); ++mangled)
+				width = width * 10 + (mangled[0] - '0');
+			const std::string struct_name(mangled, width);
+			mangled += width;
+			if (program.structs.count(struct_name) != 0)
+				return program.structs.at(struct_name)->copy();
+			if (program.forwardDeclarations.count(struct_name) != 0)
+				return new StructType(program, struct_name);
+			throw std::runtime_error("Couldn't find struct " + struct_name);
+		}
+		default:
+			throw std::runtime_error("Cannot demangle \"" + std::string(mangled) + "\"");
+	}
 }
 
 FunctionPointerType::FunctionPointerType(Type *return_type, std::vector<Type *> &&argument_types):

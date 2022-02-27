@@ -40,6 +40,8 @@ struct Type: Checkable, std::enable_shared_from_this<Type> {
 	Type * setConst(bool is_const) { isConst = is_const; return this; }
 
 	static Type * get(const ASTNode &, const Program &, bool allow_forward = false);
+	static Type * get(const std::string &, const Program &);
+	static Type * get(const char * &, const Program &);
 
 	template <typename T>
 	std::shared_ptr<T> ptrcast() {
