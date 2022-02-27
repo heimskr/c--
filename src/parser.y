@@ -168,6 +168,7 @@ statement: block
          | inline_asm;
 
 inline_asm: "asm" "(" string ":" _exprlist ":" _exprlist ")" { $$ = $1->adopt({$3, $5, $7}); D($2, $4, $6, $8); }
+          | "asm" "(" string "::" _exprlist ")" { $$ = $1->adopt({$3, new ASTNode(cmmParser, CMM_LIST), $5}); D($2, $4, $6); }
           | "asm" "(" string ":" _exprlist ")" { $$ = $1->adopt({$3, $5}); D($2, $4, $6); }
           | "asm" "(" string ")" { $$ = $1->adopt({$3}); D($2, $4); };
 
