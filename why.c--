@@ -195,6 +195,22 @@ void String::set(u8* new_data) {
 	this->data[this->size] = '\0';
 }
 
+void String::free() {
+	if (this->data) {
+		free(this->data);
+		this->data = null;
+	}
+	this->size = 0u64;
+	this->capacity = 0u64;
+}
+
+void String::debug() {
+	`s("ptr: "); `ptr(this->data); `c('\n');
+	`s("data: "); `s(this->data); `c('\n');
+	`s("size: "); `u64(this->size); `c('\n');
+	`s("capacity: "); `u64(this->capacity); `c('\n');
+}
+
 u64 strlen(u8* string) {
 	u64 out = 0u64;
 	for (; string[out]; ++out);
@@ -214,23 +230,6 @@ void str_new(u8* data, %String *out) {
 	out->data = strcpy(data);
 	out->capacity = (out->size = len) + 1u64;
 }
-
-void String::free() {
-	if (this->data) {
-		free(this->data);
-		this->data = null;
-	}
-	this->size = 0u64;
-	this->capacity = 0u64;
-}
-
-void String::debug() {
-	`s("ptr: "); `ptr(this->data); `c('\n');
-	`s("data: "); `s(this->data); `c('\n');
-	`s("size: "); `u64(this->size); `c('\n');
-	`s("capacity: "); `u64(this->capacity); `c('\n');
-}
-
 
 
 
@@ -364,6 +363,8 @@ void free(void* ptr) {
 		return;
 	%BlockMeta* block_ptr = getBlock(ptr);
 	block_ptr->free = true;
+	if (!block_ptr->next)
+		end = block_ptr;
 	allocated -= block_ptr->size + sizeof(%BlockMeta);
 	merge();
 }
