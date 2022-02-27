@@ -46,9 +46,12 @@ std::string Function::mangle() const {
 	if (!structParent && (name == "main" || isBuiltin()))
 		return name;
 	std::stringstream out;
-	if (structParent)
-		out << '.' << structParent->name.size() << structParent->name;
-	else
+	if (structParent) {
+		out << '.';
+		if (isStatic)
+			out << 's';
+		out << structParent->name.size() << structParent->name;
+	} else
 		out << '_';
 	out << name.size() << name << returnType->mangle() << (arguments.size() - argumentMap.count("this"));
 	for (const std::string &argument: arguments)
@@ -116,25 +119,29 @@ void Function::compile() {
 		if (!source)
 			throw LocatedError(getLocation(), "Can't compile " + name + ": no source node");
 
-		if (source->size() == 5) {
+		const size_t size = source->size();
+
+		if (size == 5 || size == 6) {
 			const std::string &struct_name = *source->at(4)->text;
 			if (program.structs.count(struct_name) == 0)
 				throw LocatedError(getLocation(), "Couldn't find struct " + struct_name + " for function " + struct_name
 					+ "::" + name);
-			if (argumentMap.count("this") != 0)
-				throw LocatedError(getLocation(), "Scope method " + struct_name + "::" + name + " cannot take a "
-					"parameter named \"this\"");
-			std::vector<std::string> new_arguments {"this"};
-			new_arguments.insert(new_arguments.end(), arguments.cbegin(), arguments.cend());
-			arguments = std::move(new_arguments);
 			structParent = program.structs.at(struct_name);
-			auto this_var = Variable::make("this", PointerType::make(structParent->copy()), *this);
-			this_var->init();
-			argumentMap.emplace("this", this_var);
-			variables.emplace("this", this_var);
-		} else if (source->size() != 4)
-			throw LocatedError(getLocation(), "Expected 4 nodes in " + name + "'s source node, found " +
-				std::to_string(source->size()));
+			if (size == 5) {
+				if (argumentMap.count("this") != 0)
+					throw LocatedError(getLocation(), "Scope method " + struct_name + "::" + name + " cannot take a "
+						"parameter named \"this\"");
+				std::vector<std::string> new_arguments {"this"};
+				new_arguments.insert(new_arguments.end(), arguments.cbegin(), arguments.cend());
+				arguments = std::move(new_arguments);
+				auto this_var = Variable::make("this", PointerType::make(structParent->copy()), *this);
+				this_var->init();
+				argumentMap.emplace("this", this_var);
+				variables.emplace("this", this_var);
+			}
+		} else if (size != 4)
+			throw LocatedError(getLocation(), "Expected 4–6 nodes in " + name + "'s source node, found " +
+				std::to_string(size));
 
 		for (const ASTNode *child: *source->at(2))
 			switch (child->symbol) {
@@ -1111,9 +1118,15 @@ Function * Function::demangle(const std::string &mangled, Program &program) {
 
 	std::string struct_name;
 
+	bool is_static = false;
+
 	if (*c_str == '.') {
 		size_t struct_name_size = 0;
-		for (++c_str; std::isdigit(*c_str); ++c_str)
+		if (*++c_str == 's') {
+			is_static = true;
+			++c_str;
+		}
+		for (; std::isdigit(*c_str); ++c_str)
 			struct_name_size = struct_name_size * 10 + (*c_str - '0');
 		struct_name = std::string(c_str, struct_name_size);
 	} else
@@ -1141,6 +1154,7 @@ Function * Function::demangle(const std::string &mangled, Program &program) {
 		out->name = name;
 		out->returnType = return_type;
 		out->arguments = std::move(argument_names);
+		out->setStatic(is_static);
 		for (size_t i = 0; i < argument_count; ++i) {
 			const std::string &argument_name = out->arguments.at(i);
 			out->argumentMap.emplace(argument_name, Variable::make(argument_name, argument_types.at(i), *out));
@@ -1194,4 +1208,9 @@ const {
 
 TypePtr & Function::getArgumentType(size_t index) const {
 	return argumentMap.at(arguments.at(index))->type;
+}
+
+Function & Function::setStatic(bool is_static) {
+	isStatic = is_static;
+	return *this;
 }

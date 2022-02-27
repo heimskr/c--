@@ -370,6 +370,8 @@ struct CallExpr: Expr {
 	std::unique_ptr<Expr> subexpr;
 	/** This will be null unless the call is for a non-static struct method. */
 	std::unique_ptr<Expr> structExpr;
+	/** This will be empty unless the call is for a static struct method. */
+	std::string structName;
 	std::vector<ExprPtr> arguments;
 	/** Takes ownership of the subexpr argument. */
 	CallExpr(Expr *subexpr_, const std::vector<ExprPtr> &arguments_):

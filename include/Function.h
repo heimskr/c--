@@ -60,6 +60,7 @@ class Function: public Makeable<Function> {
 		std::unordered_map<const BasicBlock *, Node *> bbNodeMap;
 		std::vector<std::shared_ptr<Scope>> scopeStack;
 		std::shared_ptr<StructType> structParent;
+		bool isStatic = false;
 
 		Function(Program &, const ASTNode *);
 
@@ -179,6 +180,8 @@ class Function: public Makeable<Function> {
 			const;
 
 		TypePtr & getArgumentType(size_t) const;
+
+		Function & setStatic(bool);
 };
 
 using FunctionPtr = std::shared_ptr<Function>;

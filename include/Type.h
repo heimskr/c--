@@ -185,7 +185,7 @@ class StructType: public Type, public Makeable<StructType> {
 		const Program &program;
 		std::string name;
 		bool isForwardDeclaration = false;
-		std::map<std::string, Function *> definedMethods, declaredMethods;
+		std::map<std::string, Function *> definedMethods, declaredMethods, definedStaticMethods, declaredStaticMethods;
 
 		StructType(const Program &, const std::string &name_);
 		StructType(const Program &, const std::string &name_, const decltype(order) &order_);
@@ -197,7 +197,6 @@ class StructType: public Type, public Makeable<StructType> {
 		bool isStruct() const override { return true; }
 		size_t getFieldOffset(const std::string &) const;
 		size_t getFieldSize(const std::string &) const;
-		Function * getMethod(const std::string &);
 		const decltype(order) & getOrder() const;
 		const decltype(map) & getMap() const;
 

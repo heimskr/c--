@@ -1,0 +1,24 @@
+#name "Static Methods"
+#author "Kai Tamkun"
+#orcid "0000-0001-7405-6654"
+#version "0.1"
+
+struct Foo {
+	u8 ch;
+	void print();
+};
+
+static void Foo::new(%Foo* out) {
+	out->ch = '*';
+}
+
+void Foo::print() {
+	`c(this->ch);
+	`c('\n');
+}
+
+void main() {
+	%Foo foo;
+	%Foo::new(&foo);
+	foo::print();
+}

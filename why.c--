@@ -1,7 +1,7 @@
 #name "Why ISA Tests"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "6.0"
+#version "6.1"
 
 void*[8] table;
 s64 delay = 300000;
@@ -61,8 +61,8 @@ void int_keybrd_(u8 key) {
 	} else if (key == 's') {
 		%String str1 = [null, 0, 0];
 		%String str2 = [null, 0, 0];
-		str_new("Hello", &str1);
-		str_new(" there", &str2);
+		%String::new(&str1, "Hello");
+		%String::new(&str2, " there");
 		str1::append(&str2);
 		str1::append(", how are you");
 		str1::append('?');
@@ -78,7 +78,7 @@ void int_keybrd_(u8 key) {
 
 void int_keybrd() #naked {
 	asm("[ $rt; [ $a0");
-	asm("$e2 -> $a0; :: _11int_keybrd_v1u8_");
+	asm("$e2 -> $a0; :: _11int_keybrd_v1u1");
 	asm("] $a0; ] $rt");
 	asm(": ] %page $e0");
 }
@@ -224,10 +224,16 @@ void String::free() {
 }
 
 void String::debug() {
-	p(" \e[2mptr:\e[22m "); `ptr(this->data); p('\n');
+	p(" \e[2mptr:\e[22m "); p((void*) this->data); p('\n');
 	p("\e[2mdata:\e[22m "); p(this->data); p('\n');
 	p("\e[2msize:\e[22m "); p(this->size); p('\n');
 	p(" \e[2mcap:\e[22m "); p(this->capacity); p('\n');
+}
+
+static void String::new(%String* out, u8* data) {
+	u64 len = strlen(data);
+	out->data = strcpy(data);
+	out->capacity = (out->size = len) + 1u64;
 }
 
 u64 strlen(u8* string) {
@@ -244,40 +250,12 @@ u8* strcpy(u8* string) {
 	return out;
 }
 
-void str_new(u8* data, %String *out) {
-	u64 len = strlen(data);
-	out->data = strcpy(data);
-	out->capacity = (out->size = len) + 1u64;
-}
-
-
-
-
-
-void p(u8* s) {
-	`s(s);
-}
-
-void p(u64 n) {
-	`u64(n);
-}
-
-void p(s64 n) {
-	`s64(n);
-}
-
-void p(void* ptr) {
-	`ptr(ptr);
-}
-
-void p(u8 ch) {
-	`c(ch);
-}
-
-void p(bool b) {
-	`s(b? "true" : "false");
-}
-
+void p(u8* s)     { `s(s);                   }
+void p(u64 n)     { `u64(n);                 }
+void p(s64 n)     { `s64(n);                 }
+void p(void* ptr) { `ptr(ptr);               }
+void p(u8 ch)     { `c(ch);                  }
+void p(bool b)    { `s(b? "true" : "false"); }
 
 struct BlockMeta;
 

@@ -174,11 +174,11 @@ Type * Type::get(const char * &mangled, const Program &program) {
 		case 's':
 		case 'u': {
 			const char start = mangled[0];
-			size_t width = *++mangled - '0';
+			size_t width = 8 * (*++mangled - '0');
 			++mangled;
 			if (start == 's')
-				return new SignedType(width * 8);
-			return new UnsignedType(width * 8);
+				return new SignedType(width);
+			return new UnsignedType(width);
 		}
 		case 'p':
 			return new PointerType(get(++mangled, program));
@@ -343,14 +343,6 @@ size_t StructType::getFieldSize(const std::string &field_name) const {
 	if (getMap().count(field_name) == 0)
 		throw ResolutionError(field_name, nullptr);
 	return getMap().at(field_name)->getSize();
-}
-
-Function * StructType::getMethod(const std::string &method_name) {
-	if (definedMethods.count(method_name) != 0)
-		return definedMethods.at(method_name);
-	if (declaredMethods.count(method_name) != 0)
-		return declaredMethods.at(method_name);
-	return nullptr;
 }
 
 const decltype(StructType::order) & StructType::getOrder() const {

@@ -108,6 +108,7 @@ CMM_SLCOMMENT	("//"[^\n]*)
 "null"			{RTOKEN(NULL)}
 "const"			{RTOKEN(CONST)}
 "offsetof"		{RTOKEN(OFFSETOF)}
+"static"		{RTOKEN(STATIC)}
 
 {CMM_CHAR}		{RTOKEN(CHAR)}
 {CMM_STRING}	{RTOKEN(STRING)}

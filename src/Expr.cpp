@@ -121,8 +121,14 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			for (const ASTNode *child: *node.at(1))
 				arguments.emplace_back(Expr::get(*child, function));
 			CallExpr *call = new CallExpr(Expr::get(*node.front(), function), arguments);
-			if (node.size() == 3) // Non-static struct method call
-				call->structExpr = std::unique_ptr<Expr>(Expr::get(*node.at(2), function));
+			if (node.size() == 3) {
+				if (node.at(2)->symbol == CMMTOK_MOD)
+					// Static struct method call
+					call->structName = *node.at(2)->front()->text;
+				else
+					// Non-static struct method call
+					call->structExpr = std::unique_ptr<Expr>(Expr::get(*node.at(2), function));
+			}
 			out = call;
 			break;
 		}
@@ -925,7 +931,7 @@ std::string CallExpr::getStructName(const Context &context) const {
 			throw LocatedError(structExpr->location, "Not a struct: " + std::string(*structExpr));
 	}
 
-	return {};
+	return structName;
 }
 
 void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
