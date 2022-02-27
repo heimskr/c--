@@ -186,7 +186,7 @@ void Function::compile() {
 				addFront<StackPushInstruction>(precolored(reg));
 			addFront<StackPushInstruction>(fp);
 			addFront<StackPushInstruction>(rt);
-			add<Label>("." + name + ".e");
+			add<Label>("." + mangle() + ".e");
 			add<MoveInstruction>(fp, sp);
 			for (int reg: gp_regs)
 				add<StackPopInstruction>(precolored(reg));
@@ -282,7 +282,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				auto expr_type = expr->getType(currentScope());
 				typeCheck(*expr_type, *returnType, r0, *this, node.location);
 			}
-			add<JumpInstruction>("." + name + ".e");
+			add<JumpInstruction>("." + mangle() + ".e");
 			break;
 		}
 		case CMMTOK_LPAREN:
@@ -292,7 +292,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 		case CMMTOK_WHILE: {
 			checkNaked(node);
 			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
-			const std::string label = "." + name + "." + std::to_string(++nextBlock);
+			const std::string label = "." + mangle() + "." + std::to_string(++nextBlock);
 			const std::string start = label + "w.s", end = label + "w.e";
 			add<Label>(start);
 			auto temp_var = newVar();
@@ -315,7 +315,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			auto scope = newScope();
 			scopeStack.push_back(scope);
 
-			const std::string label = "." + name + "." + std::to_string(++nextBlock);
+			const std::string label = "." + mangle() + "." + std::to_string(++nextBlock);
 			const std::string start = label + "f.s", end = label + "f.e", next = label + "f.n";
 			auto temp_var = newVar();
 
@@ -357,7 +357,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			break;
 		case CMMTOK_IF: {
 			checkNaked(node);
-			const std::string base = "." + name + "." + std::to_string(++nextBlock), end_label = base + "if.end";
+			const std::string base = "." + mangle() + "." + std::to_string(++nextBlock), end_label = base + "if.end";
 			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
 			auto temp_var = newVar();
 			const TypePtr condition_type = condition->getType(currentScope());
@@ -494,7 +494,7 @@ std::list<BasicBlockPtr> & Function::extractBlocks(std::map<std::string, BasicBl
 			if (auto label = instruction->ptrcast<Label>())
 				current = BasicBlock::make(*this, label->name);
 			else
-				current = BasicBlock::make(*this, "." + name + ".anon." + std::to_string(anons++));
+				current = BasicBlock::make(*this, "." + mangle() + ".anon." + std::to_string(anons++));
 			waiting = false;
 		}
 
@@ -598,7 +598,7 @@ int Function::split(std::map<std::string, BasicBlockPtr> *map) {
 			if (Why::generalPurposeRegisters < block->countVariables()) {
 				// It would be better to split at the point where the unique variable count begins to exceed the
 				// maximum, but it's probably more efficient to simply split in the middle.
-				BasicBlockPtr new_block = BasicBlock::make(*this, "." + name + ".anon." + std::to_string(anons++));
+				BasicBlockPtr new_block = BasicBlock::make(*this, "." + mangle() + ".anon." + std::to_string(anons++));
 
 				for (size_t i = 0, to_remove = block->instructions.size() / 2; i < to_remove; ++i) {
 					new_block->instructions.push_front(block->instructions.back());

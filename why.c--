@@ -148,7 +148,6 @@ struct String {
 };
 
 u8* String::copyData(u64* new_capacity) {
-	`s("\e[31mcopyData\e[39m\n");
 	if (*new_capacity <= this->size)
 		*new_capacity = this->size + 1u64;
 	u8* out = checked_malloc(*new_capacity);
@@ -160,11 +159,8 @@ u8* String::copyData(u64* new_capacity) {
 void String::append(%String* source) {
 	u64 required = source->size + this->size + 1u64;
 	if (required < this->capacity) {
-		if (this->data) {
-			`s("append(%String*): free\n");
+		if (this->data)
 			free(this->data);
-		}
-		`s("append(%String*): copyData\n");
 		this->data = (*this)::copyData(&required);
 	}
 	memcpy(this->data + this->size, source->data, source->size);
@@ -176,11 +172,8 @@ void String::append(%String* source) {
 void String::append(u8 ch) {
 	u64 required = this->size + 2u64;
 	if (required < this->capacity) {
-		if (this->data) {
-			`s("append(u8): free\n");
+		if (this->data)
 			free(this->data);
-		}
-		`s("append(u8): copyData\n");
 		this->data = (*this)::copyData(&required);
 	}
 	this->data[this->size++] = ch;
@@ -210,9 +203,6 @@ void str_new(u8* data, %String *out) {
 
 void String::free() {
 	if (this->data) {
-		`s("free(): free ");
-		`ptr(this->data);
-		`c('\n');
 		free(this->data);
 		this->data = null;
 	}
@@ -348,15 +338,9 @@ void split(%BlockMeta* block, u64 size) {
 }
 
 void free(void* ptr) {
-	`s("???\n");
-	if (ptr == null) {
-		`s("\e[31mNot freeing.\e[39m\n");
+	if (ptr == null)
 		return;
-	}
 	%BlockMeta* block_ptr = getBlock(ptr);
-	`s("freeing ");
-	`ptr(ptr);
-	`c('\n');
 	block_ptr->free = true;
 	allocated = allocated - block_ptr->size + sizeof(%BlockMeta);
 	merge();
