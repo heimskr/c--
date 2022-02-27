@@ -8,7 +8,6 @@
 #include "Function.h"
 #include "Lexer.h"
 #include "Parser.h"
-// #include "Program.h"
 #include "Scope.h"
 #include "Util.h"
 #include "WhyInstructions.h"
@@ -1082,6 +1081,7 @@ Function * Function::demangle(const std::string &mangled, Program &program) {
 	const std::string name(c_str, name_size);
 	c_str += name_size;
 	size_t argument_count = 0;
+	auto return_type = TypePtr(Type::get(c_str, program));
 	for (; std::isdigit(c_str[0]); ++c_str)
 		argument_count = argument_count * 10 + (c_str[0] - '0');
 	std::vector<TypePtr> argument_types;
@@ -1095,6 +1095,7 @@ Function * Function::demangle(const std::string &mangled, Program &program) {
 	try {
 		out = new Function(program, nullptr);
 		out->name = name;
+		out->returnType = return_type;
 		out->arguments = std::move(argument_names);
 		for (size_t i = 0; i < argument_count; ++i) {
 			const std::string &argument_name = out->arguments.at(i);

@@ -152,8 +152,10 @@ Type * Type::get(const std::string &mangled, const Program &program) {
 Type * Type::get(const char * &mangled, const Program &program) {
 	switch (mangled[0]) {
 		case 'v':
+			++mangled;
 			return new VoidType;
 		case 'b':
+			++mangled;
 			return new BoolType;
 		case 's':
 		case 'u': {
