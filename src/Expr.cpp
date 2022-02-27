@@ -1041,7 +1041,11 @@ void DotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 }
 
 std::unique_ptr<Type> DotExpr::getType(ScopePtr scope) const {
-	return std::unique_ptr<Type>(checkType(scope)->getMap().at(ident)->copy());
+	auto struct_type = checkType(scope);
+	auto out = std::unique_ptr<Type>(struct_type->getMap().at(ident)->copy());
+	if (struct_type->isConst)
+		out->setConst(true);
+	return out;
 }
 
 bool DotExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
@@ -1080,7 +1084,11 @@ void ArrowExpr::compile(VregPtr destination, Function &function, ScopePtr scope,
 }
 
 std::unique_ptr<Type> ArrowExpr::getType(ScopePtr scope) const {
-	return std::unique_ptr<Type>(checkType(scope)->getMap().at(ident)->copy());
+	auto struct_type = checkType(scope);
+	auto out = std::unique_ptr<Type>(struct_type->getMap().at(ident)->copy());
+	if (struct_type->isConst)
+		out->setConst(true);
+	return out;
 }
 
 bool ArrowExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {

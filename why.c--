@@ -61,19 +61,15 @@ void int_keybrd_(u8 key) {
 	} else if (key == 's') {
 		%String str1 = [null, 0, 0];
 		%String str2 = [null, 0, 0];
-		// %String str3 = [null, 0, 0];
 		str_new("Hello", &str1);
 		str_new(" there.", &str2);
-
 		str_append(&str1, &str2);
-
 		`s("ptr: "); `ptr(str1.data); `c('\n');
 		`s("data: "); `s(str1.data); `c('\n');
 		`s("size: "); `u64(str1.size); `c('\n');
 		`s("capacity: "); `u64(str1.capacity); `c('\n');
 		str_free(&str1);
 		str_free(&str2);
-		// str_free(&str3);
 	} else {
 		`s("You pressed '"); `c(key); `c('\''); `c('\n');
 	}
