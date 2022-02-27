@@ -1,9 +1,11 @@
 #pragma once
 
 #include <cstddef>
+#include <map>
 #include <memory>
 #include <ostream>
 #include <string>
+#include <vector>
 
 #include "Checkable.h"
 #include "Makeable.h"

@@ -7,7 +7,10 @@
 #include <string>
 #include <vector>
 
+struct Type;
+
 namespace Util {
+	std::string getSignature(std::shared_ptr<Type>, const std::vector<std::shared_ptr<Type>> &);
 	std::vector<std::string> split(const std::string &str, const std::string &delimiter, bool condense = true);
 	long parseLong(const std::string &, int base = 10);
 	long parseLong(const std::string *, int base = 10);

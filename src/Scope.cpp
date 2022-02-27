@@ -4,19 +4,29 @@
 #include "Function.h"
 #include "Program.h"
 #include "Scope.h"
+#include "Util.h"
 
 FunctionPtr Scope::lookupFunction(const std::string &function_name, TypePtr return_type, const Types &arg_types,
                                   const std::string &struct_name, const ASTLocation &location) const {
 	Functions results = lookupFunctions(function_name, return_type, arg_types, struct_name);
 	if (1 < results.size()) {
 		std::stringstream error;
-		error << "Multiple results found for " << *return_type << ' ' << function_name << '(';
+		error << "Multiple results found for ";
+		if (return_type)
+			error << *return_type;
+		else
+			error << '?';
+		error << ' ' << function_name << '(';
 		for (size_t i = 0, max = arg_types.size(); i < max; ++i) {
 			if (i != 0)
 				error << ", ";
 			error << *arg_types.at(i);
 		}
 		error << ')';
+		if (!struct_name.empty())
+			error << " for struct " << struct_name;
+		for (const auto &result: results)
+			warn() << result->mangle() << '\n';
 		throw LocatedError(location, error.str());
 	}
 
@@ -121,7 +131,7 @@ Functions GlobalScope::lookupFunctions(const std::string &function_name, TypePtr
 		for (auto iter = begin; iter != end; ++iter) {
 			bool should_add = false;
 			if (!return_type) {
-				should_add = struct_name.empty()
+				should_add = (!iter->second->structParent && struct_name.empty())
 					|| (iter->second->structParent && iter->second->structParent->name == struct_name);
 			} else
 				should_add = iter->second->isMatch(return_type, arg_types, struct_name);
@@ -135,7 +145,7 @@ Functions GlobalScope::lookupFunctions(const std::string &function_name, TypePtr
 		for (auto iter = begin; iter != end; ++iter) {
 			bool should_add = false;
 			if (!return_type) {
-				should_add = struct_name.empty()
+				should_add = (!iter->second->structParent && struct_name.empty())
 					|| (iter->second->structParent && iter->second->structParent->name == struct_name);
 			} else
 				should_add = iter->second->isMatch(return_type, arg_types, struct_name);

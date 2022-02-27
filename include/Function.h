@@ -65,6 +65,9 @@ class Function: public Makeable<Function> {
 
 		void setArguments(const std::vector<std::pair<std::string, TypePtr>> &);
 
+		/** Returns the number of arguments taken by the function, not including any implicit "this" parameter. */
+		size_t argumentCount() const;
+
 		std::shared_ptr<Scope> currentScope() const { return scopeStack.back(); }
 
 		std::vector<std::string> stringify(bool colored = false) const;

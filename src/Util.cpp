@@ -3,9 +3,29 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "Type.h"
 #include "Util.h"
 
 namespace Util {
+	std::string getSignature(std::shared_ptr<Type> ret, const std::vector<std::shared_ptr<Type>> &args) {
+		std::stringstream out;
+		if (ret)
+			out << *ret;
+		else
+			out << '?';
+		out << '(';
+		bool first = true;
+		for (const auto &arg: args) {
+			if (first)
+				first = false;
+			else
+				out << ", ";
+			out << *arg;
+		}
+		out << ")";
+		return out.str();
+	}
+
 	std::vector<std::string> split(const std::string &str, const std::string &delimiter, bool condense) {
 		if (str.empty())
 			return {};

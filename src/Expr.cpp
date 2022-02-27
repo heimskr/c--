@@ -791,7 +791,9 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 
 	TypePtr found_return_type = nullptr;
 
-	const Context context(scope);
+	Context context(scope);
+	context.structName = getStructName(scope);
+
 	auto fnptr_type = subexpr->getType(context);
 	bool function_found = false;
 	int argument_offset = Why::argumentOffset;
@@ -806,20 +808,24 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 			throw LvalueError(*struct_expr_type, structExpr->location);
 	}
 
-	if (auto *var_expr = subexpr->cast<VariableExpr>())
-		if (auto found = findFunction(var_expr->name, context)) {
-			if (found->arguments.size() != arguments.size())
-				throw LocatedError(location, "Invalid number of arguments in call to " + found->name + " at " +
-					std::string(location) + ": " + std::to_string(arguments.size()) + " (expected " +
-					std::to_string(found->arguments.size()) + ")");
+	FunctionPtr found;
 
-			function_found = true;
-			found_return_type = found->returnType;
-			get_arg_type = [found](size_t i) -> const Type & {
-				return *found->argumentMap.at(found->arguments.at(i))->type;
-			};
-			add_jump = [found, &fn] { fn.add<JumpInstruction>(found->mangle(), true); };
-		}
+	if (auto *var_expr = subexpr->cast<VariableExpr>())
+		found = findFunction(var_expr->name, context);
+
+	if (found) {
+		if (found->argumentCount() != arguments.size())
+			throw LocatedError(location, "Invalid number of arguments in call to " + found->name + " at " +
+				std::string(location) + ": " + std::to_string(arguments.size()) + " (expected " +
+				std::to_string(found->argumentCount()) + ")");
+
+		function_found = true;
+		found_return_type = found->returnType;
+		get_arg_type = [found](size_t i) -> const Type & {
+			return *found->argumentMap.at(found->arguments.at(i))->type;
+		};
+		add_jump = [found, &fn] { fn.add<JumpInstruction>(found->mangle(), true); };
+	}
 
 	if (!function_found) {
 		if (!fnptr_type->isFunctionPointer())
@@ -902,19 +908,22 @@ std::unique_ptr<Type> CallExpr::getType(const Context &context) const {
 }
 
 FunctionPtr CallExpr::findFunction(const std::string &name, const Context &context) const {
-	std::unique_ptr<Type> struct_expr_type;
-	std::string struct_name;
-	if (structExpr) {
-		if (const auto *struct_type = struct_expr_type->cast<StructType>())
-			struct_name = struct_type->name;
-		else
-			throw LocatedError(structExpr->location, "Not a struct: " + std::string(*structExpr));
-	}
 	Types arg_types;
 	arg_types.reserve(arguments.size());
 	for (const auto &expr: arguments)
 		arg_types.push_back(expr->getType(context));
-	return context.scope->lookupFunction(name, arg_types, struct_name, location);
+	return context.scope->lookupFunction(name, arg_types, getStructName(context), location);
+}
+
+std::string CallExpr::getStructName(const Context &context) const {
+	if (structExpr) {
+		if (const auto *struct_type = structExpr->getType(context)->cast<StructType>())
+			return struct_type->name;
+		else
+			throw LocatedError(structExpr->location, "Not a struct: " + std::string(*structExpr));
+	}
+
+	return {};
 }
 
 void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {

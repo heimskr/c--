@@ -100,6 +100,12 @@ void Function::setArguments(const std::vector<std::pair<std::string, TypePtr>> &
 	}
 }
 
+size_t Function::argumentCount() const {
+	if (structParent && argumentMap.count("this") != 0)
+		return arguments.size() - 1;
+	return arguments.size();
+}
+
 void Function::compile() {
 	const bool is_init = name == ".init";
 
@@ -1157,14 +1163,26 @@ bool Function::isDeclaredOnly() const {
 
 bool Function::isMatch(TypePtr return_type, const std::vector<TypePtr> &argument_types, const std::string &struct_name)
 const {
-	if ((returnType && *returnType != *return_type) || argument_types.size() != arguments.size())
+	if (return_type && *returnType != *return_type)
+		return false;
+
+	if (structParent) {
+		if (argument_types.size() + 1 != arguments.size())
+			return false;
+
+		for (size_t i = 1, max = arguments.size(); i < max; ++i)
+			if (!(*argument_types.at(i - 1) && *argumentMap.at(arguments.at(i))->type))
+				return false;
+
+		return structParent->name == struct_name;
+	}
+
+	if (argument_types.size() != arguments.size())
 		return false;
 
 	for (size_t i = 0, max = arguments.size(); i < max; ++i)
 		if (!(*argument_types.at(i) && *argumentMap.at(arguments.at(i))->type))
 			return false;
 
-	if (structParent)
-		return structParent->name == struct_name;
 	return struct_name.empty();
 }

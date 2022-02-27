@@ -104,6 +104,7 @@ Program compileRoot(const ASTNode &root) {
 	auto add_dummy = [&](const std::string &function_name) -> Function & {
 		FunctionPtr fn = Function::make(out, nullptr);
 		out.functions.emplace("`" + function_name, fn);
+		out.bareFunctions.emplace("`" + function_name, fn);
 		fn->name = "`" + function_name;
 		return *fn;
 	};

@@ -28,7 +28,7 @@ using ScopePtr = std::shared_ptr<Scope>;
 
 struct Context {
 	ScopePtr scope;
-	const std::string structName;
+	std::string structName;
 
 	Context(ScopePtr scope_ = nullptr, const std::string &struct_name = ""): scope(scope_), structName(struct_name) {}
 };
@@ -380,6 +380,7 @@ struct CallExpr: Expr {
 	size_t getSize(const Context &) const override;
 	std::unique_ptr<Type> getType(const Context &) const override;
 	FunctionPtr findFunction(const std::string &name, const Context &) const;
+	std::string getStructName(const Context &) const;
 };
 
 struct AssignExpr: BinaryExpr<"="> {
