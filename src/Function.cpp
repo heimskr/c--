@@ -154,7 +154,7 @@ void Function::compile() {
 				const size_t offset = addToStack(argument);
 				add<MoveInstruction>(precolored(Why::argumentOffset + i++), argument);
 				add<SubIInstruction>(fp, temp_var, offset);
-				add<StoreRInstruction>(argument, temp_var, 8);
+				add<StoreRInstruction>(argument, temp_var, argument->getSize());
 			}
 		}
 

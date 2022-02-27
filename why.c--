@@ -62,8 +62,10 @@ void int_keybrd_(u8 key) {
 		%String str1 = [null, 0, 0];
 		%String str2 = [null, 0, 0];
 		str_new("Hello", &str1);
-		str_new(" there.", &str2);
+		str_new(" there", &str2);
 		str1::append(&str2);
+		str1::append(", how are you");
+		str1::append('?');
 		str1::debug();
 		str1::free();
 		str2::free();
@@ -171,6 +173,20 @@ void String::append(%String* source) {
 	this->data[this->size] = '\0';
 }
 
+void String::append(u8* other) {
+	u64 other_len = strlen(other);
+	u64 required = other_len + this->size + 1u64;
+	if (this->capacity < required) {
+		if (this->data)
+			free(this->data);
+		this->data = (*this)::copyData(&required);
+	}
+	memcpy(this->data + this->size, other, other_len);
+	this->size += other_len;
+	this->capacity = required;
+	this->data[this->size] = '\0';
+}
+
 void String::append(u8 ch) {
 	u64 required = this->size + 2u64;
 	if (this->capacity < required) {
@@ -178,7 +194,8 @@ void String::append(u8 ch) {
 			free(this->data);
 		this->data = (*this)::copyData(&required);
 	}
-	this->data[this->size++] = ch;
+	this->data[this->size] = ch;
+	++this->size;
 	this->capacity = required;
 	this->data[this->size] = '\0';
 }
