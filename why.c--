@@ -95,10 +95,13 @@ void int_timer() #naked {
 	asm(": ] %page $e0");
 }
 
+bool hacked = false;
+
 void hack() {
+	if (hacked)
+		return;
 	s32* what = (s32*) &add5;
 	`ptr(what); `c('\n');
-	bool hacked = false;
 	for (s64 i = 0; i < 1000; ++i) {
 		if (*++what == 5s32)
 			`s("\x1b[32m");
@@ -194,8 +197,7 @@ void String::append(u8 ch) {
 			free(this->data);
 		this->data = (*this)::copyData(&required);
 	}
-	this->data[this->size] = ch;
-	++this->size;
+	this->data[this->size++] = ch;
 	this->capacity = required;
 	this->data[this->size] = '\0';
 }
