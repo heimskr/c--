@@ -8,6 +8,7 @@
 #include "Function.h"
 #include "Lexer.h"
 #include "Parser.h"
+// #include "Program.h"
 #include "Scope.h"
 #include "Util.h"
 #include "WhyInstructions.h"
@@ -27,7 +28,7 @@ program(program_), source(source_), selfScope(FunctionScope::make(*this, GlobalS
 	extractArguments();
 }
 
-std::vector<std::string> Function::stringify(bool colored) {
+std::vector<std::string> Function::stringify(bool colored) const {
 	std::vector<std::string> out;
 	if (colored) {
 		for (const auto &instruction: instructions)
@@ -39,6 +40,14 @@ std::vector<std::string> Function::stringify(bool colored) {
 				out.push_back(line);
 	}
 	return out;
+}
+
+std::string Function::mangle() const {
+	std::stringstream out;
+	out << '_' << name.size() << name << returnType->mangle() << arguments.size();
+	for (const std::string &argument: arguments)
+		out << argumentMap.at(argument)->type->mangle();
+	return out.str();
 }
 
 void Function::extractArguments() {
@@ -1061,4 +1070,40 @@ void Function::doPointerArithmetic(TypePtr left_type, TypePtr right_type, Expr &
 		left.compile(left_var, *this, scope);
 		right.compile(right_var, *this, scope);
 	}
+}
+
+Function * Function::demangle(const std::string &mangled, Program &program) {
+	if (mangled.size() < 3 || mangled.front() != '_')
+		throw std::runtime_error("Invalid mangled function: \"" + mangled + "\"");
+	const char *c_str = mangled.c_str() + 1;
+	size_t name_size = 0;
+	for (; std::isdigit(c_str[0]); ++c_str)
+		name_size = name_size * 10 + (c_str[0] - '0');
+	const std::string name(c_str, name_size);
+	c_str += name_size;
+	size_t argument_count = 0;
+	for (; std::isdigit(c_str[0]); ++c_str)
+		argument_count = argument_count * 10 + (c_str[0] - '0');
+	std::vector<TypePtr> argument_types;
+	std::vector<std::string> argument_names;
+	for (size_t i = 0; i < argument_count; ++i) {
+		argument_types.emplace_back(Type::get(c_str, program));
+		argument_names.emplace_back("a" + std::to_string(i));
+	}
+
+	Function *out = nullptr;
+	try {
+		out = new Function(program, nullptr);
+		out->name = name;
+		out->arguments = std::move(argument_names);
+		for (size_t i = 0; i < argument_count; ++i) {
+			const std::string &argument_name = out->arguments.at(i);
+			out->argumentMap.emplace(argument_name, Variable::make(argument_name, argument_types.at(i), *out));
+		}
+	} catch (...) {
+		delete out;
+		throw;
+	}
+
+	return out;
 }

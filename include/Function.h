@@ -65,7 +65,9 @@ class Function {
 
 		std::shared_ptr<Scope> currentScope() const { return scopeStack.back(); }
 
-		std::vector<std::string> stringify(bool colored = false);
+		std::vector<std::string> stringify(bool colored = false) const;
+
+		std::string mangle() const;
 
 		void compile();
 
@@ -162,5 +164,7 @@ class Function {
 		ASTLocation getLocation() const { return source? source->location : ASTLocation(); }
 
 		void doPointerArithmetic(TypePtr left_type, TypePtr right_type, Expr &left, Expr &right, VregPtr left_var,
-                                 VregPtr right_var, ScopePtr scope, const ASTLocation &location);
+		                         VregPtr right_var, ScopePtr scope, const ASTLocation &location);
+
+		static Function * demangle(const std::string &, Program &);
 };
