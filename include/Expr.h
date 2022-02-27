@@ -379,6 +379,7 @@ struct CallExpr: Expr {
 	operator std::string() const override;
 	size_t getSize(const Context &) const override;
 	std::unique_ptr<Type> getType(const Context &) const override;
+	FunctionPtr findFunction(const std::string &name, const Context &) const;
 };
 
 struct AssignExpr: BinaryExpr<"="> {

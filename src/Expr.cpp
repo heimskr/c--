@@ -686,7 +686,7 @@ size_t VariableExpr::getSize(const Context &context) const {
 std::unique_ptr<Type> VariableExpr::getType(const Context &context) const {
 	if (VariablePtr var = context.scope->lookup(name))
 		return std::unique_ptr<Type>(var->type->copy());
-	else if (const auto fn = context.scope->lookupFunction(name, context.structName))
+	else if (const auto fn = context.scope->lookupFunction(name, nullptr, {}, context.structName))
 		return std::make_unique<FunctionPointerType>(*fn);
 	throw ResolutionError(name, context.scope, location);
 }
@@ -791,17 +791,23 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 
 	TypePtr found_return_type = nullptr;
 
-	// auto subtype = 
-
-	auto fnptr_type = subexpr->getType({scope});
-
+	const Context context(scope);
+	auto fnptr_type = subexpr->getType(context);
 	bool function_found = false;
+	int argument_offset = Why::argumentOffset;
 
-	if (auto *var_expr = subexpr->cast<VariableExpr>()) {
-		const std::string &name = var_expr->name;
-		FunctionPtr found = scope->lookupFunction(name);
+	std::unique_ptr<Type> struct_expr_type;
 
-		if (found) {
+	if (structExpr) {
+		struct_expr_type = structExpr->getType(scope);
+		if (!struct_expr_type->isStruct())
+			throw LocatedError(structExpr->location, "Not a struct: " + std::string(*structExpr));
+		if (!structExpr->compileAddress(fn.precolored(argument_offset++), fn, scope))
+			throw LvalueError(*struct_expr_type, structExpr->location);
+	}
+
+	if (auto *var_expr = subexpr->cast<VariableExpr>())
+		if (auto found = findFunction(var_expr->name, context)) {
 			if (found->arguments.size() != arguments.size())
 				throw LocatedError(location, "Invalid number of arguments in call to " + found->name + " at " +
 					std::string(location) + ": " + std::to_string(arguments.size()) + " (expected " +
@@ -814,7 +820,6 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 			};
 			add_jump = [found, &fn] { fn.add<JumpInstruction>(found->mangle(), true); };
 		}
-	}
 
 	if (!function_found) {
 		if (!fnptr_type->isFunctionPointer())
@@ -830,15 +835,6 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 	}
 
 	size_t i = 0;
-	int argument_offset = Why::argumentOffset;
-
-	if (structExpr) {
-		auto struct_expr_type = structExpr->getType(scope);
-		if (!struct_expr_type->isStruct())
-			throw LocatedError(structExpr->location, "Not a struct: " + std::string(*structExpr));
-		if (!structExpr->compileAddress(fn.precolored(argument_offset++), fn, scope))
-			throw LvalueError(*struct_expr_type, structExpr->location);
-	}
 
 	for (const auto &argument: arguments) {
 		auto argument_register = fn.precolored(argument_offset + i);
@@ -889,7 +885,7 @@ size_t CallExpr::getSize(const Context &context) const {
 
 std::unique_ptr<Type> CallExpr::getType(const Context &context) const {
 	if (auto *var_expr = subexpr->cast<VariableExpr>()) {
-		if (const auto fn = context.scope->lookupFunction(var_expr->name))
+		if (const auto fn = findFunction(var_expr->name, context))
 			return std::unique_ptr<Type>(fn->returnType->copy());
 		if (auto var = context.scope->lookup(var_expr->name)) {
 			if (auto *fnptr = var->type->cast<FunctionPointerType>())
@@ -903,6 +899,22 @@ std::unique_ptr<Type> CallExpr::getType(const Context &context) const {
 				return std::unique_ptr<Type>(fnptr->returnType->copy());
 		throw FunctionPointerError(*type);
 	}
+}
+
+FunctionPtr CallExpr::findFunction(const std::string &name, const Context &context) const {
+	std::unique_ptr<Type> struct_expr_type;
+	std::string struct_name;
+	if (structExpr) {
+		if (const auto *struct_type = struct_expr_type->cast<StructType>())
+			struct_name = struct_type->name;
+		else
+			throw LocatedError(structExpr->location, "Not a struct: " + std::string(*structExpr));
+	}
+	Types arg_types;
+	arg_types.reserve(arguments.size());
+	for (const auto &expr: arguments)
+		arg_types.push_back(expr->getType(context));
+	return context.scope->lookupFunction(name, arg_types, struct_name, location);
 }
 
 void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
