@@ -16,5 +16,8 @@ void Foo::print() {
 
 void main() {
 	%Foo foo = ['!'];
+	%Foo* ptr = &foo;
 	foo::print();
+	ptr->ch = '?';
+	(*ptr)::print();
 }

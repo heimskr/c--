@@ -465,6 +465,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			break;
 		}
 		default:
+			warn() << "Unhandled node in Function::compile:\n";
 			node.debug();
 			break;
 	}
