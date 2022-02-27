@@ -66,6 +66,20 @@ bool PointerType::operator==(const Type &other) const {
 	return false;
 }
 
+int PointerType::affinity(const Type &other) const {
+	if (other.isBool())
+		return 1;
+	if (auto *other_pointer = other.cast<PointerType>()) {
+		if (subtype->isVoid())
+			return other_pointer->subtype->isVoid()? 2 : 1;
+		if (*subtype == *other_pointer->subtype)
+			return subtype->affinity(*other_pointer->subtype);
+		if (auto *subtype_array = subtype->cast<ArrayType>())
+			return subtype->affinity(*subtype_array->subtype);
+	}
+	return 0;
+}
+
 bool ArrayType::operator&&(const Type &other) const {
 	if (auto *other_array = other.cast<ArrayType>())
 		return (*subtype && *other_array->subtype) && count == other_array->count;

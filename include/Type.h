@@ -28,6 +28,8 @@ struct Type: Checkable, std::enable_shared_from_this<Type> {
 	virtual size_t getSize() const = 0; // in bytes
 	/** Returns whether this type can be implicitly converted to the given type. Order matters! */
 	virtual bool operator&&(const Type &) const { return false; }
+	/** Returns how favorable a conversion from this type to the given type is. Returns 0 if && would return false. */
+	virtual int affinity(const Type &other) const { return *this && other? 2 : 0; }
 	/** Returns whether this type is identical to the given type. Order shouldn't matter. */
 	virtual bool operator==(const Type &) const { return false; }
 	virtual bool operator!=(const Type &other) const { return !(*this == other); }
@@ -132,6 +134,7 @@ struct PointerType: SuperType, Makeable<PointerType> {
 	bool operator&&(const Type &) const override;
 	bool operator==(const Type &) const override;
 	bool isPointer() const override { return true; }
+	int affinity(const Type &) const override;
 	protected:
 		std::string stringify() const override { return subtype? std::string(*subtype) + "*" : "???*"; }
 };

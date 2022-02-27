@@ -9,9 +9,9 @@
 
 struct Score {
 	int exact;
-	int approximate;
+	int affinity;
 	FunctionPtr function;
-	bool match(const Score &other) const { return exact == other.exact && approximate == other.approximate; }
+	bool match(const Score &other) const { return exact == other.exact && affinity == other.affinity; }
 };
 
 static Functions filterResults(const Functions &results, const Types &arg_types) {
@@ -29,8 +29,7 @@ static Functions filterResults(const Functions &results, const Types &arg_types)
 			Type &arg_type = *arg_types[j];
 			if (arg_type == fn_type)
 				++scores[i].exact;
-			else if (arg_type && fn_type)
-				++scores[i].approximate;
+			scores[i].affinity += arg_type.affinity(fn_type);
 		}
 	}
 
@@ -39,7 +38,7 @@ static Functions filterResults(const Functions &results, const Types &arg_types)
 			return true;
 		if (left.exact < right.exact)
 			return false;
-		return left.approximate > right.approximate;
+		return left.affinity > right.affinity;
 	};
 
 	std::sort(scores.begin(), scores.end(), compare);
