@@ -11,6 +11,7 @@
 #include "ASTNode.h"
 #include "BasicBlock.h"
 #include "Graph.h"
+#include "Makeable.h"
 #include "Type.h"
 #include "Variable.h"
 
@@ -25,7 +26,7 @@ using ExprPtr = std::shared_ptr<Expr>;
 using ScopePtr = std::shared_ptr<Scope>;
 using WhyPtr = std::shared_ptr<WhyInstruction>;
 
-class Function {
+class Function: public Makeable<Function> {
 	private:
 		int nextBlock = 0, nextScope = 0, anons = 0;
 		void compile(const ASTNode &, const std::string &break_label = "", const std::string &continue_label = "");
@@ -171,3 +172,5 @@ class Function {
 
 		bool isDeclaredOnly() const;
 };
+
+using FunctionPtr = std::shared_ptr<Function>;

@@ -16,7 +16,7 @@ struct Program {
 	std::map<std::string, GlobalPtr> globals;
 	std::vector<decltype(globals)::iterator> globalOrder;
 	std::map<std::string, Signature> signatures;
-	std::map<std::string, Function> functions, functionDeclarations;
+	std::map<std::string, FunctionPtr> functions, functionDeclarations;
 	std::map<std::string, size_t> stringIDs;
 	std::vector<std::string> lines;
 	std::string name, author, orcid, version;

@@ -40,7 +40,7 @@ VariablePtr FunctionScope::lookup(const std::string &name) const {
 	return function.variables.at(name);
 }
 
-Function * FunctionScope::lookupFunction(const std::string &name) const {
+FunctionPtr FunctionScope::lookupFunction(const std::string &name) const {
 	return parent->lookupFunction(name);
 }
 
@@ -66,13 +66,13 @@ VariablePtr GlobalScope::lookup(const std::string &name) const {
 	return program.globals.at(name);
 }
 
-Function * GlobalScope::lookupFunction(const std::string &name) const {
+FunctionPtr GlobalScope::lookupFunction(const std::string &name) const {
 	if (program.functions.count(name) == 0) {
 		if (program.functionDeclarations.count(name) == 0)
 			return nullptr;
-		return &program.functionDeclarations.at(name);
+		return program.functionDeclarations.at(name);
 	}
-	return &program.functions.at(name);
+	return program.functions.at(name);
 }
 
 TypePtr GlobalScope::lookupType(const std::string &name) const {
@@ -103,7 +103,7 @@ VariablePtr MultiScope::lookup(const std::string &name) const {
 	return nullptr;
 }
 
-Function * MultiScope::lookupFunction(const std::string &name) const {
+FunctionPtr MultiScope::lookupFunction(const std::string &name) const {
 	for (const auto &scope: scopes)
 		if (auto function = scope->lookupFunction(name))
 			return function;
@@ -134,7 +134,7 @@ VariablePtr BlockScope::lookup(const std::string &name) const {
 	return parent->lookup(name);
 }
 
-Function * BlockScope::lookupFunction(const std::string &name) const {
+FunctionPtr BlockScope::lookupFunction(const std::string &name) const {
 	return parent->lookupFunction(name);
 }
 

@@ -16,7 +16,7 @@ struct Scope {
 	Scope(Program *program_ = nullptr): program(program_) {}
 	virtual ~Scope() {}
 	virtual VariablePtr lookup(const std::string &) const = 0;
-	virtual Function * lookupFunction(const std::string &) const { return nullptr; }
+	virtual std::shared_ptr<Function> lookupFunction(const std::string &) const { return nullptr; }
 	virtual TypePtr lookupType(const std::string &) const { return nullptr; }
 	virtual bool doesConflict(const std::string &) const = 0;
 	/** Returns whether the insertion was successful. Insertion can fail due to conflicts. */
@@ -54,7 +54,7 @@ struct FunctionScope: Scope, Makeable<FunctionScope> {
 	std::shared_ptr<GlobalScope> parent;
 	FunctionScope(Function &function_, std::shared_ptr<GlobalScope> parent_);
 	VariablePtr lookup(const std::string &) const override;
-	Function * lookupFunction(const std::string &) const override;
+	std::shared_ptr<Function> lookupFunction(const std::string &) const override;
 	TypePtr lookupType(const std::string &) const override;
 	bool doesConflict(const std::string &) const override;
 	bool insert(VariablePtr) override;
@@ -64,7 +64,7 @@ struct GlobalScope: Scope, Makeable<GlobalScope> {
 	Program &program;
 	GlobalScope(Program &program_): program(program_) {}
 	VariablePtr lookup(const std::string &) const override;
-	Function * lookupFunction(const std::string &) const override;
+	std::shared_ptr<Function> lookupFunction(const std::string &) const override;
 	TypePtr lookupType(const std::string &) const override;
 	bool doesConflict(const std::string &) const override;
 	bool insert(VariablePtr) override;
@@ -76,7 +76,7 @@ struct MultiScope: Scope, Makeable<MultiScope> {
 	template <typename... Args>
 	MultiScope(Args &&...args): scopes {std::forward<Args>(args)...} {}
 	VariablePtr lookup(const std::string &) const override;
-	Function * lookupFunction(const std::string &) const override;
+	std::shared_ptr<Function> lookupFunction(const std::string &) const override;
 	bool doesConflict(const std::string &) const override;
 	bool insert(VariablePtr) override;
 };
@@ -86,7 +86,7 @@ struct BlockScope: Scope, Makeable<BlockScope> {
 	ScopePtr parent;
 	BlockScope(ScopePtr parent_): parent(parent_) {}
 	VariablePtr lookup(const std::string &) const override;
-	Function * lookupFunction(const std::string &) const override;
+	std::shared_ptr<Function> lookupFunction(const std::string &) const override;
 	TypePtr lookupType(const std::string &) const override;
 	bool doesConflict(const std::string &) const override;
 	bool insert(VariablePtr) override;

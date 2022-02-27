@@ -650,8 +650,8 @@ void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr sco
 		}
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
-	} else if (const auto *fn = scope->lookupFunction(name)) {
-		function.add<SetIInstruction>(destination, name);
+	} else if (const auto fn = scope->lookupFunction(name)) {
+		function.add<SetIInstruction>(destination, fn->mangle());
 	} else
 		throw ResolutionError(name, scope);
 }
@@ -667,8 +667,8 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, Scope
 			function.addComment("Get variable lvalue for " + name);
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset);
 		}
-	} else if (const auto *fn = scope->lookupFunction(name)) {
-		function.add<SetIInstruction>(destination, fn->name);
+	} else if (const auto fn = scope->lookupFunction(name)) {
+		function.add<SetIInstruction>(destination, fn->mangle());
 	} else
 		throw ResolutionError(name, scope);
 	return true;
@@ -685,7 +685,7 @@ size_t VariableExpr::getSize(ScopePtr scope) const {
 std::unique_ptr<Type> VariableExpr::getType(ScopePtr scope) const {
 	if (VariablePtr var = scope->lookup(name))
 		return std::unique_ptr<Type>(var->type->copy());
-	else if (const auto *fn = scope->lookupFunction(name))
+	else if (const auto fn = scope->lookupFunction(name))
 		return std::make_unique<FunctionPointerType>(*fn);
 	throw ResolutionError(name, scope);
 }
@@ -796,7 +796,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 
 	if (auto *var_expr = subexpr->cast<VariableExpr>()) {
 		const std::string &name = var_expr->name;
-		Function *found = scope->lookupFunction(name);
+		FunctionPtr found = scope->lookupFunction(name);
 
 		if (found) {
 			if (found->arguments.size() != arguments.size())
@@ -886,7 +886,7 @@ size_t CallExpr::getSize(ScopePtr scope) const {
 
 std::unique_ptr<Type> CallExpr::getType(ScopePtr scope) const {
 	if (auto *var_expr = subexpr->cast<VariableExpr>()) {
-		if (const auto *fn = scope->lookupFunction(var_expr->name))
+		if (const auto fn = scope->lookupFunction(var_expr->name))
 			return std::unique_ptr<Type>(fn->returnType->copy());
 		if (auto var = scope->lookup(var_expr->name)) {
 			if (auto *fnptr = var->type->cast<FunctionPointerType>())

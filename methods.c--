@@ -9,7 +9,7 @@ struct Foo {
 };
 
 void Foo::print() {
-	`s("char: '");
+	`s("Foo::ch: '");
 	`c(this->ch);
 	`s("'\n");
 }
@@ -20,4 +20,11 @@ void main() {
 	foo::print();
 	ptr->ch = '?';
 	(*ptr)::print();
+	print(foo.ch);
+}
+
+void print(u8 ch) {
+	`s("char: '");
+	`c(ch);
+	`s("'\n");
 }

@@ -12,8 +12,9 @@
 Program compileRoot(const ASTNode &root) {
 	Program out;
 
-	Function &init = out.functions.try_emplace(".init", out, nullptr).first->second;
-	init.name = ".init";
+	FunctionPtr init = Function::make(out, nullptr);
+	out.functions.emplace(".init", init);
+	init->name = ".init";
 
 	for (const ASTNode *node: root)
 		switch (node->symbol) {
@@ -26,14 +27,16 @@ Program compileRoot(const ASTNode &root) {
 				decltype(Signature::argumentTypes) args;
 				for (const ASTNode *arg: *node->at(1))
 					args.emplace_back(Type::get(*arg->front(), out));
-				out.signatures.try_emplace(name, TypePtr(Type::get(*node->at(0), out)), std::move(args));
-				Function &fn = out.functions.try_emplace(name, out, node).first->second;
+				FunctionPtr fn = Function::make(out, node);
+				const std::string mangled = fn->mangle();
+				out.signatures.try_emplace(mangled, TypePtr(Type::get(*node->at(0), out)), std::move(args));
+				out.functions.emplace(mangled, fn);
 				if (node->size() == 5) {
 					const std::string &struct_name = *node->at(4)->text;
 					if (out.structs.count(struct_name) == 0)
 						throw LocatedError(node->at(4)->location, "Can't define function " + struct_name + "::" + name
 							+ ": struct not defined");
-					fn.structParent = out.structs.at(struct_name);
+					fn->structParent = out.structs.at(struct_name);
 				}
 				break;
 			}
@@ -44,8 +47,10 @@ Program compileRoot(const ASTNode &root) {
 				decltype(Signature::argumentTypes) args;
 				for (const ASTNode *arg: *node->at(1))
 					args.emplace_back(Type::get(*arg->front(), out));
-				out.signatures.try_emplace(name, TypePtr(Type::get(*node->at(0), out)), std::move(args));
-				out.functionDeclarations.try_emplace(name, out, node);
+				FunctionPtr fn = Function::make(out, node);
+				const std::string mangled = fn->mangle();
+				out.signatures.try_emplace(mangled, TypePtr(Type::get(*node->at(0), out)), std::move(args));
+				out.functionDeclarations.emplace(mangled, fn);
 				break;
 			}
 			case CMM_DECL: { // Global variable
@@ -58,7 +63,7 @@ Program compileRoot(const ASTNode &root) {
 						std::make_shared<Global>(name, type, nullptr)).first);
 				else
 					out.globalOrder.push_back(out.globals.try_emplace(name, std::make_shared<Global>(name, type,
-						std::shared_ptr<Expr>(Expr::get(*node->at(2), &init)))).first);
+						std::shared_ptr<Expr>(Expr::get(*node->at(2), init.get())))).first);
 				break;
 			}
 			case CMMTOK_STRUCT: {
@@ -94,9 +99,10 @@ Program compileRoot(const ASTNode &root) {
 
 	// TODO: implement functions
 	auto add_dummy = [&](const std::string &function_name) -> Function & {
-		auto &fn = out.functions.try_emplace("`" + function_name, out, nullptr).first->second;
-		fn.name = "`" + function_name;
-		return fn;
+		FunctionPtr fn = Function::make(out, nullptr);
+		out.functions.emplace("`" + function_name, fn);
+		fn->name = "`" + function_name;
+		return *fn;
 	};
 	add_dummy("s").setArguments({{"`string", std::make_shared<PointerType>(new UnsignedType(8))}});
 	add_dummy("c").setArguments({{"`char", std::make_shared<UnsignedType>(8)}});
@@ -136,7 +142,7 @@ void Program::compile() {
 		auto type = iter->second->type;
 		auto size = type->getSize();
 		if (expr) {
-			auto value = expr->evaluate(init.selfScope);
+			auto value = expr->evaluate(init->selfScope);
 			if (value && size == 1) {
 				lines.push_back("\t%1b " + std::to_string(*value));
 			} else if (value && size == 2) {
@@ -147,16 +153,16 @@ void Program::compile() {
 				lines.push_back("\t%8b " + std::to_string(*value));
 			} else {
 				lines.push_back("\t%fill " + std::to_string(size) + " 0");
-				TypePtr expr_type = expr->getType(init.selfScope);
-				VregPtr vreg = init.newVar();
+				TypePtr expr_type = expr->getType(init->selfScope);
+				VregPtr vreg = init->newVar();
 				if (auto *initializer = expr->cast<InitializerExpr>()) {
-					init.add<SetIInstruction>(vreg, global_name);
-					initializer->fullCompile(vreg, init, init_scope);
+					init->add<SetIInstruction>(vreg, global_name);
+					initializer->fullCompile(vreg, *init, init_scope);
 				} else {
-					expr->compile(vreg, init, init_scope);
-					if (!tryCast(*expr_type, *type, vreg, init))
+					expr->compile(vreg, *init, init_scope);
+					if (!tryCast(*expr_type, *type, vreg, *init))
 						throw ImplicitConversionError(expr_type, type, expr->location);
-					init.add<StoreIInstruction>(vreg, iter->first, size);
+					init->add<StoreIInstruction>(vreg, iter->first, size);
 				}
 			}
 		} else if (size == 1) {
@@ -173,7 +179,7 @@ void Program::compile() {
 	}
 
 	for (auto &[name, function]: functions)
-		function.compile();
+		function->compile();
 
 	for (const auto &[str, id]: stringIDs) {
 		lines.push_back("");
@@ -197,10 +203,10 @@ void Program::compile() {
 		lines.push_back(line);
 
 	for (auto &[name, function]: functions)
-		if (name == ".init" || !function.isBuiltin()) {
+		if (name == ".init" || !function->isBuiltin()) {
 			lines.push_back("");
-			lines.push_back("@" + function.mangle());
-			for (const std::string &line: function.stringify())
+			lines.push_back("@" + function->mangle());
+			for (const std::string &line: function->stringify())
 				lines.push_back("\t" + line);
 		}
 }
