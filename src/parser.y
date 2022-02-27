@@ -122,7 +122,6 @@ using AN = ASTNode;
 %start start
 
 %left ";"
-%left "::"
 %right "?" "=" "+=" "-=" "*=" "/=" "%=" "<<=" ">>=" "&=" "|=" "^="
 %left "||"
 %left "^^"
@@ -137,6 +136,7 @@ using AN = ASTNode;
 %left MULT "/" "%"
 %right "!" "~" "#" "sizeof" "offsetof" DEREF ADDROF PREFIX UNARY CAST
 %left "[" POSTFIX CALL "." "->"
+%left "::"
 %nonassoc "else"
 
 %%
