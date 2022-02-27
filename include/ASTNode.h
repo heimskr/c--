@@ -3,6 +3,7 @@
 #include <initializer_list>
 #include <list>
 #include <ostream>
+#include <set>
 #include <string>
 
 struct ASTLocation {
@@ -28,6 +29,7 @@ class ASTNode {
 		const std::string *text;
 		ASTNode *parent = nullptr;
 		std::list<ASTNode *> children;
+		std::set<std::string> attributes;
 		int debugIndex = -1;
 
 		ASTNode(Parser &, int sym, const ASTLocation &loc, const char *info);

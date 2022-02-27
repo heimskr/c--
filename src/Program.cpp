@@ -46,13 +46,13 @@ Program compileRoot(const ASTNode &root) {
 			}
 			case CMM_FNDECL: {
 				const std::string &name = *node->text;
-				if (out.signatures.count(name) != 0)
-					throw LocatedError(node->location, "Cannot redefine function " + name);
 				decltype(Signature::argumentTypes) args;
 				for (const ASTNode *arg: *node->at(1))
 					args.emplace_back(Type::get(*arg->front(), out));
 				FunctionPtr fn = Function::make(out, node);
 				const std::string mangled = fn->mangle();
+				if (out.signatures.count(mangled) != 0)
+					throw LocatedError(node->location, "Cannot redefine function " + mangled);
 				out.signatures.try_emplace(mangled, TypePtr(Type::get(*node->at(0), out)), std::move(args));
 				out.functionDeclarations.emplace(mangled, fn);
 				out.bareFunctionDeclarations.emplace(name, fn);
@@ -79,9 +79,27 @@ Program compileRoot(const ASTNode &root) {
 					out.forwardDeclarations.insert(struct_name);
 				} else {
 					std::vector<std::pair<std::string, TypePtr>> order;
-					for (const ASTNode *field: *node->at(1))
-						order.emplace_back(*field->text, Type::get(*field->front(), out));
-					out.structs.emplace(struct_name, StructType::make(out, struct_name, order));
+					for (const ASTNode *child: *node->at(1))
+						if (child->symbol != CMM_FNDECL)
+							order.emplace_back(*child->text, Type::get(*child->front(), out));
+					auto type = out.structs.emplace(struct_name, StructType::make(out, struct_name, order)).first->
+						second;
+					for (const ASTNode *child: *node->at(1))
+						if (child->symbol == CMM_FNDECL) {
+							const std::string &name = *child->text;
+							decltype(Signature::argumentTypes) args;
+							for (const ASTNode *arg: *child->at(1))
+								args.emplace_back(Type::get(*arg->front(), out));
+							FunctionPtr fn = Function::make(out, child);
+							fn->setStatic(child->attributes.count("static") != 0);
+							const std::string mangled = fn->mangle();
+							if (out.signatures.count(mangled) != 0)
+								throw LocatedError(child->location, "Cannot redefine function " + mangled);
+							TypePtr arg_type = TypePtr(Type::get(*child->at(0), out));
+							out.signatures.try_emplace(mangled, arg_type, std::move(args));
+							out.functionDeclarations.emplace(mangled, fn);
+							out.bareFunctionDeclarations.emplace(name, fn);
+						}
 				}
 				break;
 			}
