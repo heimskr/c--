@@ -121,7 +121,6 @@ Program compileRoot(const ASTNode &root) {
 					std::string(cmmParser.getName(node->symbol)));
 		}
 
-	// TODO: implement functions
 	auto add_dummy = [&](const std::string &function_name) -> Function & {
 		FunctionPtr fn = Function::make(out, nullptr);
 		out.functions.emplace("`" + function_name, fn);

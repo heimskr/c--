@@ -185,18 +185,21 @@ void Function::compile() {
 
 		if (!is_init) {
 			auto gp_regs = usedGPRegisters();
-			auto fp = precolored(Why::framePointerOffset), sp = precolored(Why::stackPointerOffset);
+			auto fp = precolored(Why::framePointerOffset), sp = precolored(Why::stackPointerOffset), m5 = mx(5);
 			if (stackUsage != 0)
 				addFront<SubIInstruction>(sp, sp, stackUsage);
 			addFront<MoveInstruction>(sp, fp);
 			for (int reg: gp_regs)
 				addFront<StackPushInstruction>(precolored(reg));
+			addFront<MoveInstruction>(sp, m5);
+			addFront<StackPushInstruction>(m5);
 			addFront<StackPushInstruction>(fp);
 			addFront<StackPushInstruction>(rt);
 			add<Label>("." + mangle() + ".e");
 			add<MoveInstruction>(fp, sp);
 			for (int reg: gp_regs)
 				add<StackPopInstruction>(precolored(reg));
+			add<StackPopInstruction>(m5);
 			add<StackPopInstruction>(fp);
 			add<StackPopInstruction>(rt);
 		}
