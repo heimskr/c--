@@ -1,7 +1,7 @@
 #name "Why ISA Tests"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "8.0"
+#version "8.1"
 
 struct String {
 	u8* data;
@@ -15,7 +15,7 @@ u8* timeup = "Time's up\n";
 void()* timer_ptr = int_timer;
 s64(s64)* fnptr = add5;
 %String input;
-u64 npos = 0u64 - 1u64;
+u64 npos = 0u64;
 
 s64 double(s64 n) {
 	return n << 1;
@@ -26,6 +26,7 @@ s64 add5(s64 n) {
 }
 
 void main() {
+	--npos;
 	void* g;
 	asm("$g -> $1"::g);
 	p("$g = "); p((u64) g); p('\n');
@@ -88,17 +89,22 @@ void int_keybrd_(u64 key_full) {
 		else { p("You pressed '"); p(key); p('\''); p(" ~ "); asm("<prx $1>":key); p(" ~ "); asm("<prx $1>":key_full); p('\n'); }
 	} else if (key == '\x7f') { // Backspace
 		input::pop();
-		p("\e[2K\e[G");
-		p(input.data);
+		p("\e[D \e[D");
 	} else if (key == '\n') {
-		input::clear();
 		p("\e[2K\e[G");
-		p(input.data);
+		%StringVec* split = %StringVec::split(&input, " ");
+		input::clear();
+		p("Split size("); p(split->size); p(")\n");
+		for (u64 i = 0; i < split->size; ++i) {
+			p(i); p('('); p((*split)::at(i)->size); p("): "); (*(*split)::at(i))::print(); p('\n');
+		}
+		(*split)::eviscerate();
 	} else {
 		input::append(key);
-		p("\e[2K\e[G");
-		p(input.data);
-		p(' '); p(input.size);
+		p(key);
+		// p("\e[2K\e[G");
+		// p(input.data);
+		// p(' '); p(input.size);
 	}
 }
 
@@ -287,6 +293,11 @@ static void String::init(%String* out, u8* data) {
 	out->capacity = (out->size = len) + 1u64;
 }
 
+void String::print() {
+	for (u64 i = 0; i < this->size; ++i)
+		p(this->data[i]);
+}
+
 u64 String::find(u8 ch, u64 start) {
 	for (u64 i = start; i < this->size; ++i)
 		if (this->data[i] == ch)
@@ -435,7 +446,12 @@ void StringVec::push(%String* str) {
 	u64 required = this->size + 1u64;
 	(*this)::adjust(&required);
 	u8* data_copy = (*str)::copyData();
-	this->data[this->size++] = [data_copy, str->size, str->size + 1u64];
+	p("<<"); p(strlen(data_copy)); p(">>\n");
+	p("[["); p(strlen(str->data)); p("]]\n");
+	this->data[this->size].data = data_copy;
+	this->data[this->size].size = str->size;
+	this->data[this->size].capacity = str->size + 1u64;
+	++this->size;
 	this->capacity = required;
 }
 
@@ -454,16 +470,28 @@ static %StringVec* StringVec::new() {
 	return out;
 }
 
+void StringVec::eviscerate() {
+	(*this)::freeData();
+	this->size = 0;
+	this->capacity = 0;
+	u64 foo = *[1];
+	free(this);
+}
+
 static %StringVec* StringVec::split(%String* str, u8* delimiter) {
+	p("Splitting...\n");
 	%StringVec* sv = %StringVec::new();
-	if ((*str)::empty())
+	if ((*str)::empty()) {
+		p("Splitting done; empty.\n");
 		return sv;
+	}
 
 	// Something interesting: if I use 0(s64) as the second argument or leave out the second argument altogether,
 	// the overloading logic finds *multiple* candidates instead of the expected zero candidates.
 	u64 next = (*str)::find(delimiter, 0u64);
 	if (next == npos) {
 		(*sv)::push(str);
+		p(next); p(" Splitting done; returning trivial vector.\n");
 		return sv;
 	}
 
@@ -480,14 +508,8 @@ static %StringVec* StringVec::split(%String* str, u8* delimiter) {
 		free(sub);
 	}
 
+	p("Split fully.\n");
 	return sv;
-}
-
-void StringVec::eviscerate() {
-	(*this)::freeData();
-	this->size = 0;
-	this->capacity = 0;
-	free(this);
 }
 
 void panic(u8* message) {
