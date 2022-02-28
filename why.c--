@@ -197,10 +197,11 @@ u8* String::copyData() {
 void String::append(%String* source) {
 	u64 required = source->size + this->size + 1u64;
 	if (this->capacity < required) {
+		asm("<print $1>":42);
 		u8* old_data = this->data;
 		this->data = (*this)::copyData(&required);
 		if (old_data)
-			free(old_data);
+		free(old_data);
 	}
 	memcpy(this->data + this->size, source->data, source->size);
 	this->size += source->size;
@@ -212,27 +213,32 @@ void String::append(u8* other) {
 	u64 other_len = strlen(other);
 	u64 required = other_len + this->size + 1u64;
 	if (this->capacity < required) {
+		asm("<print $1>":43);
 		u8* old_data = this->data;
 		this->data = (*this)::copyData(&required);
 		if (old_data)
 			free(old_data);
+		this->capacity = required;
 	}
 	memcpy(this->data + this->size, other, other_len);
 	this->size += other_len;
-	this->capacity = required;
 	this->data[this->size] = '\0';
 }
 
 void String::append(u8 ch) {
 	u64 required = this->size + 2u64;
 	if (this->capacity < required) {
+		asm("<print $1>; <print $2>; <print $3>":44,this->capacity,required);
 		u8* old_data = this->data;
 		this->data = (*this)::copyData(&required);
+		asm("<print $1>; <print $2>; <print $3>":this->capacity,required,45);
 		if (old_data)
 			free(old_data);
+		this->capacity = required;
 	}
 	this->data[this->size++] = ch;
-	this->capacity = required;
+	asm("<print $k0>");
+	asm("<print $1>; <print $2>":this->capacity,&this->capacity);
 	this->data[this->size] = '\0';
 }
 
@@ -243,9 +249,9 @@ void String::set(u8* new_data) {
 		this->data = (*this)::copyData(&required);
 		if (old_data)
 			free(old_data);
+		this->capacity = required;
 	}
 	memcpy(this->data, new_data, required - 1u64);
-	this->capacity = required;
 	this->data[this->size] = '\0';
 }
 
@@ -306,10 +312,13 @@ u64 String::find(u8 ch, u64 start) {
 }
 
 // Probably rather inefficient.
-u64 String::find(u8* str, u64 start) {
+u64 String::find(u8 const* str, u64 start) {
 	u64 const len = strlen(str);
-	if (len == 0u64)
+	if (len == 0u64 || this->size < len)
 		return npos;
+
+	p("this->size["); p(this->size); p("], len["); p(len); p("]\n");
+
 	for (u64 i = start; i <= this->size - len; ++i) {
 		bool should_return = true;
 		for (u64 j = 0u64; j < len; ++j)
@@ -429,7 +438,8 @@ void StringVec::freeData() {
 void StringVec::adjust(u64 *required) {
 	if (this->capacity < *required) {
 		%String* new_data = (*this)::copyData(required);
-		(*this)::freeData();
+		// (*this)::freeData();
+		free(this->data);
 		this->data = new_data;
 	}
 }
@@ -445,8 +455,11 @@ void StringVec::absorb(%String* str) {
 void StringVec::push(%String* str) {
 	u64 required = this->size + 1u64;
 	(*this)::adjust(&required);
+	p("(("); (*str)::print(); p(")):"); p((u64) str->data[0]); p('\n');
 	u8* data_copy = (*str)::copyData();
 	p("<<"); p(strlen(data_copy)); p(">>\n");
+	u64 s = strlen(data_copy);
+	for (u64 i = 0; i < s; ++i) { p((u64) data_copy[i]); p(' '); } p('\n');
 	p("[["); p(strlen(str->data)); p("]]\n");
 	this->data[this->size].data = data_copy;
 	this->data[this->size].size = str->size;
@@ -478,31 +491,46 @@ void StringVec::eviscerate() {
 }
 
 static %StringVec* StringVec::split(%String* str, u8* delimiter) {
-	p("Splitting...\n");
+	p("Splitting \"");
+	(*str)::print();
+	p("\" ");
+	p(str);
+	p(' ');
+	p((void*) str->data);
+	p('\n');
 	%StringVec* sv = %StringVec::new();
 	if ((*str)::empty()) {
 		p("Splitting done; empty.\n");
 		return sv;
 	}
 
+	p('%'); (*str)::print(); p('%'); p(sv); p(' '); p(str); p(' '); p((void*) str->data); p('\n');
+
 	// Something interesting: if I use 0(s64) as the second argument or leave out the second argument altogether,
 	// the overloading logic finds *multiple* candidates instead of the expected zero candidates.
 	u64 next = (*str)::find(delimiter, 0u64);
 	if (next == npos) {
+		p("Splitting done; returning trivial vector.\n");
 		(*sv)::push(str);
-		p(next); p(" Splitting done; returning trivial vector.\n");
 		return sv;
 	}
 
 	u64 const delimiter_size = strlen(delimiter);
+	p("delimiter_size["); p(delimiter_size); p("], next["); p(next); p("]\n");
 	u64 last = 0u64;
 
 	(*sv)::push((*str)::substr(0u64, next));
 
+	p("!\n");
+
 	while (next != npos) {
 		last = next;
 		next = (*str)::find(delimiter, last + delimiter_size);
+		p("<["); p(last + delimiter_size); p(", "); p(next - last - delimiter_size); p("]>\n");
 		%String* sub = (*str)::substr(last + delimiter_size, next - last - delimiter_size);
+		p("Sub[");
+		(*sub)::print();
+		p("]\n");
 		(*sv)::absorb(sub);
 		free(sub);
 	}
@@ -518,13 +546,13 @@ void panic(u8* message) {
 	asm("<halt>");
 }
 
-u64 strlen(u8* string) {
+u64 strlen(u8 const* string) {
 	u64 out = 0u64;
 	for (; string[out]; ++out);
 	return out;
 }
 
-u8* strcpy(u8* string) {
+u8* strcpy(u8 const* string) {
 	u64 const len = strlen(string);
 	u8* out = new(len + 1u64);
 	memcpy(out, string, len);
@@ -660,6 +688,7 @@ void split(%BlockMeta* block, u64 size) {
 void free(void* ptr) {
 	if (ptr == null)
 		return;
+	p("free("); p(ptr); p(")\n");
 	%BlockMeta* block_ptr = getBlock(ptr);
 	block_ptr->free = true;
 	if (!block_ptr->next)
