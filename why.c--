@@ -1,7 +1,7 @@
 #name "Why ISA Tests"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "7.1"
+#version "8.0"
 
 struct String {
 	u8* data;
@@ -83,7 +83,7 @@ void int_keybrd_(u64 key_full) {
 			str1::free();
 			str2::free();
 		} else if (key == 't') {
-			traverse_blocks();
+			traverseBlocks();
 		}
 		else { p("You pressed '"); p(key); p('\''); p(" ~ "); asm("<prx $1>":key); p(" ~ "); asm("<prx $1>":key_full); p('\n'); }
 	} else if (key == '\x7f') { // Backspace
@@ -181,12 +181,20 @@ u8* String::copyData(u64* new_capacity) {
 	return out;
 }
 
+u8* String::copyData() {
+	u8* out = new(this->size + 1u64);
+	memcpy(out, this->data, this->size);
+	out[this->size] = '\0';
+	return out;
+}
+
 void String::append(%String* source) {
 	u64 required = source->size + this->size + 1u64;
 	if (this->capacity < required) {
-		if (this->data)
-			free(this->data);
+		u8* old_data = this->data;
 		this->data = (*this)::copyData(&required);
+		if (old_data)
+			free(old_data);
 	}
 	memcpy(this->data + this->size, source->data, source->size);
 	this->size += source->size;
@@ -198,9 +206,10 @@ void String::append(u8* other) {
 	u64 other_len = strlen(other);
 	u64 required = other_len + this->size + 1u64;
 	if (this->capacity < required) {
-		if (this->data)
-			free(this->data);
+		u8* old_data = this->data;
 		this->data = (*this)::copyData(&required);
+		if (old_data)
+			free(old_data);
 	}
 	memcpy(this->data + this->size, other, other_len);
 	this->size += other_len;
@@ -211,9 +220,10 @@ void String::append(u8* other) {
 void String::append(u8 ch) {
 	u64 required = this->size + 2u64;
 	if (this->capacity < required) {
-		if (this->data)
-			free(this->data);
+		u8* old_data = this->data;
 		this->data = (*this)::copyData(&required);
+		if (old_data)
+			free(old_data);
 	}
 	this->data[this->size++] = ch;
 	this->capacity = required;
@@ -223,9 +233,10 @@ void String::append(u8 ch) {
 void String::set(u8* new_data) {
 	u64 required = strlen(new_data) + 1u64;
 	if (this->capacity < required) {
-		if (this->data)
-			free(this->data);
+		u8* old_data = this->data;
 		this->data = (*this)::copyData(&required);
+		if (old_data)
+			free(old_data);
 	}
 	memcpy(this->data, new_data, required - 1u64);
 	this->capacity = required;
@@ -276,19 +287,19 @@ static void String::init(%String* out, u8* data) {
 	out->capacity = (out->size = len) + 1u64;
 }
 
-u64 String::find(u8 ch) {
-	for (u64 i = 0; i < this->size; ++i)
+u64 String::find(u8 ch, u64 start) {
+	for (u64 i = start; i < this->size; ++i)
 		if (this->data[i] == ch)
 			return i;
 	return npos;
 }
 
 // Probably rather inefficient.
-u64 String::find(u8* str) {
+u64 String::find(u8* str, u64 start) {
 	u64 const len = strlen(str);
 	if (len == 0u64)
 		return npos;
-	for (u64 i = 0u64; i <= this->size - len; ++i) {
+	for (u64 i = start; i <= this->size - len; ++i) {
 		bool should_return = true;
 		for (u64 j = 0u64; j < len; ++j)
 			if (this->data[i + j] != str[j]) {
@@ -301,12 +312,12 @@ u64 String::find(u8* str) {
 	return npos;
 }
 
-u64 String::find(%String* str) {
+u64 String::find(%String* str, u64 start) {
 	u64 const len = str->size;
 	u64 const max = this->size - len;
 	if (len == 0u64)
 		return npos;
-	for (u64 i = 0u64; i <= max; ++i) {
+	for (u64 i = start; i <= max; ++i) {
 		bool should_return = true;
 		for (u64 j = 0u64; j < len; ++j)
 			if (this->data[i + j] != str->data[j]) {
@@ -321,6 +332,48 @@ u64 String::find(%String* str) {
 
 bool String::empty() {
 	return this->size == 0u64;
+}
+
+void String::reserve(u64 size) {
+	++size;
+	if (this->capacity < size) {
+		u8* old_data = this->data;
+		this->data = (*this)::copyData(&size);
+		if (old_data)
+			free(old_data);
+	}
+	this->capacity = size;
+	this->data[this->size] = '\0';
+}
+
+static %String* String::new(u8* data) {
+	%String* out = new(sizeof(%String));
+	%String::init(out, data);
+	return out;
+}
+
+static %String* String::new() {
+	%String* out = new(sizeof(%String));
+	%String::init(out, "");
+	return out;
+}
+
+%String* String::substr(u64 start, u64 len) {
+	%String* out = %String::new("");
+	(*out)::reserve(len);
+
+	for (u64 i = 0; i < len; ++i) {
+		if (this->size <= i + start)
+			break;
+		(*out)::append(this->data[start + i]);
+	}
+
+	return out;
+}
+
+void String::eviscerate() {
+	(*this)::free();
+	free(this);
 }
 
 struct StringVec {
@@ -362,22 +415,33 @@ void StringVec::freeData() {
 	this->data = null;
 }
 
+void StringVec::adjust(u64 *required) {
+	if (this->capacity < *required) {
+		%String* new_data = (*this)::copyData(required);
+		(*this)::freeData();
+		this->data = new_data;
+	}
+}
+
+void StringVec::absorb(%String* str) {
+	u64 required = this->size + 1u64;
+	(*this)::adjust(&required);
+	memcpy(&this->data[this->size++], str, sizeof(%String));
+	(*str)::free();
+	this->capacity = required;
+}
+
 void StringVec::push(%String* str) {
 	u64 required = this->size + 1u64;
-	if (this->capacity < required) {
-		(*this)::freeData();
-		this->data = (*this)::copyData(&required);
-	}
-	memcpy(&this->data[this->size++], str, sizeof(%String));
+	(*this)::adjust(&required);
+	u8* data_copy = (*str)::copyData();
+	this->data[this->size++] = [data_copy, str->size, str->size + 1u64];
 	this->capacity = required;
 }
 
 void StringVec::push(u8* str) {
 	u64 required = this->size + 1u64;
-	if (this->capacity < required) {
-		(*this)::freeData();
-		this->data = (*this)::copyData(&required);
-	}
+	(*this)::adjust(&required);
 	%String::init(&this->data[this->size++], str);
 	this->capacity = required;
 }
@@ -395,7 +459,35 @@ static %StringVec* StringVec::split(%String* str, u8* delimiter) {
 	if ((*str)::empty())
 		return sv;
 
-	u64 next = (*str)::find(delimiter);
+	// Something interesting: if I use 0(s64) as the second argument or leave out the second argument altogether,
+	// the overloading logic finds *multiple* candidates instead of the expected zero candidates.
+	u64 next = (*str)::find(delimiter, 0u64);
+	if (next == npos) {
+		(*sv)::push(str);
+		return sv;
+	}
+
+	u64 const delimiter_size = strlen(delimiter);
+	u64 last = 0u64;
+
+	(*sv)::push((*str)::substr(0u64, next));
+
+	while (next != npos) {
+		last = next;
+		next = (*str)::find(delimiter, last + delimiter_size);
+		%String* sub = (*str)::substr(last + delimiter_size, next - last - delimiter_size);
+		(*sv)::absorb(sub);
+		free(sub);
+	}
+
+	return sv;
+}
+
+void StringVec::eviscerate() {
+	(*this)::freeData();
+	this->size = 0;
+	this->capacity = 0;
+	free(this);
 }
 
 void panic(u8* message) {
@@ -499,7 +591,7 @@ void* allocate(u64 size, u64 alignment) {
 	return block + 1;
 }
 
-void traverse_blocks() {
+void traverseBlocks() {
 	%BlockMeta* block = base;
 	p("Total allocated: "); p(allocated); p('\n');
 	while (block) {
