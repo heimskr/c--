@@ -265,7 +265,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 					initializer->fullCompile(addr_var, *this, currentScope());
 				} else {
 					expr->compile(variable, *this, currentScope());
-					typeCheck(*expr->getType(currentScope()), *variable->type, variable, *this);
+					typeCheck(*expr->getType(currentScope()), *variable->type, variable, *this, expr->location);
 					if (offset == 0) {
 						add<StoreRInstruction>(variable, fp, variable->getSize());
 					} else {
