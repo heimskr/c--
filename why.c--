@@ -181,7 +181,8 @@ void memcpy(void* destination, void* source, u64 count) {
 }
 
 u8* String::copyData(u64* new_capacity) {
-	u8* out = new(*new_capacity = roundUp(this->size + 1u64));
+	*new_capacity = roundUp(this->size + 1u64);
+	u8* out = new(*new_capacity);
 	memcpy(out, this->data, this->size);
 	out[this->size] = '\0';
 	return out;
@@ -228,10 +229,10 @@ void String::append(u8* other) {
 void String::append(u8 ch) {
 	u64 required = this->size + 2u64;
 	if (this->capacity < required) {
-		asm("<print $1>; <print $2>; <print $3>":44,this->capacity,required);
+		asm("<print $1>; <print $2>; <print $3>":404,this->capacity,required);
 		u8* old_data = this->data;
 		this->data = (*this)::copyData(&required);
-		asm("<print $1>; <print $2>; <print $3>":this->capacity,required,45);
+		asm("<print $1>; <print $2>; <print $3>":this->capacity,required,405);
 		if (old_data)
 			free(old_data);
 		this->capacity = required;
@@ -361,9 +362,8 @@ void String::reserve(u64 size) {
 		this->data = (*this)::copyData(&size);
 		if (old_data)
 			free(old_data);
+		this->capacity = size;
 	}
-	this->capacity = size;
-	this->data[this->size] = '\0';
 }
 
 static %String* String::new(u8* data) {
@@ -526,7 +526,7 @@ static %StringVec* StringVec::split(%String* str, u8* delimiter) {
 	while (next != npos) {
 		last = next;
 		next = (*str)::find(delimiter, last + delimiter_size);
-		p("<["); p(last + delimiter_size); p(", "); p(next - last - delimiter_size); p("]>\n");
+		p("<["); p(last + delimiter_size); p(", "); p(next - last - delimiter_size); p(", next("); p(next); p("), last("); p(last); p(")]>\n");
 		%String* sub = (*str)::substr(last + delimiter_size, next - last - delimiter_size);
 		p("Sub[");
 		(*sub)::print();
