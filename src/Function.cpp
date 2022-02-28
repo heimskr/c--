@@ -1188,8 +1188,8 @@ const {
 		if (structParent->name != struct_name || argument_types.size() != count)
 			return false;
 
-		size_t offset = count == arguments.size()? 0 : 1;
-		for (size_t i = offset; i < count; ++i)
+		const size_t offset = count == arguments.size()? 0 : 1;
+		for (size_t i = offset; i < arguments.size(); ++i)
 			if (!(*argument_types.at(i - offset) && *argumentMap.at(arguments.at(i))->type))
 				return false;
 
@@ -1207,6 +1207,8 @@ const {
 }
 
 TypePtr & Function::getArgumentType(size_t index) const {
+	if (argumentMap.count("this") != 0)
+		++index;
 	return argumentMap.at(arguments.at(index))->type;
 }
 

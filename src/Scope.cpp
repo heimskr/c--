@@ -63,8 +63,10 @@ FunctionPtr Scope::lookupFunction(const std::string &function_name, TypePtr retu
 		std::stringstream error;
 		error << "Multiple results found for ";
 		if (return_type)
-			error << *return_type << ' ';
-		error << function_name << '(';
+			error << *return_type;
+		else
+			error << "<unknown>";
+		error << ' ' << function_name << '(';
 		for (size_t i = 0, max = arg_types.size(); i < max; ++i) {
 			if (i != 0)
 				error << ", ";

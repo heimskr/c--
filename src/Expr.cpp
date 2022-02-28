@@ -827,7 +827,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 		function_found = true;
 		found_return_type = found->returnType;
 		get_arg_type = [found](size_t i) -> const Type & {
-			return *found->argumentMap.at(found->arguments.at(i))->type;
+			return *found->getArgumentType(i);
 		};
 		add_jump = [found, &fn] { fn.add<JumpInstruction>(found->mangle(), true); };
 	}
