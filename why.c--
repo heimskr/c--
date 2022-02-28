@@ -1,7 +1,7 @@
 #name "Why ISA Tests"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "7.0"
+#version "7.1"
 
 struct String {
 	u8* data;
@@ -15,6 +15,7 @@ u8* timeup = "Time's up\n";
 void()* timer_ptr = int_timer;
 s64(s64)* fnptr = add5;
 %String input;
+u64 npos = 0u64 - 1u64;
 
 s64 double(s64 n) {
 	return n << 1;
@@ -260,10 +261,148 @@ void String::clear() {
 	}
 }
 
+void String::move(%String* other) {
+	other->size = this->size;
+	other->capacity = this->capacity;
+	other->data = this->data;
+	this->data = null;
+	this->size = 0;
+	this->capacity = 0;
+}
+
 static void String::init(%String* out, u8* data) {
 	u64 len = strlen(data);
 	out->data = strcpy(data);
 	out->capacity = (out->size = len) + 1u64;
+}
+
+u64 String::find(u8 ch) {
+	for (u64 i = 0; i < this->size; ++i)
+		if (this->data[i] == ch)
+			return i;
+	return npos;
+}
+
+// Probably rather inefficient.
+u64 String::find(u8* str) {
+	u64 const len = strlen(str);
+	if (len == 0u64)
+		return npos;
+	for (u64 i = 0u64; i <= this->size - len; ++i) {
+		bool should_return = true;
+		for (u64 j = 0u64; j < len; ++j)
+			if (this->data[i + j] != str[j]) {
+				should_return = false;
+				break;
+			}
+		if (should_return)
+			return i;
+	}
+	return npos;
+}
+
+u64 String::find(%String* str) {
+	u64 const len = str->size;
+	u64 const max = this->size - len;
+	if (len == 0u64)
+		return npos;
+	for (u64 i = 0u64; i <= max; ++i) {
+		bool should_return = true;
+		for (u64 j = 0u64; j < len; ++j)
+			if (this->data[i + j] != str->data[j]) {
+				should_return = false;
+				break;
+			}
+		if (should_return)
+			return i;
+	}
+	return npos;
+}
+
+bool String::empty() {
+	return this->size == 0u64;
+}
+
+struct StringVec {
+	%String* data;
+	u64 size;
+	u64 capacity;
+};
+
+%String* StringVec::at(u64 index) {
+	if (this->size <= index)
+		panic("Invalid index in StringVec::at");
+	return &this->data[index];
+}
+
+%String* StringVec::front() {
+	if (this->size == 0u64)
+		panic("Container empty in StringVec::front");
+	return this->data;
+}
+
+%String* StringVec::back() {
+	if (this->size == 0u64)
+		panic("Container empty in StringVec::back");
+	return &this->data[this->size - 1u64];
+}
+
+%String* StringVec::copyData(u64* new_capacity) {
+	%String* out = new((*new_capacity = roundUp(this->size + 1u64)) * sizeof(%String));
+	memcpy(out, this->data, this->size * sizeof(%String));
+	return out;
+}
+
+void StringVec::freeData() {
+	if (!this->data)
+		return;
+	for (u64 i = 0; i < this->size; ++i)
+		this->data[i]::free();
+	free(this->data);
+	this->data = null;
+}
+
+void StringVec::push(%String* str) {
+	u64 required = this->size + 1u64;
+	if (this->capacity < required) {
+		(*this)::freeData();
+		this->data = (*this)::copyData(&required);
+	}
+	memcpy(&this->data[this->size++], str, sizeof(%String));
+	this->capacity = required;
+}
+
+void StringVec::push(u8* str) {
+	u64 required = this->size + 1u64;
+	if (this->capacity < required) {
+		(*this)::freeData();
+		this->data = (*this)::copyData(&required);
+	}
+	%String::init(&this->data[this->size++], str);
+	this->capacity = required;
+}
+
+static %StringVec* StringVec::new() {
+	%StringVec* out = new(sizeof(%StringVec));
+	out->data = null;
+	out->size = 0;
+	out->capacity = 0;
+	return out;
+}
+
+static %StringVec* StringVec::split(%String* str, u8* delimiter) {
+	%StringVec* sv = %StringVec::new();
+	if ((*str)::empty())
+		return sv;
+
+	u64 next = (*str)::find(delimiter);
+}
+
+void panic(u8* message) {
+	p("\e[31mERROR\e[0m: ");
+	p(message);
+	p('\n');
+	asm("<halt>");
 }
 
 u64 strlen(u8* string) {
