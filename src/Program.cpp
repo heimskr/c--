@@ -30,10 +30,6 @@ Program compileRoot(const ASTNode &root) {
 				for (const ASTNode *arg: *node->at(1))
 					args.emplace_back(Type::get(*arg->front(), out));
 				FunctionPtr fn = Function::make(out, node);
-				const std::string mangled = fn->mangle();
-				out.signatures.try_emplace(mangled, TypePtr(Type::get(*node->at(0), out)), std::move(args));
-				out.functions.emplace(mangled, fn);
-				out.bareFunctions.emplace(name, fn);
 				if (size == 5 || size == 6) {
 					const std::string &struct_name = *node->at(4)->text;
 					if (out.structs.count(struct_name) == 0)
@@ -42,6 +38,10 @@ Program compileRoot(const ASTNode &root) {
 					fn->structParent = out.structs.at(struct_name);
 					fn->setStatic(size == 6);
 				}
+				const std::string mangled = fn->mangle();
+				out.signatures.try_emplace(mangled, TypePtr(Type::get(*node->at(0), out)), std::move(args));
+				out.functions.emplace(mangled, fn);
+				out.bareFunctions.emplace(name, fn);
 				break;
 			}
 			case CMM_FNDECL: {

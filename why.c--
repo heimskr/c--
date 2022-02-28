@@ -474,7 +474,6 @@ void StringVec::eviscerate() {
 	(*this)::freeData();
 	this->size = 0;
 	this->capacity = 0;
-	u64 foo = *[1];
 	free(this);
 }
 
