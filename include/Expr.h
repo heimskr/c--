@@ -115,18 +115,20 @@ struct LogicExpr: BinaryExpr<O> {
 	}
 };
 
-// TODO: signedness
-template <fixstr::fixed_string O, template <typename T> typename CompFn, typename R>
+template <fixstr::fixed_string O, template <typename T> typename CompFn, typename RS, typename RU = RS>
 struct CompExpr: BinaryExpr<O> {
 	using BinaryExpr<O>::BinaryExpr;
 
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
 		if (multiplier != 1)
 			throw LocatedError(this->location, "Cannot multiply in CompExpr");
-		VregPtr left_var = function.newVar(), right_var = function.newVar();
-		this->left->compile(left_var, function, scope, 1);
-		this->right->compile(right_var, function, scope, multiplier);
-		function.add<R>(left_var, right_var, destination);
+		VregPtr temp_var = function.newVar();
+		this->left->compile(destination, function, scope, 1);
+		this->right->compile(temp_var, function, scope, multiplier);
+		if (this->left->getType(scope)->isUnsigned())
+			function.add<RU>(destination, temp_var, destination);
+		else
+			function.add<RS>(destination, temp_var, destination);
 	}
 
 	size_t getSize(const Context &) const override { return 1; }
@@ -134,6 +136,7 @@ struct CompExpr: BinaryExpr<O> {
 	std::optional<ssize_t> evaluate(ScopePtr scope) const override {
 		auto left_value  = this->left?  this->left->evaluate(scope)  : std::nullopt,
 		     right_value = this->right? this->right->evaluate(scope) : std::nullopt;
+		// TODO: signedness
 		if (left_value && right_value)
 			return CompFn()(*left_value, *right_value)? 1 : 0;
 		return std::nullopt;
@@ -147,19 +150,19 @@ struct CompExpr: BinaryExpr<O> {
 	}
 };
 
-struct LtRInstruction;
-struct LteRInstruction;
-struct GtRInstruction;
-struct GteRInstruction;
-struct EqRInstruction;
-struct NeqRInstruction;
+struct SlRInstruction;
+struct SleRInstruction;
+struct SgRInstruction;
+struct SgeRInstruction;
+struct SeqRInstruction;
+struct SneqRInstruction;
 
-struct LtExpr:   CompExpr<"<",  std::less,           LtRInstruction> { using CompExpr::CompExpr; };
-struct LteExpr:  CompExpr<"<=", std::less_equal,    LteRInstruction> { using CompExpr::CompExpr; };
-struct GtExpr:   CompExpr<">",  std::greater,        GtRInstruction> { using CompExpr::CompExpr; };
-struct GteExpr:  CompExpr<">=", std::greater_equal, GteRInstruction> { using CompExpr::CompExpr; };
-struct EqExpr:   CompExpr<"==", std::greater_equal,  EqRInstruction> { using CompExpr::CompExpr; };
-struct NeqExpr:  CompExpr<"!=", std::greater_equal, NeqRInstruction> { using CompExpr::CompExpr; };
+struct LtExpr:   CompExpr<"<",  std::less,            SlRInstruction,  SluRInstruction> { using CompExpr::CompExpr; };
+struct LteExpr:  CompExpr<"<=", std::less_equal,     SleRInstruction, SleuRInstruction> { using CompExpr::CompExpr; };
+struct GtExpr:   CompExpr<">",  std::greater,         SgRInstruction,  SguRInstruction> { using CompExpr::CompExpr; };
+struct GteExpr:  CompExpr<">=", std::greater_equal,  SgeRInstruction, SgeuRInstruction> { using CompExpr::CompExpr; };
+struct EqExpr:   CompExpr<"==", std::greater_equal,  SeqRInstruction> { using CompExpr::CompExpr; };
+struct NeqExpr:  CompExpr<"!=", std::greater_equal, SneqRInstruction> { using CompExpr::CompExpr; };
 
 struct PlusExpr: BinaryExpr<"+"> {
 	using BinaryExpr::BinaryExpr;

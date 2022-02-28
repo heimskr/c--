@@ -627,9 +627,9 @@ struct BinaryRType: RType {
 	}
 };
 
-struct LtRInstruction:    BinaryRType<"<">   { using BinaryRType::BinaryRType; };
-struct LteRInstruction:   BinaryRType<"<=">  { using BinaryRType::BinaryRType; };
-struct EqRInstruction:    BinaryRType<"==">  { using BinaryRType::BinaryRType; };
+struct SlRInstruction:    BinaryRType<"<">   { using BinaryRType::BinaryRType; };
+struct SleRInstruction:   BinaryRType<"<=">  { using BinaryRType::BinaryRType; };
+struct SeqRInstruction:   BinaryRType<"==">  { using BinaryRType::BinaryRType; };
 struct AddRInstruction:   BinaryRType<"+">   { using BinaryRType::BinaryRType; };
 struct SubRInstruction:   BinaryRType<"-">   { using BinaryRType::BinaryRType; };
 struct AndRInstruction:   BinaryRType<"&">   { using BinaryRType::BinaryRType; };
@@ -650,7 +650,7 @@ struct ShiftLeftLogicalRInstruction:     BinaryRType<"<<">  { using BinaryRType:
 struct ShiftRightArithmeticRInstruction: BinaryRType<">>">  { using BinaryRType::BinaryRType; };
 struct ShiftRightLogicalRInstruction:    BinaryRType<">>>"> { using BinaryRType::BinaryRType; };
 
-struct NeqRInstruction: RType {
+struct SneqRInstruction: RType {
 	using RType::RType;
 	operator std::vector<std::string>() const override {
 		return {
@@ -716,8 +716,33 @@ struct InverseBinaryRType: RType {
 	}
 };
 
-struct GtRInstruction:  InverseBinaryRType<"<">  { using InverseBinaryRType::InverseBinaryRType; };
-struct GteRInstruction: InverseBinaryRType<"<="> { using InverseBinaryRType::InverseBinaryRType; };
+struct SgRInstruction:  InverseBinaryRType<"<">  { using InverseBinaryRType::InverseBinaryRType; };
+struct SgeRInstruction: InverseBinaryRType<"<="> { using InverseBinaryRType::InverseBinaryRType; };
+
+template <fixstr::fixed_string O>
+struct InverseUnsignedBinaryRType: RType {
+	using RType::RType;
+	operator std::vector<std::string>() const override {
+		return {
+			rightSource->regOrID() + " " + std::string(O) + " " + leftSource->regOrID() + " -> " +
+				destination->regOrID() + " /u"
+		};
+	}
+	std::vector<std::string> colored() const override {
+		return {
+			rightSource->regOrID(true) + o(std::string(O)) + leftSource->regOrID(true) + o("->") +
+				destination->regOrID(true) + " \e[2m/u\e[22m"
+		};
+	}
+};
+
+struct SguRInstruction: InverseUnsignedBinaryRType<"<">  {
+	using InverseUnsignedBinaryRType::InverseUnsignedBinaryRType;
+};
+
+struct SgeuRInstruction: InverseUnsignedBinaryRType<"<="> {
+	using InverseUnsignedBinaryRType::InverseUnsignedBinaryRType;
+};
 
 template <char O>
 struct UnaryRType: RType {
@@ -752,8 +777,10 @@ struct UnsignedBinaryRType: RType {
 	}
 };
 
-struct DivuRInstruction: UnsignedBinaryRType<"/"> { using UnsignedBinaryRType::UnsignedBinaryRType; };
-struct ModuRInstruction: UnsignedBinaryRType<"%"> { using UnsignedBinaryRType::UnsignedBinaryRType; };
+struct DivuRInstruction: UnsignedBinaryRType<"/">  { using UnsignedBinaryRType::UnsignedBinaryRType; };
+struct ModuRInstruction: UnsignedBinaryRType<"%">  { using UnsignedBinaryRType::UnsignedBinaryRType; };
+struct SluRInstruction:  UnsignedBinaryRType<"<">  { using UnsignedBinaryRType::UnsignedBinaryRType; };
+struct SleuRInstruction: UnsignedBinaryRType<"<="> { using UnsignedBinaryRType::UnsignedBinaryRType; };
 
 template <fixstr::fixed_string O>
 struct UnsignedBinaryIType: IType {
