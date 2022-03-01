@@ -1076,8 +1076,12 @@ void DotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	Util::validateSize(field_size);
 	if (!left->compileAddress(destination, function, scope))
 		throw LvalueError(*left);
-	if (field_offset != 0)
+	if (field_offset != 0) {
+		function.addComment("Add field offset of " + struct_type->name + "::" + ident);
 		function.add<AddIInstruction>(destination, destination, field_offset);
+	} else
+		function.addComment("Field offset of " + struct_type->name + "::" + ident + " is 0");
+	function.addComment("Load field " + struct_type->name + "::" + ident);
 	function.add<LoadRInstruction>(destination, destination, field_size);
 	if (multiplier != 1)
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
@@ -1119,8 +1123,12 @@ void ArrowExpr::compile(VregPtr destination, Function &function, ScopePtr scope,
 	const size_t field_offset = struct_type->getFieldOffset(ident);
 	Util::validateSize(field_size);
 	left->compile(destination, function, scope, 1);
-	if (field_offset != 0)
+	if (field_offset != 0) {
+		function.addComment("Add field offset of " + struct_type->name + "::" + ident);
 		function.add<AddIInstruction>(destination, destination, field_offset);
+	} else
+		function.addComment("Field offset of " + struct_type->name + "::" + ident + " is 0");
+	function.addComment("Load field " + struct_type->name + "::" + ident);
 	function.add<LoadRInstruction>(destination, destination, field_size);
 	if (multiplier != 1)
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
@@ -1138,8 +1146,11 @@ bool ArrowExpr::compileAddress(VregPtr destination, Function &function, ScopePtr
 	auto struct_type = checkType(scope);
 	const size_t field_offset = checkType(scope)->getFieldOffset(ident);
 	left->compile(destination, function, scope);
-	if (field_offset != 0)
+	if (field_offset != 0) {
+		function.addComment("Add field offset of " + struct_type->name + "::" + ident);
 		function.add<AddIInstruction>(destination, destination, field_offset);
+	} else
+		function.addComment("Field offset of " + struct_type->name + "::" + ident + " is 0");
 	return true;
 }
 
