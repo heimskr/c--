@@ -154,6 +154,7 @@ void hack() {
 }
 
 void memcpy(void* destination, void* source, u64 count) {
+	p("\e[35mmemcpy("); p(destination); p(", "); p(source); p(", "); p(count); p(")\e[39m\n");
 	while (8u64 <= count) {
 		asm("[$1] -> [$2]":source, destination);
 		count -= 8u64;
@@ -421,8 +422,11 @@ struct StringVec {
 }
 
 %String* StringVec::copyData(u64* new_capacity) {
+	p("\e[32mcopyData: "); p((void*) this->data); p(", "); p(this->size); p(", "); p(this->capacity); p("\e[0m ");
 	%String* out = new((*new_capacity = roundUp(this->size + 1u64)) * sizeof(%String));
-	memcpy(out, this->data, this->size * sizeof(%String));
+	p(*new_capacity); p('\n');
+	if (this->data)
+		memcpy(out, this->data, this->size * sizeof(%String));
 	return out;
 }
 
@@ -436,11 +440,14 @@ void StringVec::freeData() {
 }
 
 void StringVec::adjust(u64 *required) {
-	if (this->capacity < *required) {
+	p("\e[33madjust: "); p((void*) this->data); p(", "); p(this->size); p(", "); p(this->capacity); p("\e[0m\n");
+	if (this->capacity < *required || !this->data) {
 		%String* new_data = (*this)::copyData(required);
 		// (*this)::freeData();
-		free(this->data);
+		if (this->data)
+			free(this->data);
 		this->data = new_data;
+		this->capacity = *required;
 	}
 }
 
@@ -449,12 +456,16 @@ void StringVec::absorb(%String* str) {
 	(*this)::adjust(&required);
 	memcpy(&this->data[this->size++], str, sizeof(%String));
 	(*str)::free();
-	this->capacity = required;
 }
 
 void StringVec::push(%String* str) {
 	u64 required = this->size + 1u64;
+	p("\e[34m("); p((void*) this->data); p(", "); p(this->size); p(", "); p(this->capacity); p("\e[0m\n");
+	p("\e[34m"); p((void*) str->data); p(", "); p(str->size); p(", "); p(str->capacity); p(")\e[0m\n");
+
 	(*this)::adjust(&required);
+	p("\e[36m("); p((void*) this->data); p(", "); p(this->size); p(", "); p(this->capacity); p("\e[0m\n");
+	p("\e[36m"); p((void*) str->data); p(", "); p(str->size); p(", "); p(str->capacity); p(")\e[0m\n");
 	p("(("); (*str)::print(); p(")):"); p((u64) str->data[0]); p('\n');
 	u8* data_copy = (*str)::copyData();
 	p("<<"); p(strlen(data_copy)); p(">>\n");
@@ -480,6 +491,7 @@ static %StringVec* StringVec::new() {
 	out->data = null;
 	out->size = 0;
 	out->capacity = 0;
+	p("out("); p(out); p("): "); p((void*) out->data); p(", "); p(out->size); p(", "); p(out->capacity); p("\e[0m\n");
 	return out;
 }
 
@@ -503,6 +515,9 @@ static %StringVec* StringVec::split(%String* str, u8* delimiter) {
 		p("Splitting done; empty.\n");
 		return sv;
 	}
+
+	p("sv: "); p((void*) sv->data); p(", "); p(sv->size); p(", "); p(sv->capacity); p("\e[0m\n");
+
 
 	p('%'); (*str)::print(); p('%'); p(sv); p(' '); p(str); p(' '); p((void*) str->data); p('\n');
 
@@ -560,6 +575,7 @@ u8* strcpy(u8 const* string) {
 	return out;
 }
 
+void l() { asm("<prc $1>":'\n'); }
 void p(u8* s)     { `s(s);                   }
 void p(u64 n)     { `u64(n);                 }
 void p(s64 n)     { `s64(n);                 }
@@ -594,9 +610,11 @@ u64 realign(u64 val, u64 alignment) {
 
 %BlockMeta* findFreeBlock(%BlockMeta** last, u64 size) {
 	%BlockMeta* current = base;
+	p("Start: "); p(current); p('\n');
 	while (current && !(current->free && size <= current->size)) {
 		*last = current;
 		current = current->next;
+		p("Current: "); p(current); p('\n');
 	}
 	return current;
 }
@@ -604,11 +622,14 @@ u64 realign(u64 val, u64 alignment) {
 %BlockMeta* requestSpace(%BlockMeta* last, u64 size, u64 alignment) {
 	%BlockMeta* block = (%BlockMeta*) realign((u64) end, alignment);
 
-	if (last)
+	if (last) {
 		last->next = block;
+		p("last->next = "); p(last->next); l();
+	}
 
 	block->size = size;
 	block->next = null;
+	p("block->next = "); p(block->next); l();
 	block->free = false;
 
 	end = (u8*) block + block->size + sizeof(%BlockMeta) + 1;
@@ -617,6 +638,8 @@ u64 realign(u64 val, u64 alignment) {
 
 void* allocate(u64 size, u64 alignment) {
 	%BlockMeta* block = null;
+
+	p("allocate("); p(size); p(", "); p(alignment); p(")\n");
 
 	if (!base) {
 		block = requestSpace(null, size, alignment);
@@ -664,7 +687,9 @@ void split(%BlockMeta* block, u64 size) {
 				new_block->size = new_size;
 				new_block->free = true;
 				new_block->next = block->next;
+				p("new_block->next = "); p(new_block->next); l();
 				block->next = new_block;
+				p("block->next = "); p(block->next); l();
 				block->size = size;
 			}
 		} else {
@@ -674,8 +699,10 @@ void split(%BlockMeta* block, u64 size) {
 				new_block->size = new_size;
 				new_block->free = true;
 				new_block->next = null;
+				p("new_block->next = "); p(new_block->next); l();
 				block->size = size;
 				block->next = new_block;
+				p("block->next = "); p(block->next); l();
 			}
 		}
 	}
@@ -688,7 +715,7 @@ void split(%BlockMeta* block, u64 size) {
 void free(void* ptr) {
 	if (ptr == null)
 		return;
-	p("free("); p(ptr); p(")\n");
+	// p("free("); p(ptr); p(")\n");
 	%BlockMeta* block_ptr = getBlock(ptr);
 	block_ptr->free = true;
 	if (!block_ptr->next)
@@ -701,9 +728,11 @@ u64 merge() {
 	u64 count = 0u64;
 	%BlockMeta* current = base;
 	while (current && current->next) {
+		// p("\e[36m"); p(current); p("\e[0m\n");
 		if (current->free && current->next->free) {
 			current->size += sizeof(%BlockMeta) + current->next->size;
 			current->next = current->next->next;
+			p("current->next = "); p(current->next); l();
 			++count;
 		} else
 			current = current->next;
