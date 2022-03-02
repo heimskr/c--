@@ -34,7 +34,7 @@ void main() {
 	asm("$g -> $1"::g);
 	asm("? mem -> $1"::mem);
 	setBounds(g, mem);
-	%String::init(&input, "");
+	input::init("");
 	table[2] = timer_ptr;
 	table[7] = int_keybrd;
 	asm("%rit table");
@@ -75,8 +75,8 @@ void int_keybrd_(u64 key_full) {
 		} else if (key == 's') {
 			%String str1 = [null, 0, 0];
 			%String str2 = [null, 0, 0];
-			%String::init(&str1, "Hello");
-			%String::init(&str2, " there");
+			str1::init("Hello");
+			str2::init(" there");
 			str1::append(&str2);
 			str1::append(", how are you");
 			str1::append('?');
@@ -98,23 +98,37 @@ void int_keybrd_(u64 key_full) {
 		l();
 		%StringVec* split = %StringVec::split(&input, " ");
 		if (split->size != 0u64) {
-			%String* first = (*split)::at(0u64);
-			if ((*first)::eq("echo")) {
+			%String* first = split::at(0u64);
+			if (first::eq("echo")) {
 				u64 size = split->size;
 				for (u64 i = 1u64; i < size; ++i) {
 					if (i != 1u64)
-					p(' ');
-					(*(*split)::at(i))::print();
+						p(' ');
+					split::at(i)::print();
 				}
 				l();
+			} else if (first::eq("hash")) {
+				u64 size = split->size;
+				%String new_str;
+				new_str::init("");
+
+				for (u64 i = 1u64; i < size; ++i) {
+					if (i != 1u64)
+						new_str::append(' ');
+					new_str::append(split::at(i));
+				}
+
+				p('"'); new_str::print(); p("\"\n");
+				asm("<prx $1>":hash(&new_str)); l();
+				new_str::free();
 			} else {
 				p("Unknown command: \"");
-				(*first)::print();
+				first::print();
 				p("\"\n");
 			}
 		}
 		input::clear();
-		(*split)::eviscerate();
+		split::eviscerate();
 	} else {
 		input::append(key);
 		p(key);
@@ -214,7 +228,7 @@ void String::append(%String* source) {
 	u64 required = source->size + this->size + 1u64;
 	if (this->capacity < required) {
 		u8* old_data = this->data;
-		this->data = (*this)::copyData(&required);
+		this->data = this::copyData(&required);
 		if (old_data)
 			free(old_data);
 		this->capacity = required;
@@ -229,7 +243,7 @@ void String::append(u8* other) {
 	u64 required = other_len + this->size + 1u64;
 	if (this->capacity < required) {
 		u8* old_data = this->data;
-		this->data = (*this)::copyData(&required);
+		this->data = this::copyData(&required);
 		if (old_data)
 			free(old_data);
 		this->capacity = required;
@@ -243,7 +257,7 @@ void String::append(u8 ch) {
 	u64 required = this->size + 2u64;
 	if (this->capacity < required) {
 		u8* old_data = this->data;
-		this->data = (*this)::copyData(&required);
+		this->data = this::copyData(&required);
 		if (old_data)
 			free(old_data);
 		this->capacity = required;
@@ -256,7 +270,7 @@ void String::set(u8* new_data) {
 	u64 required = strlen(new_data) + 1u64;
 	if (this->capacity < required) {
 		u8* old_data = this->data;
-		this->data = (*this)::copyData(&required);
+		this->data = this::copyData(&required);
 		if (old_data)
 			free(old_data);
 		this->capacity = required;
@@ -303,10 +317,10 @@ void String::move(%String* other) {
 	this->capacity = 0;
 }
 
-static void String::init(%String* out, u8* data) {
+void String::init(u8* data) {
 	u64 len = strlen(data);
-	out->data = strcpy(data);
-	out->capacity = (out->size = len) + 1u64;
+	this->data = strcpy(data);
+	this->capacity = (this->size = len) + 1u64;
 }
 
 void String::print() {
@@ -366,7 +380,7 @@ void String::reserve(u64 size) {
 	++size;
 	if (this->capacity < size) {
 		u8* old_data = this->data;
-		this->data = (*this)::copyData(&size);
+		this->data = this::copyData(&size);
 		if (old_data)
 			free(old_data);
 		this->capacity = size;
@@ -375,31 +389,31 @@ void String::reserve(u64 size) {
 
 static %String* String::new(u8* data) {
 	%String* out = new(sizeof(%String));
-	%String::init(out, data);
+	out::init(data);
 	return out;
 }
 
 static %String* String::new() {
 	%String* out = new(sizeof(%String));
-	%String::init(out, "");
+	out::init("");
 	return out;
 }
 
 %String* String::substr(u64 start, u64 len) {
 	%String* out = %String::new("");
-	(*out)::reserve(len);
+	out::reserve(len);
 
 	for (u64 i = 0; i < len; ++i) {
 		if (this->size <= i + start)
 			break;
-		(*out)::append(this->data[start + i]);
+		out::append(this->data[start + i]);
 	}
 
 	return out;
 }
 
 void String::eviscerate() {
-	(*this)::free();
+	this::free();
 	free(this);
 }
 
@@ -466,7 +480,7 @@ void StringVec::freeData() {
 
 void StringVec::adjust(u64 *required) {
 	if (this->capacity < *required || !this->data) {
-		%String* new_data = (*this)::copyData(required);
+		%String* new_data = this::copyData(required);
 		if (this->data)
 			free(this->data);
 		this->data = new_data;
@@ -476,7 +490,7 @@ void StringVec::adjust(u64 *required) {
 
 void StringVec::absorb(%String* str) {
 	u64 required = this->size + 1u64;
-	(*this)::adjust(&required);
+	this::adjust(&required);
 	memcpy(&this->data[this->size++], str, sizeof(%String));
 	str->data = null;
 	str->size = 0;
@@ -485,8 +499,8 @@ void StringVec::absorb(%String* str) {
 
 void StringVec::push(%String* str) {
 	u64 required = this->size + 1u64;
-	(*this)::adjust(&required);
-	u8* data_copy = (*str)::copyData();
+	this::adjust(&required);
+	u8* data_copy = str::copyData();
 	u64 s = strlen(data_copy);
 	this->data[this->size].data = data_copy;
 	this->data[this->size].size = str->size;
@@ -496,8 +510,8 @@ void StringVec::push(%String* str) {
 
 void StringVec::push(u8* str) {
 	u64 required = this->size + 1u64;
-	(*this)::adjust(&required);
-	%String::init(&this->data[this->size++], str);
+	this::adjust(&required);
+	this->data[this->size++]::init(str);
 	this->capacity = required;
 }
 
@@ -510,7 +524,7 @@ static %StringVec* StringVec::new() {
 }
 
 void StringVec::eviscerate() {
-	(*this)::freeData();
+	this::freeData();
 	this->size = 0;
 	this->capacity = 0;
 	free(this);
@@ -518,27 +532,27 @@ void StringVec::eviscerate() {
 
 static %StringVec* StringVec::split(%String* str, u8* delimiter) {
 	%StringVec* sv = %StringVec::new();
-	if ((*str)::empty())
+	if (str::empty())
 		return sv;
 
 	// Something interesting: if I use 0(s64) as the second argument or leave out the second argument altogether,
 	// the overloading logic finds *multiple* candidates instead of the expected zero candidates.
-	u64 next = (*str)::find(delimiter, 0u64);
+	u64 next = str::find(delimiter, 0u64);
 	if (next == npos) {
-		(*sv)::push(str);
+		sv::push(str);
 		return sv;
 	}
 
 	u64 const delimiter_size = strlen(delimiter);
 	u64 last = 0u64;
 
-	(*sv)::push((*str)::substr(0u64, next));
+	sv::push(str::substr(0u64, next));
 
 	while (next != npos) {
 		last = next;
-		next = (*str)::find(delimiter, last + delimiter_size);
-		%String* sub = (*str)::substr(last + delimiter_size, next - last - delimiter_size);
-		(*sv)::absorb(sub);
+		next = str::find(delimiter, last + delimiter_size);
+		%String* sub = str::substr(last + delimiter_size, next - last - delimiter_size);
+		sv::absorb(sub);
 		free(sub);
 	}
 
@@ -712,7 +726,8 @@ void free(void* ptr) {
 u64 merge() {
 	u64 count = 0u64;
 	%BlockMeta* current = base;
-	while (current && current->next) {
+	while (current && current->next && current->next != base) {
+		asm("$1 -> $k3; $2 -> $m9; <print $k3>; <print $m9>":current, current->next);
 		if (current->free && current->next->free) {
 			current->size += sizeof(%BlockMeta) + current->next->size;
 			current->next = current->next->next;
@@ -779,4 +794,19 @@ u64 roundUp(u64 value) {
 	value |= value >> 16u64;
 	value |= value >> 32u64;
 	return ++value;
+}
+
+u64 hash(%String* str) {
+	if (!str->data)
+		return 0u64;
+	s32 p = 31s32;
+	s32 m = 1000000009s32;
+	s64 pp = 1;
+	s64 hv = 0;
+	for (u32 i = 0u32; i < (u32) str->size; ++i) {
+		hv = (hv + ((s64) (str->data[i] - 'a' + 1u8)) * pp) % (s64) m;
+		pp = (pp * (s64) p) % (s64) m;
+	}
+
+	return (hv % (s64) m + (s64) m) % (s64) m;
 }
