@@ -119,7 +119,6 @@ void int_keybrd_(u64 key_full) {
 
 				p('"'); new_str::print(); p("\" -> 0x");
 				asm("<prx $1>":hash(&new_str)); l();
-				// new_str::free();
 			} else {
 				p("Unknown command: \"");
 				first::print();
@@ -127,7 +126,7 @@ void int_keybrd_(u64 key_full) {
 			}
 		}
 		input::clear();
-		split::eviscerate();
+		split::$d();
 	} else {
 		input::append(key);
 		p(key);
@@ -438,9 +437,6 @@ bool String::eq(%String *other) {
 }
 
 ~String {
-	p("Deleting string: \"");
-	this::print();
-	p("\"\n");
 	if (this->data) {
 		free(this->data);
 		this->data = null;
@@ -452,6 +448,10 @@ struct StringVec {
 	u64 size;
 	u64 capacity;
 };
+
+~StringVec {
+	this::freeData();
+}
 
 %String * StringVec::at(u64 index) {
 	if (this->size <= index)
