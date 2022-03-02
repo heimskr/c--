@@ -817,7 +817,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 	if (structExpr) {
 		struct_expr_type = structExpr->getType(scope);
 		if (!struct_expr_type->isStruct())
-			throw LocatedError(structExpr->location, "Not a struct: " + std::string(*structExpr));
+			throw NotStructError(TypePtr(struct_expr_type->copy()), structExpr->location);
 		fn.addComment("Setting \"this\".");
 		if (!structExpr->compileAddress(fn.precolored(argument_offset++), fn, scope))
 			throw LvalueError(*struct_expr_type, structExpr->location);
@@ -944,7 +944,7 @@ std::string CallExpr::getStructName(const Context &context) const {
 		if (const auto *struct_type = structExpr->getType(context)->cast<StructType>())
 			return struct_type->name;
 		else
-			throw LocatedError(structExpr->location, "Not a struct: " + std::string(*structExpr));
+			throw NotStructError(structExpr->getType(context), structExpr->location);
 	}
 
 	return structName;
