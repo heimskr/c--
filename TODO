@@ -1,6 +1,6 @@
 - Const struct methods
 - Enums
 - Constructors
-- Destructors
-  - Default destructors
+- Default destructors
+- delete and new operators
 - References
