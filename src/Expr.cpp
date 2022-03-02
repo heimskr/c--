@@ -979,7 +979,7 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 				throw NotStructError(left_type, left->location);
 			auto struct_type = left_type->ptrcast<StructType>();
 			auto *constructor_expr = new VariableExpr("$c");
-			auto call = std::make_unique<CallExpr>(constructor_expr);
+			auto call = std::make_unique<CallExpr>(constructor_expr, initializer_expr->children);
 			call->structExpr = std::unique_ptr<Expr>(left->copy());
 			function.addComment("Calling constructor for " + std::string(*struct_type));
 			call->compile(nullptr, function, scope, 1);

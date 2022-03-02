@@ -1,7 +1,7 @@
 #name "Why ISA Tests"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "8.1"
+#version "9.0"
 
 struct String {
 	u8 *data;
@@ -95,8 +95,8 @@ void int_keybrd_(u64 key_full) {
 		p("\e[D \e[D");
 	} else if (key == '\n') {
 		l();
-		%StringVec split;
-		split::init();
+		%StringVec split = %[];
+		// split::init();
 		%StringVec::split(&split, &input, " ");
 		if (split.size != 0u64) {
 			%String *first = split::front();
@@ -327,16 +327,26 @@ void String::init(u8 *data) {
 }
 
 +String(u8 *data) {
-	asm("<print $k4>");
 	u64 const len = strlen(data);
 	this->data = strcpy(data);
 	this->size = len;
 	this->capacity = len + 1u64;
 }
 
++String() {
+	this->data = null;
+	this->size = 0;
+	this->capacity = 0;
+}
+
 void mkstring(u8 *data) {
 	%String foo = %[data];
 	p("[["); foo::print(); p("]]\n");
+	%String *bar = new(sizeof(%String));
+	*bar = %["Hello"];
+	p("[["); bar::print(); p("]]\n");
+	bar::$d();
+	free(bar);
 }
 
 void String::print() {
@@ -471,7 +481,7 @@ struct StringVec {
 	this::freeData();
 }
 
-void StringVec::init() {
++StringVec() {
 	this->data = null;
 	this->size = 0;
 	this->capacity = 0;
