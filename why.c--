@@ -95,11 +95,13 @@ void int_keybrd_(u64 key_full) {
 		p("\e[D \e[D");
 	} else if (key == '\n') {
 		l();
-		%StringVec *split = %StringVec::split(&input, " ");
-		if (split->size != 0u64) {
+		%StringVec split;
+		split::init();
+		%StringVec::split(&split, &input, " ");
+		if (split.size != 0u64) {
 			%String *first = split::front();
 			if (first::eq("echo")) {
-				u64 size = split->size;
+				u64 size = split.size;
 				for (u64 i = 1u64; i < size; ++i) {
 					if (i != 1u64)
 						p(' ');
@@ -107,7 +109,7 @@ void int_keybrd_(u64 key_full) {
 				}
 				l();
 			} else if (first::eq("hash")) {
-				u64 size = split->size;
+				u64 size = split.size;
 				%String new_str;
 				new_str::init("");
 
@@ -126,7 +128,6 @@ void int_keybrd_(u64 key_full) {
 			}
 		}
 		input::clear();
-		split::$d();
 	} else {
 		input::append(key);
 		p(key);
@@ -453,6 +454,12 @@ struct StringVec {
 	this::freeData();
 }
 
+void StringVec::init() {
+	this->data = null;
+	this->size = 0;
+	this->capacity = 0;
+}
+
 %String * StringVec::at(u64 index) {
 	if (this->size <= index)
 		panic("Invalid index in StringVec::at");
@@ -541,15 +548,20 @@ void StringVec::eviscerate() {
 
 static %StringVec * StringVec::split(%String *str, u8 *delimiter) {
 	%StringVec *sv = %StringVec::new();
+	%StringVec::split(sv, str, delimiter);
+	return sv;
+}
+
+static void StringVec::split(%StringVec *sv, %String *str, u8 *delimiter) {
 	if (str::empty())
-		return sv;
+		return;
 
 	// Something interesting: if I use 0(s64) as the second argument or leave out the second argument altogether,
 	// the overloading logic finds *multiple* candidates instead of the expected zero candidates.
 	u64 next = str::find(delimiter, 0u64);
 	if (next == npos) {
 		sv::push(str);
-		return sv;
+		return;
 	}
 
 	u64 const delimiter_size = strlen(delimiter);
@@ -564,8 +576,6 @@ static %StringVec * StringVec::split(%String *str, u8 *delimiter) {
 		sv::absorb(sub);
 		free(sub);
 	}
-
-	return sv;
 }
 
 void panic(u8 *message) {
@@ -736,7 +746,7 @@ u64 merge() {
 	u64 count = 0u64;
 	%BlockMeta *current = base;
 	while (current && current->next && current->next != base) {
-		asm("$1 -> $k3; $2 -> $m9; <print $k3>; <print $m9>":current, current->next);
+		// asm("$1 -> $k3; $2 -> $m9; <print $k3>; <print $m9>":current, current->next);
 		if (current->free && current->next->free) {
 			current->size += sizeof(%BlockMeta) + current->next->size;
 			current->next = current->next->next;
