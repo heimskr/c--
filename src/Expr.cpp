@@ -1423,14 +1423,14 @@ ConstructorExpr * ConstructorExpr::addToScope(ScopePtr scope) {
 		auto variable = Variable::make(variable_name, type, function);
 		function.variableOrder.push_back(variable);
 		function.variables.emplace(variable_name, variable);
-		function.addToStack(variable);
+		function.stackOffsets.emplace(variable, stackOffset);
 	} else if (auto *block_scope = scope->cast<BlockScope>()) {
 		Function &function = block_scope->getFunction();
 		const std::string variable_name = newVariableName(block_scope->variables);
 		auto variable = Variable::make(variable_name, type, function);
 		block_scope->variableOrder.push_back(variable);
 		block_scope->variables.emplace(variable_name, variable);
-		function.addToStack(variable);
+		function.stackOffsets.emplace(variable, stackOffset);
 	} else
 		throw LocatedError(location, "Invalid scope for ConstructorExpr: " + scope->partialStringify());
 
