@@ -4,16 +4,16 @@
 #version "8.1"
 
 struct String {
-	u8* data;
+	u8 *data;
 	u64 size;
 	u64 capacity;
 };
 
 void*[8] table;
 s64 delay = 300000;
-u8* timeup = "Time's up\n";
-void()* timer_ptr = int_timer;
-s64(s64)* fnptr = add5;
+u8 *timeup = "Time's up\n";
+void() *timer_ptr = int_timer;
+s64(s64) *fnptr = add5;
 %String input;
 u64 npos = 0u64;
 
@@ -27,7 +27,7 @@ s64 add5(s64 n) {
 
 void main() {
 	--npos;
-	void* g;
+	void *g;
 	asm("$g -> $1"::g);
 	p("$g = "); p((u64) g); p('\n');
 	void *mem;
@@ -42,7 +42,7 @@ void main() {
 		asm("<rest>");
 }
 
-s64(s64)* swap(s64(s64)* f) {
+s64(s64) * swap(s64(s64) *f) {
 	if (f == double)
 		return add5;
 	return double;
@@ -67,8 +67,8 @@ void int_keybrd_(u64 key_full) {
 			asm("%time $1":delay:);
 		} else if (key == '8') {
 			p("20 -> ");
-			s64(s64)* hacked_ptr = (s64(s64)*) (((s64) fnptr << 1) + 8);
-			p(((s64(s64)*)((s64) ((s16*) hacked_ptr - 4s16) / 2))(20));
+			s64(s64) *hacked_ptr = (s64(s64) *) (((s64) fnptr << 1) + 8);
+			p(((s64(s64) *) ((s64) ((s16 *) hacked_ptr - 4s16) / 2))(20));
 			p('\n');
 		} else if (key == 'h') {
 			hack();
@@ -96,9 +96,9 @@ void int_keybrd_(u64 key_full) {
 		p("\e[D \e[D");
 	} else if (key == '\n') {
 		l();
-		%StringVec* split = %StringVec::split(&input, " ");
+		%StringVec *split = %StringVec::split(&input, " ");
 		if (split->size != 0u64) {
-			%String* first = split::at(0u64);
+			%String *first = split::at(0u64);
 			if (first::eq("echo")) {
 				u64 size = split->size;
 				for (u64 i = 1u64; i < size; ++i) {
@@ -159,7 +159,7 @@ bool hacked = false;
 void hack() {
 	if (hacked)
 		return;
-	s32* what = (s32*) &add5;
+	s32 *what = (s32 *) &add5;
 	p(what); p('\n');
 	for (s64 i = 0; i < 1000; ++i) {
 		if (*++what == 5s32)
@@ -180,7 +180,7 @@ void hack() {
 		p("not hacked =(\n");
 }
 
-void memcpy(void* destination, void* source, u64 count) {
+void memcpy(void *destination, void *source, u64 count) {
 	while (8u64 <= count) {
 		asm("[$1] -> [$2]":source, destination);
 		count -= 8u64;
@@ -207,27 +207,27 @@ void memcpy(void* destination, void* source, u64 count) {
 	}
 }
 
-u8* String::copyData(u64* new_capacity) {
+u8 * String::copyData(u64* new_capacity) {
 	*new_capacity = roundUp(this->size + 1u64);
-	u8* out = new(*new_capacity);
+	u8 *out = new(*new_capacity);
 	if (this->data)
 		memcpy(out, this->data, this->size);
 	out[this->size] = '\0';
 	return out;
 }
 
-u8* String::copyData() {
-	u8* out = new(this->size + 1u64);
+u8 * String::copyData() {
+	u8 *out = new(this->size + 1u64);
 	if (this->data)
 		memcpy(out, this->data, this->size);
 	out[this->size] = '\0';
 	return out;
 }
 
-void String::append(%String* source) {
+void String::append(%String *source) {
 	u64 required = source->size + this->size + 1u64;
 	if (this->capacity < required) {
-		u8* old_data = this->data;
+		u8 *old_data = this->data;
 		this->data = this::copyData(&required);
 		if (old_data)
 			free(old_data);
@@ -238,11 +238,11 @@ void String::append(%String* source) {
 	this->data[this->size] = '\0';
 }
 
-void String::append(u8* other) {
+void String::append(u8 *other) {
 	u64 other_len = strlen(other);
 	u64 required = other_len + this->size + 1u64;
 	if (this->capacity < required) {
-		u8* old_data = this->data;
+		u8 *old_data = this->data;
 		this->data = this::copyData(&required);
 		if (old_data)
 			free(old_data);
@@ -256,7 +256,7 @@ void String::append(u8* other) {
 void String::append(u8 ch) {
 	u64 required = this->size + 2u64;
 	if (this->capacity < required) {
-		u8* old_data = this->data;
+		u8 *old_data = this->data;
 		this->data = this::copyData(&required);
 		if (old_data)
 			free(old_data);
@@ -266,10 +266,10 @@ void String::append(u8 ch) {
 	this->data[this->size] = '\0';
 }
 
-void String::set(u8* new_data) {
+void String::set(u8 *new_data) {
 	u64 required = strlen(new_data) + 1u64;
 	if (this->capacity < required) {
-		u8* old_data = this->data;
+		u8 *old_data = this->data;
 		this->data = this::copyData(&required);
 		if (old_data)
 			free(old_data);
@@ -289,7 +289,7 @@ void String::free() {
 }
 
 void String::debug() {
-	p(" \e[2mptr:\e[22m "); p((void*) this->data); p('\n');
+	p(" \e[2mptr:\e[22m "); p((void *) this->data); p('\n');
 	p("\e[2mdata:\e[22m "); p(this->data); p('\n');
 	p("\e[2msize:\e[22m "); p(this->size); p('\n');
 	p(" \e[2mcap:\e[22m "); p(this->capacity); p('\n');
@@ -308,7 +308,7 @@ void String::clear() {
 	}
 }
 
-void String::move(%String* other) {
+void String::move(%String *other) {
 	other->size = this->size;
 	other->capacity = this->capacity;
 	other->data = this->data;
@@ -317,7 +317,7 @@ void String::move(%String* other) {
 	this->capacity = 0;
 }
 
-void String::init(u8* data) {
+void String::init(u8 *data) {
 	u64 len = strlen(data);
 	this->data = strcpy(data);
 	this->capacity = (this->size = len) + 1u64;
@@ -336,7 +336,7 @@ u64 String::find(u8 ch, u64 start) {
 }
 
 // Probably rather inefficient.
-u64 String::find(u8 const* str, u64 start) {
+u64 String::find(u8 const *str, u64 start) {
 	u64 const len = strlen(str);
 	if (len == 0u64 || this->size < len)
 		return npos;
@@ -354,7 +354,7 @@ u64 String::find(u8 const* str, u64 start) {
 	return npos;
 }
 
-u64 String::find(%String* str, u64 start) {
+u64 String::find(%String *str, u64 start) {
 	u64 const len = str->size;
 	u64 const max = this->size - len;
 	if (len == 0u64)
@@ -379,7 +379,7 @@ bool String::empty() {
 void String::reserve(u64 size) {
 	++size;
 	if (this->capacity < size) {
-		u8* old_data = this->data;
+		u8 *old_data = this->data;
 		this->data = this::copyData(&size);
 		if (old_data)
 			free(old_data);
@@ -387,20 +387,20 @@ void String::reserve(u64 size) {
 	}
 }
 
-static %String* String::new(u8* data) {
-	%String* out = new(sizeof(%String));
+static %String * String::new(u8 *data) {
+	%String *out = new(sizeof(%String));
 	out::init(data);
 	return out;
 }
 
-static %String* String::new() {
-	%String* out = new(sizeof(%String));
+static %String * String::new() {
+	%String *out = new(sizeof(%String));
 	out::init("");
 	return out;
 }
 
-%String* String::substr(u64 start, u64 len) {
-	%String* out = %String::new("");
+%String * String::substr(u64 start, u64 len) {
+	%String *out = %String::new("");
 	out::reserve(len);
 
 	for (u64 i = 0; i < len; ++i) {
@@ -417,7 +417,7 @@ void String::eviscerate() {
 	free(this);
 }
 
-bool String::eq(u8* other) {
+bool String::eq(u8 *other) {
 	if (!this->data || !other)
 		return false;
 
@@ -427,7 +427,7 @@ bool String::eq(u8* other) {
 	return true;
 }
 
-bool String::eq(%String* other) {
+bool String::eq(%String *other) {
 	if (this->size != other->size)
 		return false;
 	if (this->data == other->data)
@@ -439,31 +439,31 @@ bool String::eq(%String* other) {
 }
 
 struct StringVec {
-	%String* data;
+	%String *data;
 	u64 size;
 	u64 capacity;
 };
 
-%String* StringVec::at(u64 index) {
+%String * StringVec::at(u64 index) {
 	if (this->size <= index)
 		panic("Invalid index in StringVec::at");
 	return &this->data[index];
 }
 
-%String* StringVec::front() {
+%String * StringVec::front() {
 	if (this->size == 0u64)
 		panic("Container empty in StringVec::front");
 	return this->data;
 }
 
-%String* StringVec::back() {
+%String * StringVec::back() {
 	if (this->size == 0u64)
 		panic("Container empty in StringVec::back");
 	return &this->data[this->size - 1u64];
 }
 
-%String* StringVec::copyData(u64* new_capacity) {
-	%String* out = new((*new_capacity = roundUp(this->size + 1u64)) * sizeof(%String));
+%String * StringVec::copyData(u64 *new_capacity) {
+	%String *out = new((*new_capacity = roundUp(this->size + 1u64)) * sizeof(%String));
 	if (this->data)
 		memcpy(out, this->data, this->size * sizeof(%String));
 	return out;
@@ -480,7 +480,7 @@ void StringVec::freeData() {
 
 void StringVec::adjust(u64 *required) {
 	if (this->capacity < *required || !this->data) {
-		%String* new_data = this::copyData(required);
+		%String *new_data = this::copyData(required);
 		if (this->data)
 			free(this->data);
 		this->data = new_data;
@@ -488,7 +488,7 @@ void StringVec::adjust(u64 *required) {
 	}
 }
 
-void StringVec::absorb(%String* str) {
+void StringVec::absorb(%String *str) {
 	u64 required = this->size + 1u64;
 	this::adjust(&required);
 	memcpy(&this->data[this->size++], str, sizeof(%String));
@@ -497,10 +497,10 @@ void StringVec::absorb(%String* str) {
 	str->capacity = 0;
 }
 
-void StringVec::push(%String* str) {
+void StringVec::push(%String *str) {
 	u64 required = this->size + 1u64;
 	this::adjust(&required);
-	u8* data_copy = str::copyData();
+	u8 *data_copy = str::copyData();
 	u64 s = strlen(data_copy);
 	this->data[this->size].data = data_copy;
 	this->data[this->size].size = str->size;
@@ -508,15 +508,15 @@ void StringVec::push(%String* str) {
 	++this->size;
 }
 
-void StringVec::push(u8* str) {
+void StringVec::push(u8 *str) {
 	u64 required = this->size + 1u64;
 	this::adjust(&required);
 	this->data[this->size++]::init(str);
 	this->capacity = required;
 }
 
-static %StringVec* StringVec::new() {
-	%StringVec* out = new(sizeof(%StringVec));
+static %StringVec * StringVec::new() {
+	%StringVec *out = new(sizeof(%StringVec));
 	out->data = null;
 	out->size = 0;
 	out->capacity = 0;
@@ -530,8 +530,8 @@ void StringVec::eviscerate() {
 	free(this);
 }
 
-static %StringVec* StringVec::split(%String* str, u8* delimiter) {
-	%StringVec* sv = %StringVec::new();
+static %StringVec * StringVec::split(%String *str, u8 *delimiter) {
+	%StringVec *sv = %StringVec::new();
 	if (str::empty())
 		return sv;
 
@@ -551,7 +551,7 @@ static %StringVec* StringVec::split(%String* str, u8* delimiter) {
 	while (next != npos) {
 		last = next;
 		next = str::find(delimiter, last + delimiter_size);
-		%String* sub = str::substr(last + delimiter_size, next - last - delimiter_size);
+		%String *sub = str::substr(last + delimiter_size, next - last - delimiter_size);
 		sv::absorb(sub);
 		free(sub);
 	}
@@ -559,32 +559,32 @@ static %StringVec* StringVec::split(%String* str, u8* delimiter) {
 	return sv;
 }
 
-void panic(u8* message) {
+void panic(u8 *message) {
 	p("\e[31mERROR\e[0m: ");
 	p(message);
 	p('\n');
 	asm("<halt>");
 }
 
-u64 strlen(u8 const* string) {
+u64 strlen(u8 const *string) {
 	u64 out = 0u64;
 	for (; string[out]; ++out);
 	return out;
 }
 
-u8* strcpy(u8 const* string) {
+u8 * strcpy(u8 const *string) {
 	u64 const len = strlen(string);
-	u8* out = new(len + 1u64);
+	u8 *out = new(len + 1u64);
 	memcpy(out, string, len);
 	out[len] = '\0';
 	return out;
 }
 
 void l() { asm("<prc $1>":'\n'); }
-void p(u8* s)     { `s(s);                   }
+void p(u8 *s)     { `s(s);                   }
 void p(u64 n)     { `u64(n);                 }
 void p(s64 n)     { `s64(n);                 }
-void p(void* ptr) { `ptr(ptr);               }
+void p(void *ptr) { `ptr(ptr);               }
 void p(u8 ch)     { `c(ch);                  }
 void p(bool b)    { `s(b? "true" : "false"); }
 
@@ -592,15 +592,15 @@ struct BlockMeta;
 
 u64 MEMORY_ALIGN = 32u64;
 u64 allocated = 0u64;
-%BlockMeta* base = null;
+%BlockMeta *base = null;
 u64 highestAllocated = 0u64;
-void* start = null;
-void* high = null;
-void* end = null;
+void *start = null;
+void *high = null;
+void *end = null;
 
 struct BlockMeta {
 	u64 size;
-	%BlockMeta* next;
+	%BlockMeta *next;
 	bool free;
 };
 
@@ -615,8 +615,8 @@ u64 realign(u64 val, u64 alignment) {
 	return val;
 }
 
-%BlockMeta* findFreeBlock(%BlockMeta** last, u64 size) {
-	%BlockMeta* current = base;
+%BlockMeta * findFreeBlock(%BlockMeta **last, u64 size) {
+	%BlockMeta *current = base;
 	// asm("$1 -> $k0; <print $k0>":&current->next);
 	// p("Start: "); p(current); p('\n');
 	while (current && !(current->free && size <= current->size)) {
@@ -628,8 +628,8 @@ u64 realign(u64 val, u64 alignment) {
 	return current;
 }
 
-%BlockMeta* requestSpace(%BlockMeta* last, u64 size, u64 alignment) {
-	%BlockMeta* block = (%BlockMeta*) realign((u64) end, alignment);
+%BlockMeta * requestSpace(%BlockMeta *last, u64 size, u64 alignment) {
+	%BlockMeta *block = (%BlockMeta *) realign((u64) end, alignment);
 
 	if (last)
 		last->next = block;
@@ -638,12 +638,12 @@ u64 realign(u64 val, u64 alignment) {
 	block->next = null;
 	block->free = false;
 
-	end = (u8*) block + block->size + sizeof(%BlockMeta) + 1;
+	end = (u8 *) block + block->size + sizeof(%BlockMeta) + 1;
 	return block;
 }
 
-void* allocate(u64 size, u64 alignment) {
-	%BlockMeta* block = null;
+void * allocate(u64 size, u64 alignment) {
+	%BlockMeta *block = null;
 
 	if (!base) {
 		block = requestSpace(null, size, alignment);
@@ -651,7 +651,7 @@ void* allocate(u64 size, u64 alignment) {
 			return null;
 		base = block;
 	} else {
-		%BlockMeta* last = base;
+		%BlockMeta *last = base;
 		block = findFreeBlock(&last, size);
 		if (!block) {
 			block = requestSpace(last, size, alignment);
@@ -668,7 +668,7 @@ void* allocate(u64 size, u64 alignment) {
 }
 
 void traverseBlocks() {
-	%BlockMeta* block = base;
+	%BlockMeta *block = base;
 	p("Total allocated: "); p(allocated); p('\n');
 	while (block) {
 		p(block); p(' '); p(block->free); p(' '); p(block->size); p('\n');
@@ -676,15 +676,15 @@ void traverseBlocks() {
 	}
 }
 
-void split(%BlockMeta* block, u64 size) {
+void split(%BlockMeta *block, u64 size) {
 	if (block->size > size + sizeof(%BlockMeta)) {
 		// We have enough space to split the block, unless alignment takes up too much.
-		%BlockMeta* new_block = (%BlockMeta*) realign((u64) block + size + sizeof(%BlockMeta) + 1u64, MEMORY_ALIGN);
+		%BlockMeta *new_block = (%BlockMeta *) realign((u64) block + size + sizeof(%BlockMeta) + 1u64, MEMORY_ALIGN);
 
 		// After we realign, we need to make sure that the new block's new size isn't negative.
 
 		if (block->next) {
-			u64 new_size = (u64) ((void*) block->next - (void*) new_block - (s64) sizeof(%BlockMeta));
+			u64 new_size = (u64) ((void *) block->next - (void *) new_block - (s64) sizeof(%BlockMeta));
 
 			// Realigning the new block can make it too small, so we need to make sure the new block is big enough.
 			if (new_size > 0u64) {
@@ -695,7 +695,7 @@ void split(%BlockMeta* block, u64 size) {
 				block->size = size;
 			}
 		} else {
-			u64 new_size = (u64) ((void*) block + block->size - (void*) new_block);
+			u64 new_size = (u64) ((void *) block + block->size - (void *) new_block);
 
 			if (new_size > 0u64) {
 				new_block->size = new_size;
@@ -708,14 +708,14 @@ void split(%BlockMeta* block, u64 size) {
 	}
 }
 
-%BlockMeta* getBlock(void* ptr) {
-	return (%BlockMeta*) ptr - 1;
+%BlockMeta * getBlock(void *ptr) {
+	return (%BlockMeta *) ptr - 1;
 }
 
-void free(void* ptr) {
+void free(void *ptr) {
 	if (ptr == null)
 		return;
-	%BlockMeta* block_ptr = getBlock(ptr);
+	%BlockMeta *block_ptr = getBlock(ptr);
 	block_ptr->free = true;
 	if (!block_ptr->next)
 		end = block_ptr;
@@ -725,7 +725,7 @@ void free(void* ptr) {
 
 u64 merge() {
 	u64 count = 0u64;
-	%BlockMeta* current = base;
+	%BlockMeta *current = base;
 	while (current && current->next && current->next != base) {
 		asm("$1 -> $k3; $2 -> $m9; <print $k3>; <print $m9>":current, current->next);
 		if (current->free && current->next->free) {
@@ -739,7 +739,7 @@ u64 merge() {
 	return count;
 }
 
-void setBounds(void* new_start, void* new_high) {
+void setBounds(void *new_start, void *new_high) {
 	if (new_high <= new_start) {
 		p("Invalid heap bounds: 0x");
 		asm("<prx $1>":new_start);
@@ -748,7 +748,7 @@ void setBounds(void* new_start, void* new_high) {
 		p('\n');
 		asm("<halt>");
 	}
-	start = (void*) realign((u64) new_start, MEMORY_ALIGN);
+	start = (void *) realign((u64) new_start, MEMORY_ALIGN);
 	highestAllocated = (u64) start;
 	high = new_high;
 	end = new_start;
@@ -758,24 +758,24 @@ u64 getUnallocated() {
 	return (u64) (high - start) - allocated;
 }
 
-void* malloc(u64 size) {
+void * malloc(u64 size) {
 	return allocate(size, MEMORY_ALIGN);
 }
 
-void* memset(void* ptr, u8 c, u64 len) {
+void * memset(void *ptr, u8 c, u64 len) {
 	asm("memset $1 x $2 -> $3":len, c, ptr);
 	return ptr;
 }
 
-void* calloc(u64 count, u64 size) {
-	void* chunk = malloc(count * size);
+void * calloc(u64 count, u64 size) {
+	void *chunk = malloc(count * size);
 	if (chunk)
 		memset(chunk, 0, count * size);
 	return chunk;
 }
 
-void* new(u64 size) {
-	void* out = malloc(size);
+void * new(u64 size) {
+	void *out = malloc(size);
 	if (!out) {
 		p("Can't allocate ");
 		p(size);
@@ -796,7 +796,7 @@ u64 roundUp(u64 value) {
 	return ++value;
 }
 
-u64 hash(%String* str) {
+u64 hash(%String *str) {
 	if (!str->data)
 		return 0u64;
 	s32 p = 31s32;
