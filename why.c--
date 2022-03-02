@@ -91,20 +91,16 @@ void int_keybrd_(u64 key_full) {
 		input::pop();
 		p("\e[D \e[D");
 	} else if (key == '\n') {
-		p("\e[2K\e[G");
+		l();
 		%StringVec* split = %StringVec::split(&input, " ");
 		input::clear();
-		p("Split size("); p(split->size); p(")\n");
 		for (u64 i = 0; i < split->size; ++i) {
-			p(i); p('('); p((*split)::at(i)->size); p("): "); (*(*split)::at(i))::print(); p('\n');
+			p(i); p(" ("); p((*split)::at(i)->size); p("): "); (*(*split)::at(i))::print(); p('\n');
 		}
 		(*split)::eviscerate();
 	} else {
 		input::append(key);
 		p(key);
-		// p("\e[2K\e[G");
-		// p(input.data);
-		// p(' '); p(input.size);
 	}
 }
 
@@ -154,7 +150,6 @@ void hack() {
 }
 
 void memcpy(void* destination, void* source, u64 count) {
-	// p("\e[35mmemcpy("); p(destination); p(", "); p(source); p(", "); p(count); p(")\e[39m\n");
 	while (8u64 <= count) {
 		asm("[$1] -> [$2]":source, destination);
 		count -= 8u64;
@@ -201,7 +196,6 @@ u8* String::copyData() {
 void String::append(%String* source) {
 	u64 required = source->size + this->size + 1u64;
 	if (this->capacity < required) {
-		//// asm("<print $1>":42);
 		u8* old_data = this->data;
 		this->data = (*this)::copyData(&required);
 		if (old_data)
@@ -217,7 +211,6 @@ void String::append(u8* other) {
 	u64 other_len = strlen(other);
 	u64 required = other_len + this->size + 1u64;
 	if (this->capacity < required) {
-		//// asm("<print $1>":43);
 		u8* old_data = this->data;
 		this->data = (*this)::copyData(&required);
 		if (old_data)
@@ -232,17 +225,13 @@ void String::append(u8* other) {
 void String::append(u8 ch) {
 	u64 required = this->size + 2u64;
 	if (this->capacity < required) {
-		//// asm("<print $1>; <print $2>; <print $3>":404,this->capacity,required);
 		u8* old_data = this->data;
 		this->data = (*this)::copyData(&required);
-		//// asm("<print $1>; <print $2>; <print $3>":this->capacity,required,405);
 		if (old_data)
 			free(old_data);
 		this->capacity = required;
 	}
 	this->data[this->size++] = ch;
-	//// asm("<print $k0>");
-	//// asm("<print $1>; <print $2>":this->capacity,&this->capacity);
 	this->data[this->size] = '\0';
 }
 
@@ -301,7 +290,6 @@ static void String::init(%String* out, u8* data) {
 	u64 len = strlen(data);
 	out->data = strcpy(data);
 	out->capacity = (out->size = len) + 1u64;
-	p("out->size = "); p(out->size); p(" <- "); p(len); l();
 }
 
 void String::print() {
@@ -321,8 +309,6 @@ u64 String::find(u8 const* str, u64 start) {
 	u64 const len = strlen(str);
 	if (len == 0u64 || this->size < len)
 		return npos;
-
-	p("this->size["); p(this->size); p("], len["); p(len); p("]\n");
 
 	for (u64 i = start; i <= this->size - len; ++i) {
 		bool should_return = true;
@@ -425,10 +411,7 @@ struct StringVec {
 }
 
 %String* StringVec::copyData(u64* new_capacity) {
-	p("\e[32mcopyData: "); p((void*) this->data); p(", "); p(this->size); p(" @ "); p(&this->size); p(", "); p(this->capacity); p("\e[0m ");
 	%String* out = new((*new_capacity = roundUp(this->size + 1u64)) * sizeof(%String));
-	p("this->size @ "); p(&this->size); p(" = "); p(this->size); p('\n');
-	p("*new_capacity = "); p(*new_capacity); p('\n');
 	if (this->data)
 		memcpy(out, this->data, this->size * sizeof(%String));
 	return out;
@@ -444,14 +427,10 @@ void StringVec::freeData() {
 }
 
 void StringVec::adjust(u64 *required) {
-	p("\e[33madjust: "); p((void*) this->data); p(", "); p(this->size); p(", "); p(this->capacity); p("\e[0m\n");
 	if (this->capacity < *required || !this->data) {
 		%String* new_data = (*this)::copyData(required);
-		// (*this)::freeData();
-		if (this->data) {
-			p("adjust(u64*): free "); p((void*) this->data); l();
+		if (this->data)
 			free(this->data);
-		}
 		this->data = new_data;
 		this->capacity = *required;
 	}
@@ -461,34 +440,20 @@ void StringVec::absorb(%String* str) {
 	u64 required = this->size + 1u64;
 	(*this)::adjust(&required);
 	memcpy(&this->data[this->size++], str, sizeof(%String));
-	p("absorb(%String*): free "); p((void*) str); l();
-	(*str)::free();
+	str->data = null;
+	str->size = 0;
+	str->capacity = 0;
 }
 
 void StringVec::push(%String* str) {
 	u64 required = this->size + 1u64;
-	p("\e[34m[1] (@"); p(this); p(": "); p((void*) this->data); p(", "); p(this->size); p(", "); p(this->capacity); p("\e[0m\n");
-	p("\e[34m"); p((void*) str->data); p(", "); p(str->size); p(", "); p(str->capacity); p(")\e[0m\n");
-
 	(*this)::adjust(&required);
-	p("\e[36m[2] (@"); p(this); p(": "); p((void*) this->data); p(", "); p(this->size); p(", "); p(this->capacity); p("\e[0m\n");
-	p("\e[36m"); p((void*) str->data); p(", "); p(str->size); p(", "); p(str->capacity); p(")\e[0m\n");
-	p("(("); (*str)::print(); p(")):"); p((u64) str->data[0]); p('\n');
-	p("\e[32min StringVec::push [1]: "); p((void*) this->data); p(", "); p(this->size); p(" @ "); p(&this->size); p(", "); p(this->capacity); p("\e[0m ");
 	u8* data_copy = (*str)::copyData();
 	u64 s = strlen(data_copy);
-	p("<<"); p(s); p(">>\n");
-	for (u64 i = 0; i < s; ++i) { p((u64) data_copy[i]); p(' '); } p('\n');
-	p("[["); p(strlen(str->data)); p("]]\n");
-	p("\e[32min StringVec::push [2]: "); p((void*) this->data); p(", "); p(this->size); p(" @ "); p(&this->size); p(", "); p(this->capacity); p("\e[0m ");
 	this->data[this->size].data = data_copy;
 	this->data[this->size].size = str->size;
 	this->data[this->size].capacity = str->size + 1u64;
-
-
 	++this->size;
-
-	// this->capacity = required;
 }
 
 void StringVec::push(u8* str) {
@@ -503,7 +468,6 @@ static %StringVec* StringVec::new() {
 	out->data = null;
 	out->size = 0;
 	out->capacity = 0;
-	p("out("); p(out); p("): "); p((void*) out->data); p(", "); p(out->size); p(", "); p(out->capacity); p("\e[0m\n");
 	return out;
 }
 
@@ -515,56 +479,31 @@ void StringVec::eviscerate() {
 }
 
 static %StringVec* StringVec::split(%String* str, u8* delimiter) {
-	p("Splitting \"");
-	(*str)::print();
-	p("\" ");
-	p(str);
-	p(' ');
-	p((void*) str->data);
-	p('\n');
 	%StringVec* sv = %StringVec::new();
-	if ((*str)::empty()) {
-		p("Splitting done; empty.\n");
+	if ((*str)::empty())
 		return sv;
-	}
-
-	p("[1] sv @ "); p(sv); p(": "); p((void*) sv->data); p(", "); p(sv->size); p(", "); p(sv->capacity); p("\e[0m\n");
-	p('%'); (*str)::print(); p('%'); p(sv); p(' '); p(str); p(' '); p((void*) str->data); p('\n');
 
 	// Something interesting: if I use 0(s64) as the second argument or leave out the second argument altogether,
 	// the overloading logic finds *multiple* candidates instead of the expected zero candidates.
 	u64 next = (*str)::find(delimiter, 0u64);
 	if (next == npos) {
-		p("Splitting done; returning trivial vector.\n");
-		p("\e[32m(next == npos): "); p((void*) sv->data); p(", "); p(sv->size); p(" @ "); p(&sv->size); p(", "); p(sv->capacity); p("\e[0m ");
 		(*sv)::push(str);
 		return sv;
 	}
 
-	p("\e[32m(next == "); p(next); p("): "); p((void*) sv->data); p(", "); p(sv->size); p(" @ "); p(&sv->size); p(", "); p(sv->capacity); p("\e[0m ");
 	u64 const delimiter_size = strlen(delimiter);
-	p("delimiter_size["); p(delimiter_size); p("], next["); p(next); p("]\n");
 	u64 last = 0u64;
 
-	p("[2] sv @ "); p(sv); p(": "); p((void*) sv->data); p(", "); p(sv->size); p(", "); p(sv->capacity); p("\e[0m\n");
-	asm("$1 -> $k2; <print $k2>":sv);
 	(*sv)::push((*str)::substr(0u64, next));
-
-	p("!\n");
 
 	while (next != npos) {
 		last = next;
 		next = (*str)::find(delimiter, last + delimiter_size);
-		p("<["); p(last + delimiter_size); p(", "); p(next - last - delimiter_size); p(", next("); p(next); p("), last("); p(last); p(")]>\n");
 		%String* sub = (*str)::substr(last + delimiter_size, next - last - delimiter_size);
-		p("Sub[");
-		(*sub)::print();
-		p("]\n");
 		(*sv)::absorb(sub);
 		free(sub);
 	}
 
-	p("Split fully.\n");
 	return sv;
 }
 
@@ -640,28 +579,19 @@ u64 realign(u64 val, u64 alignment) {
 %BlockMeta* requestSpace(%BlockMeta* last, u64 size, u64 alignment) {
 	%BlockMeta* block = (%BlockMeta*) realign((u64) end, alignment);
 
-	if (last) {
-		// p("last->next: "); p(last->next); p(" -> ");
+	if (last)
 		last->next = block;
-		// p(last->next); l();
-	}
 
 	block->size = size;
-	// p("block->next: "); p(block->next); p(" -> ");
 	block->next = null;
-	// p(block->next); l();
 	block->free = false;
 
-	// p("\e[2mend: "); p(end); p(" -> ");
 	end = (u8*) block + block->size + sizeof(%BlockMeta) + 1;
-	// p(end); p("\e[22m\n");
 	return block;
 }
 
 void* allocate(u64 size, u64 alignment) {
 	%BlockMeta* block = null;
-
-	// p("allocate("); p(size); p(", "); p(alignment); p(")\n");
 
 	if (!base) {
 		block = requestSpace(null, size, alignment);
@@ -709,9 +639,7 @@ void split(%BlockMeta* block, u64 size) {
 				new_block->size = new_size;
 				new_block->free = true;
 				new_block->next = block->next;
-				// p("new_block->next = "); p(new_block->next); l();
 				block->next = new_block;
-				// p("block->next = "); p(block->next); l();
 				block->size = size;
 			}
 		} else {
@@ -721,10 +649,8 @@ void split(%BlockMeta* block, u64 size) {
 				new_block->size = new_size;
 				new_block->free = true;
 				new_block->next = null;
-				p("new_block->next = "); p(new_block->next); l();
 				block->size = size;
 				block->next = new_block;
-				p("block->next = "); p(block->next); l();
 			}
 		}
 	}
@@ -737,7 +663,6 @@ void split(%BlockMeta* block, u64 size) {
 void free(void* ptr) {
 	if (ptr == null)
 		return;
-	// p("\e[1;2mfree("); p(ptr); p(")\e[22m\n");
 	%BlockMeta* block_ptr = getBlock(ptr);
 	block_ptr->free = true;
 	if (!block_ptr->next)
@@ -750,11 +675,9 @@ u64 merge() {
 	u64 count = 0u64;
 	%BlockMeta* current = base;
 	while (current && current->next) {
-		// p("\e[36m"); p(current); p("\e[0m\n");
 		if (current->free && current->next->free) {
 			current->size += sizeof(%BlockMeta) + current->next->size;
 			current->next = current->next->next;
-			// p("current->next = "); p(current->next); l();
 			++count;
 		} else
 			current = current->next;
