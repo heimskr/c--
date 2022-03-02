@@ -436,7 +436,7 @@ bool String::eq(%String *other) {
 	return true;
 }
 
-String::~ {
+~String {
 	p("Deleting string: \"");
 	this::print();
 	p("\"\n");
