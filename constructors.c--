@@ -1,0 +1,41 @@
+#name "Constructors"
+#author "Kai Tamkun"
+#orcid "0000-0001-7405-6654"
+#version "0.1"
+
+struct Foo {
+	s64 value;
+	void print();
+};
+
++Foo(s64 value) {
+	this->value = value;
+}
+
++Foo(%Foo *other) {
+	this->value = other->value;
+}
+
+void Foo::print() {
+	p("["); p(this->value); p("]\n");
+}
+
+void main() {
+	%Foo one = %[64];
+	%Foo two = %[&one];
+	%Foo three = %[%Foo(32)];
+
+	one::print();
+	two::print();
+	three::print();
+}
+
+
+
+void l() { asm("<prc $1>":'\n'); }
+void p(u8 *s)     { `s(s);                   }
+void p(u64 n)     { `u64(n);                 }
+void p(s64 n)     { `s64(n);                 }
+void p(void *ptr) { `ptr(ptr);               }
+void p(u8 ch)     { `c(ch);                  }
+void p(bool b)    { `s(b? "true" : "false"); }
