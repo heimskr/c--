@@ -85,8 +85,12 @@ void int_keybrd_(u64 key_full) {
 			str2::free();
 		} else if (key == 't') {
 			traverseBlocks();
+		} else if (key == 'u') {
+			input::clear();
+			p("\e[2K\e[G");
+		} else {
+			p("You pressed '"); p(key); p('\''); p(" ~ "); asm("<prx $1>":key); p(" ~ "); asm("<prx $1>":key_full); l();
 		}
-		else { p("You pressed '"); p(key); p('\''); p(" ~ "); asm("<prx $1>":key); p(" ~ "); asm("<prx $1>":key_full); p('\n'); }
 	} else if (key == '\x7f') { // Backspace
 		input::pop();
 		p("\e[D \e[D");
