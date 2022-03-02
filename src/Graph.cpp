@@ -408,7 +408,7 @@ std::unordered_map<Node *, std::unordered_set<Node *>> Graph::predecessors() con
 void Graph::color(Graph::ColoringAlgorithm algo, int color_min, int color_max) {
 	const int total_colors = color_max != -1? color_max - color_min + 1 : -1;
 	if (algo == Graph::ColoringAlgorithm::Bad) {
-		if (color_max != -1 && total_colors < static_cast<int>(nodes_.size()))
+		if (color_max != -1 && total_colors < int(nodes_.size()))
 			throw UncolorableError();
 		int color = color_min - 1;
 		for (Node *node: nodes_) {
@@ -418,7 +418,7 @@ void Graph::color(Graph::ColoringAlgorithm algo, int color_min, int color_max) {
 		}
 	} else if (algo == Graph::ColoringAlgorithm::Greedy) {
 		std::set<int> all_colors;
-		const int max = color_max == -1? static_cast<int>(color_min + size() - 1) : color_max;
+		const int max = color_max == -1? int(color_min + size() - 1) : color_max;
 		for (int i = color_min; i <= max; ++i)
 			all_colors.insert(i);
 
@@ -430,16 +430,14 @@ void Graph::color(Graph::ColoringAlgorithm algo, int color_min, int color_max) {
 			for (Node *neighbor: node->in_)
 				for (const int color: neighbor->colors)
 					available.erase(color);
-			if (available.size() < static_cast<size_t>(node->colorsNeeded)) {
-				// error() << available.size() << " < " << static_cast<size_t>(node->colorsNeeded) << "\n";
+			if (available.size() < size_t(node->colorsNeeded))
 				throw UncolorableError();
-			}
 			auto iter = available.begin();
 			for (int i = 0; i < node->colorsNeeded; ++i)
 				node->colors.insert(*iter++);
 		}
 	} else {
-		throw std::invalid_argument("Unknown graph coloring algorithm: " + std::to_string(static_cast<int>(algo)));
+		throw std::invalid_argument("Unknown graph coloring algorithm: " + std::to_string(int(algo)));
 	}
 }
 
@@ -453,12 +451,9 @@ std::vector<std::pair<Node *, Node *>> Graph::allEdges() const {
 
 std::string Graph::toDot(const std::string &direction) {
 	std::list<Node *> reflexives;
-	for (Node *node: nodes_) {
-		// node->rename("\"" + node->label() + "_i" + std::to_string(node->in_.size()) + "_o" +
-		// 	std::to_string(node->out_.size()) + "\"");
+	for (Node *node: nodes_)
 		if (node->reflexive())
 			reflexives.push_back(node);
-	}
 
 	std::ostringstream out;
 	out << "digraph rendered_graph {\n";
@@ -486,7 +481,7 @@ std::string Graph::toDot(const std::string &direction) {
 	out << "\n";
 
 	for (const Node *node: nodes_)
-		if (node->colors.size() == 1 && static_cast<size_t>(*node->colors.begin()) < colors.size())
+		if (node->colors.size() == 1 && size_t(*node->colors.begin()) < colors.size())
 			out << "\t" << node->label() << " [fillcolor=" << colors.at(*node->colors.begin()) << "];\n";
 
 	for (const Node *node: nodes_)

@@ -21,7 +21,6 @@ struct BasicBlock: Makeable<BasicBlock> {
 	std::set<std::shared_ptr<VirtualRegister>> liveIn, liveOut, readCache, writtenCache;
 	Node *node = nullptr;
 	int index = -1;
-	// size_t estimatedExecutions = 0;
 
 	BasicBlock(Function &function_, const std::string &label_): function(function_), label(label_) {}
 

@@ -8,7 +8,6 @@
 
 struct BasicBlock;
 
-// Base class for both c-- instructions and Why instructions.
 struct Instruction {
 	std::weak_ptr<BasicBlock> parent;
 	int index = -1;

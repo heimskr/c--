@@ -222,12 +222,6 @@ void Function::compile() {
 
 		add<JumpRegisterInstruction>(rt, false);
 	}
-
-
-	// info() << "\e[1m" << name << " (" << mangle() << ")\e[22m\n\n";
-	// for (const auto &[id, scope]: scopes)
-	// 	std::cerr << id << ": " << std::string(*scope) << '\n';
-	// std::cerr << '\n';
 }
 
 std::set<int> Function::usedGPRegisters() const {
@@ -634,7 +628,7 @@ int Function::split(std::map<std::string, BasicBlockPtr> *map) {
 		changed = false;
 		for (auto iter = blocks.begin(), end = blocks.end(); iter != end; ++iter) {
 			auto &block = *iter;
-			if (Why::generalPurposeRegisters < block->countVariables()) {
+			if (Why::allocatableRegisters < block->countVariables()) {
 				// It would be better to split at the point where the unique variable count begins to exceed the
 				// maximum, but it's probably more efficient to simply split in the middle.
 				BasicBlockPtr new_block = BasicBlock::make(*this, "." + mangle() + ".anon." + std::to_string(anons++));

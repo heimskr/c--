@@ -1,7 +1,3 @@
-// This is based on code I wrote for some of my personal projects. It's mostly boilerplate.
-// https://github.com/heimskr/ll2w
-// https://github.com/heimskr/why
-
 #include <iostream>
 
 #include "Lexer.h"

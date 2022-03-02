@@ -19,7 +19,7 @@ static Functions filterResults(const Functions &results, const Types &arg_types)
 		return {};
 
 	const size_t fn_count = results.size(), arg_count = arg_types.size();
-	std::vector<Score> scores(fn_count); // Pair: (== matches, && matches)
+	std::vector<Score> scores(fn_count); // Pair: (exact matches, affinity sum)
 
 	for (size_t i = 0; i < fn_count; ++i) {
 		FunctionPtr fn = results[i];

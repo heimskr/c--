@@ -6,7 +6,6 @@
 #include "ASTNode.h"
 #include "Enums.h"
 #include "Immediate.h"
-// #include "instruction/WhyInstruction.h"
 
 enum class WASMNodeType {
 	Immediate, RType, IType, Copy, Load, Store, Set, Li, Si, Lni, Ch, Lh, Sh, Cmp, Cmpi, Sel, J, Jc, Jr, Jrc, Mv,
