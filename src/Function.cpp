@@ -1253,22 +1253,16 @@ void Function::closeScope() {
 	if (!order)
 		throw std::runtime_error("Can't close scope " + scope->partialStringify());
 
-	info() << "\e[1m" << name << " (" << mangle() << ")\e[22m\n";
 	for (auto iter = order->rbegin(), end = order->rend(); iter != end; ++iter) {
 		auto &var = *iter;
-		if (auto struct_type = var->type->ptrcast<StructType>()) {
-			std::cerr << '\t' << var->name << ": " << *struct_type << " -> " << struct_type->getDestructor() << " in " << struct_type.get() << '\n';
+		if (auto struct_type = var->type->ptrcast<StructType>())
 			if (auto destructor = struct_type->getDestructor()) {
-				std::cerr << "\t\t~!\n";
 				auto *destructor_expr = new VariableExpr("$d");
 				auto call = std::make_unique<CallExpr>(destructor_expr);
 				call->structExpr = std::make_unique<VariableExpr>(var->name);
 				addComment("Calling destructor for " + std::string(*struct_type) + " " + var->name);
 				call->compile(nullptr, *this, scope, 1);
-			} else {
-				std::cerr << "\t\tNope.\n";
 			}
-		}
 	}
 
 	scopeStack.pop_back();

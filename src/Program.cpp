@@ -42,12 +42,10 @@ Program compileRoot(const ASTNode &root) {
 							+ ": struct not defined");
 					fn->structParent = out.structs.at(struct_name);
 					if (fn->name == "$d") {
-						info() << "Defining destructor for " << struct_name << '\n';
 						if (fn->structParent->destructor.lock())
 							throw LocatedError(node->location, "Struct " + struct_name + " cannot have multiple "
 								"destructors");
 						fn->structParent->destructor = fn;
-						warn() << fn->structParent->getDestructor() << " in " << fn->structParent.get() << '\n';
 					}
 					if (fn->attributes.count(Function::Attribute::Constructor) != 0)
 						fn->structParent->constructors.insert(fn);
