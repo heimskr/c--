@@ -185,6 +185,7 @@ struct_def: "struct" CMMTOK_IDENT "{" struct_list "}" ";" { $$ = $1->adopt({$2, 
 struct_list: struct_list type CMMTOK_IDENT ";" { $$ = $1->adopt($3->adopt($2)); D($4); }
            | struct_list function_decl { $$ = $1->adopt($2); }
            | struct_list "static" function_decl { $$ = $1->adopt($3); $3->attributes.insert("static"); }
+           | struct_list "~" ";" { $$ = $1->adopt($2); D($3); }
            | { $$ = new ASTNode(cmmParser, CMM_LIST); };
 
 function_def: type ident "(" _arglist ")" fnattrs block { $$ = $2->adopt({$1, $4, $6, $7}); D($3, $5); }

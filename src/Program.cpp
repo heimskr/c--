@@ -42,9 +42,10 @@ Program compileRoot(const ASTNode &root) {
 							+ ": struct not defined");
 					fn->structParent = out.structs.at(struct_name);
 					if (fn->name == "$d") {
-						if (fn->structParent->destructor.lock())
-							throw LocatedError(node->location, "Struct " + struct_name + " cannot have multiple "
-								"destructors");
+						if (auto destructor = fn->structParent->destructor.lock())
+							if (destructor->source)
+								throw LocatedError(node->location, "Struct " + struct_name + " cannot have multiple "
+									"destructors");
 						fn->structParent->destructor = fn;
 					}
 					if (fn->attributes.count(Function::Attribute::Constructor) != 0)
@@ -93,7 +94,7 @@ Program compileRoot(const ASTNode &root) {
 				} else {
 					std::vector<std::pair<std::string, TypePtr>> order;
 					for (const ASTNode *child: *node->at(1))
-						if (child->symbol != CMM_FNDECL)
+						if (child->symbol != CMM_FNDECL && child->symbol != CMMTOK_TILDE)
 							order.emplace_back(*child->text, Type::get(*child->front(), out));
 					auto struct_type = out.structs.emplace(struct_name, StructType::make(out, struct_name, order))
 						.first->second;
@@ -109,10 +110,22 @@ Program compileRoot(const ASTNode &root) {
 							const std::string mangled = fn->mangle();
 							if (out.signatures.count(mangled) != 0)
 								throw LocatedError(child->location, "Cannot redefine function " + mangled);
-							TypePtr arg_type = TypePtr(Type::get(*child->at(0), out));
-							out.signatures.try_emplace(mangled, arg_type, std::move(args));
+							TypePtr ret_type = TypePtr(Type::get(*child->at(0), out));
+							out.signatures.try_emplace(mangled, ret_type, std::move(args));
 							out.functionDeclarations.emplace(mangled, fn);
 							out.bareFunctionDeclarations.emplace(name, fn);
+						} else if (child->symbol == CMMTOK_TILDE) {
+							FunctionPtr fn = Function::make(out, nullptr);
+							fn->structParent = struct_type;
+							fn->structParent->destructor = fn;
+							fn->name = "$d";
+							fn->setStatic(false);
+							const std::string mangled = fn->mangle();
+							if (out.signatures.count(mangled) != 0)
+								throw LocatedError(child->location, "Cannot redefine function " + mangled);
+							out.signatures.try_emplace(mangled, VoidType::make(), Types());
+							out.functionDeclarations.emplace(mangled, fn);
+							out.bareFunctionDeclarations.emplace("$d", fn);
 						}
 				}
 				break;
