@@ -121,6 +121,8 @@ void int_keybrd_(u64 key_full) {
 
 				p('"'); new_str::print(); p("\" -> 0x");
 				asm("<prx $1>":hash(&new_str)); l();
+			} else if (first::eq("mk")) {
+				mkstring(input.data);
 			} else if (first::eq("noisy")) {
 				%Noisy noisy = [42];
 			} else {
@@ -328,11 +330,13 @@ void String::init(u8 *data) {
 	asm("<print $k4>");
 	u64 const len = strlen(data);
 	this->data = strcpy(data);
-	this->capacity = (this->size = len) + 1u64;
+	this->size = len;
+	this->capacity = len + 1u64;
 }
 
 void mkstring(u8 *data) {
 	%String foo = %[data];
+	p("[["); foo::print(); p("]]\n");
 }
 
 void String::print() {

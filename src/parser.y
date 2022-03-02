@@ -273,7 +273,7 @@ expr: expr "&&"  expr { $$ = $2->adopt({$1, $3}); }
     | string
     | CMMTOK_CHAR
     | "[" _exprlist "]" { $$ = $2; $$->symbol = CMM_INITIALIZER; D($1, $3); }
-    | "%" "[" _exprlist "]" { $$ = $3; $$->symbol = CMM_INITIALIZER; $$->attributes.insert("%"); D($1, $2, $4); }
+    | "%" "[" _exprlist "]" { $$ = $3; $$->symbol = CMM_INITIALIZER; $$->attributes.insert("constructor"); D($1, $2, $4); }
     | "null";
 
 string: CMMTOK_STRING;

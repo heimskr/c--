@@ -83,7 +83,7 @@ Program compileRoot(const ASTNode &root) {
 					throw LocatedError(node->location, "Cannot redefine constructor " + mangled);
 				out.signatures.try_emplace(mangled, struct_type, std::move(args));
 				out.functions.emplace(mangled, fn);
-				out.bareFunctions.emplace(struct_name, fn);
+				out.bareFunctions.emplace(fn->name, fn);
 				break;
 			}
 			case CMM_FNDECL: {

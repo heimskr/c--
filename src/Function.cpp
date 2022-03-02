@@ -285,9 +285,19 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				auto expr = ExprPtr(Expr::get(*node.at(2), this));
 				auto fp = precolored(Why::framePointerOffset);
 				if (auto *initializer = expr->cast<InitializerExpr>()) {
-					auto addr_var = newVar();
-					add<SubIInstruction>(fp, addr_var, offset);
-					initializer->fullCompile(addr_var, *this, currentScope());
+					if (initializer->isConstructor) {
+						if (!variable->type->isStruct())
+							throw NotStructError(variable->type, node.location);
+						auto *constructor_expr = new VariableExpr("$c");
+						auto call = std::make_unique<CallExpr>(constructor_expr, initializer->children);
+						call->structExpr = std::make_unique<VariableExpr>(var_name);
+						addComment("Calling constructor for " + std::string(*variable->type));
+						call->compile(nullptr, *this, currentScope(), 1);
+					} else {
+						auto addr_var = newVar();
+						add<SubIInstruction>(fp, addr_var, offset);
+						initializer->fullCompile(addr_var, *this, currentScope());
+					}
 				} else {
 					expr->compile(variable, *this, currentScope());
 					typeCheck(*expr->getType(currentScope()), *variable->type, variable, *this, expr->location);

@@ -276,7 +276,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			std::vector<ExprPtr> exprs;
 			for (const ASTNode *child: node)
 				exprs.emplace_back(Expr::get(*child, function));
-			out = new InitializerExpr(std::move(exprs));
+			out = new InitializerExpr(std::move(exprs), node.attributes.count("constructor") != 0);
 			break;
 		}
 		default:
@@ -975,7 +975,18 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 	if (right_type->isInitializer()) {
 		if (!tryCast(*right_type, *left_type, nullptr, function))
 			throw ImplicitConversionError(right_type, left_type, location);
-		right->cast<InitializerExpr>()->fullCompile(addr_var, function, scope);
+		auto *initializer_expr = right->cast<InitializerExpr>();
+		if (initializer_expr->isConstructor) {
+			if (!left_type->isStruct())
+				throw NotStructError(left_type, left->location);
+			auto struct_type = left_type->ptrcast<StructType>();
+			auto *constructor_expr = new VariableExpr("$c");
+			auto call = std::make_unique<CallExpr>(constructor_expr);
+			call->structExpr = std::unique_ptr<Expr>(left->copy());
+			function.addComment("Calling constructor for " + std::string(*struct_type));
+			call->compile(nullptr, function, scope, 1);
+		} else
+			initializer_expr->fullCompile(addr_var, function, scope);
 	} else {
 		right->compile(destination, function, scope);
 		if (!tryCast(*right_type, *left_type, destination, function))
@@ -1243,7 +1254,7 @@ Expr * InitializerExpr::copy() const {
 	std::vector<ExprPtr> children_copy;
 	for (const auto &child: children)
 		children_copy.emplace_back(child->copy());
-	return new InitializerExpr(children_copy);
+	return new InitializerExpr(children_copy, isConstructor);
 }
 
 std::unique_ptr<Type> InitializerExpr::getType(const Context &context) const {
@@ -1255,6 +1266,8 @@ void InitializerExpr::compile(VregPtr, Function &, ScopePtr, ssize_t) {
 }
 
 void InitializerExpr::fullCompile(VregPtr address, Function &function, ScopePtr scope) {
+	if (isConstructor)
+		throw LocatedError(location, "Can't compile a constructor initializer as a non-constructor initializer");
 	if (children.empty())
 		return;
 	auto temp_var = function.newVar();
@@ -1265,6 +1278,7 @@ void InitializerExpr::fullCompile(VregPtr address, Function &function, ScopePtr 
 		} else {
 			child->compile(temp_var, function, scope);
 			const size_t size = child->getSize({scope});
+			function.addComment("InitializerExpr: store and increment");
 			function.add<StoreRInstruction>(temp_var, address, size);
 			function.add<AddIInstruction>(address, address, size);
 		}

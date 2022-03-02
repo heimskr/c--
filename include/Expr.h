@@ -708,8 +708,11 @@ struct SizeofMemberExpr: Expr {
 
 struct InitializerExpr: Expr {
 	std::vector<ExprPtr> children;
-	InitializerExpr(std::vector<ExprPtr> &&children_): children(std::move(children_)) {}
-	InitializerExpr(const std::vector<ExprPtr> &children_): children(children_) {}
+	bool isConstructor;
+	InitializerExpr(std::vector<ExprPtr> &&children_, bool is_constructor):
+		children(std::move(children_)), isConstructor(is_constructor) {}
+	InitializerExpr(const std::vector<ExprPtr> &children_, bool is_constructor):
+		children(children_), isConstructor(is_constructor) {}
 	Expr * copy() const override;
 	std::unique_ptr<Type> getType(const Context &) const override;
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
