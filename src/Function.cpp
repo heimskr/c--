@@ -79,6 +79,7 @@ void Function::extractArguments() {
 		if (selfScope->doesConflict(argument_name))
 			throw NameConflictError(argument_name);
 		variables.emplace(argument_name, argument);
+		variableOrder.push_back(argument);
 	}
 }
 
@@ -99,6 +100,7 @@ void Function::setArguments(const std::vector<std::pair<std::string, TypePtr>> &
 		if (selfScope->doesConflict(argument_name))
 			throw NameConflictError(argument_name);
 		variables.emplace(argument_name, argument);
+		variableOrder.push_back(argument);
 		++i;
 	}
 }
@@ -138,10 +140,17 @@ void Function::compile() {
 				this_var->init();
 				argumentMap.emplace("this", this_var);
 				variables.emplace("this", this_var);
+				variableOrder.push_back(this_var);
 			}
 		} else if (size != 4)
 			throw LocatedError(getLocation(), "Expected 4–6 nodes in " + name + "'s source node, found " +
 				std::to_string(size));
+
+		if (source->attributes.count("constructor") != 0)
+			attributes.insert(Attribute::Constructor);
+
+		if (source->attributes.count("destructor") != 0)
+			attributes.insert(Attribute::Destructor);
 
 		for (const ASTNode *child: *source->at(2))
 			switch (child->symbol) {
@@ -206,6 +215,13 @@ void Function::compile() {
 
 		add<JumpRegisterInstruction>(rt, false);
 	}
+
+	closeScope();
+
+	// info() << "\e[1m" << name << " (" << mangle() << ")\e[22m\n\n";
+	// for (const auto &[id, scope]: scopes)
+	// 	std::cerr << id << ": " << std::string(*scope) << '\n';
+	// std::cerr << '\n';
 }
 
 std::set<int> Function::usedGPRegisters() const {
@@ -315,7 +331,8 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			auto scope = newScope();
 			scopeStack.push_back(scope);
 			compile(*node.at(1), end, start);
-			scopeStack.pop_back();
+			closeScope();
+			// scopeStack.pop_back();
 			add<JumpInstruction>(start);
 			add<Label>(end);
 			break;
@@ -343,7 +360,8 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			compile(*node.at(2));
 			add<JumpInstruction>(start);
 			add<Label>(end);
-			scopeStack.pop_back();
+			closeScope();
+			// scopeStack.pop_back();
 			break;
 		}
 		case CMMTOK_CONTINUE:
@@ -381,19 +399,22 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				auto scope = newScope();
 				scopeStack.push_back(scope);
 				compile(*node.at(1), break_label, continue_label);
-				scopeStack.pop_back();
+				closeScope();
+				// scopeStack.pop_back();
 				add<JumpInstruction>(end_label);
 				add<Label>(else_label);
 				scope = newScope();
 				scopeStack.push_back(scope);
 				compile(*node.at(2), break_label, continue_label);
-				scopeStack.pop_back();
+				closeScope();
+				// scopeStack.pop_back();
 			} else {
 				add<JumpConditionalInstruction>(end_label, temp_var);
 				auto scope = newScope();
 				scopeStack.push_back(scope);
 				compile(*node.at(1), break_label, continue_label);
-				scopeStack.pop_back();
+				closeScope();
+				// scopeStack.pop_back();
 			}
 			add<Label>(end_label);
 			break;
@@ -1218,4 +1239,18 @@ TypePtr & Function::getArgumentType(size_t index) const {
 Function & Function::setStatic(bool is_static) {
 	isStatic = is_static;
 	return *this;
+}
+
+void Function::closeScope() {
+	auto scope = currentScope();
+	std::vector<VariablePtr> *order = nullptr;
+	if (auto *block_scope = scope->cast<BlockScope>())
+		order = &block_scope->variableOrder;
+	else if (auto *function_scope = scope->cast<FunctionScope>())
+		order = &variableOrder;
+
+	if (!order)
+		throw std::runtime_error("Can't close scope " + scope->partialStringify());
+
+	scopeStack.pop_back();
 }

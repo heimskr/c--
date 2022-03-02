@@ -33,11 +33,12 @@ class Function: public Makeable<Function> {
 		void extractArguments();
 
 	public:
-		enum class Attribute {Naked};
+		enum class Attribute {Naked, Constructor, Destructor};
 		Program &program;
 		std::string name = "???";
 		std::list<WhyPtr> instructions;
 		std::map<std::string, VariablePtr> variables;
+		std::vector<VariablePtr> variableOrder;
 		std::set<VregPtr> virtualRegisters;
 		/** Offsets are relative to the value in the frame pointer right after the stack pointer is written to it in the
 		 *  prologue. */
@@ -182,6 +183,8 @@ class Function: public Makeable<Function> {
 		TypePtr & getArgumentType(size_t) const;
 
 		Function & setStatic(bool);
+
+		void closeScope();
 };
 
 using FunctionPtr = std::shared_ptr<Function>;

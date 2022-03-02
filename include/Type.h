@@ -9,6 +9,7 @@
 
 #include "Checkable.h"
 #include "Makeable.h"
+#include "WeakSet.h"
 
 class ASTNode;
 class Function;
@@ -186,6 +187,8 @@ class StructType: public Type, public Makeable<StructType> {
 		std::string name;
 		bool isForwardDeclaration = false;
 		std::map<std::string, Function *> definedMethods, declaredMethods, definedStaticMethods, declaredStaticMethods;
+		std::weak_ptr<Function> destructor;
+		WeakSet<Function> constructors;
 
 		StructType(const Program &, const std::string &name_);
 		StructType(const Program &, const std::string &name_, const decltype(order) &order_);

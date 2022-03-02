@@ -112,35 +112,6 @@ FunctionPtr Scope::lookupFunction(const std::string &function_name, const ASTLoc
 	return results.empty()? nullptr : results.front();
 }
 
-VariablePtr EmptyScope::lookup(const std::string &) const {
-	return nullptr;
-}
-
-bool EmptyScope::doesConflict(const std::string &) const {
-	return false;
-}
-
-bool EmptyScope::insert(VariablePtr) {
-	return false;
-}
-
-VariablePtr BasicScope::lookup(const std::string &name) const {
-	if (variables.count(name) == 0)
-		return nullptr;
-	return variables.at(name);
-}
-
-bool BasicScope::doesConflict(const std::string &name) const {
-	return variables.count(name) != 0;
-}
-
-bool BasicScope::insert(VariablePtr variable) {
-	if (doesConflict(variable->name))
-		return false;
-	variables.emplace(variable->name, variable);
-	return true;
-}
-
 FunctionScope::FunctionScope(Function &function_, std::shared_ptr<GlobalScope> parent_):
 	Scope(&function_.program), function(function_), parent(parent_) {}
 
@@ -177,7 +148,12 @@ bool FunctionScope::insert(VariablePtr variable) {
 	if (doesConflict(variable->name))
 		return false;
 	function.variables.emplace(variable->name, variable);
+	function.variableOrder.push_back(variable);
 	return true;
+}
+
+std::string FunctionScope::partialStringify() const {
+	return parent->partialStringify() + " -> fn:" + function.name;
 }
 
 VariablePtr GlobalScope::lookup(const std::string &name) const {
@@ -321,5 +297,14 @@ bool BlockScope::insert(VariablePtr variable) {
 	if (doesConflict(variable->name))
 		return false;
 	variables.emplace(variable->name, variable);
+	variableOrder.push_back(variable);
 	return true;
+}
+
+BlockScope::operator std::string() const {
+	std::stringstream out;
+	out << partialStringify() << ":\n";
+	for (const auto &var: variableOrder)
+		out << '\t' << var->name << ": " << *var->type << '\n';
+	return out.str();
 }

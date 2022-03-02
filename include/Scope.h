@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "ASTNode.h"
+#include "Checkable.h"
 #include "Makeable.h"
 #include "Variable.h"
 
@@ -18,7 +19,7 @@ using FunctionPtr = std::shared_ptr<Function>;
 using Functions = std::vector<FunctionPtr>;
 using Types = std::vector<TypePtr>;
 
-struct Scope {
+struct Scope: Checkable {
 	Program *program = nullptr;
 	Scope(Program *program_ = nullptr): program(program_) {}
 	virtual ~Scope() {}
@@ -48,25 +49,24 @@ struct Scope {
 				" instance isn't connected to a program instance");
 		return *program;
 	}
+
+	virtual std::string partialStringify() const = 0;
+	virtual operator std::string() const { return partialStringify(); }
 };
 
 using ScopePtr = std::shared_ptr<Scope>;
 
-struct GlobalScope;
-
-struct EmptyScope: Scope, Makeable<EmptyScope> {
-	EmptyScope() = default;
+struct GlobalScope: Scope, Makeable<GlobalScope> {
+	Program &program;
+	GlobalScope(Program &program_): program(program_) {}
 	VariablePtr lookup(const std::string &) const override;
+	Functions lookupFunctions(const std::string &, TypePtr, const Types &, const std::string &) const override;
+	Functions lookupFunctions(const std::string &, const Types &, const std::string &) const override;
+	Functions lookupFunctions(const std::string &) const override;
+	TypePtr lookupType(const std::string &) const override;
 	bool doesConflict(const std::string &) const override;
 	bool insert(VariablePtr) override;
-};
-
-struct BasicScope: Scope, Makeable<BasicScope> {
-	std::map<std::string, VariablePtr> variables;
-	BasicScope() = default;
-	VariablePtr lookup(const std::string &) const override;
-	bool doesConflict(const std::string &) const override;
-	bool insert(VariablePtr) override;
+	std::string partialStringify() const override { return "global"; }
 };
 
 struct FunctionScope: Scope, Makeable<FunctionScope> {
@@ -80,22 +80,12 @@ struct FunctionScope: Scope, Makeable<FunctionScope> {
 	TypePtr lookupType(const std::string &) const override;
 	bool doesConflict(const std::string &) const override;
 	bool insert(VariablePtr) override;
-};
-
-struct GlobalScope: Scope, Makeable<GlobalScope> {
-	Program &program;
-	GlobalScope(Program &program_): program(program_) {}
-	VariablePtr lookup(const std::string &) const override;
-	Functions lookupFunctions(const std::string &, TypePtr, const Types &, const std::string &) const override;
-	Functions lookupFunctions(const std::string &, const Types &, const std::string &) const override;
-	Functions lookupFunctions(const std::string &) const override;
-	TypePtr lookupType(const std::string &) const override;
-	bool doesConflict(const std::string &) const override;
-	bool insert(VariablePtr) override;
+	std::string partialStringify() const override;
 };
 
 struct BlockScope: Scope, Makeable<BlockScope> {
 	std::map<std::string, VariablePtr> variables;
+	std::vector<VariablePtr> variableOrder;
 	ScopePtr parent;
 	BlockScope(ScopePtr parent_): parent(parent_) {}
 	VariablePtr lookup(const std::string &) const override;
@@ -106,4 +96,6 @@ struct BlockScope: Scope, Makeable<BlockScope> {
 	bool doesConflict(const std::string &) const override;
 	bool insert(VariablePtr) override;
 	Program & getProgram() const override { return parent->getProgram(); }
+	std::string partialStringify() const override { return parent->partialStringify() + " -> block"; }
+	operator std::string() const override;
 };

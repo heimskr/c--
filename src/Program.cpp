@@ -36,6 +36,14 @@ Program compileRoot(const ASTNode &root) {
 						throw LocatedError(node->at(4)->location, "Can't define function " + struct_name + "::" + name
 							+ ": struct not defined");
 					fn->structParent = out.structs.at(struct_name);
+					if (fn->attributes.count(Function::Attribute::Destructor) != 0) {
+						if (fn->structParent->destructor.lock())
+							throw LocatedError(node->location, "Struct " + struct_name + " cannot have multiple "
+								"destructors");
+						fn->structParent->destructor = fn;
+					}
+					if (fn->attributes.count(Function::Attribute::Constructor) != 0)
+						fn->structParent->constructors.insert(fn);
 					fn->setStatic(size == 6);
 				}
 				const std::string mangled = fn->mangle();
