@@ -121,6 +121,8 @@ void int_keybrd_(u64 key_full) {
 
 				p('"'); new_str::print(); p("\" -> 0x");
 				asm("<prx $1>":hash(&new_str)); l();
+			} else if (first::eq("noisy")) {
+				%Noisy noisy = [42];
 			} else {
 				p("Unknown command: \"");
 				first::print();
@@ -578,6 +580,33 @@ static void StringVec::split(%StringVec *sv, %String *str, u8 *delimiter) {
 	}
 }
 
+struct Noisy {
+	s64 value;
+};
+
+static %Noisy * Noisy::new(s64 value) {
+	%Noisy *out = new(sizeof(%Noisy));
+	out->value = value;
+	return out;
+}
+
+~Noisy {
+	p("Deleting Noisy instance with value of ");
+	p(this->value);
+	l();
+}
+
+struct UniquePtr {
+	void *ptr;
+};
+
+~UniquePtr {
+	if (this->ptr) {
+		free(this->ptr);
+		this->ptr = null;
+	}
+}
+
 void panic(u8 *message) {
 	p("\e[31mERROR\e[0m: ");
 	p(message);
@@ -703,8 +732,7 @@ void split(%BlockMeta *block, u64 size) {
 		// After we realign, we need to make sure that the new block's new size isn't negative.
 
 		if (block->next) {
-			u64 new_size = (u64) ((void *) block->next - (void *) new_block - (s64) sizeof(%BlockMeta));
-
+			u64 const new_size = (u64) ((void *) block->next - (void *) new_block - (s64) sizeof(%BlockMeta));
 			// Realigning the new block can make it too small, so we need to make sure the new block is big enough.
 			if (new_size > 0u64) {
 				new_block->size = new_size;
@@ -714,8 +742,7 @@ void split(%BlockMeta *block, u64 size) {
 				block->size = size;
 			}
 		} else {
-			u64 new_size = (u64) ((void *) block + block->size - (void *) new_block);
-
+			u64 const new_size = (u64) ((void *) block + block->size - (void *) new_block);
 			if (new_size > 0u64) {
 				new_block->size = new_size;
 				new_block->free = true;
