@@ -283,7 +283,10 @@ boolean: "true" | "false";
 function_call: ident "(" _exprlist ")" { $$ = $2->adopt({$1, $3}); D($4); };
              | "(" expr ")" "(" _exprlist ")" { $$ = $1->adopt({$2, $5}); D($3, $4, $6); }
              | expr "::" ident "(" _exprlist ")" %prec "::" { $$ = $4->adopt({$3, $5, $1}); D($2, $6); }
-             | struct_type "::" ident "(" _exprlist ")" %prec "::" { $$ = $4->adopt({$3, $5, $1}); D($2, $6); };
+             | struct_type "::" ident "(" _exprlist ")" %prec "::" { $$ = $4->adopt({$3, $5, $1}); D($2, $6); }
+             | constructor_call;
+
+constructor_call: struct_type "(" _exprlist ")" { $$ = $2->adopt({$1, $3}); D($4); };
 
 exprlist: exprlist "," expr { $$ = $1->adopt($3); D($2); }
         | expr { $$ = (new ASTNode(cmmParser, CMM_LIST))->locate($1)->adopt($1); };

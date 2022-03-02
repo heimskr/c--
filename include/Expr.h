@@ -718,3 +718,17 @@ struct InitializerExpr: Expr {
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	void fullCompile(VregPtr start, Function &function, ScopePtr scope);
 };
+
+struct ConstructorExpr: Expr {
+	size_t stackOffset;
+	std::string structName;
+	std::vector<ExprPtr> arguments;
+	ConstructorExpr(size_t stack_offset, const std::string &struct_name, const std::vector<ExprPtr> &arguments_ = {}):
+		stackOffset(stack_offset), structName(struct_name), arguments(arguments_) {}
+	Expr * copy() const override;
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
+	operator std::string() const override;
+	size_t getSize(const Context &) const override;
+	std::unique_ptr<Type> getType(const Context &) const override;
+	FunctionPtr findFunction(const Context &) const;
+};

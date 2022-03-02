@@ -120,16 +120,35 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			arguments.reserve(node.at(1)->size());
 			for (const ASTNode *child: *node.at(1))
 				arguments.emplace_back(Expr::get(*child, function));
-			CallExpr *call = new CallExpr(Expr::get(*node.front(), function), arguments);
-			if (node.size() == 3) {
-				if (node.at(2)->symbol == CMMTOK_MOD)
-					// Static struct method call
-					call->structName = *node.at(2)->front()->text;
-				else
-					// Non-static struct method call
-					call->structExpr = std::unique_ptr<Expr>(Expr::get(*node.at(2), function));
+
+
+			if (node.front()->symbol == CMMTOK_MOD) {
+				if (!function)
+					throw LocatedError(node.location, "Cannot find struct in functionless context");
+
+				const std::string &struct_name = *node.front()->front()->text;
+
+				if (function->program.structs.count(struct_name) == 0)
+					throw ResolutionError(struct_name, function->selfScope, node.location);
+
+				auto struct_type = function->program.structs.at(struct_name);
+				const size_t stack_offset = function->stackUsage += struct_type->getSize();
+
+				out = new ConstructorExpr(stack_offset, struct_name, arguments);
+			} else {
+				CallExpr *call = new CallExpr(Expr::get(*node.front(), function), arguments);
+
+				if (node.size() == 3) {
+					if (node.at(2)->symbol == CMMTOK_MOD)
+						// Static struct method call
+						call->structName = *node.at(2)->front()->text;
+					else
+						// Non-static struct method call
+						call->structExpr = std::unique_ptr<Expr>(Expr::get(*node.at(2), function));
+				}
+
+				out = call;
 			}
-			out = call;
 			break;
 		}
 		case CMMTOK_STRING:
@@ -805,7 +824,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 
 	std::unique_ptr<Type> struct_expr_type;
 
-	size_t registers_used = (structExpr? 1 : 0) + arguments.size();
+	const size_t registers_used = (structExpr? 1 : 0) + arguments.size();
 	if (Why::argumentCount < registers_used)
 		throw std::runtime_error("Functions with more than 16 arguments aren't currently supported.");
 
@@ -1284,4 +1303,103 @@ void InitializerExpr::fullCompile(VregPtr address, Function &function, ScopePtr 
 			function.add<AddIInstruction>(address, address, size);
 		}
 	}
+}
+
+Expr * ConstructorExpr::copy() const {
+	std::vector<ExprPtr> arguments_copy;
+	for (const ExprPtr &argument: arguments)
+		arguments_copy.emplace_back(argument->copy());
+	return new ConstructorExpr(stackOffset, structName, arguments_copy);
+}
+
+void ConstructorExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_t multiplier) {
+	if (multiplier != 1)
+		throw LocatedError(location, "Cannot multiply in ConstructorExpr");
+
+	Context context(scope);
+	context.structName = structName;
+
+	int argument_offset = Why::argumentOffset;
+
+	const size_t registers_used = 1 + arguments.size();
+	if (Why::argumentCount < registers_used)
+		throw std::runtime_error("Functions with more than 16 arguments aren't currently supported.");
+
+	for (size_t i = 0; i < registers_used; ++i)
+		fn.add<StackPushInstruction>(fn.precolored(Why::argumentOffset + i));
+
+	auto looked_up = scope->lookupType(structName);
+	if (!looked_up)
+		throw ResolutionError(structName, scope, location);
+
+	auto struct_type = looked_up->ptrcast<StructType>();
+	auto this_var = fn.precolored(argument_offset++);
+	fn.addComment("Setting \"this\" for constructor.");
+	fn.add<SubIInstruction>(fn.precolored(Why::framePointerOffset), this_var, stackOffset);
+
+	FunctionPtr found = findFunction(context);
+
+	if (!found)
+		throw LocatedError(location, "Constructor for " + structName + " not found.");
+
+	if (found->argumentCount() != arguments.size())
+		throw LocatedError(location, "Invalid number of arguments in call to " + structName + " constructor at " +
+			std::string(location) + ": " + std::to_string(arguments.size()) + " (expected " +
+			std::to_string(found->argumentCount()) + ")");
+
+	size_t i = 0;
+
+	for (const auto &argument: arguments) {
+		auto argument_register = fn.precolored(argument_offset + i);
+		auto argument_type = argument->getType(scope);
+		if (argument_type->isStruct())
+			throw LocatedError(argument->location, "Structs cannot be directly passed to functions; use a pointer");
+		argument->compile(argument_register, fn, scope);
+		try {
+			typeCheck(*argument_type, *found->getArgumentType(i), argument_register, fn, location);
+		} catch (std::out_of_range &err) {
+			std::cerr << "\e[31mBad function argument at " << argument->location << "\e[39m\n";
+			throw;
+		}
+		++i;
+	}
+
+	fn.add<JumpInstruction>(found->mangle(), true);
+
+	for (size_t i = registers_used; 0 < i; --i)
+		fn.add<StackPopInstruction>(fn.precolored(Why::argumentOffset + i - 1));
+
+	if (!found->returnType->isVoid() && destination)
+		fn.add<MoveInstruction>(fn.precolored(Why::returnValueOffset), destination);
+}
+
+ConstructorExpr::operator std::string() const {
+	std::stringstream out;
+	out << '%' << structName << '(';
+	bool first = true;
+	for (const auto &argument: arguments) {
+		if (first)
+			first = false;
+		else
+			out << ", ";
+		out << std::string(*argument);
+	}
+	out << ')';
+	return out.str();
+}
+
+size_t ConstructorExpr::getSize(const Context &context) const {
+	return getType(context)->getSize();
+}
+
+std::unique_ptr<Type> ConstructorExpr::getType(const Context &context) const {
+	return std::make_unique<PointerType>(context.scope->lookupType(structName)->copy());
+}
+
+FunctionPtr ConstructorExpr::findFunction(const Context &context) const {
+	Types arg_types;
+	arg_types.reserve(arguments.size());
+	for (const auto &expr: arguments)
+		arg_types.push_back(expr->getType(context));
+	return context.scope->lookupFunction("$c", arg_types, structName, location);
 }
