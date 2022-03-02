@@ -303,16 +303,6 @@ Type * StructType::copy() const {
 
 std::string StructType::stringify() const {
 	return "%" + name;
-	// if (isForwardDeclaration)
-	// 	return "struct " + name;
-	// std::stringstream out;
-	// out << "struct " << name << " {";
-	// for (const auto &[field_name, field_type]: order)
-	// 	out << ' ' << field_name << ": " << *field_type << ';';
-	// if (!order.empty())
-	// 	out << ' ';
-	// out << '}';
-	// return out.str();
 }
 
 size_t StructType::getSize() const {
