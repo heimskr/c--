@@ -344,19 +344,16 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			condition->compile(temp_var, *this, currentScope());
 			add<LnotRInstruction>(temp_var, temp_var);
 			add<JumpConditionalInstruction>(end, temp_var);
-			auto scope = newScope();
-			scopeStack.push_back(scope);
+			openScope();
 			compile(*node.at(1), end, start);
 			closeScope();
-			// scopeStack.pop_back();
 			add<JumpInstruction>(start);
 			add<Label>(end);
 			break;
 		}
 		case CMMTOK_FOR: {
 			checkNaked(node);
-			auto scope = newScope();
-			scopeStack.push_back(scope);
+			openScope();
 
 			const std::string label = "." + mangle() + "." + std::to_string(++nextBlock);
 			const std::string start = label + "f.s", end = label + "f.e", next = label + "f.n";
@@ -377,7 +374,6 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			add<JumpInstruction>(start);
 			add<Label>(end);
 			closeScope();
-			// scopeStack.pop_back();
 			break;
 		}
 		case CMMTOK_CONTINUE:
@@ -396,8 +392,10 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			break;
 		case CMM_BLOCK:
 			checkNaked(node);
+			openScope();
 			for (const ASTNode *child: node)
 				compile(*child, break_label, continue_label);
+			closeScope();
 			break;
 		case CMMTOK_IF: {
 			checkNaked(node);
@@ -412,25 +410,19 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			if (node.size() == 3) {
 				const std::string else_label = base + "if.else";
 				add<JumpConditionalInstruction>(else_label, temp_var);
-				auto scope = newScope();
-				scopeStack.push_back(scope);
+				openScope();
 				compile(*node.at(1), break_label, continue_label);
 				closeScope();
-				// scopeStack.pop_back();
 				add<JumpInstruction>(end_label);
 				add<Label>(else_label);
-				scope = newScope();
-				scopeStack.push_back(scope);
+				openScope();
 				compile(*node.at(2), break_label, continue_label);
 				closeScope();
-				// scopeStack.pop_back();
 			} else {
 				add<JumpConditionalInstruction>(end_label, temp_var);
-				auto scope = newScope();
-				scopeStack.push_back(scope);
+				openScope();
 				compile(*node.at(1), break_label, continue_label);
 				closeScope();
-				// scopeStack.pop_back();
 			}
 			add<Label>(end_label);
 			break;
@@ -1255,6 +1247,11 @@ TypePtr & Function::getArgumentType(size_t index) const {
 Function & Function::setStatic(bool is_static) {
 	isStatic = is_static;
 	return *this;
+}
+
+void Function::openScope() {
+	auto scope = newScope();
+	scopeStack.push_back(scope);
 }
 
 void Function::closeScope() {

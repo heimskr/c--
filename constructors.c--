@@ -31,6 +31,12 @@ void main() {
 	%Foo two = %[&one];
 	%Foo three = %[%Foo(32)];
 
+	{
+		%Foo *four = %Foo(10);
+		p("four @ "); p(four); l();
+		four::print();
+	}
+
 	one::print();
 	two::print();
 	three::print();

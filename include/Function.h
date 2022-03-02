@@ -186,6 +186,7 @@ class Function: public Makeable<Function> {
 
 		Function & setStatic(bool);
 
+		void openScope();
 		void closeScope();
 
 		void setStructParent(std::shared_ptr<StructType>, bool is_static);
