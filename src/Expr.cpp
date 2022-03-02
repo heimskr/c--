@@ -973,8 +973,6 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 	if (!left->compileAddress(addr_var, function, scope))
 		throw LvalueError(*left->getType(scope));
 	if (right_type->isInitializer()) {
-		if (!tryCast(*right_type, *left_type, nullptr, function))
-			throw ImplicitConversionError(right_type, left_type, location);
 		auto *initializer_expr = right->cast<InitializerExpr>();
 		if (initializer_expr->isConstructor) {
 			if (!left_type->isStruct())
@@ -985,8 +983,11 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 			call->structExpr = std::unique_ptr<Expr>(left->copy());
 			function.addComment("Calling constructor for " + std::string(*struct_type));
 			call->compile(nullptr, function, scope, 1);
-		} else
+		} else {
+			if (!tryCast(*right_type, *left_type, nullptr, function))
+				throw ImplicitConversionError(right_type, left_type, location);
 			initializer_expr->fullCompile(addr_var, function, scope);
+		}
 	} else {
 		right->compile(destination, function, scope);
 		if (!tryCast(*right_type, *left_type, destination, function))
