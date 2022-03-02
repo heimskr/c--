@@ -192,6 +192,9 @@ function_def: type ident "(" _arglist ")" fnattrs block { $$ = $2->adopt({$1, $4
             | type ident "::" ident "(" _arglist ")" fnattrs block { $$ = $4->adopt({$1, $6, $8, $9, $2}); D($3, $5, $7); }
             | "~" ident fnattrs block { $$ = $1->adopt({new ASTNode(cmmParser, CMMTOK_VOID), new ASTNode(cmmParser, CMM_LIST), $3, $4, $2}); $1->symbol = CMMTOK_IDENT; }
             | "static" type ident "::" ident "(" _arglist ")" fnattrs block { $$ = $5->adopt({$2, $7, $9, $10, $3, $1}); D($4, $6, $8); }
+            | constructor_def;
+
+constructor_def: "+" ident "(" _arglist ")" fnattrs block { $$ = $1->adopt({$2, $4, $6, $7}); D($3, $5); };
 
 function_decl: type ident "(" _arglist ")" fnattrs ";" { $$ = $2->adopt({$1, $4, $6}); $$->symbol = CMM_FNDECL; D($3, $5, $7); };
 
@@ -270,6 +273,7 @@ expr: expr "&&"  expr { $$ = $2->adopt({$1, $3}); }
     | string
     | CMMTOK_CHAR
     | "[" _exprlist "]" { $$ = $2; $$->symbol = CMM_INITIALIZER; D($1, $3); }
+    | "%" "[" _exprlist "]" { $$ = $3; $$->symbol = CMM_INITIALIZER; $$->attributes.insert("%"); D($1, $2, $4); }
     | "null";
 
 string: CMMTOK_STRING;

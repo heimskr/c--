@@ -319,9 +319,20 @@ void String::move(%String *other) {
 }
 
 void String::init(u8 *data) {
-	u64 len = strlen(data);
+	u64 const len = strlen(data);
 	this->data = strcpy(data);
 	this->capacity = (this->size = len) + 1u64;
+}
+
++String(u8 *data) {
+	asm("<print $k4>");
+	u64 const len = strlen(data);
+	this->data = strcpy(data);
+	this->capacity = (this->size = len) + 1u64;
+}
+
+void mkstring(u8 *data) {
+	%String foo = %[data];
 }
 
 void String::print() {

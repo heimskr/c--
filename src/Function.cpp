@@ -19,8 +19,19 @@
 Function::Function(Program &program_, const ASTNode *source_):
 program(program_), source(source_), selfScope(FunctionScope::make(*this, GlobalScope::make(program))) {
 	if (source) {
-		name = *source->text;
-		returnType = TypePtr(Type::get(*source->at(0), program));
+		if (source->symbol == CMMTOK_PLUS) { // Constructor
+			attributes.insert(Attribute::Constructor);
+			const std::string &struct_name = *source->at(0)->text;
+			if (program.structs.count(struct_name) == 0)
+				throw LocatedError(source->location, "Can't define constructor for " + struct_name +
+					": struct not defined");
+			auto struct_type = program.structs.at(struct_name);
+			name = struct_name;
+			returnType = StructType::make(program, struct_name);
+		} else { // Regular function. Or destructor?
+			name = *source->text;
+			returnType = TypePtr(Type::get(*source->at(0), program));
+		}
 	} else
 		returnType = VoidType::make();
 	scopes.emplace(0, selfScope);
@@ -45,7 +56,9 @@ std::vector<std::string> Function::stringify(bool colored) const {
 std::string Function::mangle() const {
 	if (!structParent && (name == "main" || isBuiltin()))
 		return name;
+
 	std::stringstream out;
+
 	if (structParent) {
 		out << '.';
 		if (isStatic)
@@ -54,9 +67,11 @@ std::string Function::mangle() const {
 	} else
 		out << '_';
 	out << name.size() << name << returnType->mangle() << (arguments.size() - argumentMap.count("this"));
+
 	for (const std::string &argument: arguments)
 		if (argument != "this")
 			out << argumentMap.at(argument)->type->mangle();
+
 	return out.str();
 }
 
@@ -129,19 +144,6 @@ void Function::compile() {
 				throw LocatedError(getLocation(), "Couldn't find struct " + struct_name + " for function " + struct_name
 					+ "::" + name);
 			structParent = program.structs.at(struct_name);
-			if (size == 5) {
-				if (argumentMap.count("this") != 0)
-					throw LocatedError(getLocation(), "Scope method " + struct_name + "::" + name + " cannot take a "
-						"parameter named \"this\"");
-				std::vector<std::string> new_arguments {"this"};
-				new_arguments.insert(new_arguments.end(), arguments.cbegin(), arguments.cend());
-				arguments = std::move(new_arguments);
-				auto this_var = Variable::make("this", PointerType::make(structParent->copy()), *this);
-				this_var->init();
-				argumentMap.emplace("this", this_var);
-				variables.emplace("this", this_var);
-				variableOrder.push_back(this_var);
-			}
 		} else if (size != 4)
 			throw LocatedError(getLocation(), "Expected 4–6 nodes in " + name + "'s source node, found " +
 				std::to_string(size));
@@ -1266,4 +1268,23 @@ void Function::closeScope() {
 	}
 
 	scopeStack.pop_back();
+}
+
+void Function::setStructParent(std::shared_ptr<StructType> new_struct_parent, bool is_static) {
+	structParent = new_struct_parent;
+	if (!is_static && !thisAdded) {
+		thisAdded = true;
+		const std::string &struct_name = structParent->name;
+		if (argumentMap.count("this") != 0)
+			throw LocatedError(getLocation(), "Scope method " + struct_name + "::" + name + " cannot take a "
+				"parameter named \"this\"");
+		std::vector<std::string> new_arguments {"this"};
+		new_arguments.insert(new_arguments.end(), arguments.cbegin(), arguments.cend());
+		arguments = std::move(new_arguments);
+		auto this_var = Variable::make("this", PointerType::make(structParent->copy()), *this);
+		this_var->init();
+		argumentMap.emplace("this", this_var);
+		variables.emplace("this", this_var);
+		variableOrder.push_back(this_var);
+	}
 }

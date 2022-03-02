@@ -28,19 +28,23 @@ Program compileRoot(const ASTNode &root) {
 					throw InvalidFunctionNameError(name, node->location);
 				if (name == "~")
 					name = "$d";
-				if (out.signatures.count(name) != 0)
-					throw LocatedError(node->location, "Cannot redefine function " + name);
-				decltype(Signature::argumentTypes) args;
+				Types args;
 				for (const ASTNode *arg: *node->at(1))
 					args.emplace_back(Type::get(*arg->front(), out));
 				FunctionPtr fn = Function::make(out, node);
 				fn->name = name;
 				if (size == 5 || size == 6) {
+					// 0: return type
+					// 1: args list
+					// 2: fnattrs
+					// 3: block
+					// 4: struct name
+					// 5: static
 					const std::string &struct_name = *node->at(4)->text;
 					if (out.structs.count(struct_name) == 0)
 						throw LocatedError(node->at(4)->location, "Can't define function " + struct_name + "::" + name
 							+ ": struct not defined");
-					fn->structParent = out.structs.at(struct_name);
+					fn->setStructParent(out.structs.at(struct_name), size == 6);
 					if (fn->name == "$d") {
 						if (auto destructor = fn->structParent->destructor.lock())
 							if (destructor->source)
@@ -48,14 +52,38 @@ Program compileRoot(const ASTNode &root) {
 									"destructors");
 						fn->structParent->destructor = fn;
 					}
-					if (fn->attributes.count(Function::Attribute::Constructor) != 0)
-						fn->structParent->constructors.insert(fn);
-					fn->setStatic(size == 6);
 				}
 				const std::string mangled = fn->mangle();
+				if (out.functions.count(mangled) != 0)
+					throw LocatedError(node->location, "Cannot redefine function " + mangled);
 				out.signatures.try_emplace(mangled, TypePtr(Type::get(*node->at(0), out)), std::move(args));
 				out.functions.emplace(mangled, fn);
 				out.bareFunctions.emplace(name, fn);
+				break;
+			}
+			case CMMTOK_PLUS: { // Constructor definition
+				// 0: struct name
+				// 1: args list
+				// 2: fnattrs
+				// 3: block
+				const std::string &struct_name = *node->front()->text;
+				if (out.structs.count(struct_name) == 0)
+					throw LocatedError(node->front()->location, "Can't define constructor for " + struct_name +
+						": struct not defined");
+				auto struct_type = out.structs.at(struct_name);
+				Types args;
+				for (const ASTNode *arg: *node->at(1))
+					args.emplace_back(Type::get(*arg->front(), out));
+				FunctionPtr fn = Function::make(out, node);
+				fn->name = "$c";
+				fn->setStructParent(struct_type, false);
+				fn->structParent->constructors.insert(fn);
+				const std::string mangled = fn->mangle();
+				if (out.functions.count(mangled) != 0)
+					throw LocatedError(node->location, "Cannot redefine constructor " + mangled);
+				out.signatures.try_emplace(mangled, struct_type, std::move(args));
+				out.functions.emplace(mangled, fn);
+				out.bareFunctions.emplace(struct_name, fn);
 				break;
 			}
 			case CMM_FNDECL: {
