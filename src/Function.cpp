@@ -195,6 +195,7 @@ void Function::compile() {
 		auto rt = precolored(Why::returnAddressOffset);
 
 		if (!is_init) {
+			closeScope();
 			auto gp_regs = usedGPRegisters();
 			auto fp = precolored(Why::framePointerOffset), sp = precolored(Why::stackPointerOffset), m5 = mx(5);
 			if (stackUsage != 0)
@@ -207,6 +208,10 @@ void Function::compile() {
 			addFront<StackPushInstruction>(fp);
 			addFront<StackPushInstruction>(rt);
 			add<Label>("." + mangle() + ".e");
+			if (attributes.count(Attribute::Constructor) != 0) {
+				addComment("Automatically return \"this\"");
+				add<MoveInstruction>(argumentMap.at("this"), precolored(Why::returnValueOffset));
+			}
 			add<MoveInstruction>(fp, sp);
 			for (int reg: gp_regs)
 				add<StackPopInstruction>(precolored(reg));
@@ -218,7 +223,6 @@ void Function::compile() {
 		add<JumpRegisterInstruction>(rt, false);
 	}
 
-	closeScope();
 
 	// info() << "\e[1m" << name << " (" << mangle() << ")\e[22m\n\n";
 	// for (const auto &[id, scope]: scopes)
