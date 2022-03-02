@@ -87,3 +87,9 @@ struct ConstError: LocatedError {
 	ConstError(const std::string &start, const std::string &type_string, const ASTLocation &location_ = {}):
 		LocatedError(location_, (start.empty()? "" : start + ": ") + type_string + " is const") {}
 };
+
+struct InvalidFunctionNameError: LocatedError {
+	std::string name;
+	InvalidFunctionNameError(const std::string &name_, const ASTLocation &location_ = {}):
+		LocatedError(location_, "Invalid function name: " + name_), name(name_) {}
+};

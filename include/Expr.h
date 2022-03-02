@@ -377,7 +377,7 @@ struct CallExpr: Expr {
 	std::string structName;
 	std::vector<ExprPtr> arguments;
 	/** Takes ownership of the subexpr argument. */
-	CallExpr(Expr *subexpr_, const std::vector<ExprPtr> &arguments_):
+	CallExpr(Expr *subexpr_, const std::vector<ExprPtr> &arguments_ = {}):
 		subexpr(subexpr_), arguments(arguments_) {}
 	Expr * copy() const override;
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;

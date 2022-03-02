@@ -298,7 +298,10 @@ Type * StructType::copy() const {
 	decltype(order) order_copy;
 	for (const auto &[field_name, field_type]: order)
 		order_copy.emplace_back(field_name, TypePtr(field_type->copy()));
-	return (new StructType(program, name, order_copy))->setConst(isConst);
+	auto *out = new StructType(program, name, order_copy);
+	out->setConst(isConst);
+	out->destructor = destructor;
+	return out;
 }
 
 std::string StructType::stringify() const {
@@ -356,6 +359,16 @@ const decltype(StructType::map) & StructType::getMap() const {
 	}
 
 	return map;
+}
+
+FunctionPtr StructType::getDestructor() const {
+	if (isForwardDeclaration) {
+		if (program.structs.count(name) == 0)
+			throw IncompleteStructError(name);
+		return program.structs.at(name)->destructor.lock();
+	}
+
+	return destructor.lock();
 }
 
 InitializerType::InitializerType(const std::vector<ExprPtr> &exprs, ScopePtr scope) {

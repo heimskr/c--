@@ -81,8 +81,6 @@ void int_keybrd_(u64 key_full) {
 			str1::append(", how are you");
 			str1::append('?');
 			str1::debug();
-			str1::free();
-			str2::free();
 		} else if (key == 't') {
 			traverseBlocks();
 		} else if (key == 'u') {
@@ -98,7 +96,7 @@ void int_keybrd_(u64 key_full) {
 		l();
 		%StringVec *split = %StringVec::split(&input, " ");
 		if (split->size != 0u64) {
-			%String *first = split::at(0u64);
+			%String *first = split::front();
 			if (first::eq("echo")) {
 				u64 size = split->size;
 				for (u64 i = 1u64; i < size; ++i) {
@@ -118,9 +116,9 @@ void int_keybrd_(u64 key_full) {
 					new_str::append(split::at(i));
 				}
 
-				p('"'); new_str::print(); p("\"\n");
+				p('"'); new_str::print(); p("\" -> 0x");
 				asm("<prx $1>":hash(&new_str)); l();
-				new_str::free();
+				// new_str::free();
 			} else {
 				p("Unknown command: \"");
 				first::print();
@@ -325,7 +323,7 @@ void String::init(u8 *data) {
 
 void String::print() {
 	for (u64 i = 0; i < this->size; ++i)
-		p(this->data[i]);
+		asm("<prc $1>":this->data[i]);
 }
 
 u64 String::find(u8 ch, u64 start) {
@@ -436,6 +434,16 @@ bool String::eq(%String *other) {
 		if (this->data[i] != other->data[i])
 			return false;
 	return true;
+}
+
+String::~ {
+	p("Deleting string: \"");
+	this::print();
+	p("\"\n");
+	if (this->data) {
+		free(this->data);
+		this->data = null;
+	}
 }
 
 struct StringVec {

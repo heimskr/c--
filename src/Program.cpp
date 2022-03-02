@@ -19,28 +19,35 @@ Program compileRoot(const ASTNode &root) {
 
 	for (const ASTNode *node: root)
 		switch (node->symbol) {
-			case CMMTOK_IDENT: {
+			case CMMTOK_IDENT: { // Function definition
 				const size_t size = node->size();
 				if (size < 4 || 6 < size)
 					throw LocatedError(node->location, "Ident under program root not a function definition");
-				const std::string &name = *node->text;
+				std::string name = *node->text;
+				if (name == "$d")
+					throw InvalidFunctionNameError(name, node->location);
+				if (name == "~")
+					name = "$d";
 				if (out.signatures.count(name) != 0)
 					throw LocatedError(node->location, "Cannot redefine function " + name);
 				decltype(Signature::argumentTypes) args;
 				for (const ASTNode *arg: *node->at(1))
 					args.emplace_back(Type::get(*arg->front(), out));
 				FunctionPtr fn = Function::make(out, node);
+				fn->name = name;
 				if (size == 5 || size == 6) {
 					const std::string &struct_name = *node->at(4)->text;
 					if (out.structs.count(struct_name) == 0)
 						throw LocatedError(node->at(4)->location, "Can't define function " + struct_name + "::" + name
 							+ ": struct not defined");
 					fn->structParent = out.structs.at(struct_name);
-					if (fn->attributes.count(Function::Attribute::Destructor) != 0) {
+					if (fn->name == "$d") {
+						info() << "Defining destructor for " << struct_name << '\n';
 						if (fn->structParent->destructor.lock())
 							throw LocatedError(node->location, "Struct " + struct_name + " cannot have multiple "
 								"destructors");
 						fn->structParent->destructor = fn;
+						warn() << fn->structParent->getDestructor() << " in " << fn->structParent.get() << '\n';
 					}
 					if (fn->attributes.count(Function::Attribute::Constructor) != 0)
 						fn->structParent->constructors.insert(fn);

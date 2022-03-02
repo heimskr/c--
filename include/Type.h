@@ -202,6 +202,7 @@ class StructType: public Type, public Makeable<StructType> {
 		size_t getFieldSize(const std::string &) const;
 		const decltype(order) & getOrder() const;
 		const decltype(map) & getMap() const;
+		std::shared_ptr<Function> getDestructor() const;
 
 	protected:
 		std::string stringify() const override;

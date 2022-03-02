@@ -809,8 +809,6 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 	if (Why::argumentCount < registers_used)
 		throw std::runtime_error("Functions with more than 16 arguments aren't currently supported.");
 
-	if (0 < registers_used)
-		fn.addComment("Pushing " + std::to_string(registers_used) + " register" + (registers_used == 1? "" : "s"));
 	for (size_t i = 0; i < registers_used; ++i)
 		fn.add<StackPushInstruction>(fn.precolored(Why::argumentOffset + i));
 
@@ -888,8 +886,6 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 
 	add_jump();
 
-	if (0 < registers_used)
-		fn.addComment("Popping " + std::to_string(registers_used) + " register" + (registers_used == 1? "" : "s"));
 	for (size_t i = registers_used; 0 < i; --i)
 		fn.add<StackPopInstruction>(fn.precolored(Why::argumentOffset + i - 1));
 
