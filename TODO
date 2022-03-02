@@ -5,3 +5,5 @@
 - delete and new operators
 - References
 - Debug data
+- Static fields
+- Pointers to struct methods
