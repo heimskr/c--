@@ -816,11 +816,21 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 
 	if (structExpr) {
 		struct_expr_type = structExpr->getType(scope);
-		if (!struct_expr_type->isStruct())
+		auto this_var = fn.precolored(argument_offset++);
+		if (!struct_expr_type->isStruct()) {
+			if (const auto *pointer_type = struct_expr_type->cast<PointerType>())
+				if (pointer_type->subtype->isStruct()) {
+					fn.addComment("Setting \"this\" from pointer.");
+					structExpr->compile(this_var, fn, scope);
+					goto this_done; // Hehe :)
+				}
 			throw NotStructError(TypePtr(struct_expr_type->copy()), structExpr->location);
-		fn.addComment("Setting \"this\".");
-		if (!structExpr->compileAddress(fn.precolored(argument_offset++), fn, scope))
-			throw LvalueError(*struct_expr_type, structExpr->location);
+		} else {
+			fn.addComment("Setting \"this\" from struct.");
+			if (!structExpr->compileAddress(this_var, fn, scope))
+				throw LvalueError(*struct_expr_type, structExpr->location);
+		}
+		this_done:
 		fn.addComment("Done setting \"this\".");
 	}
 
@@ -941,10 +951,16 @@ FunctionPtr CallExpr::findFunction(const std::string &name, const Context &conte
 
 std::string CallExpr::getStructName(const Context &context) const {
 	if (structExpr) {
-		if (const auto *struct_type = structExpr->getType(context)->cast<StructType>())
+		auto type = structExpr->getType(context);
+
+		if (const auto *struct_type = type->cast<StructType>())
 			return struct_type->name;
-		else
-			throw NotStructError(structExpr->getType(context), structExpr->location);
+
+		if (const auto *pointer_type = type->cast<PointerType>())
+			if (const auto *struct_type = pointer_type->subtype->cast<StructType>())
+				return struct_type->name;
+
+		throw NotStructError(std::move(type), structExpr->location);
 	}
 
 	return structName;
