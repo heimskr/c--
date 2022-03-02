@@ -97,10 +97,23 @@ void int_keybrd_(u64 key_full) {
 	} else if (key == '\n') {
 		l();
 		%StringVec* split = %StringVec::split(&input, " ");
-		input::clear();
-		for (u64 i = 0; i < split->size; ++i) {
-			p(i); p(" ("); p((*split)::at(i)->size); p("): "); (*(*split)::at(i))::print(); p('\n');
+		if (split->size != 0u64) {
+			%String* first = (*split)::at(0u64);
+			if ((*first)::eq("echo")) {
+				u64 size = split->size;
+				for (u64 i = 1u64; i < size; ++i) {
+					if (i != 1u64)
+					p(' ');
+					(*(*split)::at(i))::print();
+				}
+				l();
+			} else {
+				p("Unknown command: \"");
+				(*first)::print();
+				p("\"\n");
+			}
 		}
+		input::clear();
 		(*split)::eviscerate();
 	} else {
 		input::append(key);
@@ -388,6 +401,27 @@ static %String* String::new() {
 void String::eviscerate() {
 	(*this)::free();
 	free(this);
+}
+
+bool String::eq(u8* other) {
+	if (!this->data || !other)
+		return false;
+
+	for (u64 i = 0; i < this->size; ++i)
+		if (other[i] == '\0' || other[i] != this->data[i])
+			return false;
+	return true;
+}
+
+bool String::eq(%String* other) {
+	if (this->size != other->size)
+		return false;
+	if (this->data == other->data)
+		return true;
+	for (u64 i = 0; i < this->size; ++i)
+		if (this->data[i] != other->data[i])
+			return false;
+	return true;
 }
 
 struct StringVec {
