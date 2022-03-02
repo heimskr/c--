@@ -134,7 +134,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				auto struct_type = function->program.structs.at(struct_name);
 				const size_t stack_offset = function->stackUsage += struct_type->getSize();
 
-				out = new ConstructorExpr(stack_offset, struct_name, arguments);
+				out = (new ConstructorExpr(stack_offset, struct_name, arguments))->addToScope(function->currentScope());
 			} else {
 				CallExpr *call = new CallExpr(Expr::get(*node.front(), function), arguments);
 
@@ -1402,4 +1402,37 @@ FunctionPtr ConstructorExpr::findFunction(const Context &context) const {
 	for (const auto &expr: arguments)
 		arg_types.push_back(expr->getType(context));
 	return context.scope->lookupFunction("$c", arg_types, structName, location);
+}
+
+static std::string newVariableName(const std::map<std::string, VariablePtr> &map) {
+	for (size_t n = map.size();; ++n) {
+		std::string variable_name = "!t" + std::to_string(n);
+		if (map.count(variable_name) == 0)
+			return variable_name;
+	}
+}
+
+ConstructorExpr * ConstructorExpr::addToScope(ScopePtr scope) {
+	auto type = scope->lookupType(structName);
+	if (!type)
+		throw ResolutionError(structName, scope, location);
+
+	if (auto *function_scope = scope->cast<FunctionScope>()) {
+		Function &function = function_scope->function;
+		const std::string variable_name = newVariableName(function.variables);
+		auto variable = Variable::make(variable_name, type, function);
+		function.variableOrder.push_back(variable);
+		function.variables.emplace(variable_name, variable);
+		function.addToStack(variable);
+	} else if (auto *block_scope = scope->cast<BlockScope>()) {
+		Function &function = block_scope->getFunction();
+		const std::string variable_name = newVariableName(block_scope->variables);
+		auto variable = Variable::make(variable_name, type, function);
+		block_scope->variableOrder.push_back(variable);
+		block_scope->variables.emplace(variable_name, variable);
+		function.addToStack(variable);
+	} else
+		throw LocatedError(location, "Invalid scope for ConstructorExpr: " + scope->partialStringify());
+
+	return this;
 }

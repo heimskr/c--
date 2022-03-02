@@ -50,6 +50,8 @@ struct Scope: Checkable {
 		return *program;
 	}
 
+	virtual Function & getFunction() const { throw std::runtime_error("Scope can't return a function"); }
+
 	virtual std::string partialStringify() const = 0;
 	virtual operator std::string() const { return partialStringify(); }
 };
@@ -81,6 +83,7 @@ struct FunctionScope: Scope, Makeable<FunctionScope> {
 	bool doesConflict(const std::string &) const override;
 	bool insert(VariablePtr) override;
 	std::string partialStringify() const override;
+	Function & getFunction() const override { return function; }
 };
 
 struct BlockScope: Scope, Makeable<BlockScope> {
@@ -96,6 +99,7 @@ struct BlockScope: Scope, Makeable<BlockScope> {
 	bool doesConflict(const std::string &) const override;
 	bool insert(VariablePtr) override;
 	Program & getProgram() const override { return parent->getProgram(); }
+	Function & getFunction() const override { return parent->getFunction(); }
 	std::string partialStringify() const override { return parent->partialStringify() + " -> block"; }
 	operator std::string() const override;
 };

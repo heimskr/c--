@@ -731,4 +731,5 @@ struct ConstructorExpr: Expr {
 	size_t getSize(const Context &) const override;
 	std::unique_ptr<Type> getType(const Context &) const override;
 	FunctionPtr findFunction(const Context &) const;
+	ConstructorExpr * addToScope(ScopePtr);
 };

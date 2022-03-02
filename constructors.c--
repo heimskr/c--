@@ -9,15 +9,21 @@ struct Foo {
 };
 
 +Foo(s64 value) {
+	p("Constructing "); p(this); p(" with value "); p(value); l();
 	this->value = value;
 }
 
 +Foo(%Foo *other) {
+	p(this); p(": absorbing from "); p(other); l();
 	this->value = other->value;
 }
 
+~Foo {
+	p("~"); p(this->value); p(" @ "); p(this); l();
+}
+
 void Foo::print() {
-	p("["); p(this->value); p("]\n");
+	p("["); p(this->value); p("] @ "); p(this); l();
 }
 
 void main() {
