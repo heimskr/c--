@@ -1338,3 +1338,7 @@ void Function::extractAttributes(const ASTNode &node) {
 				throw GenericError(getLocation(), "Invalid fnattr: " + *child->text);
 		}
 }
+
+bool Function::isConst() const {
+	return attributes.count(Attribute::Const) != 0;
+}

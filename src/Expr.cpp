@@ -890,7 +890,7 @@ Expr * CallExpr::copy() const {
 	std::vector<ExprPtr> arguments_copy;
 	for (const ExprPtr &argument: arguments)
 		arguments_copy.emplace_back(argument->copy());
-	return new CallExpr(subexpr->copy(), arguments_copy);
+	return new CallExpr(subexpr->copy(), std::move(arguments_copy));
 }
 
 void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_t multiplier) {
@@ -951,6 +951,10 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 			throw GenericError(getLocation(), "Invalid number of arguments in call to " + found->name + " at " +
 				std::string(getLocation()) + ": " + std::to_string(arguments.size()) + " (expected " +
 				std::to_string(found->argumentCount()) + ")");
+
+		if (struct_expr_type && struct_expr_type->isConst && !found->isConst())
+			throw ConstError("Can't call const method " + context.structName + "::" + found->name, *struct_expr_type,
+				getLocation());
 
 		function_found = true;
 		found_return_type = found->returnType;

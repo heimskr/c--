@@ -402,6 +402,9 @@ struct CallExpr: Expr {
 	/** Takes ownership of the subexpr argument. */
 	CallExpr(Expr *subexpr_, const std::vector<ExprPtr> &arguments_ = {}):
 		subexpr(subexpr_), arguments(arguments_) {}
+	/** Takes ownership of the subexpr argument. */
+	CallExpr(Expr *subexpr_, std::vector<ExprPtr> &&arguments_):
+		subexpr(subexpr_), arguments(std::move(arguments_)) {}
 	Expr * copy() const override;
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	operator std::string() const override;

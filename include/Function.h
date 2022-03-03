@@ -193,6 +193,8 @@ class Function: public Makeable<Function> {
 		void setStructParent(std::shared_ptr<StructType>, bool is_static);
 
 		void extractAttributes(const ASTNode &);
+
+		bool isConst() const;
 };
 
 using FunctionPtr = std::shared_ptr<Function>;
