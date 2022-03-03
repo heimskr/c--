@@ -122,7 +122,7 @@ struct CompExpr: BinaryExpr<O> {
 
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
 		if (multiplier != 1)
-			throw LocatedError(this->location, "Cannot multiply in CompExpr");
+			throw GenericError(this->location, "Cannot multiply in CompExpr");
 		VregPtr temp_var = function.newVar();
 		this->left->compile(destination, function, scope, 1);
 		this->right->compile(temp_var, function, scope, multiplier);
@@ -557,7 +557,7 @@ struct PrefixExpr: Expr {
 			if (subtype->isPointer())
 				to_add = dynamic_cast<PointerType &>(*subtype).subtype->getSize();
 			else
-				throw LocatedError(location, "Cannot increment/decrement " + std::string(*subtype));
+				throw GenericError(location, "Cannot increment/decrement " + std::string(*subtype));
 		}
 		if (!destination)
 			destination = function.newVar();
@@ -600,7 +600,7 @@ struct PostfixExpr: Expr {
 			if (subtype->isPointer())
 				to_add = dynamic_cast<PointerType &>(*subtype).subtype->getSize();
 			else
-				throw LocatedError(location, "Cannot increment/decrement " + std::string(*subtype));
+				throw GenericError(location, "Cannot increment/decrement " + std::string(*subtype));
 		}
 		if (!destination)
 			destination = function.newVar();

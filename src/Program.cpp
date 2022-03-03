@@ -22,7 +22,7 @@ Program compileRoot(const ASTNode &root) {
 			case CMMTOK_IDENT: { // Function definition
 				const size_t size = node->size();
 				if (size < 4 || 6 < size)
-					throw LocatedError(node->location, "Ident under program root not a function definition");
+					throw GenericError(node->location, "Ident under program root not a function definition");
 				std::string name = *node->text;
 				if (name == "$d")
 					throw InvalidFunctionNameError(name, node->location);
@@ -42,20 +42,20 @@ Program compileRoot(const ASTNode &root) {
 					// 5: static
 					const std::string &struct_name = *node->at(4)->text;
 					if (out.structs.count(struct_name) == 0)
-						throw LocatedError(node->at(4)->location, "Can't define function " + struct_name + "::" + name
+						throw GenericError(node->at(4)->location, "Can't define function " + struct_name + "::" + name
 							+ ": struct not defined");
 					fn->setStructParent(out.structs.at(struct_name), size == 6);
 					if (fn->name == "$d") {
 						if (auto destructor = fn->structParent->destructor.lock())
 							if (destructor->source)
-								throw LocatedError(node->location, "Struct " + struct_name + " cannot have multiple "
+								throw GenericError(node->location, "Struct " + struct_name + " cannot have multiple "
 									"destructors");
 						fn->structParent->destructor = fn;
 					}
 				}
 				const std::string mangled = fn->mangle();
 				if (out.functions.count(mangled) != 0)
-					throw LocatedError(node->location, "Cannot redefine function " + mangled);
+					throw GenericError(node->location, "Cannot redefine function " + mangled);
 				out.signatures.try_emplace(mangled, TypePtr(Type::get(*node->at(0), out)), std::move(args));
 				out.functions.emplace(mangled, fn);
 				out.bareFunctions.emplace(name, fn);
@@ -68,7 +68,7 @@ Program compileRoot(const ASTNode &root) {
 				// 3: block
 				const std::string &struct_name = *node->front()->text;
 				if (out.structs.count(struct_name) == 0)
-					throw LocatedError(node->front()->location, "Can't define constructor for " + struct_name +
+					throw GenericError(node->front()->location, "Can't define constructor for " + struct_name +
 						": struct not defined");
 				auto struct_type = out.structs.at(struct_name);
 				Types args;
@@ -80,7 +80,7 @@ Program compileRoot(const ASTNode &root) {
 				fn->structParent->constructors.insert(fn);
 				const std::string mangled = fn->mangle();
 				if (out.functions.count(mangled) != 0)
-					throw LocatedError(node->location, "Cannot redefine constructor " + mangled);
+					throw GenericError(node->location, "Cannot redefine constructor " + mangled);
 				out.signatures.try_emplace(mangled, struct_type, std::move(args));
 				out.functions.emplace(mangled, fn);
 				out.bareFunctions.emplace(fn->name, fn);
@@ -94,7 +94,7 @@ Program compileRoot(const ASTNode &root) {
 				FunctionPtr fn = Function::make(out, node);
 				const std::string mangled = fn->mangle();
 				if (out.signatures.count(mangled) != 0)
-					throw LocatedError(node->location, "Cannot redefine function " + mangled);
+					throw GenericError(node->location, "Cannot redefine function " + mangled);
 				out.signatures.try_emplace(mangled, TypePtr(Type::get(*node->at(0), out)), std::move(args));
 				out.functionDeclarations.emplace(mangled, fn);
 				out.bareFunctionDeclarations.emplace(name, fn);
@@ -103,7 +103,7 @@ Program compileRoot(const ASTNode &root) {
 			case CMM_DECL: { // Global variable
 				const std::string &name = *node->at(1)->text;
 				if (out.globals.count(name) != 0)
-					throw LocatedError(node->location, "Cannot redefine global " + name);
+					throw GenericError(node->location, "Cannot redefine global " + name);
 				auto type = TypePtr(Type::get(*node->at(0), out));
 				if (node->size() <= 2)
 					out.globalOrder.push_back(out.globals.try_emplace(name,
@@ -137,7 +137,7 @@ Program compileRoot(const ASTNode &root) {
 							fn->setStatic(child->attributes.count("static") != 0);
 							const std::string mangled = fn->mangle();
 							if (out.signatures.count(mangled) != 0)
-								throw LocatedError(child->location, "Cannot redefine function " + mangled);
+								throw GenericError(child->location, "Cannot redefine function " + mangled);
 							TypePtr ret_type = TypePtr(Type::get(*child->at(0), out));
 							out.signatures.try_emplace(mangled, ret_type, std::move(args));
 							out.functionDeclarations.emplace(mangled, fn);
@@ -150,7 +150,7 @@ Program compileRoot(const ASTNode &root) {
 							fn->setStatic(false);
 							const std::string mangled = fn->mangle();
 							if (out.signatures.count(mangled) != 0)
-								throw LocatedError(child->location, "Cannot redefine function " + mangled);
+								throw GenericError(child->location, "Cannot redefine function " + mangled);
 							out.signatures.try_emplace(mangled, VoidType::make(), Types());
 							out.functionDeclarations.emplace(mangled, fn);
 							out.bareFunctionDeclarations.emplace("$d", fn);
@@ -171,7 +171,7 @@ Program compileRoot(const ASTNode &root) {
 				out.version = *node->front()->text;
 				break;
 			default:
-				throw LocatedError(node->location, "Unexpected token under root: " +
+				throw GenericError(node->location, "Unexpected token under root: " +
 					std::string(cmmParser.getName(node->symbol)));
 		}
 

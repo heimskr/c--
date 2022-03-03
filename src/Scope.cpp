@@ -77,7 +77,7 @@ FunctionPtr Scope::lookupFunction(const std::string &function_name, TypePtr retu
 			error << " for %" << struct_name;
 		for (const auto &result: filtered)
 			warn() << result->mangle() << '\n';
-		throw LocatedError(location, error.str());
+		throw GenericError(location, error.str());
 	}
 
 	return filtered.empty()? nullptr : filtered.front();
@@ -99,7 +99,7 @@ FunctionPtr Scope::lookupFunction(const std::string &function_name, const Types 
 			error << " for %" << struct_name;
 		for (const auto &result: results)
 			warn() << result->mangle() << '\n';
-		throw LocatedError(location, error.str());
+		throw GenericError(location, error.str());
 	}
 
 	return results.empty()? nullptr : results.front();
@@ -108,7 +108,7 @@ FunctionPtr Scope::lookupFunction(const std::string &function_name, const Types 
 FunctionPtr Scope::lookupFunction(const std::string &function_name, const ASTLocation &location) const {
 	Functions results = lookupFunctions(function_name);
 	if (1 < results.size())
-		throw LocatedError(location, "Multiple results found for " + function_name);
+		throw GenericError(location, "Multiple results found for " + function_name);
 	return results.empty()? nullptr : results.front();
 }
 

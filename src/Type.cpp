@@ -126,7 +126,7 @@ Type * Type::get(const ASTNode &node, const Program &program, bool allow_forward
 			auto expr = std::unique_ptr<Expr>(Expr::get(*node.at(1)));
 			auto count = expr->evaluate(nullptr);
 			if (!count)
-				throw LocatedError(node.location, "Array size expression must be a compile-time constant: " +
+				throw GenericError(node.location, "Array size expression must be a compile-time constant: " +
 					std::string(*expr) + " (at " + std::string(expr->location) + ")");
 			return new ArrayType(Type::get(*node.front(), program), *count);
 		}
@@ -144,7 +144,7 @@ Type * Type::get(const ASTNode &node, const Program &program, bool allow_forward
 			if (program.forwardDeclarations.count(struct_name) != 0) {
 				if (allow_forward)
 					return new StructType(program, struct_name);
-				throw LocatedError(node.location, "Can't use forward declaration of " + struct_name +
+				throw GenericError(node.location, "Can't use forward declaration of " + struct_name +
 					" in this context");
 			}
 			throw ResolutionError(struct_name, nullptr);
@@ -155,7 +155,7 @@ Type * Type::get(const ASTNode &node, const Program &program, bool allow_forward
 			return subtype;
 		}
 		default:
-			throw LocatedError(node.location, "Invalid token in getType: " +
+			throw GenericError(node.location, "Invalid token in getType: " +
 				std::string(cmmParser.getName(node.symbol)));
 	}
 }

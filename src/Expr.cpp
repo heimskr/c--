@@ -112,7 +112,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			break;
 		case CMMTOK_IDENT:
 			if (!function)
-				throw LocatedError(node.location, "Variable expression encountered in functionless context");
+				throw GenericError(node.location, "Variable expression encountered in functionless context");
 			out = new VariableExpr(*node.text);
 			break;
 		case CMMTOK_LPAREN: {
@@ -123,7 +123,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 
 			if (node.front()->symbol == CMMTOK_MOD) {
 				if (!function)
-					throw LocatedError(node.location, "Cannot find struct in functionless context");
+					throw GenericError(node.location, "Cannot find struct in functionless context");
 
 				const std::string &struct_name = *node.front()->front()->text;
 
@@ -312,7 +312,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			break;
 		}
 		default:
-			throw LocatedError(node.location, "Unrecognized symbol in Expr::get: " +
+			throw GenericError(node.location, "Unrecognized symbol in Expr::get: " +
 				std::string(cmmParser.getName(node.symbol)));
 	}
 
@@ -329,13 +329,13 @@ void PlusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 
 	if (left_type->isPointer() && right_type->isInt()) {
 		if (multiplier != 1)
-			throw LocatedError(location, "Cannot multiply in pointer arithmetic PlusExpr");
+			throw GenericError(location, "Cannot multiply in pointer arithmetic PlusExpr");
 		auto *left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
 		left->compile(left_var, function, scope, 1);
 		right->compile(right_var, function, scope, left_subtype->getSize());
 	} else if (left_type->isInt() && right_type->isPointer()) {
 		if (multiplier != 1)
-			throw LocatedError(location, "Cannot multiply in pointer arithmetic PlusExpr");
+			throw GenericError(location, "Cannot multiply in pointer arithmetic PlusExpr");
 		auto *right_subtype = dynamic_cast<PointerType &>(*right_type).subtype;
 		left->compile(left_var, function, scope, right_subtype->getSize());
 		right->compile(right_var, function, scope, 1);
@@ -374,12 +374,12 @@ void MinusExpr::compile(VregPtr destination, Function &function, ScopePtr scope,
 
 	if (left_type->isPointer() && right_type->isInt()) {
 		if (multiplier != 1)
-			throw LocatedError(location, "Cannot multiply in pointer arithmetic MinusExpr");
+			throw GenericError(location, "Cannot multiply in pointer arithmetic MinusExpr");
 		auto *left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
 		left->compile(left_var, function, scope, 1);
 		right->compile(right_var, function, scope, left_subtype->getSize());
 	} else if (left_type->isInt() && right_type->isPointer()) {
-		throw LocatedError(location, "Cannot subtract " + std::string(*right_type) + " from " +
+		throw GenericError(location, "Cannot subtract " + std::string(*right_type) + " from " +
 			std::string(*left_type));
 	} else if (!(*left_type && *right_type) && !(left_type->isPointer() && right_type->isPointer())) {
 		throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()), location);
@@ -669,7 +669,7 @@ size_t NumberExpr::getSize(const Context &) const {
 				out_of_range = 255 < value;
 				break;
 			default:
-				throw LocatedError(location, "Invalid numeric literal size (in bytes): " + std::to_string(size));
+				throw GenericError(location, "Invalid numeric literal size (in bytes): " + std::to_string(size));
 		}
 	else
 		switch (size) {
@@ -685,11 +685,11 @@ size_t NumberExpr::getSize(const Context &) const {
 				out_of_range = value < -128 || 127 < value;
 				break;
 			default:
-				throw LocatedError(location, "Invalid numeric literal size (in bytes): " + std::to_string(size));
+				throw GenericError(location, "Invalid numeric literal size (in bytes): " + std::to_string(size));
 		}
 
 	if (out_of_range)
-		throw LocatedError(location, "Numeric literal cannot fit in " + std::to_string(size) + " byte" +
+		throw GenericError(location, "Numeric literal cannot fit in " + std::to_string(size) + " byte" +
 			(size == 1? "" : "s") + ": " + std::to_string(value));
 
 	return size;
@@ -769,7 +769,7 @@ std::unique_ptr<Type> VariableExpr::getType(const Context &context) const {
 
 void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	if (multiplier != 1)
-		throw LocatedError(location, "Cannot multiply in AddressOfExpr");
+		throw GenericError(location, "Cannot multiply in AddressOfExpr");
 
 	if (!destination)
 		return;
@@ -801,7 +801,7 @@ void LnotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 
 void StringExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) {
 	if (multiplier != 1)
-		throw LocatedError(location, "Cannot multiply in StringExpr");
+		throw GenericError(location, "Cannot multiply in StringExpr");
 	if (destination)
 		function.add<SetIInstruction>(destination, getID(function.program));
 }
@@ -858,11 +858,11 @@ Expr * CallExpr::copy() const {
 
 void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_t multiplier) {
 	std::function<const Type &(size_t)> get_arg_type = [this](size_t) -> const Type & {
-		throw LocatedError(location, "get_arg_type not redefined");
+		throw GenericError(location, "get_arg_type not redefined");
 	};
 
 	std::function<void()> add_jump = [this] {
-		throw LocatedError(location, "add_jump not redefined");
+		throw GenericError(location, "add_jump not redefined");
 	};
 
 	TypePtr found_return_type = nullptr;
@@ -909,7 +909,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 
 	if (found) {
 		if (found->argumentCount() != arguments.size())
-			throw LocatedError(location, "Invalid number of arguments in call to " + found->name + " at " +
+			throw GenericError(location, "Invalid number of arguments in call to " + found->name + " at " +
 				std::string(location) + ": " + std::to_string(arguments.size()) + " (expected " +
 				std::to_string(found->argumentCount()) + ")");
 
@@ -943,7 +943,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 		auto argument_register = fn.precolored(argument_offset + i);
 		auto argument_type = argument->getType(scope);
 		if (argument_type->isStruct())
-			throw LocatedError(argument->location, "Structs cannot be directly passed to functions; use a pointer");
+			throw GenericError(argument->location, "Structs cannot be directly passed to functions; use a pointer");
 		argument->compile(argument_register, fn, scope);
 		try {
 			typeCheck(*argument_type, get_arg_type(i), argument_register, fn, location);
@@ -1105,7 +1105,7 @@ std::unique_ptr<Type> AccessExpr::getType(const Context &context) const {
 		return std::unique_ptr<Type>(casted->subtype->copy());
 	if (auto *casted = array_type->cast<const PointerType>())
 		return std::unique_ptr<Type>(casted->subtype->copy());
-	throw LocatedError(location, "Can't get array access result type: array expression isn't an array or pointer type");
+	throw GenericError(location, "Can't get array access result type: array expression isn't an array or pointer type");
 }
 
 bool AccessExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
@@ -1287,7 +1287,7 @@ std::optional<ssize_t> OffsetofExpr::evaluate(ScopePtr scope) const {
 	auto type = scope->lookupType(structName);
 	StructType *struct_type;
 	if (!type || !(struct_type = type->cast<StructType>()))
-		throw LocatedError(location, "Unknown or incomplete struct in offsetof expression: " + structName);
+		throw GenericError(location, "Unknown or incomplete struct in offsetof expression: " + structName);
 	ssize_t offset = 0;
 	bool found = false;
 	for (const auto &[field_name, field_type]: struct_type->getOrder()) {
@@ -1298,7 +1298,7 @@ std::optional<ssize_t> OffsetofExpr::evaluate(ScopePtr scope) const {
 		offset += field_type->getSize();
 	}
 	if (!found)
-		throw LocatedError(location, "Struct " + structName + " has no field " + fieldName);
+		throw GenericError(location, "Struct " + structName + " has no field " + fieldName);
 	return offset;
 }
 
@@ -1310,10 +1310,10 @@ std::optional<ssize_t> SizeofMemberExpr::evaluate(ScopePtr scope) const {
 	auto type = scope->lookupType(structName);
 	StructType *struct_type;
 	if (!type || !(struct_type = type->cast<StructType>()))
-		throw LocatedError(location, "Unknown or incomplete struct in sizeof expression: " + structName);
+		throw GenericError(location, "Unknown or incomplete struct in sizeof expression: " + structName);
 	const auto &map = struct_type->getMap();
 	if (map.count(fieldName) == 0)
-		throw LocatedError(location, "Struct " + structName + " has no field " + fieldName);
+		throw GenericError(location, "Struct " + structName + " has no field " + fieldName);
 	return map.at(fieldName)->getSize();
 }
 
@@ -1333,12 +1333,12 @@ std::unique_ptr<Type> InitializerExpr::getType(const Context &context) const {
 }
 
 void InitializerExpr::compile(VregPtr, Function &, ScopePtr, ssize_t) {
-	throw LocatedError(location, "Can't compile initializers directly");
+	throw GenericError(location, "Can't compile initializers directly");
 }
 
 void InitializerExpr::fullCompile(VregPtr address, Function &function, ScopePtr scope) {
 	if (isConstructor)
-		throw LocatedError(location, "Can't compile a constructor initializer as a non-constructor initializer");
+		throw GenericError(location, "Can't compile a constructor initializer as a non-constructor initializer");
 	if (children.empty())
 		return;
 	auto temp_var = function.newVar();
@@ -1381,7 +1381,7 @@ Expr * ConstructorExpr::copy() const {
 
 void ConstructorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	if (multiplier != 1)
-		throw LocatedError(location, "Cannot multiply in ConstructorExpr");
+		throw GenericError(location, "Cannot multiply in ConstructorExpr");
 
 	Context context(scope);
 	context.structName = structName;
@@ -1407,10 +1407,10 @@ void ConstructorExpr::compile(VregPtr destination, Function &function, ScopePtr 
 	FunctionPtr found = findFunction(context);
 
 	if (!found)
-		throw LocatedError(location, "Constructor for " + structName + " not found.");
+		throw GenericError(location, "Constructor for " + structName + " not found.");
 
 	if (found->argumentCount() != arguments.size())
-		throw LocatedError(location, "Invalid number of arguments in call to " + structName + " constructor at " +
+		throw GenericError(location, "Invalid number of arguments in call to " + structName + " constructor at " +
 			std::string(location) + ": " + std::to_string(arguments.size()) + " (expected " +
 			std::to_string(found->argumentCount()) + ")");
 
@@ -1420,7 +1420,7 @@ void ConstructorExpr::compile(VregPtr destination, Function &function, ScopePtr 
 		auto argument_register = function.precolored(argument_offset + i);
 		auto argument_type = argument->getType(scope);
 		if (argument_type->isStruct())
-			throw LocatedError(argument->location, "Structs cannot be directly passed to functions; use a pointer");
+			throw GenericError(argument->location, "Structs cannot be directly passed to functions; use a pointer");
 		argument->compile(argument_register, function, scope);
 		try {
 			typeCheck(*argument_type, *found->getArgumentType(i), argument_register, function, location);
@@ -1483,7 +1483,7 @@ ConstructorExpr * ConstructorExpr::addToScope(ScopePtr scope) {
 		block_scope->variables.emplace(variable_name, variable);
 		function.stackOffsets.emplace(variable, stackOffset);
 	} else
-		throw LocatedError(location, "Invalid scope for ConstructorExpr: " + scope->partialStringify());
+		throw GenericError(location, "Invalid scope for ConstructorExpr: " + scope->partialStringify());
 
 	return this;
 }
@@ -1494,7 +1494,7 @@ Expr * NewExpr::copy() const {
 
 void NewExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	if (multiplier != 1)
-		throw LocatedError(location, "Cannot multiply in NewExpr");
+		throw GenericError(location, "Cannot multiply in NewExpr");
 
 	Context context(scope);
 	context.structName = structName;
@@ -1513,7 +1513,7 @@ void NewExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 
 	FunctionPtr found = findFunction(context);
 	if (!found)
-		throw LocatedError(location, "Constructor for " + structName + " not found.");
+		throw GenericError(location, "Constructor for " + structName + " not found.");
 
 	int argument_offset = Why::argumentOffset;
 
@@ -1530,7 +1530,7 @@ void NewExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	function.add<MoveInstruction>(destination, this_var);
 
 	if (found->argumentCount() != arguments.size())
-		throw LocatedError(location, "Invalid number of arguments in call to " + structName + " constructor at " +
+		throw GenericError(location, "Invalid number of arguments in call to " + structName + " constructor at " +
 			std::string(location) + ": " + std::to_string(arguments.size()) + " (expected " +
 			std::to_string(found->argumentCount()) + ")");
 
@@ -1539,7 +1539,7 @@ void NewExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 		auto argument_register = function.precolored(argument_offset + i);
 		auto argument_type = argument->getType(scope);
 		if (argument_type->isStruct())
-			throw LocatedError(argument->location, "Structs cannot be directly passed to functions; use a pointer");
+			throw GenericError(argument->location, "Structs cannot be directly passed to functions; use a pointer");
 		argument->compile(argument_register, function, scope);
 		try {
 			typeCheck(*argument_type, *found->getArgumentType(i), argument_register, function, location);

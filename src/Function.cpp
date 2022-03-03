@@ -23,7 +23,7 @@ program(program_), source(source_), selfScope(FunctionScope::make(*this, GlobalS
 			attributes.insert(Attribute::Constructor);
 			const std::string &struct_name = *source->at(0)->text;
 			if (program.structs.count(struct_name) == 0)
-				throw LocatedError(source->location, "Can't define constructor for " + struct_name +
+				throw GenericError(source->location, "Can't define constructor for " + struct_name +
 					": struct not defined");
 			auto struct_type = program.structs.at(struct_name);
 			name = struct_name;
@@ -86,7 +86,7 @@ void Function::extractArguments() {
 		arguments.push_back(argument_name);
 		auto type = TypePtr(Type::get(*child->front(), program));
 		if (type->isStruct())
-			throw LocatedError(child->location, "Functions cannot directly take structs as function arguments; "
+			throw GenericError(child->location, "Functions cannot directly take structs as function arguments; "
 				"use a pointer");
 		VariablePtr argument = Variable::make(argument_name, type, *this);
 		argument->init();
@@ -110,7 +110,7 @@ void Function::setArguments(const std::vector<std::pair<std::string, TypePtr>> &
 		if (i < Why::argumentCount) {
 			argument->reg = Why::argumentOffset + i;
 		} else
-			throw LocatedError(getLocation(), "Functions with greater than " + std::to_string(Why::argumentCount) +
+			throw GenericError(getLocation(), "Functions with greater than " + std::to_string(Why::argumentCount) +
 				" arguments are currently unsupported.");
 		if (selfScope->doesConflict(argument_name))
 			throw NameConflictError(argument_name);
@@ -134,18 +134,18 @@ void Function::compile() {
 			return;
 
 		if (!source)
-			throw LocatedError(getLocation(), "Can't compile " + name + ": no source node");
+			throw GenericError(getLocation(), "Can't compile " + name + ": no source node");
 
 		const size_t size = source->size();
 
 		if (size == 5 || size == 6) {
 			const std::string &struct_name = *source->at(4)->text;
 			if (program.structs.count(struct_name) == 0)
-				throw LocatedError(getLocation(), "Couldn't find struct " + struct_name + " for function " + struct_name
+				throw GenericError(getLocation(), "Couldn't find struct " + struct_name + " for function " + struct_name
 					+ "::" + name);
 			structParent = program.structs.at(struct_name);
 		} else if (size != 4)
-			throw LocatedError(getLocation(), "Expected 4–6 nodes in " + name + "'s source node, found " +
+			throw GenericError(getLocation(), "Expected 4–6 nodes in " + name + "'s source node, found " +
 				std::to_string(size));
 
 		if (source->attributes.count("constructor") != 0)
@@ -160,7 +160,7 @@ void Function::compile() {
 					attributes.insert(Attribute::Naked);
 					break;
 				default:
-					throw LocatedError(getLocation(), "Invalid fnattr: " + *child->text);
+					throw GenericError(getLocation(), "Invalid fnattr: " + *child->text);
 			}
 
 		if (!isNaked()) {
@@ -259,7 +259,7 @@ VregPtr Function::precolored(int reg) {
 
 size_t Function::addToStack(VariablePtr variable) {
 	if (stackOffsets.count(variable) != 0)
-		throw LocatedError(getLocation(), "Variable already on the stack in function " + name + ": " + variable->name);
+		throw GenericError(getLocation(), "Variable already on the stack in function " + name + ": " + variable->name);
 	stackOffsets.emplace(variable, stackUsage += variable->type->getSize());
 	return stackUsage;
 }
@@ -310,7 +310,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			checkNaked(node);
 			if (node.empty()) {
 				if (!returnType->isVoid())
-					throw LocatedError(getLocation(), "Must return an expression in non-void function " + name);
+					throw GenericError(getLocation(), "Must return an expression in non-void function " + name);
 			} else {
 				auto expr = ExprPtr(Expr::get(*node.front(), this));
 				auto r0 = precolored(Why::returnValueOffset);
@@ -373,13 +373,13 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 		case CMMTOK_CONTINUE:
 			checkNaked(node);
 			if (continue_label.empty())
-				throw LocatedError(node.location, "Encountered invalid continue statement");
+				throw GenericError(node.location, "Encountered invalid continue statement");
 			add<JumpInstruction>(continue_label);
 			break;
 		case CMMTOK_BREAK:
 			checkNaked(node);
 			if (break_label.empty())
-				throw LocatedError(node.location, "Encountered invalid break statement");
+				throw GenericError(node.location, "Encountered invalid break statement");
 			add<JumpInstruction>(break_label);
 			break;
 		case CMM_EMPTY:
@@ -438,7 +438,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				const size_t  output_count = output_exprs? output_exprs->size() : 0;
 
 				if (isNaked() && (input_count != 0 || output_count != 0))
-					throw LocatedError(node.location,
+					throw GenericError(node.location,
 						"Can't supply inputs or outputs to asm nodes in a naked function");
 
 				VarMap map;
@@ -482,6 +482,16 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				}
 			}
 			wasmParser.done();
+			break;
+		}
+		case CMMTOK_DELETE: {
+			auto expr = ExprPtr(Expr::get(*node.front(), this));
+			auto type = TypePtr(expr->getType({currentScope()}));
+			if (!type->isPointer())
+				throw GenericError(node.front()->location, "Only pointers can be deleted");
+			auto temp_var = newVar(type);
+			expr->compile(temp_var, *this, currentScope());
+			node.debug();
 			break;
 		}
 		case CMM_CAST:
@@ -717,7 +727,7 @@ bool Function::spill(VregPtr vreg) {
 	if (vreg->writers.empty()) {
 		debug();
 		warn() << *vreg;
-		throw LocatedError(getLocation(), "Can't spill vreg " + vreg->regOrID() + " in function " + name +
+		throw GenericError(getLocation(), "Can't spill vreg " + vreg->regOrID() + " in function " + name +
 			": no definitions");
 	}
 
@@ -786,7 +796,7 @@ size_t Function::getSpill(VregPtr variable, bool create, bool *created) {
 		// TODO: verify (see ff5e26da04a0d8846f026ba6c4e31370f3511110)
 		return spillLocations[variable] = stackUsage += Why::wordSize;
 	}
-	throw LocatedError(getLocation(), "Couldn't find a spill location for " + variable->regOrID());
+	throw GenericError(getLocation(), "Couldn't find a spill location for " + variable->regOrID());
 }
 
 void Function::markSpilled(VregPtr vreg) {
@@ -806,7 +816,7 @@ bool Function::canSpill(VregPtr vreg) {
 		auto single_def = vreg->writers.begin()->lock();
 		if (!single_def) {
 			warn() << *vreg << '\n';
-			throw LocatedError(getLocation(), "Can't lock single writer of instruction");
+			throw GenericError(getLocation(), "Can't lock single writer of instruction");
 		}
 		auto *store = dynamic_cast<StackStoreInstruction *>(single_def.get());
 		if (store && store->leftSource == vreg) {
@@ -905,7 +915,7 @@ WhyPtr Function::insertAfter(WhyPtr base, WhyPtr new_instruction, bool reindex) 
 	BasicBlockPtr block = base->parent.lock();
 	if (!block) {
 		std::cerr << "\e[31;1m!\e[0m " << base->joined(true, "; ") << '\n';
-		throw LocatedError(getLocation(), "Couldn't lock instruction's parent block");
+		throw GenericError(getLocation(), "Couldn't lock instruction's parent block");
 	}
 
 	// if (new_instruction->debugIndex == -1)
@@ -946,11 +956,11 @@ WhyPtr Function::insertBefore(WhyPtr base, WhyPtr new_instruction, bool reindex,
 	BasicBlockPtr block = base->parent.lock();
 	if (!block) {
 		error() << *base << "\n";
-		throw LocatedError(getLocation(), "Couldn't lock instruction's parent block");
+		throw GenericError(getLocation(), "Couldn't lock instruction's parent block");
 	}
 
 	if (&block->function != this)
-		throw LocatedError(getLocation(), "Block parent isn't equal to this in Function::insertBefore");
+		throw GenericError(getLocation(), "Block parent isn't equal to this in Function::insertBefore");
 
 	// if (new_instruction->debugIndex == -1)
 	// 	new_instruction->debugIndex = base->debugIndex;
@@ -960,7 +970,7 @@ WhyPtr Function::insertBefore(WhyPtr base, WhyPtr new_instruction, bool reindex,
 	auto instructionIter = std::find(instructions.begin(), instructions.end(), base);
 	if (linear_warn && instructionIter == instructions.end()) {
 		warn() << "Couldn't find instruction in instructions field of function " << name << ": " << *base << '\n';
-		throw LocatedError(getLocation(), "Couldn't find instruction in instructions field of function " + name);
+		throw GenericError(getLocation(), "Couldn't find instruction in instructions field of function " + name);
 	}
 
 	auto blockIter = std::find(block->instructions.begin(), block->instructions.end(), base);
@@ -973,7 +983,7 @@ WhyPtr Function::insertBefore(WhyPtr base, WhyPtr new_instruction, bool reindex,
 		std::cerr << '\n';
 		for (const auto &block_instruction: block->instructions)
 			std::cerr << '\t' << *block_instruction << '\n';
-		throw LocatedError(getLocation(), "Instruction not found in block");
+		throw GenericError(getLocation(), "Instruction not found in block");
 	}
 
 	const bool can_insert_linear = instructionIter != instructions.end();
@@ -1073,7 +1083,7 @@ Graph & Function::makeCFG() {
 		for (const auto &weak_pred: block->predecessors) {
 			auto pred = weak_pred.lock();
 			if (!pred)
-				throw LocatedError(getLocation(), "Couldn't lock predecessor of " + label);
+				throw GenericError(getLocation(), "Couldn't lock predecessor of " + label);
 			if (cfg.hasLabel(pred->label)) {
 				cfg.link(pred->label, label);
 			} else {
@@ -1113,7 +1123,7 @@ bool Function::isNaked() const {
 void Function::checkNaked(const ASTNode &node) const {
 	if (isNaked()) {
 		node.debug();
-		throw LocatedError(node.location, "Can't translate node in a naked function");
+		throw GenericError(node.location, "Can't translate node in a naked function");
 	}
 }
 
@@ -1281,7 +1291,7 @@ void Function::setStructParent(std::shared_ptr<StructType> new_struct_parent, bo
 		thisAdded = true;
 		const std::string &struct_name = structParent->name;
 		if (argumentMap.count("this") != 0)
-			throw LocatedError(getLocation(), "Scope method " + struct_name + "::" + name + " cannot take a "
+			throw GenericError(getLocation(), "Scope method " + struct_name + "::" + name + " cannot take a "
 				"parameter named \"this\"");
 		std::vector<std::string> new_arguments {"this"};
 		new_arguments.insert(new_arguments.end(), arguments.cbegin(), arguments.cend());

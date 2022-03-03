@@ -11,39 +11,39 @@ struct Scope;
 struct Type;
 struct Variable;
 
-struct LocatedError: std::runtime_error {
+struct GenericError: std::runtime_error {
 	ASTLocation location;
 	using std::runtime_error::runtime_error;
 	template <typename... Args>
-	LocatedError(const ASTLocation &location_, Args &&...args):
+	GenericError(const ASTLocation &location_, Args &&...args):
 		std::runtime_error(std::forward<Args>(args)...), location(location_) {}
 };
 
-struct ResolutionError: LocatedError {
+struct ResolutionError: GenericError {
 	std::shared_ptr<Scope> scope;
 	std::string name;
 	ResolutionError(const std::string &name_, std::shared_ptr<Scope> scope_, const ASTLocation &location_ = {}):
-		LocatedError(location_, "Couldn't resolve symbol " + name_), scope(scope_), name(name_) {}
+		GenericError(location_, "Couldn't resolve symbol " + name_), scope(scope_), name(name_) {}
 };
 
-struct LvalueError: LocatedError {
+struct LvalueError: GenericError {
 	std::string typeString;
 	LvalueError(const std::string &type_string, const ASTLocation &location_ = {}):
-		LocatedError(location_, "Not an lvalue: " + type_string), typeString(type_string) {}
+		GenericError(location_, "Not an lvalue: " + type_string), typeString(type_string) {}
 };
 
-struct FunctionPointerError: LocatedError {
+struct FunctionPointerError: GenericError {
 	std::string typeString;
 	FunctionPointerError(const std::string &type_string, const ASTLocation &location_ = {}):
-		LocatedError(location_, "Not a function pointer: " + type_string), typeString(type_string) {}
+		GenericError(location_, "Not a function pointer: " + type_string), typeString(type_string) {}
 };
 
-struct NotOnStackError: LocatedError {
+struct NotOnStackError: GenericError {
 	std::shared_ptr<Variable> variable;
 	NotOnStackError(std::shared_ptr<Variable>, const ASTLocation &location_ = {});
 };
 
-struct ImplicitConversionError: LocatedError {
+struct ImplicitConversionError: GenericError {
 	std::shared_ptr<Type> left, right;
 	ImplicitConversionError(std::shared_ptr<Type> left_, std::shared_ptr<Type> right_, const ASTLocation &location_);
 	ImplicitConversionError(std::shared_ptr<Type> left_, std::shared_ptr<Type> right_);
@@ -51,25 +51,25 @@ struct ImplicitConversionError: LocatedError {
 	ImplicitConversionError(const Type &left_, const Type &right_);
 };
 
-struct NotPointerError: LocatedError {
+struct NotPointerError: GenericError {
 	std::shared_ptr<Type> type;
 	NotPointerError(std::shared_ptr<Type> type_, const ASTLocation &location_ = {});
 };
 
-struct NotArrayError: LocatedError {
+struct NotArrayError: GenericError {
 	std::shared_ptr<Type> type;
 	NotArrayError(std::shared_ptr<Type> type_, const ASTLocation &location_ = {});
 };
 
-struct NotStructError: LocatedError {
+struct NotStructError: GenericError {
 	std::shared_ptr<Type> type;
 	NotStructError(std::shared_ptr<Type> type_, const ASTLocation &location_ = {});
 };
 
-struct NameConflictError: LocatedError {
+struct NameConflictError: GenericError {
 	std::string name;
 	NameConflictError(const std::string &name_, const ASTLocation &location_ = {}):
-		LocatedError(location_, "Name collision encountered: " + name_), name(name_) {}
+		GenericError(location_, "Name collision encountered: " + name_), name(name_) {}
 };
 
 struct UncolorableError: std::runtime_error {
@@ -82,14 +82,14 @@ struct IncompleteStructError: std::runtime_error {
 		std::runtime_error("Can't access incomplete struct " + name_), name(name_) {}
 };
 
-struct ConstError: LocatedError {
+struct ConstError: GenericError {
 	std::string typeString;
 	ConstError(const std::string &start, const std::string &type_string, const ASTLocation &location_ = {}):
-		LocatedError(location_, (start.empty()? "" : start + ": ") + type_string + " is const") {}
+		GenericError(location_, (start.empty()? "" : start + ": ") + type_string + " is const") {}
 };
 
-struct InvalidFunctionNameError: LocatedError {
+struct InvalidFunctionNameError: GenericError {
 	std::string name;
 	InvalidFunctionNameError(const std::string &name_, const ASTLocation &location_ = {}):
-		LocatedError(location_, "Invalid function name: " + name_), name(name_) {}
+		GenericError(location_, "Invalid function name: " + name_), name(name_) {}
 };
