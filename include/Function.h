@@ -10,6 +10,7 @@
 
 #include "ASTNode.h"
 #include "BasicBlock.h"
+#include "DebugData.h"
 #include "Graph.h"
 #include "Makeable.h"
 #include "Type.h"
@@ -74,7 +75,7 @@ class Function: public Makeable<Function> {
 
 		std::shared_ptr<Scope> currentScope() const { return scopeStack.back(); }
 
-		std::vector<std::string> stringify(bool colored = false) const;
+		std::vector<std::string> stringify(const std::map<DebugData, size_t> &debug_map, bool colored = false) const;
 
 		std::string mangle() const;
 

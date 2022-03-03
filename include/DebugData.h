@@ -14,6 +14,7 @@ struct DebugData {
 		mangledFunction(mangled_function), location(location_) {}
 	DebugData(const ASTLocation &, const Function &);
 	bool operator<(const DebugData &) const;
+	operator bool() const;
 };
 
 namespace std {

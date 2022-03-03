@@ -280,17 +280,48 @@ void Program::compile() {
 		"|@`u8|\t<prd $a0>|\t: $rt||@`bool|\t!$a0 -> $a0|\t!$a0 -> $a0|\t<prd $a0>|\t: $rt", "|", false))
 		lines.push_back(line);
 
+	std::map<DebugData, size_t> debug_map;
+	std::map<size_t, DebugData *> inverse_debug_map;
+
+	const size_t offset = 1 + functions.size();
+
+	for (const auto &[name, function]: functions)
+		for (const auto &instruction: function->instructions)
+			if (instruction->debug)
+				if (debug_map.count(instruction->debug) == 0) {
+					const size_t index = offset + debug_map.size();
+					debug_map.emplace(instruction->debug, index);
+					inverse_debug_map.emplace(index, &instruction->debug);
+				}
+
 	for (auto &[name, function]: functions)
 		if (name == ".init" || !function->isBuiltin()) {
 			lines.push_back("");
 			lines.push_back("@" + function->mangle());
-			for (const std::string &line: function->stringify())
+			for (const std::string &line: function->stringify(debug_map))
 				lines.push_back("\t" + line);
 		}
 
 	lines.push_back("");
 	lines.push_back("#debug");
 	lines.push_back("");
+	lines.push_back("1 \"" + Util::escape(filename) + "\"");
+	std::map<std::string, size_t> function_indices;
+	for (auto &[name, function]: functions) {
+		const std::string mangled = function->mangle();
+		function_indices.emplace(mangled, function_indices.size() + 1);
+		lines.push_back("2 \"" + Util::escape(mangled) + "\"");
+	}
+
+	for (const auto &[index, debug]: inverse_debug_map) {
+		try {
+			lines.push_back("3 0 " + std::to_string(debug->location.line + 1) + " " + std::to_string(debug->location.column)
+				+ " " + std::to_string(function_indices.at(debug->mangledFunction)));
+		} catch (std::out_of_range &) {
+			info() << debug->location << ", \"" << debug->mangledFunction << "\", index = " << index << '\n';
+			throw;
+		}
+	}
 }
 
 size_t Program::getStringID(const std::string &str) {

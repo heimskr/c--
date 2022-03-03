@@ -15,3 +15,7 @@ bool DebugData::operator<(const DebugData &other) const {
 		return false;
 	return location.column < other.location.column;
 }
+
+DebugData::operator bool() const {
+	return !mangledFunction.empty() && location.column != 0;
+}
