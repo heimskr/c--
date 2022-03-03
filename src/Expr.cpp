@@ -953,8 +953,8 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 				std::to_string(found->argumentCount()) + ")");
 
 		if (struct_expr_type && struct_expr_type->isConst && !found->isConst())
-			throw ConstError("Can't call const method " + context.structName + "::" + found->name, *struct_expr_type,
-				getLocation());
+			throw ConstError("Can't call non-const method " + context.structName + "::" + found->name,
+				*struct_expr_type, getLocation());
 
 		function_found = true;
 		found_return_type = found->returnType;
