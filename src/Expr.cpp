@@ -133,7 +133,8 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				auto struct_type = function->program.structs.at(struct_name);
 				const size_t stack_offset = function->stackUsage += struct_type->getSize();
 
-				out = (new ConstructorExpr(stack_offset, struct_name, arguments))->addToScope(function->currentScope());
+				auto *constructor = new ConstructorExpr(stack_offset, struct_name, std::move(arguments));
+				out = constructor->addToScope(function->currentScope());
 			} else {
 				CallExpr *call = new CallExpr(Expr::get(*node.front(), function), arguments);
 
@@ -156,6 +157,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			for (const ASTNode *child: *node.front()->at(1))
 				arguments.emplace_back(Expr::get(*child, function));
 			out = new NewExpr(*node.front()->front()->front()->text, std::move(arguments));
+			break;
 		}
 		case CMMTOK_STRING:
 			out = new StringExpr(node.unquote());

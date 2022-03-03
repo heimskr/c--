@@ -743,6 +743,8 @@ struct ConstructorExpr: ConstructingBase {
 	size_t stackOffset;
 	ConstructorExpr(size_t stack_offset, const std::string &struct_name, const std::vector<ExprPtr> &arguments_ = {}):
 		ConstructingBase(struct_name, arguments_), stackOffset(stack_offset) {}
+	ConstructorExpr(size_t stack_offset, const std::string &struct_name, std::vector<ExprPtr> &&arguments_):
+		ConstructingBase(struct_name, std::move(arguments_)), stackOffset(stack_offset) {}
 	Expr * copy() const override;
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	operator std::string() const override;

@@ -32,7 +32,6 @@ void main() {
 	asm("$g -> $1"::g);
 	p("$g = "); p((u64) g); p('\n');
 	void *mem;
-	asm("$g -> $1"::g);
 	asm("? mem -> $1"::mem);
 	setBounds(g, mem);
 	input::init("");
