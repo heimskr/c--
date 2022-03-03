@@ -1,7 +1,7 @@
 #name "Constructors"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "1.0"
+#version "2.1"
 
 struct Foo {
 	s64 value;
@@ -47,11 +47,39 @@ void main() {
 	five::print();
 	delete five;
 
-	u32 *number = new u32();
+	// u32 *number = new u32(46);
+	u32 *number = checked_malloc(sizeof(u32));
+	p("number = "); p(number); l();
 	p("*number (uninitialized) = "); p(*number); l();
-	delete number;
-	number = new u32(500);
+	// delete number;
+	// number = new u32(500);
+	number = checked_malloc(sizeof(u32));
+
 	p("*number (initialized to 500) = "); p(*number); l();
+	p("number = "); p(number); l();
+	number = new u32(100);
+	p("number = "); p(number); l();
+	number = new u32(100);
+	p("number = "); p(number); l();
+	number = new u32(100);
+	p("number = "); p(number); l();
+	number = new u32(100);
+	p("number = "); p(number); l();
+	number = new u32(100);
+	p("number = "); p(number); l();
+	number = new u32(100);
+	p("number = "); p(number); l();
+
+	asm("@interesting");
+	u32 **pointer = new u32*();
+	p("pointer = "); p(pointer); l();
+	p("*number = "); `u32(*number); l();
+	*pointer = number;
+	p("*number = "); `u32(*number); l();
+	p("**pointer = "); `u32(**pointer); l();
+	p("*number = "); `u32(*number); l();
+	p(new u32()); l();
+
 	delete number;
 }
 
