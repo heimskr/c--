@@ -182,9 +182,9 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 		fn->name = "`" + function_name;
 		return *fn;
 	};
-	add_dummy("s").setArguments({{"`string", std::make_shared<PointerType>(new UnsignedType(8))}});
+	add_dummy("s").setArguments({{"`string", std::make_shared<PointerType>((new UnsignedType(8))->setConst(true))}});
 	add_dummy("c").setArguments({{"`char", std::make_shared<UnsignedType>(8)}});
-	add_dummy("ptr").setArguments({{"`pointer", std::make_shared<PointerType>(new VoidType())}});
+	add_dummy("ptr").setArguments({{"`pointer", std::make_shared<PointerType>((new VoidType)->setConst(true))}});
 	add_dummy("bool").setArguments({{"`boolean", std::make_shared<BoolType>()}});
 	for (size_t i = 8; i <= 64; i *= 2) {
 		add_dummy("s" + std::to_string(i)).setArguments({{"`int", std::make_shared<SignedType>(i)}});

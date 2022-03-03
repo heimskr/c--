@@ -189,7 +189,7 @@ void hack() {
 		p("not hacked =(\n");
 }
 
-void memcpy(void *destination, void *source, u64 count) {
+void memcpy(void *destination, void const *source, u64 count) {
 	while (8u64 <= count) {
 		asm("[$1] -> [$2]":source, destination);
 		count -= 8u64;
@@ -216,7 +216,7 @@ void memcpy(void *destination, void *source, u64 count) {
 	}
 }
 
-u8 * String::copyData(u64* new_capacity) {
+u8 * String::copyData(u64* new_capacity) #const {
 	*new_capacity = roundUp(this->size + 1u64);
 	u8 *out = checked_malloc(*new_capacity);
 	if (this->data)
@@ -225,7 +225,7 @@ u8 * String::copyData(u64* new_capacity) {
 	return out;
 }
 
-u8 * String::copyData() {
+u8 * String::copyData() #const {
 	u8 *out = checked_malloc(this->size + 1u64);
 	if (this->data)
 		memcpy(out, this->data, this->size);
@@ -297,7 +297,7 @@ void String::free() {
 	this->capacity = 0u64;
 }
 
-void String::debug() {
+void String::debug() #const {
 	p(" \e[2mptr:\e[22m "); p((void *) this->data); p('\n');
 	p("\e[2mdata:\e[22m "); p(this->data); p('\n');
 	p("\e[2msize:\e[22m "); p(this->size); p('\n');
@@ -452,7 +452,7 @@ void String::eviscerate() {
 	free(this);
 }
 
-bool String::eq(u8 *other) {
+bool String::eq(u8 *other) #const {
 	if (!this->data || !other)
 		return false;
 
@@ -462,7 +462,7 @@ bool String::eq(u8 *other) {
 	return true;
 }
 
-bool String::eq(%String *other) {
+bool String::eq(%String *other) #const {
 	if (this->size != other->size)
 		return false;
 	if (this->data == other->data)
@@ -514,7 +514,7 @@ struct StringVec {
 	return &this->data[this->size - 1u64];
 }
 
-%String * StringVec::copyData(u64 *new_capacity) {
+%String * StringVec::copyData(u64 *new_capacity) #const {
 	%String *out = checked_malloc((*new_capacity = roundUp(this->size + 1u64)) * sizeof(%String));
 	if (this->data)
 		memcpy(out, this->data, this->size * sizeof(%String));
@@ -653,12 +653,12 @@ u8 * strcpy(u8 const *string) {
 }
 
 void l() { asm("<prc $1>":'\n'); }
-void p(u8 *s)     { `s(s);                   }
-void p(u64 n)     { `u64(n);                 }
-void p(s64 n)     { `s64(n);                 }
-void p(void *ptr) { `ptr(ptr);               }
-void p(u8 ch)     { `c(ch);                  }
-void p(bool b)    { `s(b? "true" : "false"); }
+void p(u8 const *s)     { `s(s);                   }
+void p(u64 n)           { `u64(n);                 }
+void p(s64 n)           { `s64(n);                 }
+void p(void const *ptr) { `ptr(ptr);               }
+void p(u8 ch)           { `c(ch);                  }
+void p(bool b)          { `s(b? "true" : "false"); }
 
 struct BlockMeta;
 

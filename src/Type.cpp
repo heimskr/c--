@@ -52,6 +52,8 @@ bool PointerType::operator&&(const Type &other) const {
 	if (other.isBool())
 		return true;
 	if (auto *other_pointer = other.cast<PointerType>()) {
+		if (subtype->isConst && !other_pointer->subtype->isConst)
+			return false;
 		if (subtype->isVoid() || other_pointer->subtype->isVoid() || (*subtype && *other_pointer->subtype))
 			return true;
 		if (auto *subtype_array = subtype->cast<ArrayType>())
@@ -70,6 +72,8 @@ int PointerType::affinity(const Type &other) const {
 	if (other.isBool())
 		return 1;
 	if (auto *other_pointer = other.cast<PointerType>()) {
+		if (subtype->isConst && !other_pointer->subtype->isConst)
+			return 0;
 		if (subtype->isVoid())
 			return other_pointer->subtype->isVoid()? 3 : 2;
 		if (other_pointer->subtype->isVoid())
@@ -83,10 +87,16 @@ int PointerType::affinity(const Type &other) const {
 }
 
 bool ArrayType::operator&&(const Type &other) const {
-	if (auto *other_array = other.cast<ArrayType>())
+	if (auto *other_array = other.cast<ArrayType>()) {
+		if (subtype->isConst && !other_array->subtype->isConst)
+			return false;
 		return (*subtype && *other_array->subtype) && count == other_array->count;
-	if (auto *pointer = other.cast<PointerType>())
+	}
+	if (auto *pointer = other.cast<PointerType>()) {
+		if (subtype->isConst && !pointer->subtype->isConst)
+			return false;
 		return *subtype && *pointer->subtype;
+	}
 	return false;
 }
 
@@ -321,7 +331,7 @@ bool StructType::operator&&(const Type &other) const {
 
 bool StructType::operator==(const Type &other) const {
 	if (const auto *other_struct = other.cast<StructType>())
-		return name == other_struct->name;
+		return name == other_struct->name && isConst == other_struct->isConst;
 	return false;
 }
 

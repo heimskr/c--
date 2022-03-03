@@ -952,7 +952,8 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 				std::string(getLocation()) + ": " + std::to_string(arguments.size()) + " (expected " +
 				std::to_string(found->argumentCount()) + ")");
 
-		if (struct_expr_type && struct_expr_type->isConst && !found->isConst())
+		const bool special = found->name == "$c" || found->name == "$d";
+		if (!special && struct_expr_type && struct_expr_type->isConst && !found->isConst())
 			throw ConstError("Can't call non-const method " + context.structName + "::" + found->name,
 				*struct_expr_type, getLocation());
 
@@ -989,7 +990,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 			throw GenericError(argument->getLocation(), "Structs cannot be directly passed to functions; use a pointer");
 		argument->compile(argument_register, fn, scope);
 		try {
-			typeCheck(*argument_type, get_arg_type(i), argument_register, fn, getLocation());
+			typeCheck(*argument_type, get_arg_type(i), argument_register, fn, argument->getLocation());
 		} catch (std::out_of_range &err) {
 			std::cerr << "\e[31mBad function argument at " << argument->getLocation() << "\e[39m\n";
 			throw;
@@ -1459,7 +1460,7 @@ void ConstructorExpr::compile(VregPtr destination, Function &function, ScopePtr 
 				"Structs cannot be directly passed to functions; use a pointer");
 		argument->compile(argument_register, function, scope);
 		try {
-			typeCheck(*argument_type, *found->getArgumentType(i), argument_register, function, getLocation());
+			typeCheck(*argument_type, *found->getArgumentType(i), argument_register, function, argument->getLocation());
 		} catch (std::out_of_range &err) {
 			std::cerr << "\e[31mBad function argument at " << argument->getLocation() << "\e[39m\n";
 			throw;
@@ -1603,7 +1604,8 @@ void NewExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 					"Structs cannot be directly passed to functions; use a pointer");
 			argument->compile(argument_register, function, scope);
 			try {
-				typeCheck(*argument_type, *found->getArgumentType(i), argument_register, function, getLocation());
+				typeCheck(*argument_type, *found->getArgumentType(i), argument_register, function,
+					argument->getLocation());
 			} catch (std::out_of_range &err) {
 				error() << "Bad function argument at " << argument->getLocation() << '\n';
 				throw;
