@@ -575,6 +575,7 @@ void StringVec::eviscerate() {
 }
 
 +StringVec(%String *str, u8 *delimiter) {
+	this::$c();
 	%StringVec::split(this, str, delimiter);
 }
 
