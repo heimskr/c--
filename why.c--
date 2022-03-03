@@ -608,12 +608,6 @@ struct Noisy {
 	s64 value;
 };
 
-static %Noisy * Noisy::create(s64 value) {
-	%Noisy *out = checked_malloc(sizeof(%Noisy));
-	out->value = value;
-	return out;
-}
-
 ~Noisy {
 	p("Deleting Noisy instance with value of ");
 	p(this->value);
@@ -631,7 +625,7 @@ struct UniquePtr {
 	}
 }
 
-void panic(u8 *message) {
+void panic(u8 const *message) {
 	p("\e[31mERROR\e[0m: ");
 	p(message);
 	p('\n');

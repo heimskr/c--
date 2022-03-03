@@ -1085,8 +1085,6 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 	if (!destination)
 		destination = function.newVar();
 	TypePtr right_type = right->getType(scope);
-	if (left_type->isConst)
-		throw ConstError("Can't assign", *left_type, getLocation());
 	if (!left->compileAddress(addr_var, function, scope))
 		throw LvalueError(*left->getType(scope));
 	if (right_type->isInitializer()) {
@@ -1321,7 +1319,7 @@ std::shared_ptr<StructType> ArrowExpr::checkType(ScopePtr scope) const {
 		throw NotPointerError(std::move(left_type), getLocation());
 	auto *left_pointer = left_type->cast<PointerType>();
 	TypePtr shared_type = TypePtr(left_pointer->subtype->copy());
-	shared_type->setConst(left_type->isConst);
+	shared_type->setConst(left_pointer->subtype->isConst);
 	if (!left_pointer->subtype->isStruct())
 		throw NotStructError(shared_type, getLocation());
 	return shared_type->ptrcast<StructType>();
