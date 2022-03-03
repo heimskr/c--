@@ -118,6 +118,7 @@ using AN = ASTNode;
 %token CMMTOK_STATIC "static"
 %token CMMTOK_NEW "new"
 %token CMMTOK_DELETE "delete"
+%token CMMTOK_CONSTATTR "#const"
 
 %token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY CMM_POSTPLUS CMM_POSTMINUS CMM_FNPTR CMM_DECL
 %token CMM_INITIALIZER CMM_FNDECL
@@ -204,7 +205,7 @@ function_decl: type ident "(" _arglist ")" fnattrs ";" { $$ = $2->adopt({$1, $4,
 fnattrs: fnattrs fnattr { $$ = $1->adopt($2); }
        | { $$ = new ASTNode(cmmParser, CMM_LIST); };
 
-fnattr: "#naked";
+fnattr: "#naked" | "#const";
 
 block: "{" statements "}" { $$ = $2; D($1, $3); };
 

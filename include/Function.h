@@ -36,7 +36,7 @@ class Function: public Makeable<Function> {
 		void extractArguments();
 
 	public:
-		enum class Attribute {Naked, Constructor, Destructor};
+		enum class Attribute {Naked, Constructor, Destructor, Const};
 		Program &program;
 		std::string name = "???";
 		std::list<WhyPtr> instructions;
@@ -191,6 +191,8 @@ class Function: public Makeable<Function> {
 		void closeScope();
 
 		void setStructParent(std::shared_ptr<StructType>, bool is_static);
+
+		void extractAttributes(const ASTNode &);
 };
 
 using FunctionPtr = std::shared_ptr<Function>;

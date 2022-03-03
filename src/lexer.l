@@ -31,6 +31,7 @@ CMM_SLCOMMENT	("//"[^\n]*)
 [ \t]+			{}
 \n				{cmmLexer.newline();}
 
+"#const"		{RTOKEN(CONSTATTR)}
 "::"			{RTOKEN(SCOPE)}
 "+="			{RTOKEN(PLUSEQ)}
 "-="			{RTOKEN(MINUSEQ)}

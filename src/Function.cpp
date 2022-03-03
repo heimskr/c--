@@ -32,6 +32,14 @@ program(program_), source(source_), selfScope(FunctionScope::make(*this, GlobalS
 			name = *source->text;
 			returnType = TypePtr(Type::get(*source->at(0), program));
 		}
+
+		if (source->attributes.count("constructor") != 0)
+			attributes.insert(Attribute::Constructor);
+
+		if (source->attributes.count("destructor") != 0)
+			attributes.insert(Attribute::Destructor);
+
+		extractAttributes(*source->at(2));
 	} else
 		returnType = VoidType::make();
 	scopes.emplace(0, selfScope);
@@ -155,21 +163,6 @@ void Function::compile() {
 		} else if (size != 4)
 			throw GenericError(getLocation(), "Expected 4–6 nodes in " + name + "'s source node, found " +
 				std::to_string(size));
-
-		if (source->attributes.count("constructor") != 0)
-			attributes.insert(Attribute::Constructor);
-
-		if (source->attributes.count("destructor") != 0)
-			attributes.insert(Attribute::Destructor);
-
-		for (const ASTNode *child: *source->at(2))
-			switch (child->symbol) {
-				case CMMTOK_NAKED:
-					attributes.insert(Attribute::Naked);
-					break;
-				default:
-					throw GenericError(getLocation(), "Invalid fnattr: " + *child->text);
-			}
 
 		if (!isNaked()) {
 			int i = 0;
@@ -1325,8 +1318,23 @@ void Function::setStructParent(std::shared_ptr<StructType> new_struct_parent, bo
 		arguments = std::move(new_arguments);
 		auto this_var = Variable::make("this", PointerType::make(structParent->copy()), *this);
 		this_var->init();
+		this_var->type->setConst(attributes.count(Attribute::Const) != 0);
 		argumentMap.emplace("this", this_var);
 		variables.emplace("this", this_var);
 		variableOrder.push_back(this_var);
 	}
+}
+
+void Function::extractAttributes(const ASTNode &node) {
+	for (const ASTNode *child: node)
+		switch (child->symbol) {
+			case CMMTOK_NAKED:
+				attributes.insert(Attribute::Naked);
+				break;
+			case CMMTOK_CONSTATTR:
+				attributes.insert(Attribute::Const);
+				break;
+			default:
+				throw GenericError(getLocation(), "Invalid fnattr: " + *child->text);
+		}
 }
