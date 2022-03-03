@@ -489,9 +489,17 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			auto type = TypePtr(expr->getType({currentScope()}));
 			if (!type->isPointer())
 				throw GenericError(node.front()->location, "Only pointers can be deleted");
+			auto pointer_type = type->ptrcast<PointerType>();
 			auto temp_var = newVar(type);
 			expr->compile(temp_var, *this, currentScope());
-			node.debug();
+			if (auto *struct_type = pointer_type->subtype->cast<StructType>())
+				if (auto destructor = struct_type->getDestructor()) {
+					auto *destructor_expr = new VariableExpr("$d");
+					auto call = std::make_unique<CallExpr>(destructor_expr);
+					call->structExpr = std::make_unique<VregExpr>(temp_var);
+					addComment("Calling destructor for " + std::string(*struct_type) + " " + std::string(*expr));
+					call->compile(nullptr, *this, currentScope(), 1);
+				}
 			break;
 		}
 		case CMM_CAST:
