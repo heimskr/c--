@@ -484,6 +484,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				for (ASTNode *child: *wasmParser.root)
 					if (auto *wasm_node = dynamic_cast<WASMInstructionNode *>(child)) {
 						WhyPtr converted = wasm_node->convert(*this, map);
+						converted->setDebug({node.location, *this});
 						instructions.push_back(converted);
 					}
 

@@ -313,15 +313,9 @@ void Program::compile() {
 		lines.push_back("2 \"" + Util::escape(mangled) + "\"");
 	}
 
-	for (const auto &[index, debug]: inverse_debug_map) {
-		try {
-			lines.push_back("3 0 " + std::to_string(debug->location.line + 1) + " " + std::to_string(debug->location.column)
-				+ " " + std::to_string(function_indices.at(debug->mangledFunction)));
-		} catch (std::out_of_range &) {
-			info() << debug->location << ", \"" << debug->mangledFunction << "\", index = " << index << '\n';
-			throw;
-		}
-	}
+	for (const auto &[index, debug]: inverse_debug_map)
+		lines.push_back("3 0 " + std::to_string(debug->location.line + 1) + " " + std::to_string(debug->location.column)
+			+ " " + std::to_string(function_indices.at(debug->mangledFunction)));
 }
 
 size_t Program::getStringID(const std::string &str) {
