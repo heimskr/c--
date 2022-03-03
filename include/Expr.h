@@ -306,7 +306,7 @@ struct NullExpr: AtomicExpr {
 	std::unique_ptr<Type> getType(const Context &) const override { return std::make_unique<PointerType>(new VoidType); }
 };
 
-struct VregExpr: Expr {
+struct VregExpr: Expr, Makeable<VregExpr> {
 	VregPtr virtualRegister;
 	VregExpr(VregPtr virtual_register): virtualRegister(virtual_register) {}
 	Expr * copy() const override { return new VregExpr(virtualRegister); }

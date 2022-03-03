@@ -494,12 +494,12 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			expr->compile(temp_var, *this, currentScope());
 			if (auto *struct_type = pointer_type->subtype->cast<StructType>())
 				if (auto destructor = struct_type->getDestructor()) {
-					auto *destructor_expr = new VariableExpr("$d");
-					auto call = std::make_unique<CallExpr>(destructor_expr);
+					auto call = std::make_unique<CallExpr>(new VariableExpr("$d"));
 					call->structExpr = std::make_unique<VregExpr>(temp_var);
 					addComment("Calling destructor for " + std::string(*struct_type) + " " + std::string(*expr));
 					call->compile(nullptr, *this, currentScope(), 1);
 				}
+			CallExpr(new VariableExpr("free"), {VregExpr::make(temp_var)}).compile(nullptr, *this, currentScope(), 1);
 			break;
 		}
 		case CMM_CAST:
