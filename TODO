@@ -2,7 +2,6 @@
 - Enums
 - Default destructors
 - References
-- Debug data
 - Static fields
 - Pointers to struct methods
 - Operator overloading
