@@ -25,12 +25,15 @@ struct VirtualRegister: Checkable, std::enable_shared_from_this<VirtualRegister>
 	VirtualRegister(int id_, std::shared_ptr<Type> = nullptr);
 	std::shared_ptr<VirtualRegister> init();
 
+	virtual ~VirtualRegister() {}
+
 	std::string regOrID(bool colored = false) const;
 	bool special() const;
 
 	WeakSet<BasicBlock> readingBlocks, writingBlocks;
 	WeakSet<WhyInstruction> readers, writers;
 
+	size_t getSize() const;
 	virtual operator std::string() const { return regOrID(true); }
 };
 
@@ -40,9 +43,6 @@ struct Variable: VirtualRegister, Makeable<Variable> {
 	Variable(const std::string &name_, std::shared_ptr<Type>, Function &);
 	Variable(const std::string &name_, std::shared_ptr<Type>);
 
-	virtual ~Variable() {}
-
-	size_t getSize() const;
 	operator std::string() const override;
 };
 

@@ -27,15 +27,15 @@ bool VirtualRegister::special() const {
 	return Why::isSpecialPurpose(reg);
 }
 
+size_t VirtualRegister::getSize() const {
+	return type->getSize();
+}
+
 Variable::Variable(const std::string &name_, std::shared_ptr<Type> type_, Function &function_):
 	VirtualRegister(function_, type_), name(name_) {}
 
 Variable::Variable(const std::string &name_, std::shared_ptr<Type> type_):
 	VirtualRegister(-1, type_), name(name_) {}
-
-size_t Variable::getSize() const {
-	return type->getSize();
-}
 
 Variable::operator std::string() const {
 	return name + ": " + std::string(*type);
