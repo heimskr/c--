@@ -26,6 +26,18 @@ void Foo::print() {
 	p("["); p(this->value); p("] @ "); p(this); l();
 }
 
+struct Wrapper {
+	%Foo foo;
+};
+
++Wrapper() {
+	p("Before assigning: ");
+	this->foo::print();
+	this->foo = %[999];
+	p("After assigning: ");
+	this->foo::print();
+}
+
 void main() {
 	void*g;asm("$g ->$1"::g);void*mem;asm("?mem ->$1"::mem);setBounds(g,mem);
 
@@ -46,6 +58,8 @@ void main() {
 	three::print();
 	five::print();
 	delete five;
+
+	%Wrapper wrapper = %[];
 
 	// u32 *number = new u32(46);
 	u32 *number = checked_malloc(sizeof(u32));
@@ -84,3 +98,4 @@ void main() {
 }
 
 void l(){asm("<prc $1>":'\n');}void p(u8*s){`s(s);}void p(u64 n){`u64(n);}void p(u32 n){`u32(n);}void p(s64 n){`s64(n);}void p(void *ptr){`ptr(ptr);}void p(u8 ch){`c(ch);}void p(bool b){`s(b?"true":"false");}struct BlockMeta;u64 MEMORY_ALIGN=32u64;u64 allocated=0u64;%BlockMeta*base=null;u64 highestAllocated=0u64;void*start=null;void*high=null;void*end=null;struct BlockMeta{u64 size;%BlockMeta*next;bool free;};u64 realign(u64 val,u64 alignment){if(alignment==0u64)return val;u64 offset=(val+sizeof(%BlockMeta))%alignment;if(offset)val+=alignment-offset;return val;}%BlockMeta*findFreeBlock(%BlockMeta**last,u64 size){%BlockMeta*current=base;while(current&&!(current->free&&size<=current->size)){*last=current;current=current->next;}return current;}%BlockMeta*requestSpace(%BlockMeta*last,u64 size,u64 alignment){%BlockMeta*block=(%BlockMeta*)realign((u64)end,alignment);if(last)last->next=block;block->size=size;block->next=null;block->free=false;end=(u8*)block+block->size+sizeof(%BlockMeta)+1;return block;}void*allocate(u64 size,u64 alignment){%BlockMeta*block=null;if(!base){block=requestSpace(null,size,alignment);if(!block)return null;base=block;}else{%BlockMeta*last=base;block=findFreeBlock(&last,size);if(!block){block=requestSpace(last,size,alignment);if(!block)return null;}else{split(block,size);block->free=false;}}allocated+=block->size+sizeof(%BlockMeta);return block+1;}void split(%BlockMeta*block,u64 size){if(block->size>size+sizeof(%BlockMeta)){%BlockMeta*new_block=(%BlockMeta*)realign((u64)block+size+sizeof(%BlockMeta)+1u64,MEMORY_ALIGN);if(block->next){u64 const new_size=(u64)((void*)block->next-(void*)new_block-(s64)sizeof(%BlockMeta));if(new_size>0u64){new_block->size=new_size;new_block->free=true;new_block->next=block->next;block->next=new_block;block->size=size;}}else{u64 const new_size=(u64)((void*)block+block->size-(void*)new_block);if(new_size>0u64){new_block->size=new_size;new_block->free=true;new_block->next=null;block->size=size;block->next=new_block;}}}}%BlockMeta*getBlock(void*ptr){return(%BlockMeta*)ptr-1;}void free(void*ptr){if(ptr==null)return;%BlockMeta*block_ptr=getBlock(ptr);block_ptr->free=true;if (!block_ptr->next)end=block_ptr;allocated-=block_ptr->size+sizeof(%BlockMeta);merge();}u64 merge(){u64 count=0u64;%BlockMeta*current=base;while(current&&current->next&&current->next!=base){if(current->free&&current->next->free){current->size+=sizeof(%BlockMeta)+current->next->size;current->next=current->next->next;++count;}else current=current->next;}return count;}void setBounds(void*new_start,void*new_high){if(new_high<=new_start){p("Invalid heap bounds: 0x");asm("<prx $1>":new_start);p(" through 0x");asm("<prx $1>":new_high);p('\n');asm("<halt>");}start=(void*)realign((u64)new_start,MEMORY_ALIGN);highestAllocated=(u64)start;high=new_high;end=new_start;}u64 getUnallocated(){return(u64)(high-start)-allocated;}void*malloc(u64 size){return allocate(size,MEMORY_ALIGN);}void*memset(void*ptr,u8 c,u64 len){asm("memset $1 x $2 -> $3":len,c,ptr);return ptr;}void*calloc(u64 count,u64 size){void*chunk=malloc(count*size);if(chunk)memset(chunk,0,count*size);return chunk;}void*checked_malloc(u64 size){void*out=malloc(size);if(!out){p("Can't allocate ");p(size);p(" bytes: out of memory\n");asm("<halt>");}return out;}
+

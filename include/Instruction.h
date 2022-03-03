@@ -4,11 +4,14 @@
 #include <ostream>
 #include <string>
 
+#include "DebugData.h"
 #include "Util.h"
 
 struct BasicBlock;
+struct Expr;
 
 struct Instruction {
+	DebugData debug;
 	std::weak_ptr<BasicBlock> parent;
 	int index = -1;
 	virtual ~Instruction() {}
@@ -20,6 +23,8 @@ struct Instruction {
 	Instruction & setParent(std::weak_ptr<BasicBlock> parent_) { parent = parent_; return *this; }
 	Instruction & setIndex(int index_) { index = index_; return *this; }
 	std::string singleLine() const;
+	Instruction & setDebug(const DebugData &debug_) { debug = debug_; return *this; }
+	Instruction & setDebug(const Expr &);
 };
 
 using InstructionPtr = std::shared_ptr<Instruction>;

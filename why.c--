@@ -94,9 +94,7 @@ void int_keybrd_(u64 key_full) {
 		p("\e[D \e[D");
 	} else if (key == '\n') {
 		l();
-		%StringVec split = %[];
-		// split::init();
-		%StringVec::split(&split, &input, " ");
+		%StringVec split = %[&input, " "];
 		if (split.size != 0u64) {
 			%String *first = split::front();
 			if (first::eq("echo")) {
@@ -436,20 +434,8 @@ void String::reserve(u64 size) {
 	}
 }
 
-static %String * String::create(u8 *data) {
-	%String *out = checked_malloc(sizeof(%String));
-	out::init(data);
-	return out;
-}
-
-static %String * String::create() {
-	%String *out = checked_malloc(sizeof(%String));
-	out::init("");
-	return out;
-}
-
 %String * String::substr(u64 start, u64 len) {
-	%String *out = %String::create("");
+	%String *out = new %String("");
 	out::reserve(len);
 
 	for (u64 i = 0; i < len; ++i) {
@@ -480,7 +466,7 @@ bool String::eq(%String *other) {
 	if (this->size != other->size)
 		return false;
 	if (this->data == other->data)
-		return true;
+		return true; // Shouldn't happen.
 	for (u64 i = 0; i < this->size; ++i)
 		if (this->data[i] != other->data[i])
 			return false;
@@ -581,14 +567,6 @@ void StringVec::push(u8 *str) {
 	this->capacity = required;
 }
 
-static %StringVec * StringVec::create() {
-	%StringVec *out = checked_malloc(sizeof(%StringVec));
-	out->data = null;
-	out->size = 0;
-	out->capacity = 0;
-	return out;
-}
-
 void StringVec::eviscerate() {
 	this::freeData();
 	this->size = 0;
@@ -596,10 +574,8 @@ void StringVec::eviscerate() {
 	free(this);
 }
 
-static %StringVec * StringVec::split(%String *str, u8 *delimiter) {
-	%StringVec *sv = %StringVec::create();
-	%StringVec::split(sv, str, delimiter);
-	return sv;
++StringVec(%String *str, u8 *delimiter) {
+	%StringVec::split(this, str, delimiter);
 }
 
 static void StringVec::split(%StringVec *sv, %String *str, u8 *delimiter) {
@@ -887,7 +863,7 @@ u64 roundUp(u64 value) {
 	value |= value >> 8u64;
 	value |= value >> 16u64;
 	value |= value >> 32u64;
-	return ++value;
+	return value + 1u64;
 }
 
 u64 hash(%String *str) {
@@ -906,7 +882,8 @@ u64 hash(%String *str) {
 }
 
 u32 hash2(u64 salt0, u64 salt1, u8 *key) {
-	u32 result = (u32) ((salt0 >> 32u64 & 0xffffffff00000000u64) ^ (salt0 & 0xffffffffu64) ^ (salt1 >> 32u64 & 0xffffffff00000000u64) ^ (salt1 & 0xffffffffu64));
+	u32 result = (u32) ((salt0 >> 32u64 & 0xffffffff00000000u64) ^ (salt0 & 0xffffffffu64)
+		^ (salt1 >> 32u64 & 0xffffffff00000000u64) ^ (salt1 & 0xffffffffu64));
 	for (u32 i = 0; key[i] != 0u8; ++i)
 		result ^= (u32) key[i] << ((i % 4u32) * 8u32);
 	return result;

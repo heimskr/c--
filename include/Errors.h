@@ -7,6 +7,7 @@
 #include "ASTNode.h"
 
 class Function;
+struct Context;
 struct Scope;
 struct Type;
 struct Variable;
@@ -22,8 +23,10 @@ struct GenericError: std::runtime_error {
 struct ResolutionError: GenericError {
 	std::shared_ptr<Scope> scope;
 	std::string name;
+	std::string structName;
 	ResolutionError(const std::string &name_, std::shared_ptr<Scope> scope_, const ASTLocation &location_ = {}):
 		GenericError(location_, "Couldn't resolve symbol " + name_), scope(scope_), name(name_) {}
+	ResolutionError(const std::string &name_, const Context &, const ASTLocation &location_ = {});
 };
 
 struct LvalueError: GenericError {

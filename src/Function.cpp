@@ -285,6 +285,9 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 						auto *constructor_expr = new VariableExpr("$c");
 						auto call = std::make_unique<CallExpr>(constructor_expr, initializer->children);
 						call->structExpr = std::make_unique<VariableExpr>(var_name);
+						call->structExpr->setLocation(node.at(2)->location);
+						call->setLocation(call->structExpr->getLocation());
+						constructor_expr->setLocation(call->structExpr->getLocation());
 						addComment("Calling constructor for " + std::string(*variable->type));
 						call->compile(nullptr, *this, currentScope(), 1);
 					} else {
@@ -294,7 +297,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 					}
 				} else {
 					expr->compile(variable, *this, currentScope());
-					typeCheck(*expr->getType(currentScope()), *variable->type, variable, *this, expr->location);
+					typeCheck(*expr->getType(currentScope()), *variable->type, variable, *this, expr->getLocation());
 					if (offset == 0) {
 						add<StoreRInstruction>(variable, fp, variable->getSize());
 					} else {
@@ -334,7 +337,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			auto temp_var = newVar();
 			const TypePtr condition_type = condition->getType(currentScope());
 			if (!(*condition_type && BoolType()))
-				throw ImplicitConversionError(condition_type, BoolType::make(), condition->location);
+				throw ImplicitConversionError(condition_type, BoolType::make(), condition->getLocation());
 			condition->compile(temp_var, *this, currentScope());
 			add<LnotRInstruction>(temp_var, temp_var);
 			add<JumpConditionalInstruction>(end, temp_var);
@@ -358,7 +361,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			ExprPtr condition = ExprPtr(Expr::get(*node.at(1), this));
 			const TypePtr condition_type = condition->getType(currentScope());
 			if (!(*condition_type && BoolType()))
-				throw ImplicitConversionError(condition_type, BoolType::make(), condition->location);
+				throw ImplicitConversionError(condition_type, BoolType::make(), condition->getLocation());
 			condition->compile(temp_var, *this, currentScope());
 			add<LnotRInstruction>(temp_var, temp_var);
 			add<JumpConditionalInstruction>(end, temp_var);
@@ -398,7 +401,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			auto temp_var = newVar();
 			const TypePtr condition_type = condition->getType(currentScope());
 			if (!(*condition_type && BoolType()))
-				throw ImplicitConversionError(condition_type, BoolType::make(), condition->location);
+				throw ImplicitConversionError(condition_type, BoolType::make(), condition->getLocation());
 			condition->compile(temp_var, *this, currentScope());
 			add<LnotRInstruction>(temp_var, temp_var);
 			if (node.size() == 3) {

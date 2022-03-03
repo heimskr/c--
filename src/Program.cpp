@@ -238,8 +238,8 @@ void Program::compile() {
 					initializer->fullCompile(vreg, *init, init_scope);
 				} else {
 					expr->compile(vreg, *init, init_scope);
-					if (!tryCast(*expr_type, *type, vreg, *init))
-						throw ImplicitConversionError(expr_type, type, expr->location);
+					if (!tryCast(*expr_type, *type, vreg, *init, expr->getLocation()))
+						throw ImplicitConversionError(expr_type, type, expr->getLocation());
 					init->add<StoreIInstruction>(vreg, iter->first, size);
 				}
 			}

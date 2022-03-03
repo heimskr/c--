@@ -24,6 +24,11 @@ std::string stringify(const Expr *expr) {
 
 void Expr::compile(VregPtr, Function &, ScopePtr, ssize_t) {}
 
+Expr * Expr::setFunction(const Function &function) {
+	debug.mangledFunction = function.mangle();
+	return this;
+}
+
 Expr * Expr::get(const ASTNode &node, Function *function) {
 	Expr *out = nullptr;
 	switch (node.symbol) {
@@ -316,6 +321,8 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				std::string(cmmParser.getName(node.symbol)));
 	}
 
+	if (function)
+		out->setFunction(*function);
 	return out->setLocation(node.location);
 }
 
@@ -329,24 +336,24 @@ void PlusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 
 	if (left_type->isPointer() && right_type->isInt()) {
 		if (multiplier != 1)
-			throw GenericError(location, "Cannot multiply in pointer arithmetic PlusExpr");
+			throw GenericError(getLocation(), "Cannot multiply in pointer arithmetic PlusExpr");
 		auto *left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
 		left->compile(left_var, function, scope, 1);
 		right->compile(right_var, function, scope, left_subtype->getSize());
 	} else if (left_type->isInt() && right_type->isPointer()) {
 		if (multiplier != 1)
-			throw GenericError(location, "Cannot multiply in pointer arithmetic PlusExpr");
+			throw GenericError(getLocation(), "Cannot multiply in pointer arithmetic PlusExpr");
 		auto *right_subtype = dynamic_cast<PointerType &>(*right_type).subtype;
 		left->compile(left_var, function, scope, right_subtype->getSize());
 		right->compile(right_var, function, scope, 1);
 	} else if (!(*left_type && *right_type)) {
-		throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()), location);
+		throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()), getLocation());
 	} else {
 		left->compile(left_var, function, scope);
 		right->compile(right_var, function, scope);
 	}
 
-	function.add<AddRInstruction>(left_var, right_var, destination);
+	function.add<AddRInstruction>(left_var, right_var, destination)->setDebug(*this);
 }
 
 std::optional<ssize_t> PlusExpr::evaluate(ScopePtr scope) const {
@@ -364,7 +371,7 @@ std::unique_ptr<Type> PlusExpr::getType(const Context &context) const {
 	if (left_type->isInt() && right_type->isPointer())
 		return right_type;
 	if (!(*left_type && *right_type) || !(*right_type && *left_type))
-		throw ImplicitConversionError(*left_type, *right_type, location);
+		throw ImplicitConversionError(*left_type, *right_type, getLocation());
 	return left_type;
 }
 
@@ -374,28 +381,28 @@ void MinusExpr::compile(VregPtr destination, Function &function, ScopePtr scope,
 
 	if (left_type->isPointer() && right_type->isInt()) {
 		if (multiplier != 1)
-			throw GenericError(location, "Cannot multiply in pointer arithmetic MinusExpr");
+			throw GenericError(getLocation(), "Cannot multiply in pointer arithmetic MinusExpr");
 		auto *left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
 		left->compile(left_var, function, scope, 1);
 		right->compile(right_var, function, scope, left_subtype->getSize());
 	} else if (left_type->isInt() && right_type->isPointer()) {
-		throw GenericError(location, "Cannot subtract " + std::string(*right_type) + " from " +
+		throw GenericError(getLocation(), "Cannot subtract " + std::string(*right_type) + " from " +
 			std::string(*left_type));
 	} else if (!(*left_type && *right_type) && !(left_type->isPointer() && right_type->isPointer())) {
-		throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()), location);
+		throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()), getLocation());
 	} else {
 		left->compile(left_var, function, scope);
 		right->compile(right_var, function, scope);
 	}
 
-	function.add<SubRInstruction>(left_var, right_var, destination);
+	function.add<SubRInstruction>(left_var, right_var, destination)->setDebug(*this);
 }
 
 void MultExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	VregPtr left_var = function.newVar(), right_var = function.newVar();
 	left->compile(left_var, function, scope, 1);
 	right->compile(right_var, function, scope, multiplier); // TODO: verify
-	function.add<MultRInstruction>(left_var, right_var, destination);
+	function.add<MultRInstruction>(left_var, right_var, destination)->setDebug(*this);
 }
 
 std::unique_ptr<Type> MinusExpr::getType(const Context &context) const {
@@ -405,7 +412,7 @@ std::unique_ptr<Type> MinusExpr::getType(const Context &context) const {
 	if (left_type->isPointer() && right_type->isPointer())
 		return std::make_unique<SignedType>(64);
 	if (!(*left_type && *right_type) || !(*right_type && *left_type))
-		throw ImplicitConversionError(*left_type, *right_type, location);
+		throw ImplicitConversionError(*left_type, *right_type, getLocation());
 	return left_type;
 }
 
@@ -413,7 +420,7 @@ void ShiftLeftExpr::compile(VregPtr destination, Function &function, ScopePtr sc
 	VregPtr temp_var = function.newVar();
 	left->compile(temp_var, function, scope, multiplier);
 	right->compile(destination, function, scope);
-	function.add<ShiftLeftLogicalRInstruction>(temp_var, destination, destination);
+	function.add<ShiftLeftLogicalRInstruction>(temp_var, destination, destination)->setDebug(*this);
 }
 
 size_t ShiftLeftExpr::getSize(const Context &context) const {
@@ -433,9 +440,9 @@ void ShiftRightExpr::compile(VregPtr destination, Function &function, ScopePtr s
 	left->compile(temp_var, function, scope, multiplier);
 	right->compile(destination, function, scope);
 	if (left->getType(scope)->isUnsigned())
-		function.add<ShiftRightLogicalRInstruction>(temp_var, destination, destination);
+		function.add<ShiftRightLogicalRInstruction>(temp_var, destination, destination)->setDebug(*this);
 	else
-		function.add<ShiftRightArithmeticRInstruction>(temp_var, destination, destination);
+		function.add<ShiftRightArithmeticRInstruction>(temp_var, destination, destination)->setDebug(*this);
 }
 
 size_t ShiftRightExpr::getSize(const Context &context) const {
@@ -457,9 +464,9 @@ void AndExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	VregPtr temp_var = function.newVar();
 	left->compile(temp_var, function, scope);
 	right->compile(destination, function, scope);
-	function.add<AndRInstruction>(temp_var, destination, destination);
+	function.add<AndRInstruction>(temp_var, destination, destination)->setDebug(*this);
 	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 }
 
 size_t AndExpr::getSize(const Context &context) const {
@@ -478,9 +485,9 @@ void OrExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ss
 	VregPtr temp_var = function.newVar();
 	left->compile(temp_var, function, scope);
 	right->compile(destination, function, scope);
-	function.add<OrRInstruction>(temp_var, destination, destination);
+	function.add<OrRInstruction>(temp_var, destination, destination)->setDebug(*this);
 	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 }
 
 size_t OrExpr::getSize(const Context &context) const {
@@ -499,9 +506,9 @@ void XorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	VregPtr temp_var = function.newVar();
 	left->compile(temp_var, function, scope);
 	right->compile(destination, function, scope);
-	function.add<XorRInstruction>(temp_var, destination, destination);
+	function.add<XorRInstruction>(temp_var, destination, destination)->setDebug(*this);
 	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 }
 
 size_t XorExpr::getSize(const Context &context) const {
@@ -520,14 +527,14 @@ void LandExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 	const std::string base = "." + function.name + "." + std::to_string(function.getNextBlock());
 	const std::string success = base + "land.s", end = base + "land.e";
 	left->compile(destination, function, scope);
-	function.add<JumpConditionalInstruction>(success, destination, false);
-	function.add<JumpInstruction>(end);
+	function.add<JumpConditionalInstruction>(success, destination, false)->setDebug(*this);
+	function.add<JumpInstruction>(end)->setDebug(*this);
 	function.add<Label>(success);
 	right->compile(destination, function, scope);
 	function.add<Label>(end);
 
 	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 }
 
 std::optional<ssize_t> LandExpr::evaluate(ScopePtr scope) const {
@@ -541,11 +548,11 @@ std::optional<ssize_t> LandExpr::evaluate(ScopePtr scope) const {
 void LorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	const std::string success = "." + function.name + "." + std::to_string(function.getNextBlock()) + "lor.s";
 	left->compile(destination, function, scope);
-	function.add<JumpConditionalInstruction>(success, destination, false);
+	function.add<JumpConditionalInstruction>(success, destination, false)->setDebug(*this);
 	right->compile(destination, function, scope);
 	function.add<Label>(success);
 	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 }
 
 std::optional<ssize_t> LorExpr::evaluate(ScopePtr scope) const {
@@ -560,9 +567,9 @@ void LxorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 	auto temp_var = function.newVar();
 	left->compile(destination, function, scope);
 	right->compile(temp_var, function, scope);
-	function.add<LxorRInstruction>(destination, temp_var, destination);
+	function.add<LxorRInstruction>(destination, temp_var, destination)->setDebug(*this);
 	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 }
 
 std::optional<ssize_t> LxorExpr::evaluate(ScopePtr scope) const {
@@ -578,9 +585,9 @@ void DivExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	left->compile(temp_var, function, scope, multiplier);
 	right->compile(destination, function, scope);
 	if (left->getType(scope)->isUnsigned())
-		function.add<DivuRInstruction>(temp_var, destination, destination);
+		function.add<DivuRInstruction>(temp_var, destination, destination)->setDebug(*this);
 	else
-		function.add<DivRInstruction>(temp_var, destination, destination);
+		function.add<DivRInstruction>(temp_var, destination, destination)->setDebug(*this);
 }
 
 size_t DivExpr::getSize(const Context &context) const {
@@ -603,9 +610,9 @@ void ModExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	left->compile(temp_var, function, scope, multiplier);
 	right->compile(destination, function, scope);
 	if (left->getType(scope)->isUnsigned())
-		function.add<ModuRInstruction>(temp_var, destination, destination);
+		function.add<ModuRInstruction>(temp_var, destination, destination)->setDebug(*this);
 	else
-		function.add<ModRInstruction>(temp_var, destination, destination);
+		function.add<ModRInstruction>(temp_var, destination, destination)->setDebug(*this);
 }
 
 size_t ModExpr::getSize(const Context &context) const {
@@ -634,12 +641,12 @@ void NumberExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 	if (!destination)
 		return;
 	if (Util::inRange(multiplied)) {
-		function.add<SetIInstruction>(destination, int(multiplied));
+		function.add<SetIInstruction>(destination, int(multiplied))->setDebug(*this);
 	} else {
 		const size_t high = size_t(multiplied) >> 32;
 		const size_t low  = size_t(multiplied) & 0xff'ff'ff'ff;
-		function.add<SetIInstruction>(destination, int(low));
-		function.add<LuiIInstruction>(destination, int(high));
+		function.add<SetIInstruction>(destination, int(low))->setDebug(*this);
+		function.add<LuiIInstruction>(destination, int(high))->setDebug(*this);
 	}
 }
 
@@ -669,7 +676,7 @@ size_t NumberExpr::getSize(const Context &) const {
 				out_of_range = 255 < value;
 				break;
 			default:
-				throw GenericError(location, "Invalid numeric literal size (in bytes): " + std::to_string(size));
+				throw GenericError(getLocation(), "Invalid numeric literal size (in bytes): " + std::to_string(size));
 		}
 	else
 		switch (size) {
@@ -685,11 +692,11 @@ size_t NumberExpr::getSize(const Context &) const {
 				out_of_range = value < -128 || 127 < value;
 				break;
 			default:
-				throw GenericError(location, "Invalid numeric literal size (in bytes): " + std::to_string(size));
+				throw GenericError(getLocation(), "Invalid numeric literal size (in bytes): " + std::to_string(size));
 		}
 
 	if (out_of_range)
-		throw GenericError(location, "Numeric literal cannot fit in " + std::to_string(size) + " byte" +
+		throw GenericError(getLocation(), "Numeric literal cannot fit in " + std::to_string(size) + " byte" +
 			(size == 1? "" : "s") + ": " + std::to_string(value));
 
 	return size;
@@ -704,20 +711,20 @@ std::unique_ptr<Type> NumberExpr::getType(const Context &context) const {
 
 void BoolExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) {
 	if (destination)
-		function.add<SetIInstruction>(destination, value? size_t(multiplier) : 0);
+		function.add<SetIInstruction>(destination, value? size_t(multiplier) : 0)->setDebug(*this);
 }
 
 void NullExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t) {
 	if (destination)
-		function.add<SetIInstruction>(destination, 0);
+		function.add<SetIInstruction>(destination, 0)->setDebug(*this);
 }
 
 void VregExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) {
 	if (destination != virtualRegister) {
 		if (multiplier == 1)
-			function.add<MoveInstruction>(virtualRegister, destination);
+			function.add<MoveInstruction>(virtualRegister, destination)->setDebug(*this);
 		else
-			function.add<MultIInstruction>(virtualRegister, destination, size_t(multiplier));
+			function.add<MultIInstruction>(virtualRegister, destination, size_t(multiplier))->setDebug(*this);
 	}
 }
 
@@ -738,61 +745,63 @@ std::unique_ptr<Type> VregExpr::getType(const Context &) const {
 void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	if (VariablePtr var = scope->lookup(name)) {
 		if (auto global = std::dynamic_pointer_cast<Global>(var)) {
-			function.add<LoadIInstruction>(destination, global->name, global->getSize());
+			function.add<LoadIInstruction>(destination, global->name, global->getSize())->setDebug(*this);
 		} else if (function.stackOffsets.count(var) == 0) {
 			throw NotOnStackError(var);
 		} else {
 			const size_t offset = function.stackOffsets.at(var);
 			function.addComment("Load variable " + name);
-			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset);
-			function.add<LoadRInstruction>(destination, destination, var->getSize());
+			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset)
+				->setDebug(*this);
+			function.add<LoadRInstruction>(destination, destination, var->getSize())->setDebug(*this);
 		}
 		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 		return;
-	} else if (const auto fn = scope->lookupFunction(name, location)) {
-		function.add<SetIInstruction>(destination, fn->mangle());
+	} else if (const auto fn = scope->lookupFunction(name, getLocation())) {
+		function.add<SetIInstruction>(destination, fn->mangle())->setDebug(*this);
 	} else
-		throw ResolutionError(name, scope, location);
+		throw ResolutionError(name, scope, getLocation());
 }
 
 bool VariableExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
 	if (VariablePtr var = scope->lookup(name)) {
 		if (auto global = std::dynamic_pointer_cast<Global>(var)) {
-			function.add<SetIInstruction>(destination, global->name);
+			function.add<SetIInstruction>(destination, global->name)->setDebug(*this);
 		} else if (function.stackOffsets.count(var) == 0) {
-			throw NotOnStackError(var, location);
+			throw NotOnStackError(var, getLocation());
 		} else {
 			const size_t offset = function.stackOffsets.at(var);
 			function.addComment("Get variable lvalue for " + name);
-			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset);
+			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset)
+				->setDebug(*this);
 		}
-	} else if (const auto fn = scope->lookupFunction(name, location)) {
-		function.add<SetIInstruction>(destination, fn->mangle());
+	} else if (const auto fn = scope->lookupFunction(name, getLocation())) {
+		function.add<SetIInstruction>(destination, fn->mangle())->setDebug(*this);
 	} else
-		throw ResolutionError(name, scope, location);
+		throw ResolutionError(name, scope, getLocation());
 	return true;
 }
 
 size_t VariableExpr::getSize(const Context &context) const {
 	if (VariablePtr var = context.scope->lookup(name))
 		return var->getSize();
-	else if (context.scope->lookupFunction(name, nullptr, {}, location))
+	else if (context.scope->lookupFunction(name, nullptr, {}, getLocation()))
 		return Why::wordSize;
-	throw ResolutionError(name, context.scope, location);
+	throw ResolutionError(name, context, getLocation());
 }
 
 std::unique_ptr<Type> VariableExpr::getType(const Context &context) const {
 	if (VariablePtr var = context.scope->lookup(name))
 		return std::unique_ptr<Type>(var->type->copy());
-	else if (const auto fn = context.scope->lookupFunction(name, nullptr, {}, context.structName, location))
+	else if (const auto fn = context.scope->lookupFunction(name, nullptr, {}, context.structName, getLocation()))
 		return std::make_unique<FunctionPointerType>(*fn);
-	throw ResolutionError(name, context.scope, location);
+	throw ResolutionError(name, context, getLocation());
 }
 
 void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	if (multiplier != 1)
-		throw GenericError(location, "Cannot multiply in AddressOfExpr");
+		throw GenericError(getLocation(), "Cannot multiply in AddressOfExpr");
 
 	if (!destination)
 		return;
@@ -810,23 +819,23 @@ std::unique_ptr<Type> AddressOfExpr::getType(const Context &context) const {
 
 void NotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	subexpr->compile(destination, function, scope);
-	function.add<NotRInstruction>(destination, destination);
+	function.add<NotRInstruction>(destination, destination)->setDebug(*this);
 	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 }
 
 void LnotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	subexpr->compile(destination, function, scope);
-	function.add<LnotRInstruction>(destination, destination);
+	function.add<LnotRInstruction>(destination, destination)->setDebug(*this);
 	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 }
 
 void StringExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) {
 	if (multiplier != 1)
-		throw GenericError(location, "Cannot multiply in StringExpr");
+		throw GenericError(getLocation(), "Cannot multiply in StringExpr");
 	if (destination)
-		function.add<SetIInstruction>(destination, getID(function.program));
+		function.add<SetIInstruction>(destination, getID(function.program))->setDebug(*this);
 }
 
 std::unique_ptr<Type> StringExpr::getType(const Context &) const {
@@ -846,7 +855,7 @@ std::string StringExpr::getID(Program &program) const {
 void DerefExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	checkType(scope);
 	subexpr->compile(destination, function, scope, multiplier);
-	function.add<LoadRInstruction>(destination, destination, getSize({scope}));
+	function.add<LoadRInstruction>(destination, destination, getSize({scope}))->setDebug(*this);
 }
 
 size_t DerefExpr::getSize(const Context &context) const {
@@ -862,7 +871,7 @@ std::unique_ptr<Type> DerefExpr::getType(const Context &context) const {
 std::unique_ptr<Type> DerefExpr::checkType(ScopePtr scope) const {
 	auto type = subexpr->getType(scope);
 	if (!type->isPointer())
-		throw NotPointerError(TypePtr(type->copy()), location);
+		throw NotPointerError(TypePtr(type->copy()), getLocation());
 	return type;
 }
 
@@ -881,11 +890,11 @@ Expr * CallExpr::copy() const {
 
 void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_t multiplier) {
 	std::function<const Type &(size_t)> get_arg_type = [this](size_t) -> const Type & {
-		throw GenericError(location, "get_arg_type not redefined");
+		throw GenericError(getLocation(), "get_arg_type not redefined");
 	};
 
 	std::function<void()> add_jump = [this] {
-		throw GenericError(location, "add_jump not redefined");
+		throw GenericError(getLocation(), "add_jump not redefined");
 	};
 
 	TypePtr found_return_type = nullptr;
@@ -903,7 +912,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 		throw std::runtime_error("Functions with more than 16 arguments aren't currently supported.");
 
 	for (size_t i = 0; i < registers_used; ++i)
-		fn.add<StackPushInstruction>(fn.precolored(Why::argumentOffset + i));
+		fn.add<StackPushInstruction>(fn.precolored(Why::argumentOffset + i))->setDebug(*this);
 
 	if (structExpr) {
 		struct_expr_type = structExpr->getType(scope);
@@ -915,11 +924,11 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 					structExpr->compile(this_var, fn, scope);
 					goto this_done; // Hehe :)
 				}
-			throw NotStructError(TypePtr(struct_expr_type->copy()), structExpr->location);
+			throw NotStructError(TypePtr(struct_expr_type->copy()), structExpr->getLocation());
 		} else {
 			fn.addComment("Setting \"this\" from struct.");
 			if (!structExpr->compileAddress(this_var, fn, scope))
-				throw LvalueError(*struct_expr_type, structExpr->location);
+				throw LvalueError(*struct_expr_type, structExpr->getLocation());
 		}
 		this_done:
 		fn.addComment("Done setting \"this\".");
@@ -932,8 +941,8 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 
 	if (found) {
 		if (found->argumentCount() != arguments.size())
-			throw GenericError(location, "Invalid number of arguments in call to " + found->name + " at " +
-				std::string(location) + ": " + std::to_string(arguments.size()) + " (expected " +
+			throw GenericError(getLocation(), "Invalid number of arguments in call to " + found->name + " at " +
+				std::string(getLocation()) + ": " + std::to_string(arguments.size()) + " (expected " +
 				std::to_string(found->argumentCount()) + ")");
 
 		function_found = true;
@@ -941,7 +950,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 		get_arg_type = [found](size_t i) -> const Type & {
 			return *found->getArgumentType(i);
 		};
-		add_jump = [found, &fn] { fn.add<JumpInstruction>(found->mangle(), true); };
+		add_jump = [this, found, &fn] { fn.add<JumpInstruction>(found->mangle(), true)->setDebug(*this); };
 	}
 
 	std::unique_ptr<Type> fnptr_type;
@@ -956,7 +965,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 		add_jump = [this, &fn, scope] {
 			auto jump_destination = fn.newVar();
 			subexpr->compile(jump_destination, fn, scope);
-			fn.add<JumpRegisterInstruction>(jump_destination, true);
+			fn.add<JumpRegisterInstruction>(jump_destination, true)->setDebug(*this);;
 		};
 	}
 
@@ -966,12 +975,12 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 		auto argument_register = fn.precolored(argument_offset + i);
 		auto argument_type = argument->getType(scope);
 		if (argument_type->isStruct())
-			throw GenericError(argument->location, "Structs cannot be directly passed to functions; use a pointer");
+			throw GenericError(argument->getLocation(), "Structs cannot be directly passed to functions; use a pointer");
 		argument->compile(argument_register, fn, scope);
 		try {
-			typeCheck(*argument_type, get_arg_type(i), argument_register, fn, location);
+			typeCheck(*argument_type, get_arg_type(i), argument_register, fn, getLocation());
 		} catch (std::out_of_range &err) {
-			std::cerr << "\e[31mBad function argument at " << argument->location << "\e[39m\n";
+			std::cerr << "\e[31mBad function argument at " << argument->getLocation() << "\e[39m\n";
 			throw;
 		}
 		++i;
@@ -980,13 +989,14 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 	add_jump();
 
 	for (size_t i = registers_used; 0 < i; --i)
-		fn.add<StackPopInstruction>(fn.precolored(Why::argumentOffset + i - 1));
+		fn.add<StackPopInstruction>(fn.precolored(Why::argumentOffset + i - 1))->setDebug(*this);
 
 	if (!found_return_type->isVoid() && destination) {
 		if (multiplier == 1)
-			fn.add<MoveInstruction>(fn.precolored(Why::returnValueOffset), destination);
+			fn.add<MoveInstruction>(fn.precolored(Why::returnValueOffset), destination)->setDebug(*this);
 		else
-			fn.add<MultIInstruction>(fn.precolored(Why::returnValueOffset), destination, size_t(multiplier));
+			fn.add<MultIInstruction>(fn.precolored(Why::returnValueOffset), destination, size_t(multiplier))
+				->setDebug(*this);
 	}
 }
 
@@ -1021,7 +1031,7 @@ std::unique_ptr<Type> CallExpr::getType(const Context &context) const {
 				return std::unique_ptr<Type>(fnptr->returnType->copy());
 			throw FunctionPointerError(*var->type);
 		}
-		throw ResolutionError(var_expr->name, context.scope, location);
+		throw ResolutionError(var_expr->name, context, getLocation());
 	} else {
 		auto type = subexpr->getType(context);
 		if (const auto *fnptr = type->cast<FunctionPointerType>())
@@ -1035,7 +1045,7 @@ FunctionPtr CallExpr::findFunction(const std::string &name, const Context &conte
 	arg_types.reserve(arguments.size());
 	for (const auto &expr: arguments)
 		arg_types.push_back(expr->getType(context));
-	return context.scope->lookupFunction(name, arg_types, getStructName(context), location);
+	return context.scope->lookupFunction(name, arg_types, getStructName(context), getLocation());
 }
 
 std::string CallExpr::getStructName(const Context &context) const {
@@ -1049,7 +1059,7 @@ std::string CallExpr::getStructName(const Context &context) const {
 			if (const auto *struct_type = pointer_type->subtype->cast<StructType>())
 				return struct_type->name;
 
-		throw NotStructError(std::move(type), structExpr->location);
+		throw NotStructError(std::move(type), structExpr->getLocation());
 	}
 
 	return structName;
@@ -1059,7 +1069,7 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 	auto addr_var = function.newVar();
 	TypePtr left_type = left->getType(scope);
 	if (left_type->isConst)
-		throw ConstError("Can't assign", *left_type, location);
+		throw ConstError("Can't assign", *left_type, getLocation());
 	if (!destination)
 		destination = function.newVar();
 	TypePtr right_type = right->getType(scope);
@@ -1069,32 +1079,34 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 		auto *initializer_expr = right->cast<InitializerExpr>();
 		if (initializer_expr->isConstructor) {
 			if (!left_type->isStruct())
-				throw NotStructError(left_type, left->location);
+				throw NotStructError(left_type, left->getLocation());
 			auto struct_type = left_type->ptrcast<StructType>();
 			auto *constructor_expr = new VariableExpr("$c");
 			auto call = std::make_unique<CallExpr>(constructor_expr, initializer_expr->children);
+			call->debug = debug;
 			call->structExpr = std::unique_ptr<Expr>(left->copy());
+			call->structExpr->debug = debug;
 			function.addComment("Calling constructor for " + std::string(*struct_type));
 			call->compile(nullptr, function, scope, 1);
 		} else {
-			if (!tryCast(*right_type, *left_type, nullptr, function))
-				throw ImplicitConversionError(right_type, left_type, location);
+			if (!tryCast(*right_type, *left_type, nullptr, function, getLocation()))
+				throw ImplicitConversionError(right_type, left_type, getLocation());
 			initializer_expr->fullCompile(addr_var, function, scope);
 		}
 	} else {
 		right->compile(destination, function, scope);
-		if (!tryCast(*right_type, *left_type, destination, function))
-			throw ImplicitConversionError(right_type, left_type, location);
-		function.add<StoreRInstruction>(destination, addr_var, getSize({scope}));
+		if (!tryCast(*right_type, *left_type, destination, function, getLocation()))
+			throw ImplicitConversionError(right_type, left_type, getLocation());
+		function.add<StoreRInstruction>(destination, addr_var, getSize({scope}))->setDebug(*this);
 		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 	}
 }
 
 std::unique_ptr<Type> AssignExpr::getType(const Context &context) const {
 	auto left_type = left->getType(context), right_type = right->getType(context);
 	if (!(*right_type && *left_type))
-			throw ImplicitConversionError(*right_type, *left_type, location);
+			throw ImplicitConversionError(*right_type, *left_type, getLocation());
 	return left_type;
 }
 
@@ -1108,7 +1120,7 @@ bool AssignExpr::compileAddress(VregPtr destination, Function &function, ScopePt
 
 void CastExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	subexpr->compile(destination, function, scope, multiplier);
-	tryCast(*subexpr->getType(scope), *targetType, destination, function);
+	tryCast(*subexpr->getType(scope), *targetType, destination, function, getLocation());
 }
 
 std::unique_ptr<Type> CastExpr::getType(const Context &) const {
@@ -1117,9 +1129,9 @@ std::unique_ptr<Type> CastExpr::getType(const Context &) const {
 
 void AccessExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	compileAddress(destination, function, scope);
-	function.add<LoadRInstruction>(destination, destination, getSize({scope}));
+	function.add<LoadRInstruction>(destination, destination, getSize({scope}))->setDebug(*this);
 	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 }
 
 std::unique_ptr<Type> AccessExpr::getType(const Context &context) const {
@@ -1128,7 +1140,8 @@ std::unique_ptr<Type> AccessExpr::getType(const Context &context) const {
 		return std::unique_ptr<Type>(casted->subtype->copy());
 	if (auto *casted = array_type->cast<const PointerType>())
 		return std::unique_ptr<Type>(casted->subtype->copy());
-	throw GenericError(location, "Can't get array access result type: array expression isn't an array or pointer type");
+	throw GenericError(getLocation(), "Can't get array access result type: array expression isn't an array or pointer "
+		"type");
 }
 
 bool AccessExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
@@ -1140,13 +1153,14 @@ bool AccessExpr::compileAddress(VregPtr destination, Function &function, ScopePt
 	const auto subscript_value = subscript->evaluate(scope);
 	if (subscript_value) {
 		if (*subscript_value != 0)
-			function.add<AddIInstruction>(destination, destination, size_t(*subscript_value * element_size));
+			function.add<AddIInstruction>(destination, destination, size_t(*subscript_value * element_size))
+				->setDebug(*this);
 	} else {
 		auto subscript_variable = function.newVar();
 		subscript->compile(subscript_variable, function, scope);
 		if (element_size != 1)
-			function.add<MultIInstruction>(subscript_variable, subscript_variable, element_size);
-		function.add<AddRInstruction>(destination, subscript_variable, destination);
+			function.add<MultIInstruction>(subscript_variable, subscript_variable, element_size)->setDebug(*this);
+		function.add<AddRInstruction>(destination, subscript_variable, destination)->setDebug(*this);
 	}
 	return true;
 }
@@ -1160,8 +1174,8 @@ std::unique_ptr<Type> AccessExpr::check(ScopePtr scope) {
 		if (const auto evaluated = subscript->evaluate(scope)) {
 			const auto array_count = type->cast<ArrayType>()->count;
 			if (*evaluated < 0 || ssize_t(array_count) <= *evaluated) {
-				warn() << "Array index " << *evaluated << " at " << subscript->location << " is higher than array size ("
-				       << array_count << ") at " << location << '\n';
+				warn() << "Array index " << *evaluated << " at " << subscript->getLocation()
+				       << " is higher than array size (" << array_count << ") at " << getLocation() << '\n';
 				warned = true;
 			}
 		}
@@ -1171,7 +1185,7 @@ std::unique_ptr<Type> AccessExpr::check(ScopePtr scope) {
 void LengthExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	TypePtr type = subexpr->getType(scope);
 	if (auto *array = type->cast<const ArrayType>())
-		function.add<SetIInstruction>(destination, array->count * multiplier);
+		function.add<SetIInstruction>(destination, array->count * multiplier)->setDebug(*this);
 	else
 		throw NotArrayError(type);
 }
@@ -1180,9 +1194,9 @@ void TernaryExpr::compile(VregPtr destination, Function &function, ScopePtr scop
 	const std::string base = "." + function.name + "." + std::to_string(function.getNextBlock());
 	const std::string true_label = base + "t.t", end = base + "t.e";
 	condition->compile(destination, function, scope);
-	function.add<JumpConditionalInstruction>(true_label, destination, false);
+	function.add<JumpConditionalInstruction>(true_label, destination, false)->setDebug(*this);
 	ifFalse->compile(destination, function, scope, multiplier);
-	function.add<JumpInstruction>(end);
+	function.add<JumpInstruction>(end)->setDebug(*this);
 	function.add<Label>(true_label);
 	ifTrue->compile(destination, function, scope, multiplier);
 	function.add<Label>(end);
@@ -1191,10 +1205,10 @@ void TernaryExpr::compile(VregPtr destination, Function &function, ScopePtr scop
 std::unique_ptr<Type> TernaryExpr::getType(const Context &context) const {
 	auto condition_type = condition->getType(context);
 	if (!(*condition_type && BoolType()))
-		throw ImplicitConversionError(*condition_type, BoolType(), location);
+		throw ImplicitConversionError(*condition_type, BoolType(), getLocation());
 	auto true_type = ifTrue->getType(context), false_type = ifFalse->getType(context);
 	if (!(*true_type && *false_type) || !(*false_type && *true_type))
-		throw ImplicitConversionError(*false_type, *true_type, location);
+		throw ImplicitConversionError(*false_type, *true_type, getLocation());
 	return true_type;
 }
 
@@ -1211,13 +1225,13 @@ void DotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 		throw LvalueError(*left);
 	if (field_offset != 0) {
 		function.addComment("Add field offset of " + struct_type->name + "::" + ident);
-		function.add<AddIInstruction>(destination, destination, field_offset);
+		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
 	} else
 		function.addComment("Field offset of " + struct_type->name + "::" + ident + " is 0");
 	function.addComment("Load field " + struct_type->name + "::" + ident);
-	function.add<LoadRInstruction>(destination, destination, field_size);
+	function.add<LoadRInstruction>(destination, destination, field_size)->setDebug(*this);
 	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 }
 
 std::unique_ptr<Type> DotExpr::getType(const Context &context) const {
@@ -1234,14 +1248,14 @@ bool DotExpr::compileAddress(VregPtr destination, Function &function, ScopePtr s
 	if (!left->compileAddress(destination, function, scope))
 		throw LvalueError(*left);
 	if (field_offset != 0)
-		function.add<AddIInstruction>(destination, destination, field_offset);
+		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
 	return true;
 }
 
 std::shared_ptr<StructType> DotExpr::checkType(ScopePtr scope) const {
 	auto left_type = left->getType(scope);
 	if (!left_type->isStruct())
-		throw NotStructError(std::move(left_type), location);
+		throw NotStructError(std::move(left_type), getLocation());
 	TypePtr shared_type = std::move(left_type);
 	return shared_type->ptrcast<StructType>();
 }
@@ -1258,13 +1272,13 @@ void ArrowExpr::compile(VregPtr destination, Function &function, ScopePtr scope,
 	left->compile(destination, function, scope, 1);
 	if (field_offset != 0) {
 		function.addComment("Add field offset of " + struct_type->name + "::" + ident);
-		function.add<AddIInstruction>(destination, destination, field_offset);
+		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
 	} else
 		function.addComment("Field offset of " + struct_type->name + "::" + ident + " is 0");
 	function.addComment("Load field " + struct_type->name + "::" + ident);
-	function.add<LoadRInstruction>(destination, destination, field_size);
+	function.add<LoadRInstruction>(destination, destination, field_size)->setDebug(*this);
 	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 }
 
 std::unique_ptr<Type> ArrowExpr::getType(const Context &context) const {
@@ -1281,7 +1295,7 @@ bool ArrowExpr::compileAddress(VregPtr destination, Function &function, ScopePtr
 	left->compile(destination, function, scope);
 	if (field_offset != 0) {
 		function.addComment("Add field offset of " + struct_type->name + "::" + ident);
-		function.add<AddIInstruction>(destination, destination, field_offset);
+		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
 	} else
 		function.addComment("Field offset of " + struct_type->name + "::" + ident + " is 0");
 	return true;
@@ -1290,11 +1304,11 @@ bool ArrowExpr::compileAddress(VregPtr destination, Function &function, ScopePtr
 std::shared_ptr<StructType> ArrowExpr::checkType(ScopePtr scope) const {
 	auto left_type = left->getType(scope);
 	if (!left_type->isPointer())
-		throw NotPointerError(std::move(left_type), location);
+		throw NotPointerError(std::move(left_type), getLocation());
 	auto *left_pointer = left_type->cast<PointerType>();
 	TypePtr shared_type = TypePtr(left_pointer->subtype->copy());
 	if (!left_pointer->subtype->isStruct())
-		throw NotStructError(shared_type, location);
+		throw NotStructError(shared_type, getLocation());
 	return shared_type->ptrcast<StructType>();
 }
 
@@ -1310,7 +1324,7 @@ std::optional<ssize_t> OffsetofExpr::evaluate(ScopePtr scope) const {
 	auto type = scope->lookupType(structName);
 	StructType *struct_type;
 	if (!type || !(struct_type = type->cast<StructType>()))
-		throw GenericError(location, "Unknown or incomplete struct in offsetof expression: " + structName);
+		throw GenericError(getLocation(), "Unknown or incomplete struct in offsetof expression: " + structName);
 	ssize_t offset = 0;
 	bool found = false;
 	for (const auto &[field_name, field_type]: struct_type->getOrder()) {
@@ -1321,27 +1335,27 @@ std::optional<ssize_t> OffsetofExpr::evaluate(ScopePtr scope) const {
 		offset += field_type->getSize();
 	}
 	if (!found)
-		throw GenericError(location, "Struct " + structName + " has no field " + fieldName);
+		throw GenericError(getLocation(), "Struct " + structName + " has no field " + fieldName);
 	return offset;
 }
 
 void OffsetofExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	function.add<SetIInstruction>(destination, size_t(*evaluate(scope) * multiplier));
+	function.add<SetIInstruction>(destination, size_t(*evaluate(scope) * multiplier))->setDebug(*this);
 }
 
 std::optional<ssize_t> SizeofMemberExpr::evaluate(ScopePtr scope) const {
 	auto type = scope->lookupType(structName);
 	StructType *struct_type;
 	if (!type || !(struct_type = type->cast<StructType>()))
-		throw GenericError(location, "Unknown or incomplete struct in sizeof expression: " + structName);
+		throw GenericError(getLocation(), "Unknown or incomplete struct in sizeof expression: " + structName);
 	const auto &map = struct_type->getMap();
 	if (map.count(fieldName) == 0)
-		throw GenericError(location, "Struct " + structName + " has no field " + fieldName);
+		throw GenericError(getLocation(), "Struct " + structName + " has no field " + fieldName);
 	return map.at(fieldName)->getSize();
 }
 
 void SizeofMemberExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	function.add<SetIInstruction>(destination, size_t(*evaluate(scope) * multiplier));
+	function.add<SetIInstruction>(destination, size_t(*evaluate(scope) * multiplier))->setDebug(*this);
 }
 
 Expr * InitializerExpr::copy() const {
@@ -1356,12 +1370,12 @@ std::unique_ptr<Type> InitializerExpr::getType(const Context &context) const {
 }
 
 void InitializerExpr::compile(VregPtr, Function &, ScopePtr, ssize_t) {
-	throw GenericError(location, "Can't compile initializers directly");
+	throw GenericError(getLocation(), "Can't compile initializers directly");
 }
 
 void InitializerExpr::fullCompile(VregPtr address, Function &function, ScopePtr scope) {
 	if (isConstructor)
-		throw GenericError(location, "Can't compile a constructor initializer as a non-constructor initializer");
+		throw GenericError(getLocation(), "Can't compile a constructor initializer as a non-constructor initializer");
 	if (children.empty())
 		return;
 	auto temp_var = function.newVar();
@@ -1373,8 +1387,8 @@ void InitializerExpr::fullCompile(VregPtr address, Function &function, ScopePtr 
 			child->compile(temp_var, function, scope);
 			const size_t size = child->getSize({scope});
 			function.addComment("InitializerExpr: store and increment");
-			function.add<StoreRInstruction>(temp_var, address, size);
-			function.add<AddIInstruction>(address, address, size);
+			function.add<StoreRInstruction>(temp_var, address, size)->setDebug(*this);
+			function.add<AddIInstruction>(address, address, size)->setDebug(*this);
 		}
 	}
 }
@@ -1388,7 +1402,7 @@ Expr * ConstructorExpr::copy() const {
 
 void ConstructorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	if (multiplier != 1)
-		throw GenericError(location, "Cannot multiply in ConstructorExpr");
+		throw GenericError(getLocation(), "Cannot multiply in ConstructorExpr");
 
 	Context context(scope);
 	context.structName = structName;
@@ -1400,25 +1414,25 @@ void ConstructorExpr::compile(VregPtr destination, Function &function, ScopePtr 
 		throw std::runtime_error("Functions with more than 16 arguments aren't currently supported.");
 
 	for (size_t i = 0; i < registers_used; ++i)
-		function.add<StackPushInstruction>(function.precolored(Why::argumentOffset + i));
+		function.add<StackPushInstruction>(function.precolored(Why::argumentOffset + i))->setDebug(*this);
 
 	auto looked_up = scope->lookupType(structName);
 	if (!looked_up)
-		throw ResolutionError(structName, scope, location);
+		throw ResolutionError(structName, context, getLocation());
 
 	auto struct_type = looked_up->ptrcast<StructType>();
 	auto this_var = function.precolored(argument_offset++);
 	function.addComment("Setting \"this\" for constructor.");
-	function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), this_var, stackOffset);
+	function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), this_var, stackOffset)->setDebug(*this);
 
 	FunctionPtr found = findFunction(context);
 
 	if (!found)
-		throw GenericError(location, "Constructor for " + structName + " not found.");
+		throw GenericError(getLocation(), "Constructor for " + structName + " not found.");
 
 	if (found->argumentCount() != arguments.size())
-		throw GenericError(location, "Invalid number of arguments in call to " + structName + " constructor at " +
-			std::string(location) + ": " + std::to_string(arguments.size()) + " (expected " +
+		throw GenericError(getLocation(), "Invalid number of arguments in call to " + structName + " constructor at " +
+			std::string(getLocation()) + ": " + std::to_string(arguments.size()) + " (expected " +
 			std::to_string(found->argumentCount()) + ")");
 
 	size_t i = 0;
@@ -1427,24 +1441,25 @@ void ConstructorExpr::compile(VregPtr destination, Function &function, ScopePtr 
 		auto argument_register = function.precolored(argument_offset + i);
 		auto argument_type = argument->getType(scope);
 		if (argument_type->isStruct())
-			throw GenericError(argument->location, "Structs cannot be directly passed to functions; use a pointer");
+			throw GenericError(argument->getLocation(),
+				"Structs cannot be directly passed to functions; use a pointer");
 		argument->compile(argument_register, function, scope);
 		try {
-			typeCheck(*argument_type, *found->getArgumentType(i), argument_register, function, location);
+			typeCheck(*argument_type, *found->getArgumentType(i), argument_register, function, getLocation());
 		} catch (std::out_of_range &err) {
-			std::cerr << "\e[31mBad function argument at " << argument->location << "\e[39m\n";
+			std::cerr << "\e[31mBad function argument at " << argument->getLocation() << "\e[39m\n";
 			throw;
 		}
 		++i;
 	}
 
-	function.add<JumpInstruction>(found->mangle(), true);
+	function.add<JumpInstruction>(found->mangle(), true)->setDebug(*this);
 
 	for (size_t i = registers_used; 0 < i; --i)
-		function.add<StackPopInstruction>(function.precolored(Why::argumentOffset + i - 1));
+		function.add<StackPopInstruction>(function.precolored(Why::argumentOffset + i - 1))->setDebug(*this);
 
 	if (!found->returnType->isVoid() && destination)
-		function.add<MoveInstruction>(function.precolored(Why::returnValueOffset), destination);
+		function.add<MoveInstruction>(function.precolored(Why::returnValueOffset), destination)->setDebug(*this);
 }
 
 ConstructorExpr::operator std::string() const {
@@ -1475,7 +1490,7 @@ FunctionPtr ConstructorExpr::findFunction(const Context &context) const {
 	arg_types.reserve(arguments.size());
 	for (const auto &expr: arguments)
 		arg_types.push_back(expr->getType(context));
-	return context.scope->lookupFunction("$c", arg_types, structName, location);
+	return context.scope->lookupFunction("$c", arg_types, structName, getLocation());
 }
 
 static std::string newVariableName(const std::map<std::string, VariablePtr> &map) {
@@ -1489,7 +1504,7 @@ static std::string newVariableName(const std::map<std::string, VariablePtr> &map
 ConstructorExpr * ConstructorExpr::addToScope(ScopePtr scope) {
 	auto type = scope->lookupType(structName);
 	if (!type)
-		throw ResolutionError(structName, scope, location);
+		throw ResolutionError(structName, {scope, structName}, getLocation());
 
 	if (auto *function_scope = scope->cast<FunctionScope>()) {
 		Function &function = function_scope->function;
@@ -1506,7 +1521,7 @@ ConstructorExpr * ConstructorExpr::addToScope(ScopePtr scope) {
 		block_scope->variables.emplace(variable_name, variable);
 		function.stackOffsets.emplace(variable, stackOffset);
 	} else
-		throw GenericError(location, "Invalid scope for ConstructorExpr: " + scope->partialStringify());
+		throw GenericError(getLocation(), "Invalid scope for ConstructorExpr: " + scope->partialStringify());
 
 	return this;
 }
@@ -1517,7 +1532,7 @@ Expr * NewExpr::copy() const {
 
 void NewExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	if (multiplier != 1)
-		throw GenericError(location, "Cannot multiply in NewExpr");
+		throw GenericError(getLocation(), "Cannot multiply in NewExpr");
 
 	Context context(scope);
 
@@ -1531,20 +1546,21 @@ void NewExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	auto call_expr = std::make_unique<CallExpr>(new VariableExpr("checked_malloc"),
 		std::vector<ExprPtr> {SizeofExpr::make(type)});
 
+	call_expr->debug = debug;
 	call_expr->compile(destination, function, scope, 1);
 
 	if (!struct_type) {
 		if (1 < arguments.size())
-			throw GenericError(location, "new operator for non-struct type cannot take multiple arguments");
+			throw GenericError(getLocation(), "new operator for non-struct type cannot take multiple arguments");
 		if (arguments.size() == 1) {
 			auto temp_var = function.newVar();
 			arguments.front()->compile(temp_var, function, scope, 1);
-			function.add<StoreRInstruction>(temp_var, destination, type->getSize());
+			function.add<StoreRInstruction>(temp_var, destination, type->getSize())->setDebug(*this);
 		}
 	} else {
 		FunctionPtr found = findFunction(context);
 		if (!found)
-			throw GenericError(location, "Constructor for " + struct_type->name + " not found.");
+			throw GenericError(getLocation(), "Constructor for " + struct_type->name + " not found.");
 
 		int argument_offset = Why::argumentOffset;
 
@@ -1553,39 +1569,40 @@ void NewExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 			throw std::runtime_error("Constructors with more than 15 arguments aren't currently supported.");
 
 		for (size_t i = 0; i < registers_used; ++i)
-			function.add<StackPushInstruction>(function.precolored(Why::argumentOffset + i));
+			function.add<StackPushInstruction>(function.precolored(Why::argumentOffset + i))->setDebug(*this);
 
 		auto this_var = function.precolored(argument_offset++);
 		function.addComment("Moving \"this\" for constructor.");
-		function.add<MoveInstruction>(destination, this_var);
+		function.add<MoveInstruction>(destination, this_var)->setDebug(*this);
 
 		if (found->argumentCount() != arguments.size())
-			throw GenericError(location, "Invalid number of arguments in call to " + struct_type->name +
-				" constructor at " + std::string(location) + ": " + std::to_string(arguments.size()) + " (expected " +
-				std::to_string(found->argumentCount()) + ")");
+			throw GenericError(getLocation(), "Invalid number of arguments in call to " + struct_type->name +
+				" constructor at " + std::string(getLocation()) + ": " + std::to_string(arguments.size()) +
+				" (expected " + std::to_string(found->argumentCount()) + ")");
 
 		size_t i = 0;
 		for (const auto &argument: arguments) {
 			auto argument_register = function.precolored(argument_offset + i);
 			auto argument_type = argument->getType(scope);
 			if (argument_type->isStruct())
-				throw GenericError(argument->location, "Structs cannot be directly passed to functions; use a pointer");
+				throw GenericError(argument->getLocation(),
+					"Structs cannot be directly passed to functions; use a pointer");
 			argument->compile(argument_register, function, scope);
 			try {
-				typeCheck(*argument_type, *found->getArgumentType(i), argument_register, function, location);
+				typeCheck(*argument_type, *found->getArgumentType(i), argument_register, function, getLocation());
 			} catch (std::out_of_range &err) {
-				error() << "Bad function argument at " << argument->location << '\n';
+				error() << "Bad function argument at " << argument->getLocation() << '\n';
 				throw;
 			}
 			++i;
 		}
 
-		function.add<JumpInstruction>(found->mangle(), true);
+		function.add<JumpInstruction>(found->mangle(), true)->setDebug(*this);
 
 		for (size_t i = registers_used; 0 < i; --i)
-			function.add<StackPopInstruction>(function.precolored(Why::argumentOffset + i - 1));
+			function.add<StackPopInstruction>(function.precolored(Why::argumentOffset + i - 1))->setDebug(*this);
 
-		function.add<MoveInstruction>(function.precolored(Why::returnValueOffset), destination);
+		function.add<MoveInstruction>(function.precolored(Why::returnValueOffset), destination)->setDebug(*this);
 	}
 }
 
@@ -1617,5 +1634,5 @@ FunctionPtr NewExpr::findFunction(const Context &context) const {
 	arg_types.reserve(arguments.size());
 	for (const auto &expr: arguments)
 		arg_types.push_back(expr->getType(context));
-	return context.scope->lookupFunction("$c", arg_types, context.structName, location);
+	return context.scope->lookupFunction("$c", arg_types, context.structName, getLocation());
 }

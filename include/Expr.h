@@ -9,6 +9,7 @@
 #include "ASTNode.h"
 #include "Casting.h"
 #include "Checkable.h"
+#include "DebugData.h"
 #include "Errors.h"
 #include "fixed_string.h"
 #include "Function.h"
@@ -35,8 +36,9 @@ struct Context {
 };
 
 struct Expr: Checkable, std::enable_shared_from_this<Expr> {
-	ASTLocation location;
-	Expr(const ASTLocation &location_ = {}): location(location_) {}
+	DebugData debug;
+	Expr(const ASTLocation &location_ = {}): debug(location_) {}
+	Expr(const DebugData &debug_): debug(debug_) {}
 	virtual ~Expr() {}
 	virtual Expr * copy() const = 0;
 	virtual void compile(VregPtr destination, Function &, ScopePtr, ssize_t multiplier = 1);
@@ -49,7 +51,9 @@ struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 	virtual std::unique_ptr<Type> getType(const Context &) const = 0;
 	virtual bool compileAddress(VregPtr, Function &, ScopePtr) { return false; }
 	bool isUnsigned(ScopePtr scope) const { return getType(scope)->isUnsigned(); }
-	Expr * setLocation(const ASTLocation &location_) { location = location_; return this; }
+	Expr * setLocation(const ASTLocation &location_) { debug.location = location_; return this; }
+	const ASTLocation & getLocation() const { return debug.location; }
+	Expr * setFunction(const Function &);
 
 	static Expr * get(const ASTNode &, Function * = nullptr);
 
@@ -94,7 +98,7 @@ struct BinaryExpr: Expr {
 	std::unique_ptr<Type> getType(const Context &context) const override {
 		auto left_type = left->getType(context), right_type = right->getType(context);
 		if (!(*left_type && *right_type) || !(*right_type && *left_type))
-			throw ImplicitConversionError(*left_type, *right_type, location);
+			throw ImplicitConversionError(*left_type, *right_type, getLocation());
 		return left_type;
 	}
 };
@@ -109,9 +113,9 @@ struct LogicExpr: BinaryExpr<O> {
 		auto left_type = this->left->getType(context), right_type = this->right->getType(context);
 		auto bool_type = std::make_unique<BoolType>();
 		if (!(*left_type && *bool_type))
-			throw ImplicitConversionError(*left_type, *bool_type, this->location);
+			throw ImplicitConversionError(*left_type, *bool_type, this->getLocation());
 		if (!(*right_type && *bool_type))
-			throw ImplicitConversionError(*right_type, *bool_type, this->location);
+			throw ImplicitConversionError(*right_type, *bool_type, this->getLocation());
 		return bool_type;
 	}
 };
@@ -122,14 +126,14 @@ struct CompExpr: BinaryExpr<O> {
 
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
 		if (multiplier != 1)
-			throw GenericError(this->location, "Cannot multiply in CompExpr");
+			throw GenericError(this->getLocation(), "Cannot multiply in CompExpr");
 		VregPtr temp_var = function.newVar();
 		this->left->compile(destination, function, scope, 1);
 		this->right->compile(temp_var, function, scope, multiplier);
 		if (this->left->getType(scope)->isUnsigned())
-			function.add<RU>(destination, temp_var, destination);
+			function.add<RU>(destination, temp_var, destination)->setDebug(*this);
 		else
-			function.add<RS>(destination, temp_var, destination);
+			function.add<RS>(destination, temp_var, destination)->setDebug(*this);
 	}
 
 	size_t getSize(const Context &) const override { return 1; }
@@ -146,7 +150,7 @@ struct CompExpr: BinaryExpr<O> {
 	std::unique_ptr<Type> getType(const Context &context) const override {
 		auto left_type = this->left->getType(context), right_type = this->right->getType(context);
 		if (!(*left_type && *right_type) || !(*right_type && *left_type))
-			throw ImplicitConversionError(*left_type, *right_type, this->location);
+			throw ImplicitConversionError(*left_type, *right_type, this->getLocation());
 		return std::make_unique<BoolType>();
 	}
 };
@@ -423,30 +427,30 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 	std::unique_ptr<Type> getType(const Context &context) const override {
 		auto left_type = this->left->getType(context), right_type = this->right->getType(context);
 		if (!(*right_type && *left_type))
-				throw ImplicitConversionError(*right_type, *left_type, this->location);
+				throw ImplicitConversionError(*right_type, *left_type, this->getLocation());
 		return left_type;
 	}
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
 		TypePtr left_type = this->left->getType(scope);
 		if (left_type->isConst)
-			throw ConstError("Can't assign", *left_type, this->location);
+			throw ConstError("Can't assign", *left_type, this->getLocation());
 		auto temp_var = function.newVar();
 		if (!destination)
 			destination = function.newVar();
 		this->left->compile(destination, function, scope);
 		this->right->compile(temp_var, function, scope);
 		if (this->left->getType(scope)->isUnsigned())
-			function.add<RU>(destination, temp_var, destination);
+			function.add<RU>(destination, temp_var, destination)->setDebug(*this);
 		else
-			function.add<RS>(destination, temp_var, destination);
+			function.add<RS>(destination, temp_var, destination)->setDebug(*this);
 		TypePtr right_type = this->right->getType(scope);
-		if (!tryCast(*right_type, *left_type, destination, function))
-			throw ImplicitConversionError(right_type, left_type, this->location);
+		if (!tryCast(*right_type, *left_type, destination, function, this->getLocation()))
+			throw ImplicitConversionError(right_type, left_type, this->getLocation());
 		if (!this->left->compileAddress(temp_var, function, scope))
-			throw LvalueError(*this->left->getType(scope), this->location);
-		function.add<StoreRInstruction>(destination, temp_var, getSize(scope));
+			throw LvalueError(*this->left->getType(scope), this->getLocation());
+		function.add<StoreRInstruction>(destination, temp_var, getSize(scope))->setDebug(*this);
 		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 	}
 	size_t getSize(const Context &context) const override {
 		return this->left->getSize(context);
@@ -494,18 +498,18 @@ struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
 		TypePtr left_type = this->left->getType(scope), right_type = this->right->getType(scope);
 		if (left_type->isConst)
-			throw ConstError("Can't assign", *left_type, this->location);
+			throw ConstError("Can't assign", *left_type, this->getLocation());
 		auto temp_var = function.newVar();
 		if (!destination)
 			destination = function.newVar();
 		function.doPointerArithmetic(left_type, right_type, *this->left, *this->right, destination, temp_var, scope,
-			this->location);
-		function.add<R>(destination, temp_var, destination);
+			this->getLocation());
+		function.add<R>(destination, temp_var, destination)->setDebug(*this);
 		if (!this->left->compileAddress(temp_var, function, scope))
-			throw LvalueError(*this->left->getType(scope), this->location);
-		function.add<StoreRInstruction>(destination, temp_var, this->getSize(scope));
+			throw LvalueError(*this->left->getType(scope), this->getLocation());
+		function.add<StoreRInstruction>(destination, temp_var, this->getSize(scope))->setDebug(*this);
 		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 	}
 };
 
@@ -544,8 +548,8 @@ struct AccessExpr: Expr {
 
 struct LengthExpr: Expr {
 	std::unique_ptr<Expr> subexpr;
-	LengthExpr(std::unique_ptr<Expr> &&subexpr_): Expr(subexpr_->location), subexpr(std::move(subexpr_)) {}
-	LengthExpr(Expr *subexpr_): Expr(subexpr_->location), subexpr(subexpr_) {}
+	LengthExpr(std::unique_ptr<Expr> &&subexpr_): Expr(subexpr_->debug), subexpr(std::move(subexpr_)) {}
+	LengthExpr(Expr *subexpr_): Expr(subexpr_->debug), subexpr(subexpr_) {}
 	Expr * copy() const override { return new LengthExpr(subexpr->copy()); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	operator std::string() const override { return "#" + std::string(*subexpr); }
@@ -562,13 +566,13 @@ struct PrefixExpr: Expr {
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
 		TypePtr subtype = subexpr->getType(scope);
 		if (subtype->isConst)
-			throw ConstError("Can't modify", *subtype, location);
+			throw ConstError("Can't modify", *subtype, getLocation());
 		size_t to_add = 1;
 		if (!subtype->isInt()) {
 			if (subtype->isPointer())
 				to_add = dynamic_cast<PointerType &>(*subtype).subtype->getSize();
 			else
-				throw GenericError(location, "Cannot increment/decrement " + std::string(*subtype));
+				throw GenericError(getLocation(), "Cannot increment/decrement " + std::string(*subtype));
 		}
 		if (!destination)
 			destination = function.newVar();
@@ -578,12 +582,12 @@ struct PrefixExpr: Expr {
 		if (!subexpr->compileAddress(addr_variable, function, scope))
 			throw LvalueError(*subexpr->getType(scope));
 		function.addComment("Prefix operator" + std::string(O));
-		function.add<LoadRInstruction>(addr_variable, destination, size);
-		function.add<I>(destination, destination, to_add);
-		function.add<StoreRInstruction>(destination, addr_variable, size);
+		function.add<LoadRInstruction>(addr_variable, destination, size)->setDebug(*this);
+		function.add<I>(destination, destination, to_add)->setDebug(*this);
+		function.add<StoreRInstruction>(destination, addr_variable, size)->setDebug(*this);
 
 		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 	}
 	bool compileAddress(VregPtr destination, Function &function, ScopePtr scope) override {
 		return subexpr->compileAddress(destination, function, scope);
@@ -605,13 +609,13 @@ struct PostfixExpr: Expr {
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
 		TypePtr subtype = subexpr->getType(scope);
 		if (subtype->isConst)
-			throw ConstError("Can't modify", *subtype, location);
+			throw ConstError("Can't modify", *subtype, getLocation());
 		size_t to_add = 1;
 		if (!subtype->isInt()) {
 			if (subtype->isPointer())
 				to_add = dynamic_cast<PointerType &>(*subtype).subtype->getSize();
 			else
-				throw GenericError(location, "Cannot increment/decrement " + std::string(*subtype));
+				throw GenericError(getLocation(), "Cannot increment/decrement " + std::string(*subtype));
 		}
 		if (!destination)
 			destination = function.newVar();
@@ -621,11 +625,11 @@ struct PostfixExpr: Expr {
 		if (!subexpr->compileAddress(addr_var, function, scope))
 			throw LvalueError(*subexpr->getType(scope));
 		function.addComment("Postfix operator" + std::string(O));
-		function.add<LoadRInstruction>(addr_var, destination, size);
-		function.add<I>(destination, temp_var, to_add);
-		function.add<StoreRInstruction>(temp_var, addr_var, size);
+		function.add<LoadRInstruction>(addr_var, destination, size)->setDebug(*this);
+		function.add<I>(destination, temp_var, to_add)->setDebug(*this);
+		function.add<StoreRInstruction>(temp_var, addr_var, size)->setDebug(*this);
 		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 	}
 	operator std::string() const override { return std::string(*subexpr) + std::string(O); }
 	size_t getSize(const Context &context) const override { return subexpr->getSize(context); }

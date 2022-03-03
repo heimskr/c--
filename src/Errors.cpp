@@ -1,7 +1,14 @@
 #include "Errors.h"
+#include "Expr.h"
 #include "Function.h"
 #include "Type.h"
 #include "Variable.h"
+
+ResolutionError::ResolutionError(const std::string &name_, const Context &context, const ASTLocation &location_):
+	GenericError(location_, "Couldn't resolve " + (name_ == "$c" || name_ == "$d"? std::string(name_ == "$c"?
+		"constructor" : "destructor") + " for " + (context.structName.empty()? " struct" : context.structName) :
+		("symbol " + name_))),
+	scope(context.scope), name(name_), structName(context.structName) {}
 
 NotOnStackError::NotOnStackError(VariablePtr variable_, const ASTLocation &location_):
 	GenericError(location_, "Not on stack: " + variable_->name +

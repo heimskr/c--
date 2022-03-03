@@ -127,7 +127,7 @@ Type * Type::get(const ASTNode &node, const Program &program, bool allow_forward
 			auto count = expr->evaluate(nullptr);
 			if (!count)
 				throw GenericError(node.location, "Array size expression must be a compile-time constant: " +
-					std::string(*expr) + " (at " + std::string(expr->location) + ")");
+					std::string(*expr) + " (at " + std::string(expr->getLocation()) + ")");
 			return new ArrayType(Type::get(*node.front(), program), *count);
 		}
 		case CMM_FNPTR: {
