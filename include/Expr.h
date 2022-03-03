@@ -306,6 +306,17 @@ struct NullExpr: AtomicExpr {
 	std::unique_ptr<Type> getType(const Context &) const override { return std::make_unique<PointerType>(new VoidType); }
 };
 
+struct VregExpr: Expr {
+	VregPtr virtualRegister;
+	VregExpr(VregPtr virtual_register): virtualRegister(virtual_register) {}
+	Expr * copy() const override { return new VregExpr(virtualRegister); }
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
+	operator std::string() const override { return virtualRegister->regOrID(); }
+	size_t getSize(const Context &) const override;
+	std::unique_ptr<Type> getType(const Context &) const override;
+	bool compileAddress(VregPtr, Function &, ScopePtr) override;
+};
+
 struct VariableExpr: Expr {
 	std::string name;
 	VariableExpr(const std::string &name_): name(name_) {}

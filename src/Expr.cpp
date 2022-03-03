@@ -712,6 +712,29 @@ void NullExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_
 		function.add<SetIInstruction>(destination, 0);
 }
 
+void VregExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) {
+	if (destination != virtualRegister) {
+		if (multiplier == 1)
+			function.add<MoveInstruction>(virtualRegister, destination);
+		else
+			function.add<MultIInstruction>(virtualRegister, destination, size_t(multiplier));
+	}
+}
+
+bool VregExpr::compileAddress(VregPtr, Function &, ScopePtr) {
+	return false;
+}
+
+size_t VregExpr::getSize(const Context &) const {
+	if (!virtualRegister->type)
+		return 8;
+	return virtualRegister->type->getSize();
+}
+
+std::unique_ptr<Type> VregExpr::getType(const Context &) const {
+	return std::unique_ptr<Type>(virtualRegister->type->copy());
+}
+
 void VariableExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	if (VariablePtr var = scope->lookup(name)) {
 		if (auto global = std::dynamic_pointer_cast<Global>(var)) {
