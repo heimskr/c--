@@ -814,7 +814,10 @@ std::unique_ptr<Type> AddressOfExpr::getType(const Context &context) const {
 	if (!subexpr->is<VariableExpr>() && !subexpr->is<DerefExpr>() && !subexpr->is<AccessExpr>())
 		if (!subexpr->is<ArrowExpr>() && !subexpr->is<DotExpr>())
 			throw LvalueError(*subexpr);
-	return std::make_unique<PointerType>(subexpr->getType(context.scope)->copy());
+	auto subexpr_type = subexpr->getType(context.scope);
+	auto out = std::make_unique<PointerType>(subexpr_type->copy());
+	out->setConst(subexpr_type->isConst);
+	return out;
 }
 
 void NotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
@@ -865,7 +868,9 @@ size_t DerefExpr::getSize(const Context &context) const {
 
 std::unique_ptr<Type> DerefExpr::getType(const Context &context) const {
 	auto type = checkType(context.scope);
-	return std::unique_ptr<Type>(dynamic_cast<PointerType &>(*type).subtype->copy());
+	auto out = std::unique_ptr<Type>(dynamic_cast<PointerType &>(*type).subtype->copy());
+	out->setConst(type->isConst);
+	return out;
 }
 
 std::unique_ptr<Type> DerefExpr::checkType(ScopePtr scope) const {
@@ -921,12 +926,14 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 			if (const auto *pointer_type = struct_expr_type->cast<PointerType>())
 				if (pointer_type->subtype->isStruct()) {
 					fn.addComment("Setting \"this\" from pointer.");
+					this_var->type = TypePtr(pointer_type->copy());
 					structExpr->compile(this_var, fn, scope);
 					goto this_done; // Hehe :)
 				}
 			throw NotStructError(TypePtr(struct_expr_type->copy()), structExpr->getLocation());
 		} else {
 			fn.addComment("Setting \"this\" from struct.");
+			this_var->type = PointerType::make(struct_expr_type->copy());
 			if (!structExpr->compileAddress(this_var, fn, scope))
 				throw LvalueError(*struct_expr_type, structExpr->getLocation());
 		}
@@ -1073,6 +1080,8 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 	if (!destination)
 		destination = function.newVar();
 	TypePtr right_type = right->getType(scope);
+	if (left_type->isConst)
+		throw ConstError("Can't assign", *left_type, getLocation());
 	if (!left->compileAddress(addr_var, function, scope))
 		throw LvalueError(*left->getType(scope));
 	if (right_type->isInitializer()) {
@@ -1307,6 +1316,7 @@ std::shared_ptr<StructType> ArrowExpr::checkType(ScopePtr scope) const {
 		throw NotPointerError(std::move(left_type), getLocation());
 	auto *left_pointer = left_type->cast<PointerType>();
 	TypePtr shared_type = TypePtr(left_pointer->subtype->copy());
+	shared_type->setConst(left_type->isConst);
 	if (!left_pointer->subtype->isStruct())
 		throw NotStructError(shared_type, getLocation());
 	return shared_type->ptrcast<StructType>();
