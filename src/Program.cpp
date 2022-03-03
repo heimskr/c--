@@ -9,8 +9,8 @@
 #include "Why.h"
 #include "WhyInstructions.h"
 
-Program compileRoot(const ASTNode &root) {
-	Program out;
+Program compileRoot(const ASTNode &root, const std::string &filename) {
+	Program out(filename);
 
 	FunctionPtr init = Function::make(out, nullptr);
 	out.functions.emplace(".init", init);
@@ -287,6 +287,10 @@ void Program::compile() {
 			for (const std::string &line: function->stringify())
 				lines.push_back("\t" + line);
 		}
+
+	lines.push_back("");
+	lines.push_back("#debug");
+	lines.push_back("");
 }
 
 size_t Program::getStringID(const std::string &str) {

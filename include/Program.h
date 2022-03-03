@@ -29,16 +29,19 @@ struct Program {
 	std::string name, author, orcid, version;
 	std::set<std::string> forwardDeclarations;
 	std::map<std::string, std::shared_ptr<StructType>> structs;
+	std::string filename;
 
-	Program() = default;
+	Program() = delete;
+
+	Program(const std::string &filename_): filename(filename_) {}
 
 	Program(decltype(globals) &&globals_, decltype(globalOrder) &&global_order, decltype(signatures) &&signatures_,
-	decltype(functions) &&functions_):
+	decltype(functions) &&functions_, const std::string &filename_):
 		globals(std::move(globals_)), globalOrder(std::move(global_order)), signatures(std::move(signatures_)),
-		functions(std::move(functions_)) {}
+		functions(std::move(functions_)), filename(filename_) {}
 
 	void compile();
 	size_t getStringID(const std::string &);
 };
 
-Program compileRoot(const ASTNode &);
+Program compileRoot(const ASTNode &, const std::string &filename);
