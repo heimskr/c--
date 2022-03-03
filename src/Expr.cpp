@@ -794,8 +794,10 @@ size_t VariableExpr::getSize(const Context &context) const {
 std::unique_ptr<Type> VariableExpr::getType(const Context &context) const {
 	if (VariablePtr var = context.scope->lookup(name))
 		return std::unique_ptr<Type>(var->type->copy());
-	else if (const auto fn = context.scope->lookupFunction(name, nullptr, {}, context.structName, getLocation()))
-		return std::make_unique<FunctionPointerType>(*fn);
+	try {
+		if (const auto fn = context.scope->lookupFunction(name, nullptr, {}, context.structName, getLocation()))
+			return std::make_unique<FunctionPointerType>(*fn);
+	} catch (AmbiguousError &) {}
 	throw ResolutionError(name, context, getLocation());
 }
 
@@ -816,7 +818,7 @@ std::unique_ptr<Type> AddressOfExpr::getType(const Context &context) const {
 			throw LvalueError(*subexpr);
 	auto subexpr_type = subexpr->getType(context.scope);
 	auto out = std::make_unique<PointerType>(subexpr_type->copy());
-	out->setConst(subexpr_type->isConst);
+	out->subtype->setConst(subexpr_type->isConst);
 	return out;
 }
 
@@ -842,7 +844,7 @@ void StringExpr::compile(VregPtr destination, Function &function, ScopePtr, ssiz
 }
 
 std::unique_ptr<Type> StringExpr::getType(const Context &) const {
-	return std::make_unique<PointerType>(new UnsignedType(8));
+	return std::make_unique<PointerType>((new UnsignedType(8))->setConst(true));
 }
 
 bool StringExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {

@@ -96,3 +96,7 @@ struct InvalidFunctionNameError: GenericError {
 	InvalidFunctionNameError(const std::string &name_, const ASTLocation &location_ = {}):
 		GenericError(location_, "Invalid function name: " + name_), name(name_) {}
 };
+
+struct AmbiguousError: GenericError {
+	using GenericError::GenericError;
+};

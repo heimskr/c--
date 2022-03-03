@@ -12,7 +12,7 @@ struct String {
 
 void*[8] table;
 s64 delay = 300000;
-u8 *timeup = "Time's up\n";
+u8 const *timeup = "Time's up\n";
 void() *timer_ptr = int_timer;
 s64(s64) *fnptr = add5;
 %String input;
@@ -233,7 +233,7 @@ u8 * String::copyData() #const {
 	return out;
 }
 
-void String::append(%String *source) {
+void String::append(%String const *source) {
 	u64 required = source->size + this->size + 1u64;
 	if (this->capacity < required) {
 		u8 *old_data = this->data;
@@ -247,7 +247,7 @@ void String::append(%String *source) {
 	this->data[this->size] = '\0';
 }
 
-void String::append(u8 *other) {
+void String::append(u8 const *other) {
 	u64 other_len = strlen(other);
 	u64 required = other_len + this->size + 1u64;
 	if (this->capacity < required) {
@@ -326,13 +326,13 @@ void String::move(%String *other) {
 	this->capacity = 0;
 }
 
-void String::init(u8 *data) {
+void String::init(u8 const *data) {
 	u64 const len = strlen(data);
 	this->data = strcpy(data);
 	this->capacity = (this->size = len) + 1u64;
 }
 
-+String(u8 *data) {
++String(u8 const *data) {
 	u64 const len = strlen(data);
 	this->data = strcpy(data);
 	this->size = len;
@@ -574,12 +574,12 @@ void StringVec::eviscerate() {
 	free(this);
 }
 
-+StringVec(%String *str, u8 *delimiter) {
++StringVec(%String *str, u8 const *delimiter) {
 	this::$c();
 	%StringVec::split(this, str, delimiter);
 }
 
-static void StringVec::split(%StringVec *sv, %String *str, u8 *delimiter) {
+static void StringVec::split(%StringVec *sv, %String *str, u8 const *delimiter) {
 	if (str::empty())
 		return;
 

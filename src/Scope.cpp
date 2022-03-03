@@ -77,7 +77,7 @@ FunctionPtr Scope::lookupFunction(const std::string &function_name, TypePtr retu
 			error << " for %" << struct_name;
 		for (const auto &result: filtered)
 			warn() << result->mangle() << '\n';
-		throw GenericError(location, error.str());
+		throw AmbiguousError(location, error.str());
 	}
 
 	return filtered.empty()? nullptr : filtered.front();
@@ -99,7 +99,7 @@ FunctionPtr Scope::lookupFunction(const std::string &function_name, const Types 
 			error << " for %" << struct_name;
 		for (const auto &result: results)
 			warn() << result->mangle() << '\n';
-		throw GenericError(location, error.str());
+		throw AmbiguousError(location, error.str());
 	}
 
 	return results.empty()? nullptr : results.front();

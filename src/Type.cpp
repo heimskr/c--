@@ -52,8 +52,6 @@ bool PointerType::operator&&(const Type &other) const {
 	if (other.isBool())
 		return true;
 	if (auto *other_pointer = other.cast<PointerType>()) {
-		if (subtype->isConst && !other_pointer->subtype->isConst)
-			return false;
 		if (subtype->isVoid() || other_pointer->subtype->isVoid() || (*subtype && *other_pointer->subtype))
 			return true;
 		if (auto *subtype_array = subtype->cast<ArrayType>())
@@ -331,7 +329,7 @@ bool StructType::operator&&(const Type &other) const {
 
 bool StructType::operator==(const Type &other) const {
 	if (const auto *other_struct = other.cast<StructType>())
-		return name == other_struct->name && isConst == other_struct->isConst;
+		return name == other_struct->name && !(isConst && !other_struct->isConst);
 	return false;
 }
 
