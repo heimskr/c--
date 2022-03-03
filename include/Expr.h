@@ -738,35 +738,34 @@ struct InitializerExpr: Expr {
 	void fullCompile(VregPtr start, Function &function, ScopePtr scope);
 };
 
-struct ConstructingBase: Expr {
+struct ConstructorExpr: Expr {
+	size_t stackOffset;
 	std::string structName;
 	std::vector<ExprPtr> arguments;
-	ConstructingBase(const std::string &struct_name, const std::vector<ExprPtr> &arguments_ = {}):
-		structName(struct_name), arguments(arguments_) {}
-	ConstructingBase(const std::string &struct_name, std::vector<ExprPtr> &&arguments_):
-		structName(struct_name), arguments(std::move(arguments_)) {}
+	ConstructorExpr(size_t stack_offset, const std::string &struct_name, const std::vector<ExprPtr> &arguments_ = {}):
+		stackOffset(stack_offset), structName(struct_name), arguments(arguments_) {}
+	ConstructorExpr(size_t stack_offset, const std::string &struct_name, std::vector<ExprPtr> &&arguments_):
+		stackOffset(stack_offset), structName(struct_name), arguments(std::move(arguments_)) {}
+	Expr * copy() const override;
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
+	operator std::string() const override;
 	size_t getSize(const Context &) const override;
 	std::unique_ptr<Type> getType(const Context &) const override;
 	FunctionPtr findFunction(const Context &) const;
-};
-
-struct ConstructorExpr: ConstructingBase {
-	size_t stackOffset;
-	ConstructorExpr(size_t stack_offset, const std::string &struct_name, const std::vector<ExprPtr> &arguments_ = {}):
-		ConstructingBase(struct_name, arguments_), stackOffset(stack_offset) {}
-	ConstructorExpr(size_t stack_offset, const std::string &struct_name, std::vector<ExprPtr> &&arguments_):
-		ConstructingBase(struct_name, std::move(arguments_)), stackOffset(stack_offset) {}
-	Expr * copy() const override;
-	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
-	operator std::string() const override;
 	ConstructorExpr * addToScope(ScopePtr);
 };
 
-struct NewExpr: ConstructingBase {
-	using ConstructingBase::ConstructingBase;
+struct NewExpr: Expr {
+	TypePtr type;
+	std::vector<ExprPtr> arguments;
+	NewExpr(TypePtr type_, const std::vector<ExprPtr> &arguments_ = {}):
+		type(type_), arguments(arguments_) {}
+	NewExpr(TypePtr type_, std::vector<ExprPtr> &&arguments_):
+		type(type_), arguments(std::move(arguments_)) {}
 	Expr * copy() const override;
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	operator std::string() const override;
 	size_t getSize(const Context &) const override;
 	std::unique_ptr<Type> getType(const Context &) const override;
+	FunctionPtr findFunction(const Context &) const;
 };

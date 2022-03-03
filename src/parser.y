@@ -278,7 +278,7 @@ expr: expr "&&"  expr { $$ = $2->adopt({$1, $3}); }
     | CMMTOK_CHAR
     | "[" _exprlist "]" { $$ = $2; $$->symbol = CMM_INITIALIZER; D($1, $3); }
     | "%" "[" _exprlist "]" { $$ = $3; $$->symbol = CMM_INITIALIZER; $$->attributes.insert("constructor"); D($1, $2, $4); }
-    | "new" constructor_call { $$ = $1->adopt($2); }
+    | "new" new_type "(" _exprlist ")" %prec "new" { $$ = $1->adopt({$2, $4}); D($3, $5); }
     | "null";
 
 string: CMMTOK_STRING;
@@ -314,6 +314,8 @@ typelist: typelist "," type { $$ = $1->adopt($3); D($2); }
 _typelist: typelist | { $$ = new ASTNode(cmmParser, CMM_LIST); };
 
 struct_type: "%" CMMTOK_IDENT { $$ = $1->adopt($2); };
+
+new_type: "bool" | int_type | new_type "*" { $$ = $2->adopt($1); } | struct_type | new_type "const" { $$ = $2->adopt($1); };
 
 type: "bool" | int_type | "void" | pointer_type | array_type | fnptr_type | struct_type | type "const" { $$ = $2->adopt($1); };
 

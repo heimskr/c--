@@ -493,7 +493,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			auto temp_var = newVar(type);
 			expr->compile(temp_var, *this, currentScope());
 			if (auto *struct_type = pointer_type->subtype->cast<StructType>())
-				if (auto destructor = struct_type->getDestructor()) {
+				if (struct_type->getDestructor()) {
 					auto call = std::make_unique<CallExpr>(new VariableExpr("$d"));
 					call->structExpr = std::make_unique<VregExpr>(temp_var);
 					addComment("Calling destructor for " + std::string(*struct_type) + " " + std::string(*expr));
@@ -1281,7 +1281,7 @@ void Function::closeScope() {
 	for (auto iter = order->rbegin(), end = order->rend(); iter != end; ++iter) {
 		auto &var = *iter;
 		if (auto struct_type = var->type->ptrcast<StructType>())
-			if (auto destructor = struct_type->getDestructor()) {
+			if (struct_type->getDestructor()) {
 				auto *destructor_expr = new VariableExpr("$d");
 				auto call = std::make_unique<CallExpr>(destructor_expr);
 				call->structExpr = std::make_unique<VariableExpr>(var->name);
