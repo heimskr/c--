@@ -13,6 +13,7 @@
 #include "fixed_string.h"
 #include "Function.h"
 #include "Global.h"
+#include "Makeable.h"
 #include "Scope.h"
 #include "Type.h"
 #include "Util.h"
@@ -225,6 +226,13 @@ struct AndExpr: BinaryExpr<"&"> {
 };
 
 struct OrExpr: BinaryExpr<"&"> {
+	using BinaryExpr::BinaryExpr;
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
+	size_t getSize(const Context &) const override;
+	std::optional<ssize_t> evaluate(ScopePtr) const override;
+};
+
+struct XorExpr: BinaryExpr<"^"> {
 	using BinaryExpr::BinaryExpr;
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	size_t getSize(const Context &) const override;
@@ -671,7 +679,7 @@ struct ArrowExpr: Expr {
 	size_t getSize(const Context &) const override;
 };
 
-struct SizeofExpr: Expr {
+struct SizeofExpr: Expr, Makeable<SizeofExpr> {
 	TypePtr argument;
 	SizeofExpr(TypePtr argument_): argument(argument_) {}
 	Expr * copy() const override { return new SizeofExpr(argument); }
@@ -719,17 +727,33 @@ struct InitializerExpr: Expr {
 	void fullCompile(VregPtr start, Function &function, ScopePtr scope);
 };
 
-struct ConstructorExpr: Expr {
-	size_t stackOffset;
+struct ConstructingBase: Expr {
 	std::string structName;
 	std::vector<ExprPtr> arguments;
+	ConstructingBase(const std::string &struct_name, const std::vector<ExprPtr> &arguments_ = {}):
+		structName(struct_name), arguments(arguments_) {}
+	ConstructingBase(const std::string &struct_name, std::vector<ExprPtr> &&arguments_):
+		structName(struct_name), arguments(std::move(arguments_)) {}
+	size_t getSize(const Context &) const override;
+	std::unique_ptr<Type> getType(const Context &) const override;
+	FunctionPtr findFunction(const Context &) const;
+};
+
+struct ConstructorExpr: ConstructingBase {
+	size_t stackOffset;
 	ConstructorExpr(size_t stack_offset, const std::string &struct_name, const std::vector<ExprPtr> &arguments_ = {}):
-		stackOffset(stack_offset), structName(struct_name), arguments(arguments_) {}
+		ConstructingBase(struct_name, arguments_), stackOffset(stack_offset) {}
+	Expr * copy() const override;
+	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
+	operator std::string() const override;
+	ConstructorExpr * addToScope(ScopePtr);
+};
+
+struct NewExpr: ConstructingBase {
+	using ConstructingBase::ConstructingBase;
 	Expr * copy() const override;
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	operator std::string() const override;
 	size_t getSize(const Context &) const override;
 	std::unique_ptr<Type> getType(const Context &) const override;
-	FunctionPtr findFunction(const Context &) const;
-	ConstructorExpr * addToScope(ScopePtr);
 };

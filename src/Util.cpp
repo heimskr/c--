@@ -54,8 +54,17 @@ namespace Util {
 	long parseLong(const std::string &str, int base) {
 		const char *c_str = str.c_str();
 		char *end;
-		long parsed = strtol(c_str, &end, base);
-		if (c_str + str.length() != end)
+		long parsed;
+		size_t length;
+		if (3 <= str.size() && str[0] == '0' && str[1] == 'x') {
+			length = str.size() - 2;
+			c_str += 2;
+			parsed = strtol(c_str, &end, 16);
+		} else {
+			length = str.size();
+			parsed = strtol(c_str, &end, base);
+		}
+		if (c_str + length != end)
 			throw std::invalid_argument("Not an integer: \"" + str + "\"");
 		return parsed;
 	}

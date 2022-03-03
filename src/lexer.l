@@ -17,6 +17,7 @@
 %option warn
 
 CMM_DECIMAL		([0-9]+([su](8|16|32|64))?)
+CMM_HEX			(0x[0-9a-fA-F]+([su](8|16|32|64))?)
 CMM_IDENT		([a-zA-Z_$`][`$a-zA-Z_0-9]*)
 CMM_STRING		(\"([^\\"\n]|\\([\\"nratbe0]|x[0-9a-fA-F][0-9a-fA-F]))*\")
 CMM_CHAR		(\'([^\\'\n]|\\([\\'nratbe0]|x[0-9a-fA-F][0-9a-fA-F]))\')
@@ -109,10 +110,13 @@ CMM_SLCOMMENT	("//"[^\n]*)
 "const"			{RTOKEN(CONST)}
 "offsetof"		{RTOKEN(OFFSETOF)}
 "static"		{RTOKEN(STATIC)}
+"new"			{RTOKEN(NEW)}
+"delete"		{RTOKEN(DELETE)}
 
 {CMM_CHAR}		{RTOKEN(CHAR)}
 {CMM_STRING}	{RTOKEN(STRING)}
 {CMM_DECIMAL}	{RTOKEN(NUMBER)}
+{CMM_HEX}		{RTOKEN(NUMBER)}
 {CMM_IDENT}		{RTOKEN(IDENT)}
 .				{cmmLexer.badchar(*yytext);}
 

@@ -116,6 +116,8 @@ using AN = ASTNode;
 %token CMMTOK_OFFSETOF "offsetof"
 %token CMMTOK_SCOPE "::"
 %token CMMTOK_STATIC "static"
+%token CMMTOK_NEW "new"
+%token CMMTOK_DELETE "delete"
 
 %token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY CMM_POSTPLUS CMM_POSTMINUS CMM_FNPTR CMM_DECL
 %token CMM_INITIALIZER CMM_FNDECL
@@ -135,7 +137,7 @@ using AN = ASTNode;
 %left "<<" ">>"
 %left "+" "-"
 %left MULT "/" "%"
-%right "!" "~" "#" "sizeof" "offsetof" DEREF ADDROF PREFIX UNARY CAST
+%right "!" "~" "#" "sizeof" "offsetof" DEREF ADDROF PREFIX UNARY CAST "new" "delete"
 %left "[" POSTFIX CALL "." "->"
 %left "::"
 %nonassoc "else"
@@ -166,6 +168,7 @@ statement: block
          | "return" ";" { D($2); }
          | "break" ";" { D($2); }
          | "continue" ";" { D($2); }
+         | "delete" expr ";" { $$ = $1->adopt($2); D($3); }
          | ";" { $1->symbol = CMM_EMPTY; }
          | inline_asm;
 
@@ -222,6 +225,7 @@ expr: expr "&&"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "||"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "&"   expr %prec BITWISE_AND { $$ = $2->adopt({$1, $3}); }
     | expr "|"   expr { $$ = $2->adopt({$1, $3}); }
+    | expr "^"   expr { $$ = $2->adopt({$1, $3}); }
     | expr "^^"  expr { $$ = $2->adopt({$1, $3}); }
     | expr "=="  expr { $$ = $2->adopt({$1, $3}); }
     | expr "!="  expr { $$ = $2->adopt({$1, $3}); }
@@ -274,6 +278,7 @@ expr: expr "&&"  expr { $$ = $2->adopt({$1, $3}); }
     | CMMTOK_CHAR
     | "[" _exprlist "]" { $$ = $2; $$->symbol = CMM_INITIALIZER; D($1, $3); }
     | "%" "[" _exprlist "]" { $$ = $3; $$->symbol = CMM_INITIALIZER; $$->attributes.insert("constructor"); D($1, $2, $4); }
+    | "new" constructor_call { $$ = $1->adopt($2); }
     | "null";
 
 string: CMMTOK_STRING;

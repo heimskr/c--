@@ -121,7 +121,6 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			for (const ASTNode *child: *node.at(1))
 				arguments.emplace_back(Expr::get(*child, function));
 
-
 			if (node.front()->symbol == CMMTOK_MOD) {
 				if (!function)
 					throw LocatedError(node.location, "Cannot find struct in functionless context");
@@ -150,6 +149,13 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				out = call;
 			}
 			break;
+		}
+		case CMMTOK_NEW: {
+			std::vector<ExprPtr> arguments;
+			arguments.reserve(node.front()->at(1)->size());
+			for (const ASTNode *child: *node.front()->at(1))
+				arguments.emplace_back(Expr::get(*child, function));
+			out = new NewExpr(*node.front()->front()->front()->text, std::move(arguments));
 		}
 		case CMMTOK_STRING:
 			out = new StringExpr(node.unquote());
@@ -212,6 +218,11 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			break;
 		case CMMTOK_OR:
 			out = new OrExpr(
+				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
+				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+			break;
+		case CMMTOK_XOR:
+			out = new XorExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
@@ -482,6 +493,27 @@ std::optional<ssize_t> OrExpr::evaluate(ScopePtr scope) const {
 	return std::nullopt;
 }
 
+void XorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
+	VregPtr temp_var = function.newVar();
+	left->compile(temp_var, function, scope);
+	right->compile(destination, function, scope);
+	function.add<XorRInstruction>(temp_var, destination, destination);
+	if (multiplier != 1)
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+}
+
+size_t XorExpr::getSize(const Context &context) const {
+	return left->getSize(context);
+}
+
+std::optional<ssize_t> XorExpr::evaluate(ScopePtr scope) const {
+	auto left_value  = left?  left->evaluate(scope)  : std::nullopt,
+	     right_value = right? right->evaluate(scope) : std::nullopt;
+	if (left_value && right_value)
+		return *left_value ^ *right_value;
+	return std::nullopt;
+}
+
 void LandExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	const std::string base = "." + function.name + "." + std::to_string(function.getNextBlock());
 	const std::string success = base + "land.s", end = base + "land.e";
@@ -621,21 +653,38 @@ size_t NumberExpr::getSize(const Context &) const {
 	const size_t size = Util::parseLong(literal.substr(suffix + 1)) / 8;
 	bool out_of_range = false;
 
-	switch (size) {
-		case 8:
-			break;
-		case 4:
-			out_of_range = value < INT_MIN || INT_MAX < value;
-			break;
-		case 2:
-			out_of_range = value < -65536 || 65535 < value;
-			break;
-		case 1:
-			out_of_range = value < -256 || 255 < value;
-			break;
-		default:
-			throw LocatedError(location, "Invalid numeric literal size (in bytes): " + std::to_string(size));
-	}
+	if (literal.find('u') != std::string::npos)
+		switch (size) {
+			case 8:
+				break;
+			case 4:
+				out_of_range = UINT_MAX < value;
+				break;
+			case 2:
+				out_of_range = 65535 < value;
+				break;
+			case 1:
+				out_of_range = 255 < value;
+				break;
+			default:
+				throw LocatedError(location, "Invalid numeric literal size (in bytes): " + std::to_string(size));
+		}
+	else
+		switch (size) {
+			case 8:
+				break;
+			case 4:
+				out_of_range = value < INT_MIN || INT_MAX < value;
+				break;
+			case 2:
+				out_of_range = value < -32768 || 32767 < value;
+				break;
+			case 1:
+				out_of_range = value < -128 || 127 < value;
+				break;
+			default:
+				throw LocatedError(location, "Invalid numeric literal size (in bytes): " + std::to_string(size));
+		}
 
 	if (out_of_range)
 		throw LocatedError(location, "Numeric literal cannot fit in " + std::to_string(size) + " byte" +
@@ -1087,7 +1136,7 @@ std::unique_ptr<Type> AccessExpr::check(ScopePtr scope) {
 			const auto array_count = type->cast<ArrayType>()->count;
 			if (*evaluated < 0 || ssize_t(array_count) <= *evaluated) {
 				warn() << "Array index " << *evaluated << " at " << subscript->location << " is higher than array size ("
-					<< array_count << ") at " << location << '\n';
+				       << array_count << ") at " << location << '\n';
 				warned = true;
 			}
 		}
@@ -1305,6 +1354,22 @@ void InitializerExpr::fullCompile(VregPtr address, Function &function, ScopePtr 
 	}
 }
 
+size_t ConstructingBase::getSize(const Context &context) const {
+	return getType(context)->getSize();
+}
+
+std::unique_ptr<Type> ConstructingBase::getType(const Context &context) const {
+	return std::make_unique<PointerType>(context.scope->lookupType(structName)->copy());
+}
+
+FunctionPtr ConstructingBase::findFunction(const Context &context) const {
+	Types arg_types;
+	arg_types.reserve(arguments.size());
+	for (const auto &expr: arguments)
+		arg_types.push_back(expr->getType(context));
+	return context.scope->lookupFunction("$c", arg_types, structName, location);
+}
+
 Expr * ConstructorExpr::copy() const {
 	std::vector<ExprPtr> arguments_copy;
 	for (const ExprPtr &argument: arguments)
@@ -1312,7 +1377,7 @@ Expr * ConstructorExpr::copy() const {
 	return new ConstructorExpr(stackOffset, structName, arguments_copy);
 }
 
-void ConstructorExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_t multiplier) {
+void ConstructorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	if (multiplier != 1)
 		throw LocatedError(location, "Cannot multiply in ConstructorExpr");
 
@@ -1326,16 +1391,16 @@ void ConstructorExpr::compile(VregPtr destination, Function &fn, ScopePtr scope,
 		throw std::runtime_error("Functions with more than 16 arguments aren't currently supported.");
 
 	for (size_t i = 0; i < registers_used; ++i)
-		fn.add<StackPushInstruction>(fn.precolored(Why::argumentOffset + i));
+		function.add<StackPushInstruction>(function.precolored(Why::argumentOffset + i));
 
 	auto looked_up = scope->lookupType(structName);
 	if (!looked_up)
 		throw ResolutionError(structName, scope, location);
 
 	auto struct_type = looked_up->ptrcast<StructType>();
-	auto this_var = fn.precolored(argument_offset++);
-	fn.addComment("Setting \"this\" for constructor.");
-	fn.add<SubIInstruction>(fn.precolored(Why::framePointerOffset), this_var, stackOffset);
+	auto this_var = function.precolored(argument_offset++);
+	function.addComment("Setting \"this\" for constructor.");
+	function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), this_var, stackOffset);
 
 	FunctionPtr found = findFunction(context);
 
@@ -1350,13 +1415,13 @@ void ConstructorExpr::compile(VregPtr destination, Function &fn, ScopePtr scope,
 	size_t i = 0;
 
 	for (const auto &argument: arguments) {
-		auto argument_register = fn.precolored(argument_offset + i);
+		auto argument_register = function.precolored(argument_offset + i);
 		auto argument_type = argument->getType(scope);
 		if (argument_type->isStruct())
 			throw LocatedError(argument->location, "Structs cannot be directly passed to functions; use a pointer");
-		argument->compile(argument_register, fn, scope);
+		argument->compile(argument_register, function, scope);
 		try {
-			typeCheck(*argument_type, *found->getArgumentType(i), argument_register, fn, location);
+			typeCheck(*argument_type, *found->getArgumentType(i), argument_register, function, location);
 		} catch (std::out_of_range &err) {
 			std::cerr << "\e[31mBad function argument at " << argument->location << "\e[39m\n";
 			throw;
@@ -1364,13 +1429,13 @@ void ConstructorExpr::compile(VregPtr destination, Function &fn, ScopePtr scope,
 		++i;
 	}
 
-	fn.add<JumpInstruction>(found->mangle(), true);
+	function.add<JumpInstruction>(found->mangle(), true);
 
 	for (size_t i = registers_used; 0 < i; --i)
-		fn.add<StackPopInstruction>(fn.precolored(Why::argumentOffset + i - 1));
+		function.add<StackPopInstruction>(function.precolored(Why::argumentOffset + i - 1));
 
 	if (!found->returnType->isVoid() && destination)
-		fn.add<MoveInstruction>(fn.precolored(Why::returnValueOffset), destination);
+		function.add<MoveInstruction>(function.precolored(Why::returnValueOffset), destination);
 }
 
 ConstructorExpr::operator std::string() const {
@@ -1386,22 +1451,6 @@ ConstructorExpr::operator std::string() const {
 	}
 	out << ')';
 	return out.str();
-}
-
-size_t ConstructorExpr::getSize(const Context &context) const {
-	return getType(context)->getSize();
-}
-
-std::unique_ptr<Type> ConstructorExpr::getType(const Context &context) const {
-	return std::make_unique<PointerType>(context.scope->lookupType(structName)->copy());
-}
-
-FunctionPtr ConstructorExpr::findFunction(const Context &context) const {
-	Types arg_types;
-	arg_types.reserve(arguments.size());
-	for (const auto &expr: arguments)
-		arg_types.push_back(expr->getType(context));
-	return context.scope->lookupFunction("$c", arg_types, structName, location);
 }
 
 static std::string newVariableName(const std::map<std::string, VariablePtr> &map) {
@@ -1435,4 +1484,97 @@ ConstructorExpr * ConstructorExpr::addToScope(ScopePtr scope) {
 		throw LocatedError(location, "Invalid scope for ConstructorExpr: " + scope->partialStringify());
 
 	return this;
+}
+
+Expr * NewExpr::copy() const {
+	return new NewExpr(structName, arguments);
+}
+
+void NewExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
+	if (multiplier != 1)
+		throw LocatedError(location, "Cannot multiply in NewExpr");
+
+	Context context(scope);
+	context.structName = structName;
+
+	if (!destination)
+		destination = function.newVar(getType(context));
+
+	auto looked_up = scope->lookupType(structName);
+	if (!looked_up)
+		throw ResolutionError(structName, scope, location);
+
+	auto call_expr = std::make_unique<CallExpr>(new VariableExpr("checked_malloc"),
+		std::vector<ExprPtr> {SizeofExpr::make(looked_up)});
+
+	call_expr->compile(destination, function, scope, 1);
+
+	FunctionPtr found = findFunction(context);
+	if (!found)
+		throw LocatedError(location, "Constructor for " + structName + " not found.");
+
+	int argument_offset = Why::argumentOffset;
+
+	const size_t registers_used = 1 + arguments.size();
+	if (Why::argumentCount < registers_used)
+		throw std::runtime_error("Constructors with more than 15 arguments aren't currently supported.");
+
+	for (size_t i = 0; i < registers_used; ++i)
+		function.add<StackPushInstruction>(function.precolored(Why::argumentOffset + i));
+
+	auto struct_type = looked_up->ptrcast<StructType>();
+	auto this_var = function.precolored(argument_offset++);
+	function.addComment("Moving \"this\" for constructor.");
+	function.add<MoveInstruction>(destination, this_var);
+
+	if (found->argumentCount() != arguments.size())
+		throw LocatedError(location, "Invalid number of arguments in call to " + structName + " constructor at " +
+			std::string(location) + ": " + std::to_string(arguments.size()) + " (expected " +
+			std::to_string(found->argumentCount()) + ")");
+
+	size_t i = 0;
+	for (const auto &argument: arguments) {
+		auto argument_register = function.precolored(argument_offset + i);
+		auto argument_type = argument->getType(scope);
+		if (argument_type->isStruct())
+			throw LocatedError(argument->location, "Structs cannot be directly passed to functions; use a pointer");
+		argument->compile(argument_register, function, scope);
+		try {
+			typeCheck(*argument_type, *found->getArgumentType(i), argument_register, function, location);
+		} catch (std::out_of_range &err) {
+			error() << "Bad function argument at " << argument->location << '\n';
+			throw;
+		}
+		++i;
+	}
+
+	function.add<JumpInstruction>(found->mangle(), true);
+
+	for (size_t i = registers_used; 0 < i; --i)
+		function.add<StackPopInstruction>(function.precolored(Why::argumentOffset + i - 1));
+
+	function.add<MoveInstruction>(function.precolored(Why::returnValueOffset), destination);
+}
+
+NewExpr::operator std::string() const {
+	std::stringstream out;
+	out << "new %" << structName << '(';
+	bool first = true;
+	for (const auto &argument: arguments) {
+		if (first)
+			first = false;
+		else
+			out << ", ";
+		out << std::string(*argument);
+	}
+	out << ')';
+	return out.str();
+}
+
+size_t NewExpr::getSize(const Context &context) const {
+	return context.scope->lookupType(structName)->getSize();
+}
+
+std::unique_ptr<Type> NewExpr::getType(const Context &context) const {
+	return std::make_unique<PointerType>(context.scope->lookupType(structName)->copy());
 }

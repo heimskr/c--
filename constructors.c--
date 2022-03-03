@@ -37,9 +37,12 @@ void main() {
 		four::print();
 	}
 
+	%Foo *five = new %Foo(42);
+
 	one::print();
 	two::print();
 	three::print();
+	five::print();
 }
 
 

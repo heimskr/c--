@@ -108,7 +108,7 @@ void int_keybrd_(u64 key_full) {
 					split::at(i)::print();
 				}
 				l();
-			} else if (first::eq("hash")) {
+			} else if (first::eq("hash") || first::eq("hash2") || first::eq("hash3")) {
 				u64 size = split.size;
 				%String new_str;
 				new_str::init("");
@@ -120,7 +120,16 @@ void int_keybrd_(u64 key_full) {
 				}
 
 				p('"'); new_str::print(); p("\" -> 0x");
-				asm("<prx $1>":hash(&new_str)); l();
+				if (first::eq("hash")) {
+					asm("<prx $1>":hash(&new_str));
+				} else if (first::eq("hash2")) {
+					asm("<prx $1>":hash2(0xdeadbeefcafef00du64, 0xcafeb0bau64, new_str.data));
+				} else if (first::eq("hash3")) {
+					asm("<prx $1>":hash3(&new_str));
+				} else {
+					p("???");
+				}
+				l();
 			} else if (first::eq("mk")) {
 				mkstring(input.data);
 			} else if (first::eq("noisy")) {
@@ -212,7 +221,7 @@ void memcpy(void *destination, void *source, u64 count) {
 
 u8 * String::copyData(u64* new_capacity) {
 	*new_capacity = roundUp(this->size + 1u64);
-	u8 *out = new(*new_capacity);
+	u8 *out = checked_malloc(*new_capacity);
 	if (this->data)
 		memcpy(out, this->data, this->size);
 	out[this->size] = '\0';
@@ -220,7 +229,7 @@ u8 * String::copyData(u64* new_capacity) {
 }
 
 u8 * String::copyData() {
-	u8 *out = new(this->size + 1u64);
+	u8 *out = checked_malloc(this->size + 1u64);
 	if (this->data)
 		memcpy(out, this->data, this->size);
 	out[this->size] = '\0';
@@ -339,10 +348,25 @@ void String::init(u8 *data) {
 	this->capacity = 0;
 }
 
++String(u64 to_reserve) {
+	this->data = checked_malloc(to_reserve + 1u64);
+	this->size = to_reserve;
+	this->capacity = to_reserve + 1u64;
+	this->data[0] = '\0';
+}
+
++String(%String *other) {
+	this->data = checked_malloc(other->size + 1u64);
+	memcpy(this->data, other->data, other->size);
+	this->size = other->size;
+	this->capacity = other->size + 1u64;
+	this->data[this->size] = '\0';
+}
+
 void mkstring(u8 *data) {
 	%String foo = %[data];
 	p("[["); foo::print(); p("]]\n");
-	%String *bar = new(sizeof(%String));
+	%String *bar = checked_malloc(sizeof(%String));
 	*bar = %["Hello"];
 	p("[["); bar::print(); p("]]\n");
 	bar::$d();
@@ -413,20 +437,20 @@ void String::reserve(u64 size) {
 	}
 }
 
-static %String * String::new(u8 *data) {
-	%String *out = new(sizeof(%String));
+static %String * String::create(u8 *data) {
+	%String *out = checked_malloc(sizeof(%String));
 	out::init(data);
 	return out;
 }
 
-static %String * String::new() {
-	%String *out = new(sizeof(%String));
+static %String * String::create() {
+	%String *out = checked_malloc(sizeof(%String));
 	out::init("");
 	return out;
 }
 
 %String * String::substr(u64 start, u64 len) {
-	%String *out = %String::new("");
+	%String *out = %String::create("");
 	out::reserve(len);
 
 	for (u64 i = 0; i < len; ++i) {
@@ -506,7 +530,7 @@ struct StringVec {
 }
 
 %String * StringVec::copyData(u64 *new_capacity) {
-	%String *out = new((*new_capacity = roundUp(this->size + 1u64)) * sizeof(%String));
+	%String *out = checked_malloc((*new_capacity = roundUp(this->size + 1u64)) * sizeof(%String));
 	if (this->data)
 		memcpy(out, this->data, this->size * sizeof(%String));
 	return out;
@@ -558,8 +582,8 @@ void StringVec::push(u8 *str) {
 	this->capacity = required;
 }
 
-static %StringVec * StringVec::new() {
-	%StringVec *out = new(sizeof(%StringVec));
+static %StringVec * StringVec::create() {
+	%StringVec *out = checked_malloc(sizeof(%StringVec));
 	out->data = null;
 	out->size = 0;
 	out->capacity = 0;
@@ -574,7 +598,7 @@ void StringVec::eviscerate() {
 }
 
 static %StringVec * StringVec::split(%String *str, u8 *delimiter) {
-	%StringVec *sv = %StringVec::new();
+	%StringVec *sv = %StringVec::create();
 	%StringVec::split(sv, str, delimiter);
 	return sv;
 }
@@ -609,8 +633,8 @@ struct Noisy {
 	s64 value;
 };
 
-static %Noisy * Noisy::new(s64 value) {
-	%Noisy *out = new(sizeof(%Noisy));
+static %Noisy * Noisy::create(s64 value) {
+	%Noisy *out = checked_malloc(sizeof(%Noisy));
 	out->value = value;
 	return out;
 }
@@ -647,7 +671,7 @@ u64 strlen(u8 const *string) {
 
 u8 * strcpy(u8 const *string) {
 	u64 const len = strlen(string);
-	u8 *out = new(len + 1u64);
+	u8 *out = checked_malloc(len + 1u64);
 	memcpy(out, string, len);
 	out[len] = '\0';
 	return out;
@@ -845,7 +869,7 @@ void * calloc(u64 count, u64 size) {
 	return chunk;
 }
 
-void * new(u64 size) {
+void * checked_malloc(u64 size) {
 	void *out = malloc(size);
 	if (!out) {
 		p("Can't allocate ");
@@ -880,4 +904,24 @@ u64 hash(%String *str) {
 	}
 
 	return (hv % (s64) m + (s64) m) % (s64) m;
+}
+
+u32 hash2(u64 salt0, u64 salt1, u8 *key) {
+	u32 result = (u32) ((salt0 >> 32u64 & 0xffffffff00000000u64) ^ (salt0 & 0xffffffffu64) ^ (salt1 >> 32u64 & 0xffffffff00000000u64) ^ (salt1 & 0xffffffffu64));
+	for (u32 i = 0; key[i] != 0u8; ++i)
+		result ^= (u32) key[i] << ((i % 4u32) * 8u32);
+	return result;
+}
+
+u32 hash3(u8 const *key, u64 length) {
+	u32 hash = 2166136261u32;
+	for (u64 i = 0; i < length; ++i) {
+		hash ^= key[i];
+		hash *= 16777619u32;
+	}
+	return hash;
+}
+
+u32 hash3(%String *str) {
+	return hash3(str->data, str->size);
 }
