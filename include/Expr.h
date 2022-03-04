@@ -308,7 +308,9 @@ struct NullExpr: AtomicExpr {
 	size_t getSize(const Context &) const override { return 8; }
 	std::optional<ssize_t> evaluate(ScopePtr) const override { return getValue(); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
-	std::unique_ptr<Type> getType(const Context &) const override { return std::make_unique<PointerType>(new VoidType); }
+	std::unique_ptr<Type> getType(const Context &) const override {
+		return std::make_unique<PointerType>(new VoidType);
+	}
 };
 
 struct VregExpr: Expr, Makeable<VregExpr> {
@@ -491,14 +493,32 @@ struct ShRU { ssize_t operator()(size_t  left, size_t  right) const { return lef
 struct And  { ssize_t operator()(ssize_t left, ssize_t right) const { return left & right; } };
 struct Or   { ssize_t operator()(ssize_t left, ssize_t right) const { return left | right; } };
 struct Xor  { ssize_t operator()(ssize_t left, ssize_t right) const { return left ^ right; } };
-struct MultAssignExpr:  CompoundAssignExpr<"*=", MultRInstruction, Mult> { using CompoundAssignExpr::CompoundAssignExpr; };
-struct DivAssignExpr:   CompoundAssignExpr<"/=", DivRInstruction, Div, DivuRInstruction, DivU> { using CompoundAssignExpr::CompoundAssignExpr; };
-struct ModAssignExpr:   CompoundAssignExpr<"%=", ModRInstruction, Mod, ModuRInstruction, ModU> { using CompoundAssignExpr::CompoundAssignExpr; };
-struct AndAssignExpr:   CompoundAssignExpr<"&=", AndRInstruction, And> { using CompoundAssignExpr::CompoundAssignExpr; };
-struct OrAssignExpr:    CompoundAssignExpr<"|=", OrRInstruction, Or>  { using CompoundAssignExpr::CompoundAssignExpr; };
-struct XorAssignExpr:   CompoundAssignExpr<"^=", XorRInstruction, Xor> { using CompoundAssignExpr::CompoundAssignExpr; };
-struct ShiftLeftAssignExpr:  CompoundAssignExpr<"<<=", ShiftLeftLogicalRInstruction, ShL> { using CompoundAssignExpr::CompoundAssignExpr; };
-struct ShiftRightAssignExpr: CompoundAssignExpr<">>=", ShiftRightArithmeticRInstruction, ShR, ShiftRightLogicalRInstruction, ShRU> { using CompoundAssignExpr::CompoundAssignExpr; };
+
+struct MultAssignExpr: CompoundAssignExpr<"*=", MultRInstruction, Mult> {
+	using CompoundAssignExpr::CompoundAssignExpr;
+};
+struct DivAssignExpr: CompoundAssignExpr<"/=", DivRInstruction, Div, DivuRInstruction, DivU> {
+	using CompoundAssignExpr::CompoundAssignExpr;
+};
+struct ModAssignExpr: CompoundAssignExpr<"%=", ModRInstruction, Mod, ModuRInstruction, ModU> {
+	using CompoundAssignExpr::CompoundAssignExpr;
+};
+struct AndAssignExpr: CompoundAssignExpr<"&=", AndRInstruction, And> {
+	using CompoundAssignExpr::CompoundAssignExpr;
+};
+struct OrAssignExpr: CompoundAssignExpr<"|=", OrRInstruction, Or>  {
+	using CompoundAssignExpr::CompoundAssignExpr;
+};
+struct XorAssignExpr: CompoundAssignExpr<"^=", XorRInstruction, Xor> {
+	using CompoundAssignExpr::CompoundAssignExpr;
+};
+struct ShiftLeftAssignExpr: CompoundAssignExpr<"<<=", ShiftLeftLogicalRInstruction, ShL> {
+	using CompoundAssignExpr::CompoundAssignExpr;
+};
+struct ShiftRightAssignExpr:
+CompoundAssignExpr<">>=", ShiftRightArithmeticRInstruction, ShR, ShiftRightLogicalRInstruction, ShRU> {
+	using CompoundAssignExpr::CompoundAssignExpr;
+};
 
 template <fixstr::fixed_string O, typename R, typename Fn>
 struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {
@@ -525,8 +545,13 @@ struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {
 	}
 };
 
-struct PlusAssignExpr:  PointerArithmeticAssignExpr<"+=", AddRInstruction, Add> { using PointerArithmeticAssignExpr::PointerArithmeticAssignExpr; };
-struct MinusAssignExpr: PointerArithmeticAssignExpr<"-=", SubRInstruction, Sub> { using PointerArithmeticAssignExpr::PointerArithmeticAssignExpr; };
+struct PlusAssignExpr:  PointerArithmeticAssignExpr<"+=", AddRInstruction, Add> {
+	using PointerArithmeticAssignExpr::PointerArithmeticAssignExpr;
+};
+
+struct MinusAssignExpr: PointerArithmeticAssignExpr<"-=", SubRInstruction, Sub> {
+	using PointerArithmeticAssignExpr::PointerArithmeticAssignExpr;
+};
 
 struct CastExpr: Expr {
 	std::unique_ptr<Type> targetType;
