@@ -15,5 +15,5 @@ std::unordered_map<int, std::string> operator_map {
 	{CMMTOK_NEQ,   "ne"}, {CMMTOK_ASSIGN,  "as"}, {CMMTOK_ARROW, "ar"}, {CMMTOK_PLUSEQ, "Pl"}, {CMMTOK_MINUSEQ, "Mi"},
 	{CMMTOK_SREQ,  "Rs"}, {CMMTOK_MODEQ,   "Mo"}, {CMMTOK_SLEQ,  "Ls"}, {CMMTOK_DIVEQ,  "Di"}, {CMMTOK_TIMESEQ, "Ti"},
 	{CMMTOK_ANDEQ, "An"}, {CMMTOK_OREQ,    "Or"}, {CMMTOK_XOREQ, "Xo"}, {CMM_ACCESS,    "ac"}, {CMMTOK_LPAREN,  "ca"},
-	{CMMTOK_PLUSPLUS, "pp"}, {CMMTOK_MINUSMINUS, "mm"}, {CMM_POSTPLUS, "Pp"}, {CMM_POSTMINUS, "Mm"},
+	{CMMTOK_PLUSPLUS, "pp"}, {CMMTOK_MINUSMINUS, "mm"}, {CMM_POSTPLUS, "Pp"}, {CMM_POSTMINUS, "Mm"}, {CMMTOK_HASH, "ha"}
 };

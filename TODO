@@ -1,5 +1,9 @@
+To add:
 - Enums
 - Default destructors
 - References
 - Pointers to struct methods
 - Operator overloading
+
+To investigate:
+- Preventing Expr::evaluate() with operator overloading

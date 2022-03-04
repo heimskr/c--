@@ -448,33 +448,41 @@ std::unique_ptr<Type> PlusExpr::getType(const Context &context) const {
 }
 
 void MinusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	VregPtr left_var = function.newVar(), right_var = function.newVar();
 	auto left_type = left->getType(scope), right_type = right->getType(scope);
-
-	if (left_type->isPointer() && right_type->isInt()) {
-		if (multiplier != 1)
-			throw GenericError(getLocation(), "Cannot multiply in pointer arithmetic MinusExpr");
-		auto *left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
-		left->compile(left_var, function, scope, 1);
-		right->compile(right_var, function, scope, left_subtype->getSize());
-	} else if (left_type->isInt() && right_type->isPointer()) {
-		throw GenericError(getLocation(), "Cannot subtract " + std::string(*right_type) + " from " +
-			std::string(*left_type));
-	} else if (!(*left_type && *right_type) && !(left_type->isPointer() && right_type->isPointer())) {
-		throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()), getLocation());
+	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_MINUS, getLocation())) {
+		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
-		left->compile(left_var, function, scope);
-		right->compile(right_var, function, scope);
-	}
+		VregPtr left_var = function.newVar(), right_var = function.newVar();
+		if (left_type->isPointer() && right_type->isInt()) {
+			if (multiplier != 1)
+				throw GenericError(getLocation(), "Cannot multiply in pointer arithmetic MinusExpr");
+			auto *left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
+			left->compile(left_var, function, scope, 1);
+			right->compile(right_var, function, scope, left_subtype->getSize());
+		} else if (left_type->isInt() && right_type->isPointer()) {
+			throw GenericError(getLocation(), "Cannot subtract " + std::string(*right_type) + " from " +
+				std::string(*left_type));
+		} else if (!(*left_type && *right_type) && !(left_type->isPointer() && right_type->isPointer())) {
+			throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()), getLocation());
+		} else {
+			left->compile(left_var, function, scope);
+			right->compile(right_var, function, scope);
+		}
 
-	function.add<SubRInstruction>(left_var, right_var, destination)->setDebug(*this);
+		function.add<SubRInstruction>(left_var, right_var, destination)->setDebug(*this);
+	}
 }
 
 void MultExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	VregPtr left_var = function.newVar(), right_var = function.newVar();
-	left->compile(left_var, function, scope, 1);
-	right->compile(right_var, function, scope, multiplier); // TODO: verify
-	function.add<MultRInstruction>(left_var, right_var, destination)->setDebug(*this);
+	auto left_type = left->getType(scope), right_type = right->getType(scope);
+	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_TIMES, getLocation())) {
+		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+	} else {
+		VregPtr left_var = function.newVar(), right_var = function.newVar();
+		left->compile(left_var, function, scope, 1);
+		right->compile(right_var, function, scope, multiplier); // TODO: verify
+		function.add<MultRInstruction>(left_var, right_var, destination)->setDebug(*this);
+	}
 }
 
 std::unique_ptr<Type> MinusExpr::getType(const Context &context) const {
@@ -489,10 +497,15 @@ std::unique_ptr<Type> MinusExpr::getType(const Context &context) const {
 }
 
 void ShiftLeftExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	VregPtr temp_var = function.newVar();
-	left->compile(temp_var, function, scope, multiplier);
-	right->compile(destination, function, scope);
-	function.add<ShiftLeftLogicalRInstruction>(temp_var, destination, destination)->setDebug(*this);
+	auto left_type = left->getType(scope), right_type = right->getType(scope);
+	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_LSHIFT, getLocation())) {
+		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+	} else {
+		VregPtr temp_var = function.newVar();
+		left->compile(temp_var, function, scope, multiplier);
+		right->compile(destination, function, scope);
+		function.add<ShiftLeftLogicalRInstruction>(temp_var, destination, destination)->setDebug(*this);
+	}
 }
 
 size_t ShiftLeftExpr::getSize(const Context &context) const {
@@ -508,13 +521,18 @@ std::optional<ssize_t> ShiftLeftExpr::evaluate(ScopePtr scope) const {
 }
 
 void ShiftRightExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	VregPtr temp_var = function.newVar();
-	left->compile(temp_var, function, scope, multiplier);
-	right->compile(destination, function, scope);
-	if (left->getType(scope)->isUnsigned())
-		function.add<ShiftRightLogicalRInstruction>(temp_var, destination, destination)->setDebug(*this);
-	else
-		function.add<ShiftRightArithmeticRInstruction>(temp_var, destination, destination)->setDebug(*this);
+	auto left_type = left->getType(scope), right_type = right->getType(scope);
+	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_RSHIFT, getLocation())) {
+		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+	} else {
+		VregPtr temp_var = function.newVar();
+		left->compile(temp_var, function, scope, multiplier);
+		right->compile(destination, function, scope);
+		if (left->getType(scope)->isUnsigned())
+			function.add<ShiftRightLogicalRInstruction>(temp_var, destination, destination)->setDebug(*this);
+		else
+			function.add<ShiftRightArithmeticRInstruction>(temp_var, destination, destination)->setDebug(*this);
+	}
 }
 
 size_t ShiftRightExpr::getSize(const Context &context) const {
@@ -533,12 +551,17 @@ std::optional<ssize_t> ShiftRightExpr::evaluate(ScopePtr scope) const {
 }
 
 void AndExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	VregPtr temp_var = function.newVar();
-	left->compile(temp_var, function, scope);
-	right->compile(destination, function, scope);
-	function.add<AndRInstruction>(temp_var, destination, destination)->setDebug(*this);
-	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	auto left_type = left->getType(scope), right_type = right->getType(scope);
+	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_AND, getLocation())) {
+		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+	} else {
+		VregPtr temp_var = function.newVar();
+		left->compile(temp_var, function, scope);
+		right->compile(destination, function, scope);
+		function.add<AndRInstruction>(temp_var, destination, destination)->setDebug(*this);
+		if (multiplier != 1)
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	}
 }
 
 size_t AndExpr::getSize(const Context &context) const {
@@ -554,12 +577,17 @@ std::optional<ssize_t> AndExpr::evaluate(ScopePtr scope) const {
 }
 
 void OrExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	VregPtr temp_var = function.newVar();
-	left->compile(temp_var, function, scope);
-	right->compile(destination, function, scope);
-	function.add<OrRInstruction>(temp_var, destination, destination)->setDebug(*this);
-	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	auto left_type = left->getType(scope), right_type = right->getType(scope);
+	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_OR, getLocation())) {
+		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+	} else {
+		VregPtr temp_var = function.newVar();
+		left->compile(temp_var, function, scope);
+		right->compile(destination, function, scope);
+		function.add<OrRInstruction>(temp_var, destination, destination)->setDebug(*this);
+		if (multiplier != 1)
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	}
 }
 
 size_t OrExpr::getSize(const Context &context) const {
@@ -575,12 +603,17 @@ std::optional<ssize_t> OrExpr::evaluate(ScopePtr scope) const {
 }
 
 void XorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	VregPtr temp_var = function.newVar();
-	left->compile(temp_var, function, scope);
-	right->compile(destination, function, scope);
-	function.add<XorRInstruction>(temp_var, destination, destination)->setDebug(*this);
-	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	auto left_type = left->getType(scope), right_type = right->getType(scope);
+	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_XOR, getLocation())) {
+		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+	} else {
+		VregPtr temp_var = function.newVar();
+		left->compile(temp_var, function, scope);
+		right->compile(destination, function, scope);
+		function.add<XorRInstruction>(temp_var, destination, destination)->setDebug(*this);
+		if (multiplier != 1)
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	}
 }
 
 size_t XorExpr::getSize(const Context &context) const {
@@ -596,17 +629,22 @@ std::optional<ssize_t> XorExpr::evaluate(ScopePtr scope) const {
 }
 
 void LandExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	const std::string base = "." + function.name + "." + std::to_string(function.getNextBlock());
-	const std::string success = base + "land.s", end = base + "land.e";
-	left->compile(destination, function, scope);
-	function.add<JumpConditionalInstruction>(success, destination, false)->setDebug(*this);
-	function.add<JumpInstruction>(end)->setDebug(*this);
-	function.add<Label>(success);
-	right->compile(destination, function, scope);
-	function.add<Label>(end);
+	auto left_type = left->getType(scope), right_type = right->getType(scope);
+	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_LAND, getLocation())) {
+		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+	} else {
+		const std::string base = "." + function.name + "." + std::to_string(function.getNextBlock());
+		const std::string success = base + "land.s", end = base + "land.e";
+		left->compile(destination, function, scope);
+		function.add<JumpConditionalInstruction>(success, destination, false)->setDebug(*this);
+		function.add<JumpInstruction>(end)->setDebug(*this);
+		function.add<Label>(success);
+		right->compile(destination, function, scope);
+		function.add<Label>(end);
 
-	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+		if (multiplier != 1)
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	}
 }
 
 std::optional<ssize_t> LandExpr::evaluate(ScopePtr scope) const {
@@ -618,13 +656,18 @@ std::optional<ssize_t> LandExpr::evaluate(ScopePtr scope) const {
 }
 
 void LorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	const std::string success = "." + function.name + "." + std::to_string(function.getNextBlock()) + "lor.s";
-	left->compile(destination, function, scope);
-	function.add<JumpConditionalInstruction>(success, destination, false)->setDebug(*this);
-	right->compile(destination, function, scope);
-	function.add<Label>(success);
-	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	auto left_type = left->getType(scope), right_type = right->getType(scope);
+	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_LOR, getLocation())) {
+		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+	} else {
+		const std::string success = "." + function.name + "." + std::to_string(function.getNextBlock()) + "lor.s";
+		left->compile(destination, function, scope);
+		function.add<JumpConditionalInstruction>(success, destination, false)->setDebug(*this);
+		right->compile(destination, function, scope);
+		function.add<Label>(success);
+		if (multiplier != 1)
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	}
 }
 
 std::optional<ssize_t> LorExpr::evaluate(ScopePtr scope) const {
@@ -636,12 +679,17 @@ std::optional<ssize_t> LorExpr::evaluate(ScopePtr scope) const {
 }
 
 void LxorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	auto temp_var = function.newVar();
-	left->compile(destination, function, scope);
-	right->compile(temp_var, function, scope);
-	function.add<LxorRInstruction>(destination, temp_var, destination)->setDebug(*this);
-	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	auto left_type = left->getType(scope), right_type = right->getType(scope);
+	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_LXOR, getLocation())) {
+		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+	} else {
+		auto temp_var = function.newVar();
+		left->compile(destination, function, scope);
+		right->compile(temp_var, function, scope);
+		function.add<LxorRInstruction>(destination, temp_var, destination)->setDebug(*this);
+		if (multiplier != 1)
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	}
 }
 
 std::optional<ssize_t> LxorExpr::evaluate(ScopePtr scope) const {
@@ -653,13 +701,18 @@ std::optional<ssize_t> LxorExpr::evaluate(ScopePtr scope) const {
 }
 
 void DivExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	VregPtr temp_var = function.newVar();
-	left->compile(temp_var, function, scope, multiplier);
-	right->compile(destination, function, scope);
-	if (left->getType(scope)->isUnsigned())
-		function.add<DivuRInstruction>(temp_var, destination, destination)->setDebug(*this);
-	else
-		function.add<DivRInstruction>(temp_var, destination, destination)->setDebug(*this);
+	auto left_type = left->getType(scope), right_type = right->getType(scope);
+	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_DIV, getLocation())) {
+		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+	} else {
+		VregPtr temp_var = function.newVar();
+		left->compile(temp_var, function, scope, multiplier);
+		right->compile(destination, function, scope);
+		if (left->getType(scope)->isUnsigned())
+			function.add<DivuRInstruction>(temp_var, destination, destination)->setDebug(*this);
+		else
+			function.add<DivRInstruction>(temp_var, destination, destination)->setDebug(*this);
+	}
 }
 
 size_t DivExpr::getSize(const Context &context) const {
@@ -678,13 +731,18 @@ std::optional<ssize_t> DivExpr::evaluate(ScopePtr scope) const {
 }
 
 void ModExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	VregPtr temp_var = function.newVar();
-	left->compile(temp_var, function, scope, multiplier);
-	right->compile(destination, function, scope);
-	if (left->getType(scope)->isUnsigned())
-		function.add<ModuRInstruction>(temp_var, destination, destination)->setDebug(*this);
-	else
-		function.add<ModRInstruction>(temp_var, destination, destination)->setDebug(*this);
+	auto left_type = left->getType(scope), right_type = right->getType(scope);
+	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_MOD, getLocation())) {
+		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+	} else {
+		VregPtr temp_var = function.newVar();
+		left->compile(temp_var, function, scope, multiplier);
+		right->compile(destination, function, scope);
+		if (left->getType(scope)->isUnsigned())
+			function.add<ModuRInstruction>(temp_var, destination, destination)->setDebug(*this);
+		else
+			function.add<ModRInstruction>(temp_var, destination, destination)->setDebug(*this);
+	}
 }
 
 size_t ModExpr::getSize(const Context &context) const {
@@ -890,17 +948,27 @@ std::unique_ptr<Type> AddressOfExpr::getType(const Context &context) const {
 }
 
 void NotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	subexpr->compile(destination, function, scope);
-	function.add<NotRInstruction>(destination, destination)->setDebug(*this);
-	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	auto type = subexpr->getType(scope);
+	if (auto fnptr = function.program.getOperator({type.get()}, CMMTOK_TILDE, getLocation())) {
+		compileCall(destination, function, scope, fnptr, {subexpr.get()}, getLocation(), multiplier);
+	} else {
+		subexpr->compile(destination, function, scope);
+		function.add<NotRInstruction>(destination, destination)->setDebug(*this);
+		if (multiplier != 1)
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	}
 }
 
 void LnotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	subexpr->compile(destination, function, scope);
-	function.add<LnotRInstruction>(destination, destination)->setDebug(*this);
-	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	auto type = subexpr->getType(scope);
+	if (auto fnptr = function.program.getOperator({type.get()}, CMMTOK_NOT, getLocation())) {
+		compileCall(destination, function, scope, fnptr, {subexpr.get()}, getLocation(), multiplier);
+	} else {
+		subexpr->compile(destination, function, scope);
+		function.add<LnotRInstruction>(destination, destination)->setDebug(*this);
+		if (multiplier != 1)
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	}
 }
 
 void StringExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) {
@@ -919,9 +987,14 @@ std::string StringExpr::getID(Program &program) const {
 }
 
 void DerefExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	checkType(scope);
-	subexpr->compile(destination, function, scope, multiplier);
-	function.add<LoadRInstruction>(destination, destination, getSize({scope}))->setDebug(*this);
+	auto type = subexpr->getType(scope);
+	if (auto fnptr = function.program.getOperator({type.get()}, CMMTOK_TIMES, getLocation())) {
+		compileCall(destination, function, scope, fnptr, {subexpr.get()}, getLocation(), multiplier);
+	} else {
+		checkType(scope);
+		subexpr->compile(destination, function, scope, multiplier);
+		function.add<LoadRInstruction>(destination, destination, getSize({scope}))->setDebug(*this);
+	}
 }
 
 size_t DerefExpr::getSize(const Context &context) const {
@@ -957,6 +1030,8 @@ Expr * CallExpr::copy() const {
 }
 
 void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_t multiplier) {
+	// TODO: operator()
+
 	std::function<const Type &(size_t)> get_arg_type = [this](size_t) -> const Type & {
 		throw GenericError(getLocation(), "get_arg_type not redefined");
 	};
@@ -1141,40 +1216,46 @@ std::string CallExpr::getStructName(const Context &context) const {
 }
 
 void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	auto addr_var = function.newVar();
-	TypePtr left_type = left->getType(scope);
+	TypePtr left_type = left->getType(scope), right_type = right->getType(scope);
 	if (left_type->isConst)
 		throw ConstError("Can't assign", *left_type, getLocation());
-	if (!destination)
-		destination = function.newVar();
-	TypePtr right_type = right->getType(scope);
-	if (!left->compileAddress(addr_var, function, scope))
-		throw LvalueError(*left->getType(scope));
-	if (right_type->isInitializer()) {
-		auto *initializer_expr = right->cast<InitializerExpr>();
-		if (initializer_expr->isConstructor) {
-			if (!left_type->isStruct())
-				throw NotStructError(left_type, left->getLocation());
-			auto struct_type = left_type->ptrcast<StructType>();
-			auto *constructor_expr = new VariableExpr("$c");
-			auto call = std::make_unique<CallExpr>(constructor_expr, initializer_expr->children);
-			call->debug = debug;
-			call->structExpr = std::unique_ptr<Expr>(left->copy());
-			call->structExpr->debug = debug;
-			function.addComment("Calling constructor for " + std::string(*struct_type));
-			call->compile(nullptr, function, scope, 1);
-		} else {
-			if (!tryCast(*right_type, *left_type, nullptr, function, getLocation()))
-				throw ImplicitConversionError(right_type, left_type, getLocation());
-			initializer_expr->fullCompile(addr_var, function, scope);
-		}
+	auto left_ptr = std::make_unique<PointerType>(left_type->copy());
+	if (auto fnptr = function.program.getOperator({left_ptr.get(), right_type.get()}, CMMTOK_ASSIGN, getLocation())) {
+		auto addrof = std::make_unique<AddressOfExpr>(left->copy());
+		compileCall(destination, function, scope, fnptr, {addrof.get(), right.get()}, getLocation(), multiplier);
 	} else {
-		right->compile(destination, function, scope);
-		if (!tryCast(*right_type, *left_type, destination, function, getLocation()))
-			throw ImplicitConversionError(right_type, left_type, getLocation());
-		function.add<StoreRInstruction>(destination, addr_var, getSize({scope}))->setDebug(*this);
-		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+		auto addr_var = function.newVar();
+		if (!destination)
+			destination = function.newVar();
+		TypePtr right_type = right->getType(scope);
+		if (!left->compileAddress(addr_var, function, scope))
+			throw LvalueError(*left->getType(scope));
+		if (right_type->isInitializer()) {
+			auto *initializer_expr = right->cast<InitializerExpr>();
+			if (initializer_expr->isConstructor) {
+				if (!left_type->isStruct())
+					throw NotStructError(left_type, left->getLocation());
+				auto struct_type = left_type->ptrcast<StructType>();
+				auto *constructor_expr = new VariableExpr("$c");
+				auto call = std::make_unique<CallExpr>(constructor_expr, initializer_expr->children);
+				call->debug = debug;
+				call->structExpr = std::unique_ptr<Expr>(left->copy());
+				call->structExpr->debug = debug;
+				function.addComment("Calling constructor for " + std::string(*struct_type));
+				call->compile(nullptr, function, scope, 1);
+			} else {
+				if (!tryCast(*right_type, *left_type, nullptr, function, getLocation()))
+					throw ImplicitConversionError(right_type, left_type, getLocation());
+				initializer_expr->fullCompile(addr_var, function, scope);
+			}
+		} else {
+			right->compile(destination, function, scope);
+			if (!tryCast(*right_type, *left_type, destination, function, getLocation()))
+				throw ImplicitConversionError(right_type, left_type, getLocation());
+			function.add<StoreRInstruction>(destination, addr_var, getSize({scope}))->setDebug(*this);
+			if (multiplier != 1)
+				function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+		}
 	}
 }
 
@@ -1194,6 +1275,7 @@ bool AssignExpr::compileAddress(VregPtr destination, Function &function, ScopePt
 }
 
 void CastExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
+	// TODO: operator overloading
 	subexpr->compile(destination, function, scope, multiplier);
 	tryCast(*subexpr->getType(scope), *targetType, destination, function, getLocation());
 }
@@ -1203,10 +1285,22 @@ std::unique_ptr<Type> CastExpr::getType(const Context &) const {
 }
 
 void AccessExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	compileAddress(destination, function, scope);
-	function.add<LoadRInstruction>(destination, destination, getSize({scope}))->setDebug(*this);
-	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	TypePtr array_type = array->getType(scope);
+	if (auto casted = array_type->ptrcast<ArrayType>())
+		array_type = PointerType::make(casted->subtype->copy());
+	else if (!array_type->is<PointerType>())
+		fail();
+
+	auto subscript_type = subscript->getType(scope);
+	if (auto fnptr = function.program.getOperator({array_type.get(), subscript_type.get()}, CMM_ACCESS, getLocation()))
+		// TODO: verify both pointers and arrays
+		compileCall(destination, function, scope, fnptr, {array.get(), subscript.get()}, getLocation(), multiplier);
+	else {
+		compileAddress(destination, function, scope);
+		function.add<LoadRInstruction>(destination, destination, getSize({scope}))->setDebug(*this);
+		if (multiplier != 1)
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	}
 }
 
 std::unique_ptr<Type> AccessExpr::getType(const Context &context) const {
@@ -1215,6 +1309,11 @@ std::unique_ptr<Type> AccessExpr::getType(const Context &context) const {
 		return std::unique_ptr<Type>(casted->subtype->copy());
 	if (auto *casted = array_type->cast<const PointerType>())
 		return std::unique_ptr<Type>(casted->subtype->copy());
+	fail();
+	return nullptr;
+}
+
+void AccessExpr::fail() const {
 	throw GenericError(getLocation(), "Can't get array access result type: array expression isn't an array or pointer "
 		"type");
 }
@@ -1259,7 +1358,9 @@ std::unique_ptr<Type> AccessExpr::check(ScopePtr scope) {
 
 void LengthExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	TypePtr type = subexpr->getType(scope);
-	if (auto *array = type->cast<const ArrayType>())
+	if (auto fnptr = function.program.getOperator({type.get()}, CMMTOK_HASH, getLocation()))
+		compileCall(destination, function, scope, fnptr, {subexpr.get()}, getLocation(), multiplier);
+	else if (auto *array = type->cast<const ArrayType>())
 		function.add<SetIInstruction>(destination, array->count * multiplier)->setDebug(*this);
 	else
 		throw NotArrayError(type);
@@ -1343,6 +1444,7 @@ size_t DotExpr::getSize(const Context &context) const {
 }
 
 void ArrowExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
+	// TODO: operator overloading?
 	auto struct_type = checkType(scope);
 	const size_t field_size = struct_type->getFieldSize(ident);
 	const size_t field_offset = struct_type->getFieldOffset(ident);

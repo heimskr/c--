@@ -589,6 +589,7 @@ struct AccessExpr: Expr {
 
 	private:
 		bool warned = false;
+		void fail() const;
 };
 
 struct LengthExpr: Expr {
