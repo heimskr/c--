@@ -16,6 +16,10 @@ s64 operator+(%Foo *left, %Foo *right) {
 	return left;
 }
 
+s64 operator*(%Foo *foo) {
+	return 0 - foo->value;
+}
+
 void main() {
 	%Foo one = [10];
 	%Foo two = [20];
@@ -23,4 +27,5 @@ void main() {
 	`s64(one.value); `c('\n');
 	`s64(two.value); `c('\n');
 	`s64(&one + &two); `c('\n');
+	`s64(*two); `c('\n');
 }

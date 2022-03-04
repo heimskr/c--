@@ -97,6 +97,8 @@ struct BinaryExpr: Expr {
 	bool shouldParenthesize() const override { return true; }
 
 	std::unique_ptr<Type> getType(const Context &context) const override {
+		if (auto fnptr = getOperator(context))
+			return std::unique_ptr<Type>(fnptr->returnType->copy());
 		auto left_type = left->getType(context), right_type = right->getType(context);
 		if (!(*left_type && *right_type) || !(*right_type && *left_type))
 			throw ImplicitConversionError(*left_type, *right_type, getLocation());
@@ -401,6 +403,7 @@ struct DerefExpr: Expr {
 	std::unique_ptr<Type> checkType(const Context &) const;
 	bool compileAddress(VregPtr, Function &, ScopePtr) override;
 	bool isLvalue() const override { return true; }
+	FunctionPtr getOperator(const Context &) const;
 };
 
 struct CallExpr: Expr {

@@ -491,6 +491,8 @@ void MultExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 }
 
 std::unique_ptr<Type> MinusExpr::getType(const Context &context) const {
+	if (auto fnptr = getOperator(context))
+		return std::unique_ptr<Type>(fnptr->returnType->copy());
 	auto left_type = left->getType(context), right_type = right->getType(context);
 	if (left_type->isPointer() && right_type->isInt())
 		return left_type;
@@ -1009,8 +1011,7 @@ std::string StringExpr::getID(Program &program) const {
 
 void DerefExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
-	auto type = subexpr->getType(context);
-	if (auto fnptr = function.program.getOperator({type.get()}, CMMTOK_TIMES, getLocation())) {
+	if (auto fnptr = getOperator(context)) {
 		compileCall(destination, function, scope, fnptr, {subexpr.get()}, getLocation(), multiplier);
 	} else {
 		checkType(context);
@@ -1025,6 +1026,8 @@ size_t DerefExpr::getSize(const Context &context) const {
 }
 
 std::unique_ptr<Type> DerefExpr::getType(const Context &context) const {
+	if (auto fnptr = getOperator(context))
+		return std::unique_ptr<Type>(fnptr->returnType->copy());
 	auto type = checkType(context);
 	auto out = std::unique_ptr<Type>(dynamic_cast<PointerType &>(*type).subtype->copy());
 	out->setConst(type->isConst);
@@ -1042,6 +1045,11 @@ bool DerefExpr::compileAddress(VregPtr destination, Function &function, ScopePtr
 	checkType({function.program, scope});
 	subexpr->compile(destination, function, scope, 1);
 	return true;
+}
+
+FunctionPtr DerefExpr::getOperator(const Context &context) const {
+	auto pointer = std::make_unique<PointerType>(subexpr->getType(context)->copy());
+	return context.program->getOperator({pointer.get()}, CMMTOK_TIMES, getLocation());
 }
 
 Expr * CallExpr::copy() const {
