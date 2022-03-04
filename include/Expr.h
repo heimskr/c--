@@ -70,6 +70,9 @@ struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 	}
 };
 
+using Argument = std::variant<ExprPtr, VregPtr>;
+void compileCall(VregPtr, Function &, ScopePtr, FunctionPtr, std::initializer_list<Argument>, const ASTLocation &);
+
 std::string stringify(const Expr *);
 
 std::ostream & operator<<(std::ostream &, const Expr &);

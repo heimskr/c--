@@ -1,6 +1,7 @@
 #include <climits>
 #include <iostream>
 #include <sstream>
+#include <variant>
 
 #include "ASTNode.h"
 #include "Casting.h"
@@ -13,6 +14,62 @@
 #include "Program.h"
 #include "Scope.h"
 #include "WhyInstructions.h"
+
+using Argument = std::variant<ExprPtr, VregPtr>;
+
+void compileCall(VregPtr destination, Function &function, ScopePtr scope, FunctionPtr fnptr,
+                 std::initializer_list<Argument> arguments, const ASTLocation &location) {
+	if (arguments.size() != fnptr->argumentCount())
+		throw GenericError(location, "Invalid number of arguments in call to " + fnptr->name + " at " +
+			std::string(location) + ": " + std::to_string(arguments.size()) + " (expected " +
+			std::to_string(fnptr->argumentCount()) + ")");
+
+	const DebugData debug(location, function);
+
+	for (size_t i = 0; i < arguments.size(); ++i)
+		function.add<StackPushInstruction>(function.precolored(Why::argumentOffset + i))->setDebug(debug);
+
+	size_t i = 0;
+
+	for (const auto &argument: arguments) {
+		auto argument_register = function.precolored(i);
+		auto &fn_arg_type = *fnptr->getArgumentType(i);
+		if (std::holds_alternative<ExprPtr>(argument)) {
+			auto expr = std::get<ExprPtr>(argument);
+			auto argument_type = expr->getType(scope);
+			if (argument_type->isStruct())
+				throw GenericError(expr->getLocation(), "Structs cannot be directly passed to functions; "
+					"use a pointer");
+			expr->compile(argument_register, function, scope);
+			try {
+				typeCheck(*argument_type, fn_arg_type, argument_register, function, expr->getLocation());
+			} catch (std::out_of_range &err) {
+				error() << "\e[31mBad function argument at " << expr->getLocation() << "\e[39m\n";
+				throw;
+			}
+		} else {
+			auto vreg = std::get<VregPtr>(argument);
+			function.add<MoveInstruction>(vreg, argument_register)->setDebug(debug);
+			if (vreg->type)
+				try {
+					typeCheck(*vreg->type, fn_arg_type, argument_register, function, location);
+				} catch (std::out_of_range &err) {
+					error() << "\e[31mBad function argument at position " + std::to_string(i + 1) << " at "
+					        << location << "\e[39m\n";
+					throw;
+				}
+		}
+		++i;
+	}
+
+	function.add<JumpInstruction>(fnptr->mangle(), true)->setDebug(debug);
+
+	for (size_t i = arguments.size(); 0 < i; --i)
+		function.add<StackPopInstruction>(function.precolored(Why::argumentOffset + i - 1))->setDebug(debug);
+
+	if (!fnptr->returnType->isVoid() && destination)
+		function.add<MoveInstruction>(function.precolored(Why::returnValueOffset), destination)->setDebug(debug);
+}
 
 std::string stringify(const Expr *expr) {
 	if (!expr)
