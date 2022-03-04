@@ -147,8 +147,8 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 								out.globalOrder.push_back(out.globals.emplace(mangled, global).first);
 							}
 						}
-					auto struct_type = out.structs.emplace(struct_name, StructType::make(out, struct_name, order,
-						statics)).first->second;
+					auto struct_type = out.structs.emplace(struct_name, StructType::make(out, struct_name,
+						std::move(order), std::move(statics))).first->second;
 					for (const ASTNode *child: *node->at(1))
 						if (child->symbol == CMM_FNDECL) {
 							const std::string &name = *child->text;

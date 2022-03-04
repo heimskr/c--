@@ -304,7 +304,7 @@ order(order_), statics(statics_), program(program_), name(name_) {
 StructType::StructType(const Program &program_, const std::string &name_, decltype(order) &&order_,
                        decltype(statics) &&statics_):
 order(std::move(order_)), statics(std::move(statics_)), program(program_), name(name_) {
-	for (const auto &pair: order_)
+	for (const auto &pair: order)
 		map.insert(pair);
 }
 
