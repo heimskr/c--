@@ -497,19 +497,19 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 	bool isLvalue() const override { return bool(this->left); }
 };
 
-struct Add  { ssize_t operator()(ssize_t left, ssize_t right) const { return left + right; } };
-struct Sub  { ssize_t operator()(ssize_t left, ssize_t right) const { return left - right; } };
-struct Mult { ssize_t operator()(ssize_t left, ssize_t right) const { return left * right; } };
-struct Div  { ssize_t operator()(ssize_t left, ssize_t right) const { return left / right; } };
-struct DivU { ssize_t operator()(size_t  left, size_t  right) const { return left / right; } };
-struct Mod  { ssize_t operator()(ssize_t left, ssize_t right) const { return left % right; } };
-struct ModU { ssize_t operator()(size_t  left, size_t  right) const { return left % right; } };
+struct Add  { ssize_t operator()(ssize_t left, ssize_t right) const { return left +  right; } };
+struct Sub  { ssize_t operator()(ssize_t left, ssize_t right) const { return left -  right; } };
+struct Mult { ssize_t operator()(ssize_t left, ssize_t right) const { return left *  right; } };
+struct Div  { ssize_t operator()(ssize_t left, ssize_t right) const { return left /  right; } };
+struct DivU { ssize_t operator()(size_t  left, size_t  right) const { return left /  right; } };
+struct Mod  { ssize_t operator()(ssize_t left, ssize_t right) const { return left %  right; } };
+struct ModU { ssize_t operator()(size_t  left, size_t  right) const { return left %  right; } };
 struct ShL  { ssize_t operator()(ssize_t left, ssize_t right) const { return left << right; } };
 struct ShR  { ssize_t operator()(ssize_t left, ssize_t right) const { return left >> right; } };
 struct ShRU { ssize_t operator()(size_t  left, size_t  right) const { return left >> right; } };
-struct And  { ssize_t operator()(ssize_t left, ssize_t right) const { return left & right; } };
-struct Or   { ssize_t operator()(ssize_t left, ssize_t right) const { return left | right; } };
-struct Xor  { ssize_t operator()(ssize_t left, ssize_t right) const { return left ^ right; } };
+struct And  { ssize_t operator()(ssize_t left, ssize_t right) const { return left &  right; } };
+struct Or   { ssize_t operator()(ssize_t left, ssize_t right) const { return left |  right; } };
+struct Xor  { ssize_t operator()(ssize_t left, ssize_t right) const { return left ^  right; } };
 
 struct MultAssignExpr: CompoundAssignExpr<"*=", MultRInstruction, Mult> {
 	using CompoundAssignExpr::CompoundAssignExpr;
@@ -545,20 +545,29 @@ struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {
 			->setDebug(this->debug);
 	}
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
-		TypePtr left_type = this->left->getType(scope), right_type = this->right->getType(scope);
+		TypePtr left_type = this->left->getType(scope);
 		if (left_type->isConst)
 			throw ConstError("Can't assign", *left_type, this->getLocation());
-		auto temp_var = function.newVar();
-		if (!destination)
-			destination = function.newVar();
-		function.doPointerArithmetic(left_type, right_type, *this->left, *this->right, destination, temp_var, scope,
-			this->getLocation());
-		function.add<R>(destination, temp_var, destination)->setDebug(*this);
-		if (!this->left->compileAddress(temp_var, function, scope))
-			throw LvalueError(*this->left->getType(scope), this->getLocation());
-		function.add<StoreRInstruction>(destination, temp_var, this->getSize(scope))->setDebug(*this);
-		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+		auto left_ptr = std::make_shared<PointerType>(left_type->copy());
+		TypePtr right_type = this->right->getType(scope);
+		if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()},
+		                                              operator_str_map.at(std::string(O)), this->getLocation())) {
+			auto addrof = std::make_unique<AddressOfExpr>(this->left->copy());
+			compileCall(destination, function, scope, fnptr, {addrof.get(), this->right.get()}, this->getLocation(),
+			            multiplier);
+		} else {
+			auto temp_var = function.newVar();
+			if (!destination)
+				destination = function.newVar();
+			function.doPointerArithmetic(left_type, right_type, *this->left, *this->right, destination, temp_var, scope,
+				this->getLocation());
+			function.add<R>(destination, temp_var, destination)->setDebug(*this);
+			if (!this->left->compileAddress(temp_var, function, scope))
+				throw LvalueError(*this->left->getType(scope), this->getLocation());
+			function.add<StoreRInstruction>(destination, temp_var, this->getSize(scope))->setDebug(*this);
+			if (multiplier != 1)
+				function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+		}
 	}
 };
 
