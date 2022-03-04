@@ -45,7 +45,7 @@ class Function: public Makeable<Function> {
 		std::set<VregPtr> virtualRegisters;
 		/** Offsets are relative to the value in the frame pointer right after the stack pointer is written to it in the
 		 *  prologue. */
-		std::map<VariablePtr, size_t> stackOffsets;
+		std::map<VregPtr, size_t> stackOffsets;
 		std::map<VregPtr, size_t> spillLocations;
 		std::set<VregPtr> spilledVregs;
 		std::map<int, std::shared_ptr<Scope>> scopes;

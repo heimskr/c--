@@ -1,0 +1,26 @@
+#name "Operator Overloading"
+#author "Kai Tamkun"
+#orcid "0000-0001-7405-6654"
+#version "0.1"
+
+struct Foo {
+	s64 value;
+};
+
+s64 operator+(%Foo *left, %Foo *right) {
+	return left->value + right->value;
+}
+
+%Foo * operator+=(%Foo *left, s64 right) {
+	left->value += right;
+	return left;
+}
+
+void main() {
+	%Foo one = [10];
+	%Foo two = [20];
+	one += 40;
+	`s64(one.value); `c('\n');
+	`s64(two.value); `c('\n');
+	`s64(&one + &two); `c('\n');
+}

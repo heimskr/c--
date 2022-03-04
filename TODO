@@ -3,7 +3,7 @@ To add:
 - Default destructors
 - References
 - Pointers to struct methods
-- Operator overloading
+- Operator overloading for prefix and postfix ++ and --
 
 To investigate:
 - Preventing Expr::evaluate() with operator overloading

@@ -374,11 +374,28 @@ FunctionPtr Program::getOperator(const std::vector<Type *> &types, int oper, con
 		return nullptr;
 
 	std::vector<FunctionPtr> candidates;
+	const size_t types_size = types.size();
+
+	info() << "\e[1m" << location << "\e[0m\n";
 
 	auto [begin, end] = operators.equal_range(oper);
 	for (auto iter = begin; iter != end; ++iter)
-		if (iter->second->isMatch(nullptr, types, ""))
-			candidates.push_back(iter->second);
+		if (iter->second->arguments.size() == types_size) {
+			bool good = true;
+			for (size_t i = 0; i < types_size; ++i) {
+				Type *type = types.at(i);
+				auto left = type->isStruct()? PointerType::make(type->copy()) : TypePtr(type->copy());
+				info() << "left[" << *left << "], fnarg[" << *iter->second->getArgumentType(i) << "]\n";
+				if (!(*left && *iter->second->getArgumentType(i))) {
+					good = false;
+					break;
+				}
+			}
+			if (good) {
+				info() << "Pushing candidate " << iter->second->mangle() << " at " << location << "\n";	
+				candidates.push_back(iter->second);
+			}
+		}
 
 	if (candidates.empty())
 		return nullptr;
