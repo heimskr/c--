@@ -1302,6 +1302,9 @@ void ArrowExpr::compile(VregPtr destination, Function &function, ScopePtr scope,
 
 std::unique_ptr<Type> ArrowExpr::getType(const Context &context) const {
 	auto struct_type = checkType(context.scope);
+	const auto &map = struct_type->getMap();
+	if (map.count(ident) == 0)
+		throw ResolutionError(ident, context.scope, getLocation());
 	auto out = std::unique_ptr<Type>(struct_type->getMap().at(ident)->copy());
 	if (struct_type->isConst)
 		out->setConst(true);
