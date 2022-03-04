@@ -28,9 +28,12 @@ program(program_), source(source_), selfScope(FunctionScope::make(*this, GlobalS
 			auto struct_type = program.structs.at(struct_name);
 			name = struct_name;
 			returnType = StructType::make(program, struct_name);
+		} else if (isOperator()) {
+			name = Util::getOperator(source->at(1)->symbol);
+			returnType = TypePtr(Type::get(*source->front(), program));
 		} else { // Regular function. Or destructor?
 			name = *source->text;
-			returnType = TypePtr(Type::get(*source->at(0), program));
+			returnType = TypePtr(Type::get(*source->front(), program));
 		}
 
 		if (source->attributes.count("constructor") != 0)
@@ -39,7 +42,7 @@ program(program_), source(source_), selfScope(FunctionScope::make(*this, GlobalS
 		if (source->attributes.count("destructor") != 0)
 			attributes.insert(Attribute::Destructor);
 
-		extractAttributes(*source->at(2));
+		extractAttributes(*source->at(isOperator()? 3 : 2));
 	} else
 		returnType = VoidType::make();
 	scopes.emplace(0, selfScope);
@@ -95,7 +98,7 @@ void Function::extractArguments() {
 	if (!source)
 		return;
 
-	for (const ASTNode *child: *source->at(1)) {
+	for (const ASTNode *child: *source->at(isOperator()? 2 : 1)) {
 		const std::string &argument_name = *child->text;
 		arguments.push_back(argument_name);
 		auto type = TypePtr(Type::get(*child->front(), program));
@@ -154,7 +157,8 @@ void Function::compile() {
 
 		const size_t size = source->size();
 
-		if (size == 5 || size == 6) {
+		if (isOperator());
+		else if (size == 5 || size == 6) {
 			const std::string &struct_name = *source->at(4)->text;
 			if (program.structs.count(struct_name) == 0)
 				throw GenericError(getLocation(), "Couldn't find struct " + struct_name + " for function " + struct_name
@@ -177,7 +181,7 @@ void Function::compile() {
 			}
 		}
 
-		for (const ASTNode *child: *source->at(3))
+		for (const ASTNode *child: *source->at(isOperator()? 4 : 3))
 			compile(*child);
 	}
 
@@ -1342,4 +1346,8 @@ void Function::extractAttributes(const ASTNode &node) {
 
 bool Function::isConst() const {
 	return attributes.count(Attribute::Const) != 0;
+}
+
+bool Function::isOperator() const {
+	return source && source->symbol == CMMTOK_OPERATOR;
 }

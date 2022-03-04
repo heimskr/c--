@@ -195,6 +195,7 @@ class Function: public Makeable<Function> {
 		void extractAttributes(const ASTNode &);
 
 		bool isConst() const;
+		bool isOperator() const;
 };
 
 using FunctionPtr = std::shared_ptr<Function>;

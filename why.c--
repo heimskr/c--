@@ -359,6 +359,12 @@ void String::init(u8 const *data) {
 	this->data[this->size] = '\0';
 }
 
+%String * operator+(%String *left, %String *right) {
+	%String *out = new %String(left);
+	out::append(right);
+	return out;
+}
+
 void mkstring(u8 *data) {
 	%String foo = %[data];
 	p("[["); foo::print(); p("]]\n");

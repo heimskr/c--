@@ -1,5 +1,6 @@
 #include "ASTNode.h"
 #include "Casting.h"
+#include "Enums.h"
 #include "Expr.h"
 #include "Lexer.h"
 #include "Parser.h"
@@ -28,11 +29,8 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 					throw InvalidFunctionNameError(name, node->location);
 				if (name == "~")
 					name = "$d";
-				Types args;
-				for (const ASTNode *arg: *node->at(1))
-					args.emplace_back(Type::get(*arg->front(), out));
-				FunctionPtr fn = Function::make(out, node);
-				fn->name = name;
+				FunctionPtr function = Function::make(out, node);
+				function->name = name;
 				if (size == 5 || size == 6) {
 					// 0: return type
 					// 1: args list
@@ -44,21 +42,43 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 					if (out.structs.count(struct_name) == 0)
 						throw GenericError(node->at(4)->location, "Can't define function " + struct_name + "::" + name
 							+ ": struct not defined");
-					fn->setStructParent(out.structs.at(struct_name), size == 6);
-					if (fn->name == "$d") {
-						if (auto destructor = fn->structParent->destructor.lock())
+					function->setStructParent(out.structs.at(struct_name), size == 6);
+					if (function->name == "$d") {
+						if (auto destructor = function->structParent->destructor.lock())
 							if (destructor->source)
 								throw GenericError(node->location, "Struct " + struct_name + " cannot have multiple "
 									"destructors");
-						fn->structParent->destructor = fn;
+						function->structParent->destructor = function;
 					}
 				}
-				const std::string mangled = fn->mangle();
+				const std::string mangled = function->mangle();
 				if (out.functions.count(mangled) != 0)
 					throw GenericError(node->location, "Cannot redefine function " + mangled);
-				out.signatures.try_emplace(mangled, TypePtr(Type::get(*node->at(0), out)), std::move(args));
-				out.functions.emplace(mangled, fn);
-				out.bareFunctions.emplace(name, fn);
+				Types args;
+				for (const ASTNode *arg: *node->at(1))
+					args.emplace_back(Type::get(*arg->front(), out));
+				out.signatures.try_emplace(mangled, TypePtr(Type::get(*node->front(), out)), std::move(args));
+				out.functions.emplace(mangled, function);
+				out.bareFunctions.emplace(name, function);
+				break;
+			}
+			case CMMTOK_OPERATOR: { // Operator overload definition
+				// 0: return type
+				// 1: operator type
+				// 2: args list
+				// 3: fnattrs
+				// 4: block
+				FunctionPtr function = Function::make(out, node);
+				const std::string mangled = function->mangle();
+				if (out.functions.count(mangled) != 0)
+					throw GenericError(node->location, "Cannot redefine operator " + mangled);
+				Types args;
+				for (const ASTNode *arg: *node->at(2))
+					args.emplace_back(Type::get(*arg->front(), out));
+				out.signatures.try_emplace(mangled, TypePtr(Type::get(*node->front(), out)), std::move(args));
+				out.functions.emplace(mangled, function);
+				out.bareFunctions.emplace(function->name, function);
+				out.operators.emplace(node->at(1)->symbol, function);
 				break;
 			}
 			case CMMTOK_PLUS: { // Constructor definition
@@ -95,7 +115,7 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 				const std::string mangled = fn->mangle();
 				if (out.signatures.count(mangled) != 0)
 					throw GenericError(node->location, "Cannot redefine function " + mangled);
-				out.signatures.try_emplace(mangled, TypePtr(Type::get(*node->at(0), out)), std::move(args));
+				out.signatures.try_emplace(mangled, TypePtr(Type::get(*node->front(), out)), std::move(args));
 				out.functionDeclarations.emplace(mangled, fn);
 				out.bareFunctionDeclarations.emplace(name, fn);
 				break;
@@ -104,7 +124,7 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 				const std::string &name = *node->at(1)->text;
 				if (out.globals.count(name) != 0)
 					throw GenericError(node->location, "Cannot redefine global " + name);
-				auto type = TypePtr(Type::get(*node->at(0), out));
+				auto type = TypePtr(Type::get(*node->front(), out));
 				if (node->size() <= 2)
 					out.globalOrder.push_back(out.globals.try_emplace(name,
 						std::make_shared<Global>(name, type, nullptr)).first);
@@ -161,7 +181,7 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 							const std::string mangled = fn->mangle();
 							if (out.signatures.count(mangled) != 0)
 								throw GenericError(child->location, "Cannot redefine function " + mangled);
-							TypePtr ret_type = TypePtr(Type::get(*child->at(0), out));
+							TypePtr ret_type = TypePtr(Type::get(*child->front(), out));
 							out.signatures.try_emplace(mangled, ret_type, std::move(args));
 							out.functionDeclarations.emplace(mangled, fn);
 							out.bareFunctionDeclarations.emplace(name, fn);

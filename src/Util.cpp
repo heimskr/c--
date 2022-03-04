@@ -3,10 +3,15 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "Enums.h"
 #include "Type.h"
 #include "Util.h"
 
 namespace Util {
+	std::string getOperator(int oper) {
+		return "$o" + operator_map.at(oper);
+	}
+
 	std::string mangleStaticField(const std::string &struct_name, TypePtr type, const std::string &field) {
 		std::stringstream out;
 		out << ".f" << struct_name.size() << struct_name << type->mangle() << field.size() << field;

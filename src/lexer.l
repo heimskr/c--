@@ -113,6 +113,7 @@ CMM_SLCOMMENT	("//"[^\n]*)
 "static"		{RTOKEN(STATIC)}
 "new"			{RTOKEN(NEW)}
 "delete"		{RTOKEN(DELETE)}
+"operator"		{RTOKEN(OPERATOR)}
 
 {CMM_CHAR}		{RTOKEN(CHAR)}
 {CMM_STRING}	{RTOKEN(STRING)}

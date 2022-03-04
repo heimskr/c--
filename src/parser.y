@@ -119,6 +119,7 @@ using AN = ASTNode;
 %token CMMTOK_NEW "new"
 %token CMMTOK_DELETE "delete"
 %token CMMTOK_CONSTATTR "#const"
+%token CMMTOK_OPERATOR "operator"
 
 %token CMM_LIST CMM_ACCESS CMM_BLOCK CMM_CAST CMM_ADDROF CMM_EMPTY CMM_POSTPLUS CMM_POSTMINUS CMM_FNPTR CMM_DECL
 %token CMM_INITIALIZER CMM_FNDECL
@@ -198,7 +199,17 @@ function_def: type ident "(" _arglist ")" fnattrs block { $$ = $2->adopt({$1, $4
             | type ident "::" ident "(" _arglist ")" fnattrs block { $$ = $4->adopt({$1, $6, $8, $9, $2}); D($3, $5, $7); }
             | "~" ident fnattrs block { $$ = $1->adopt({new ASTNode(cmmParser, CMMTOK_VOID), new ASTNode(cmmParser, CMM_LIST), $3, $4, $2}); $1->symbol = CMMTOK_IDENT; }
             | "static" type ident "::" ident "(" _arglist ")" fnattrs block { $$ = $5->adopt({$2, $7, $9, $10, $3, $1}); D($4, $6, $8); }
+            | type "operator" oper "(" _arglist ")" fnattrs block { $$ = $2->adopt({$1, $3, $5, $7, $8}); D($4, $6); }
             | constructor_def;
+
+oper: "+" | "-" | "*" | "/" | "%" | "&" | "|" | "^" | "!" | "~" | "&&" | "||" | "^^" | "<" | ">" | "<=" | ">=" | "=="
+    | "!=" | "=" | "->" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | ">>" | "<<" | ">>=" | "<<="
+    | "." "++" { $$ = $2; D($1); $2->symbol = CMM_POSTPLUS;  } // postfix ++
+    | "." "--" { $$ = $2; D($1); $2->symbol = CMM_POSTMINUS; } // postfix --
+    | "++" "." { D($2); } // prefix ++
+    | "--" "." { D($2); }
+    | "(" ")"  { D($2); }
+    | "[" "]"  { D($2); };
 
 constructor_def: "+" ident "(" _arglist ")" fnattrs block { $$ = $1->adopt({$2, $4, $6, $7}); D($3, $5); };
 

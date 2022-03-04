@@ -10,3 +10,4 @@ enum class QueryType {Memory};
 
 extern std::unordered_map<Comparison, std::string> comparison_map;
 extern std::unordered_map<QueryType,  std::string> query_map;
+extern std::unordered_map<int, std::string> operator_map;

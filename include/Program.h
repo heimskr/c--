@@ -24,6 +24,7 @@ struct Program {
 	std::multimap<std::string, FunctionPtr> bareFunctions;
 	/** Maps unmangled names to function declarations. */
 	std::multimap<std::string, FunctionPtr> bareFunctionDeclarations;
+	std::multimap<int, FunctionPtr> operators;
 	std::map<std::string, size_t> stringIDs;
 	std::vector<std::string> lines;
 	std::string name, author, orcid, version;
