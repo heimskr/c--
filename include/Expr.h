@@ -54,6 +54,7 @@ struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 	Expr * setLocation(const ASTLocation &location_) { debug.location = location_; return this; }
 	const ASTLocation & getLocation() const { return debug.location; }
 	Expr * setFunction(const Function &);
+	Expr * setDebug(const DebugData &);
 
 	static Expr * get(const ASTNode &, Function * = nullptr);
 
@@ -87,7 +88,7 @@ struct BinaryExpr: Expr {
 
 	BinaryExpr(Expr *left_, Expr *right_): left(left_), right(right_) {}
 
-	Expr * copy() const override { return new BinaryExpr<O>(left->copy(), right->copy()); }
+	Expr * copy() const override { return (new BinaryExpr<O>(left->copy(), right->copy()))->setDebug(debug); }
 
 	operator std::string() const override {
 		return stringify(left.get()) + " " + std::string(O) + " " + stringify(right.get());
@@ -279,7 +280,7 @@ struct NumberExpr: AtomicExpr {
 	std::string literal;
 	NumberExpr(const std::string &literal_): literal(literal_) {}
 	NumberExpr(ssize_t value_): literal(std::to_string(value_) + "s64") {}
-	Expr * copy() const override { return new NumberExpr(literal); }
+	Expr * copy() const override { return (new NumberExpr(literal))->setDebug(debug); }
 	operator std::string() const override { return literal; }
 	ssize_t getValue() const override;
 	std::optional<ssize_t> evaluate(ScopePtr) const override { return getValue(); }
@@ -291,7 +292,7 @@ struct NumberExpr: AtomicExpr {
 struct BoolExpr: AtomicExpr {
 	bool value;
 	BoolExpr(bool value_): value(value_) {}
-	Expr * copy() const override { return new BoolExpr(value); }
+	Expr * copy() const override { return (new BoolExpr(value))->setDebug(debug); }
 	operator std::string() const override { return value? "true" : "false"; }
 	ssize_t getValue() const override { return value? 1 : 0; }
 	std::optional<ssize_t> evaluate(ScopePtr) const override { return getValue(); }
@@ -301,7 +302,7 @@ struct BoolExpr: AtomicExpr {
 
 struct NullExpr: AtomicExpr {
 	NullExpr() {}
-	Expr * copy() const override { return new NullExpr(); }
+	Expr * copy() const override { return (new NullExpr)->setDebug(debug); }
 	operator std::string() const override { return "null"; }
 	ssize_t getValue() const override { return 0; }
 	size_t getSize(const Context &) const override { return 8; }
@@ -313,7 +314,7 @@ struct NullExpr: AtomicExpr {
 struct VregExpr: Expr, Makeable<VregExpr> {
 	VregPtr virtualRegister;
 	VregExpr(VregPtr virtual_register): virtualRegister(virtual_register) {}
-	Expr * copy() const override { return new VregExpr(virtualRegister); }
+	Expr * copy() const override { return (new VregExpr(virtualRegister))->setDebug(debug); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	operator std::string() const override { return virtualRegister->regOrID(); }
 	size_t getSize(const Context &) const override;
@@ -324,7 +325,7 @@ struct VregExpr: Expr, Makeable<VregExpr> {
 struct VariableExpr: Expr {
 	std::string name;
 	VariableExpr(const std::string &name_): name(name_) {}
-	Expr * copy() const override { return new VariableExpr(name); }
+	Expr * copy() const override { return (new VariableExpr(name))->setDebug(debug); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	operator std::string() const override { return name; }
 	size_t getSize(const Context &) const override;
@@ -336,7 +337,7 @@ struct AddressOfExpr: Expr {
 	std::unique_ptr<Expr> subexpr;
 	AddressOfExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
 	AddressOfExpr(Expr *subexpr_): subexpr(subexpr_) {}
-	Expr * copy() const override { return new AddressOfExpr(subexpr->copy()); }
+	Expr * copy() const override { return (new AddressOfExpr(subexpr->copy()))->setDebug(debug); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	operator std::string() const override { return "&" + std::string(*subexpr); }
 	size_t getSize(const Context &) const override { return 8; }
@@ -347,7 +348,7 @@ struct NotExpr: Expr {
 	std::unique_ptr<Expr> subexpr;
 	NotExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
 	NotExpr(Expr *subexpr_): subexpr(subexpr_) {}
-	Expr * copy() const override { return new NotExpr(subexpr->copy()); }
+	Expr * copy() const override { return (new NotExpr(subexpr->copy()))->setDebug(debug); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	operator std::string() const override { return "~" + std::string(*subexpr); }
 	size_t getSize(const Context &context) const override { return subexpr->getSize(context); }
@@ -358,7 +359,7 @@ struct LnotExpr: Expr {
 	std::unique_ptr<Expr> subexpr;
 	LnotExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
 	LnotExpr(Expr *subexpr_): subexpr(subexpr_) {}
-	Expr * copy() const override { return new LnotExpr(subexpr->copy()); }
+	Expr * copy() const override { return (new LnotExpr(subexpr->copy()))->setDebug(debug); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	operator std::string() const override { return "!" + std::string(*subexpr); }
 	size_t getSize(const Context &context) const override { return subexpr->getSize(context); }
@@ -368,7 +369,7 @@ struct LnotExpr: Expr {
 struct StringExpr: Expr {
 	std::string contents;
 	StringExpr(const std::string &contents_): contents(contents_) {}
-	Expr * copy() const override { return new StringExpr(contents); }
+	Expr * copy() const override { return (new StringExpr(contents))->setDebug(debug); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	operator std::string() const override { return "\"" + Util::escape(contents) + "\""; }
 	size_t getSize(const Context &) const override { return 8; }
@@ -383,7 +384,7 @@ struct DerefExpr: Expr {
 	std::unique_ptr<Expr> subexpr;
 	DerefExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
 	DerefExpr(Expr *subexpr_): subexpr(subexpr_) {}
-	Expr * copy() const override { return new DerefExpr(subexpr->copy()); }
+	Expr * copy() const override { return (new DerefExpr(subexpr->copy()))->setDebug(debug); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	operator std::string() const override { return "*" + std::string(*subexpr); }
 	size_t getSize(const Context &) const override;
@@ -427,6 +428,10 @@ struct AssignExpr: BinaryExpr<"="> {
 template <fixstr::fixed_string O, typename RS, typename FnS, typename RU = RS, typename FnU = FnS>
 struct CompoundAssignExpr: BinaryExpr<O> {
 	using BinaryExpr<O>::BinaryExpr;
+	Expr * copy() const override {
+		return (new CompoundAssignExpr<O, RS, FnS, RU, FnU>(this->left->copy(), this->right->copy()))
+			->setDebug(this->debug);
+	}
 	std::unique_ptr<Type> getType(const Context &context) const override {
 		auto left_type = this->left->getType(context), right_type = this->right->getType(context);
 		if (!(*right_type && *left_type))
@@ -498,6 +503,10 @@ struct ShiftRightAssignExpr: CompoundAssignExpr<">>=", ShiftRightArithmeticRInst
 template <fixstr::fixed_string O, typename R, typename Fn>
 struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {
 	using CompoundAssignExpr<O, R, Fn>::CompoundAssignExpr;
+	Expr * copy() const override {
+		return (new PointerArithmeticAssignExpr<O, R, Fn>(this->left->copy(), this->right->copy()))
+			->setDebug(this->debug);
+	}
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
 		TypePtr left_type = this->left->getType(scope), right_type = this->right->getType(scope);
 		if (left_type->isConst)
@@ -525,7 +534,7 @@ struct CastExpr: Expr {
 	CastExpr(std::unique_ptr<Type> &&target_type, std::unique_ptr<Expr> &&subexpr_):
 		targetType(std::move(target_type)), subexpr(std::move(subexpr_)) {}
 	CastExpr(Type *target_type, Expr *subexpr_): targetType(target_type), subexpr(subexpr_) {}
-	Expr * copy() const override { return new CastExpr(targetType->copy(), subexpr->copy()); }
+	Expr * copy() const override { return (new CastExpr(targetType->copy(), subexpr->copy()))->setDebug(debug); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	operator std::string() const override { return "(" + std::string(*targetType) + ") " + std::string(*subexpr); }
 	size_t getSize(const Context &) const override { return targetType->getSize(); }
@@ -537,7 +546,7 @@ struct AccessExpr: Expr {
 	AccessExpr(std::unique_ptr<Expr> &&array_, std::unique_ptr<Expr> &&subscript_):
 		array(std::move(array_)), subscript(std::move(subscript_)) {}
 	AccessExpr(Expr *array_, Expr *subscript_): array(array_), subscript(subscript_) {}
-	Expr * copy() const override { return new AccessExpr(array->copy(), subscript->copy()); }
+	Expr * copy() const override { return (new AccessExpr(array->copy(), subscript->copy()))->setDebug(debug); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	operator std::string() const override { return std::string(*array) + "[" + std::string(*subscript) + "]"; }
 	size_t getSize(const Context &context) const override { return getType(context)->getSize(); }
@@ -553,7 +562,7 @@ struct LengthExpr: Expr {
 	std::unique_ptr<Expr> subexpr;
 	LengthExpr(std::unique_ptr<Expr> &&subexpr_): Expr(subexpr_->debug), subexpr(std::move(subexpr_)) {}
 	LengthExpr(Expr *subexpr_): Expr(subexpr_->debug), subexpr(subexpr_) {}
-	Expr * copy() const override { return new LengthExpr(subexpr->copy()); }
+	Expr * copy() const override { return (new LengthExpr(subexpr->copy()))->setDebug(debug); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	operator std::string() const override { return "#" + std::string(*subexpr); }
 	size_t getSize(const Context &context) const override { return subexpr->getSize(context); }
@@ -565,7 +574,7 @@ struct PrefixExpr: Expr {
 	std::unique_ptr<Expr> subexpr;
 	PrefixExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
 	PrefixExpr(Expr *subexpr_): subexpr(subexpr_) {}
-	Expr * copy() const override { return new PrefixExpr<O, I>(subexpr->copy()); }
+	Expr * copy() const override { return (new PrefixExpr<O, I>(subexpr->copy()))->setDebug(debug); }
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
 		TypePtr subtype = subexpr->getType(scope);
 		if (subtype->isConst)
@@ -608,7 +617,7 @@ struct PostfixExpr: Expr {
 	std::unique_ptr<Expr> subexpr;
 	PostfixExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
 	PostfixExpr(Expr *subexpr_): subexpr(subexpr_) {}
-	Expr * copy() const override { return new PostfixExpr<O, I>(subexpr->copy()); }
+	Expr * copy() const override { return (new PostfixExpr<O, I>(subexpr->copy()))->setDebug(debug); }
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
 		TypePtr subtype = subexpr->getType(scope);
 		if (subtype->isConst)
@@ -653,7 +662,9 @@ struct TernaryExpr: Expr {
 
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 
-	Expr * copy() const override { return new TernaryExpr(condition->copy(), ifTrue->copy(), ifFalse->copy()); }
+	Expr * copy() const override {
+		return (new TernaryExpr(condition->copy(), ifTrue->copy(), ifFalse->copy()))->setDebug(debug);
+	}
 
 	operator std::string() const override {
 		return stringify(condition.get()) + "? " + stringify(ifTrue.get()) + " : " + stringify(ifFalse.get());
@@ -672,7 +683,7 @@ struct DotExpr: Expr {
 	DotExpr(std::unique_ptr<Expr> &&left_, const std::string &ident_): left(std::move(left_)), ident(ident_) {}
 	DotExpr(Expr *left_, const std::string &ident_): left(left_), ident(ident_) {}
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
-	Expr * copy() const override { return new DotExpr(left->copy(), ident); }
+	Expr * copy() const override { return (new DotExpr(left->copy(), ident))->setDebug(debug); }
 	operator std::string() const override { return stringify(left.get()) + "." + ident; }
 	bool shouldParenthesize() const override { return true; }
 	std::unique_ptr<Type> getType(const Context &) const override;
@@ -688,7 +699,7 @@ struct ArrowExpr: Expr {
 	ArrowExpr(std::unique_ptr<Expr> &&left_, const std::string &ident_): left(std::move(left_)), ident(ident_) {}
 	ArrowExpr(Expr *left_, const std::string &ident_): left(left_), ident(ident_) {}
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
-	Expr * copy() const override { return new ArrowExpr(left->copy(), ident); }
+	Expr * copy() const override { return (new ArrowExpr(left->copy(), ident))->setDebug(debug); }
 	operator std::string() const override { return stringify(left.get()) + "->" + ident; }
 	bool shouldParenthesize() const override { return true; }
 	std::unique_ptr<Type> getType(const Context &) const override;
@@ -700,7 +711,7 @@ struct ArrowExpr: Expr {
 struct SizeofExpr: Expr, Makeable<SizeofExpr> {
 	TypePtr argument;
 	SizeofExpr(TypePtr argument_): argument(argument_) {}
-	Expr * copy() const override { return new SizeofExpr(argument); }
+	Expr * copy() const override { return (new SizeofExpr(argument))->setDebug(debug); }
 	operator std::string() const override { return "sizeof(" + std::string(*argument) + ")"; }
 	std::optional<ssize_t> evaluate(ScopePtr) const override { return argument->getSize(); }
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
@@ -712,7 +723,7 @@ struct OffsetofExpr: Expr {
 	std::string structName, fieldName;
 	OffsetofExpr(const std::string &struct_name, const std::string &field_name):
 		structName(struct_name), fieldName(field_name) {}
-	Expr * copy() const override { return new OffsetofExpr(structName, fieldName); }
+	Expr * copy() const override { return (new OffsetofExpr(structName, fieldName))->setDebug(debug); }
 	operator std::string() const override { return "offsetof(%" + structName  + ", " + fieldName + ")"; }
 	std::optional<ssize_t> evaluate(ScopePtr) const override;
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
@@ -724,7 +735,7 @@ struct SizeofMemberExpr: Expr {
 	std::string structName, fieldName;
 	SizeofMemberExpr(const std::string &struct_name, const std::string &field_name):
 		structName(struct_name), fieldName(field_name) {}
-	Expr * copy() const override { return new SizeofMemberExpr(structName, fieldName); }
+	Expr * copy() const override { return (new SizeofMemberExpr(structName, fieldName))->setDebug(debug); }
 	operator std::string() const override { return "sizeof(%" + structName  + ", " + fieldName + ")"; }
 	std::optional<ssize_t> evaluate(ScopePtr) const override;
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;

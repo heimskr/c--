@@ -29,6 +29,11 @@ Expr * Expr::setFunction(const Function &function) {
 	return this;
 }
 
+Expr * Expr::setDebug(const DebugData &debug_) {
+	debug = debug_;
+	return this;
+}
+
 Expr * Expr::get(const ASTNode &node, Function *function) {
 	Expr *out = nullptr;
 	switch (node.symbol) {
@@ -892,7 +897,7 @@ Expr * CallExpr::copy() const {
 	std::vector<ExprPtr> arguments_copy;
 	for (const ExprPtr &argument: arguments)
 		arguments_copy.emplace_back(argument->copy());
-	return new CallExpr(subexpr->copy(), std::move(arguments_copy));
+	return (new CallExpr(subexpr->copy(), std::move(arguments_copy)))->setDebug(debug);
 }
 
 void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_t multiplier) {
@@ -1377,7 +1382,7 @@ Expr * InitializerExpr::copy() const {
 	std::vector<ExprPtr> children_copy;
 	for (const auto &child: children)
 		children_copy.emplace_back(child->copy());
-	return new InitializerExpr(children_copy, isConstructor);
+	return (new InitializerExpr(children_copy, isConstructor))->setDebug(debug);
 }
 
 std::unique_ptr<Type> InitializerExpr::getType(const Context &context) const {
@@ -1412,7 +1417,7 @@ Expr * ConstructorExpr::copy() const {
 	std::vector<ExprPtr> arguments_copy;
 	for (const ExprPtr &argument: arguments)
 		arguments_copy.emplace_back(argument->copy());
-	return new ConstructorExpr(stackOffset, structName, arguments_copy);
+	return (new ConstructorExpr(stackOffset, structName, arguments_copy))->setDebug(debug);
 }
 
 void ConstructorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
@@ -1542,7 +1547,7 @@ ConstructorExpr * ConstructorExpr::addToScope(ScopePtr scope) {
 }
 
 Expr * NewExpr::copy() const {
-	return new NewExpr(type, arguments);
+	return (new NewExpr(type, arguments))->setDebug(debug);
 }
 
 void NewExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
