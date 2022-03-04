@@ -17,3 +17,11 @@ std::unordered_map<int, std::string> operator_map {
 	{CMMTOK_ANDEQ, "An"}, {CMMTOK_OREQ,    "Or"}, {CMMTOK_XOREQ, "Xo"}, {CMM_ACCESS,    "ac"}, {CMMTOK_LPAREN,  "ca"},
 	{CMMTOK_PLUSPLUS, "pp"}, {CMMTOK_MINUSMINUS, "mm"}, {CMM_POSTPLUS, "Pp"}, {CMM_POSTMINUS, "Mm"}, {CMMTOK_HASH, "ha"}
 };
+
+std::unordered_map<std::string, std::string> operator_str_map {
+	{"+",  "pl"}, {"-",   "mi"}, {"*",  "ti"}, {"/",   "di"}, {"%",   "mo"}, {"&",   "an"}, {"|",   "or"}, {"^",  "xo"},
+	{"!",  "nt"}, {"~",   "td"}, {"&&", "la"}, {"||",  "lo"}, {"^^",  "lx"}, {"<<",  "ls"}, {">>",  "rs"}, {"<",  "lt"},
+	{">",  "gt"}, {"<=",  "le"}, {">=", "ge"}, {"==",  "eq"}, {"!=",  "ne"}, {"=",   "as"}, {"->",  "ar"}, {"+=", "Pl"},
+	{"-=", "Mi"}, {">>=", "Rs"}, {"%=", "Mo"}, {"<<=", "Ls"}, {"/=",  "Di"}, {"*=",  "Ti"}, {"&=",  "An"}, {"|=", "Or"},
+	{"^=", "Xo"}, {"[",   "ac"}, {"(",  "ca"}, {"++.", "pp"}, {"--.", "mm"}, {".++", "Pp"}, {".--", "Mm"}, {"#",  "ha"}
+};
