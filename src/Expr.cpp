@@ -1582,7 +1582,7 @@ Expr * InitializerExpr::copy() const {
 }
 
 std::unique_ptr<Type> InitializerExpr::getType(const Context &context) const {
-	return std::make_unique<InitializerType>(children, context.scope);
+	return std::make_unique<InitializerType>(children, context);
 }
 
 void InitializerExpr::compile(VregPtr, Function &, ScopePtr, ssize_t) {
@@ -1861,13 +1861,14 @@ Expr * StaticFieldExpr::copy() const {
 }
 
 void StaticFieldExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	function.add<LoadIInstruction>(destination, mangle(scope), getSize(scope));
+	Context context(function.program, scope);
+	function.add<LoadIInstruction>(destination, mangle(context), getSize(context));
 	if (multiplier != 1)
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
 bool StaticFieldExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
-	function.add<SetIInstruction>(destination, mangle(scope));
+	function.add<SetIInstruction>(destination, mangle({function.program, scope}));
 	return true;
 }
 
@@ -1882,7 +1883,7 @@ size_t StaticFieldExpr::getSize(const Context &context) const {
 std::unique_ptr<Type> StaticFieldExpr::getType(const Context &context) const {
 	const auto &statics = getStruct(context.scope)->getStatics();
 	if (statics.count(fieldName) == 0)
-		throw ResolutionError(fieldName, {context.scope, structName}, getLocation());
+		throw ResolutionError(fieldName, {*context.program, context.scope, structName}, getLocation());
 	return std::unique_ptr<Type>(statics.at(fieldName)->copy());
 }
 
@@ -1895,9 +1896,9 @@ std::shared_ptr<StructType> StaticFieldExpr::getStruct(ScopePtr scope) const {
 	throw NotStructError(type, getLocation());
 }
 
-std::string StaticFieldExpr::mangle(ScopePtr scope) const {
-	const auto &statics = getStruct(scope)->getStatics();
+std::string StaticFieldExpr::mangle(const Context &context) const {
+	const auto &statics = getStruct(context.scope)->getStatics();
 	if (statics.count(fieldName) == 0)
-		throw ResolutionError(fieldName, {scope, structName}, getLocation());
+		throw ResolutionError(fieldName, {*context.program, context.scope, structName}, getLocation());
 	return Util::mangleStaticField(structName, statics.at(fieldName), fieldName);
 }

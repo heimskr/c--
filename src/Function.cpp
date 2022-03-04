@@ -306,7 +306,8 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 					}
 				} else {
 					expr->compile(variable, *this, currentScope());
-					typeCheck(*expr->getType(currentScope()), *variable->type, variable, *this, expr->getLocation());
+					typeCheck(*expr->getType({program, currentScope()}), *variable->type, variable, *this,
+						expr->getLocation());
 					if (offset == 0) {
 						add<StoreRInstruction>(variable, fp, variable->getSize())->setDebug({node.location, *this});
 					} else {
@@ -327,7 +328,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				auto expr = ExprPtr(Expr::get(*node.front(), this));
 				auto r0 = precolored(Why::returnValueOffset);
 				expr->compile(r0, *this, currentScope());
-				auto expr_type = expr->getType(currentScope());
+				auto expr_type = expr->getType({program, currentScope()});
 				typeCheck(*expr_type, *returnType, r0, *this, node.location);
 			}
 			add<JumpInstruction>("." + mangle() + ".e")->setDebug({node.location, *this});
@@ -344,7 +345,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			const std::string start = label + "w.s", end = label + "w.e";
 			add<Label>(start);
 			auto temp_var = newVar();
-			const TypePtr condition_type = condition->getType(currentScope());
+			const TypePtr condition_type = condition->getType({program, currentScope()});
 			if (!(*condition_type && BoolType()))
 				throw ImplicitConversionError(condition_type, BoolType::make(), condition->getLocation());
 			condition->compile(temp_var, *this, currentScope());
@@ -368,7 +369,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			compile(*node.front());
 			add<Label>(start);
 			ExprPtr condition = ExprPtr(Expr::get(*node.at(1), this));
-			const TypePtr condition_type = condition->getType(currentScope());
+			const TypePtr condition_type = condition->getType({program, currentScope()});
 			if (!(*condition_type && BoolType()))
 				throw ImplicitConversionError(condition_type, BoolType::make(), condition->getLocation());
 			condition->compile(temp_var, *this, currentScope());
@@ -408,7 +409,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			const std::string base = "." + mangle() + "." + std::to_string(++nextBlock), end_label = base + "if.end";
 			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
 			auto temp_var = newVar();
-			const TypePtr condition_type = condition->getType(currentScope());
+			const TypePtr condition_type = condition->getType({program, currentScope()});
 			if (!(*condition_type && BoolType()))
 				throw ImplicitConversionError(condition_type, BoolType::make(), condition->getLocation());
 			condition->compile(temp_var, *this, currentScope());
@@ -487,10 +488,11 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				if (!out_exprs.empty()) {
 					auto addr_var = newVar();
 					auto scope = currentScope();
+					Context context(program, scope);
 					for (const auto &[wasm_vreg, expr]: out_exprs) {
 						if (!expr->compileAddress(addr_var, *this, scope))
-							throw LvalueError(std::string(*expr->getType(scope)));
-						add<StoreRInstruction>(map.at(wasm_vreg), addr_var, expr->getSize(scope))
+							throw LvalueError(std::string(*expr->getType(context)));
+						add<StoreRInstruction>(map.at(wasm_vreg), addr_var, expr->getSize(context))
 							->setDebug({node.location, *this});
 					}
 				}
@@ -500,7 +502,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 		}
 		case CMMTOK_DELETE: {
 			auto expr = ExprPtr(Expr::get(*node.front(), this));
-			auto type = TypePtr(expr->getType({currentScope()}));
+			auto type = TypePtr(expr->getType({program, currentScope()}));
 			if (!type->isPointer())
 				throw GenericError(node.front()->location, "Only pointers can be deleted");
 			auto pointer_type = type->ptrcast<PointerType>();

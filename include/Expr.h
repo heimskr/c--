@@ -9,6 +9,7 @@
 #include "ASTNode.h"
 #include "Casting.h"
 #include "Checkable.h"
+#include "Context.h"
 #include "DebugData.h"
 #include "Errors.h"
 #include "fixed_string.h"
@@ -28,15 +29,6 @@ struct Type;
 struct WhyInstruction;
 
 using ScopePtr = std::shared_ptr<Scope>;
-
-struct Context {
-	ScopePtr scope;
-	std::string structName;
-	Program *program = nullptr;
-
-	Context(Program &program_, ScopePtr scope_ = nullptr, const std::string &struct_name = ""):
-		scope(scope_), structName(struct_name), program(&program_) {}
-};
 
 struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 	DebugData debug;
@@ -136,10 +128,11 @@ struct CompExpr: BinaryExpr<O> {
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
 		if (multiplier != 1)
 			throw GenericError(this->getLocation(), "Cannot multiply in CompExpr");
+		Context context(function.program, scope);
 		VregPtr temp_var = function.newVar();
 		this->left->compile(destination, function, scope, 1);
 		this->right->compile(temp_var, function, scope, multiplier);
-		if (this->left->getType(scope)->isUnsigned())
+		if (this->left->getType(context)->isUnsigned())
 			function.add<RU>(destination, temp_var, destination)->setDebug(*this);
 		else
 			function.add<RS>(destination, temp_var, destination)->setDebug(*this);
@@ -445,7 +438,8 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 			->setDebug(this->debug);
 	}
 	FunctionPtr getOperator(Function &function, ScopePtr scope) const {
-		auto left_type = this->left->getType(scope), right_type = this->right->getType(scope);
+		Context context(function.program, scope);
+		auto left_type = this->left->getType(context), right_type = this->right->getType(context);
 		return function.program.getOperator({left_type.get(), right_type.get()}, operator_str_map.at(std::string(O)),
 			this->getLocation());
 	}
@@ -457,10 +451,11 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 		return left_type;
 	}
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
-		auto left_type = this->left->getType(scope);
+		Context context(function.program, scope);
+		TypePtr left_type = this->left->getType(context);
 		if (left_type->isConst)
 			throw ConstError("Can't assign", *left_type, this->getLocation());
-		auto right_type = this->right->getType(scope);
+		auto right_type = this->right->getType(context);
 		if (auto fnptr = getOperator(function, scope)) {
 			auto addrof = std::make_unique<AddressOfExpr>(this->left->copy());
 			compileCall(destination, function, scope, fnptr, {addrof.get(), this->right.get()}, this->getLocation(),
@@ -471,16 +466,16 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 				destination = function.newVar();
 			this->left->compile(destination, function, scope);
 			this->right->compile(temp_var, function, scope);
-			if (this->left->getType(scope)->isUnsigned())
+			if (this->left->getType(context)->isUnsigned())
 				function.add<RU>(destination, temp_var, destination)->setDebug(*this);
 			else
 				function.add<RS>(destination, temp_var, destination)->setDebug(*this);
-			TypePtr right_type = this->right->getType(scope);
+			TypePtr right_type = this->right->getType(context);
 			if (!tryCast(*right_type, *left_type, destination, function, this->getLocation()))
 				throw ImplicitConversionError(right_type, left_type, this->getLocation());
 			if (!this->left->compileAddress(temp_var, function, scope))
-				throw LvalueError(*this->left->getType(scope), this->getLocation());
-			function.add<StoreRInstruction>(destination, temp_var, getSize(scope))->setDebug(*this);
+				throw LvalueError(*this->left->getType(context), this->getLocation());
+			function.add<StoreRInstruction>(destination, temp_var, getSize(context))->setDebug(*this);
 			if (multiplier != 1)
 				function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 		}
@@ -561,10 +556,11 @@ struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {
 			->setDebug(this->debug);
 	}
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
-		TypePtr left_type = this->left->getType(scope);
+		Context context(function.program, scope);
+		TypePtr left_type = this->left->getType(context);
 		if (left_type->isConst)
 			throw ConstError("Can't assign", *left_type, this->getLocation());
-		TypePtr right_type = this->right->getType(scope);
+		TypePtr right_type = this->right->getType(context);
 		if (auto fnptr = this->getOperator(function, scope)) {
 			auto pointer = AddressOfExpr::make(this->left->copy());
 			pointer->setDebug(this->left->getLocation());
@@ -578,8 +574,8 @@ struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {
 				this->getLocation());
 			function.add<R>(destination, temp_var, destination)->setDebug(*this);
 			if (!this->left->compileAddress(temp_var, function, scope))
-				throw LvalueError(*this->left->getType(scope), this->getLocation());
-			function.add<StoreRInstruction>(destination, temp_var, this->getSize(scope))->setDebug(*this);
+				throw LvalueError(*this->left->getType(context), this->getLocation());
+			function.add<StoreRInstruction>(destination, temp_var, this->getSize(context))->setDebug(*this);
 			if (multiplier != 1)
 				function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 		}
@@ -872,5 +868,5 @@ struct StaticFieldExpr: Expr {
 	size_t getSize(const Context &) const override;
 	std::unique_ptr<Type> getType(const Context &) const override;
 	std::shared_ptr<StructType> getStruct(ScopePtr) const;
-	std::string mangle(ScopePtr) const;
+	std::string mangle(const Context &) const;
 };

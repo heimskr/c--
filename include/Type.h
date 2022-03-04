@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "Checkable.h"
+#include "Context.h"
 #include "Makeable.h"
 #include "WeakSet.h"
 
@@ -44,9 +45,9 @@ struct Type: Checkable, std::enable_shared_from_this<Type> {
 	virtual bool isInitializer() const { return false; }
 	Type * setConst(bool is_const) { isConst = is_const; return this; }
 
-	static Type * get(const ASTNode &, const Program &, bool allow_forward = false);
-	static Type * get(const std::string &, const Program &);
-	static Type * get(const char * &, const Program &);
+	static Type * get(const ASTNode &, Program &, bool allow_forward = false);
+	static Type * get(const std::string &, Program &);
+	static Type * get(const char * &, Program &);
 
 	template <typename T>
 	std::shared_ptr<T> ptrcast() {
@@ -213,7 +214,7 @@ class StructType: public Type, public Makeable<StructType> {
 
 struct InitializerType: Type, Makeable<InitializerType> {
 	std::vector<TypePtr> children;
-	InitializerType(const std::vector<std::shared_ptr<Expr>> &, std::shared_ptr<Scope>);
+	InitializerType(const std::vector<std::shared_ptr<Expr>> &, const Context &);
 	InitializerType(const std::vector<TypePtr> &children_): children(children_) {}
 	InitializerType(std::vector<TypePtr> &&children_): children(std::move(children_)) {}
 	Type * copy() const override;

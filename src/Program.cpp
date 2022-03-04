@@ -265,7 +265,7 @@ void Program::compile() {
 		auto type = iter->second->type;
 		auto size = type->getSize();
 		if (expr) {
-			auto value = expr->evaluate(init->selfScope);
+			auto value = expr->evaluate({*this, init->selfScope});
 			if (value && size == 1) {
 				lines.push_back("\t%1b " + std::to_string(*value));
 			} else if (value && size == 2) {
@@ -276,7 +276,7 @@ void Program::compile() {
 				lines.push_back("\t%8b " + std::to_string(*value));
 			} else {
 				lines.push_back("\t%fill " + std::to_string(size) + " 0");
-				TypePtr expr_type = expr->getType(init->selfScope);
+				TypePtr expr_type = expr->getType({*this, init->selfScope});
 				VregPtr vreg = init->newVar();
 				if (auto *initializer = expr->cast<InitializerExpr>()) {
 					init->add<SetIInstruction>(vreg, global_name);

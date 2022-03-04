@@ -104,7 +104,7 @@ bool ArrayType::operator==(const Type &other) const {
 	return false;
 }
 
-Type * Type::get(const ASTNode &node, const Program &program, bool allow_forward) {
+Type * Type::get(const ASTNode &node, Program &program, bool allow_forward) {
 	switch (node.symbol) {
 		case CMMTOK_VOID:
 			return new VoidType;
@@ -132,7 +132,7 @@ Type * Type::get(const ASTNode &node, const Program &program, bool allow_forward
 			return new PointerType(new UnsignedType(8));
 		case CMMTOK_LSQUARE: {
 			auto expr = std::unique_ptr<Expr>(Expr::get(*node.at(1)));
-			auto count = expr->evaluate(nullptr);
+			auto count = expr->evaluate({program, nullptr});
 			if (!count)
 				throw GenericError(node.location, "Array size expression must be a compile-time constant: " +
 					std::string(*expr) + " (at " + std::string(expr->getLocation()) + ")");
@@ -168,12 +168,12 @@ Type * Type::get(const ASTNode &node, const Program &program, bool allow_forward
 	}
 }
 
-Type * Type::get(const std::string &mangled, const Program &program) {
+Type * Type::get(const std::string &mangled, Program &program) {
 	const char *c_str = mangled.c_str();
 	return get(c_str, program);
 }
 
-Type * Type::get(const char * &mangled, const Program &program) {
+Type * Type::get(const char * &mangled, Program &program) {
 	switch (mangled[0]) {
 		case 'v':
 			++mangled;
@@ -394,9 +394,9 @@ FunctionPtr StructType::getDestructor() const {
 	return destructor.lock();
 }
 
-InitializerType::InitializerType(const std::vector<ExprPtr> &exprs, ScopePtr scope) {
+InitializerType::InitializerType(const std::vector<ExprPtr> &exprs, const Context &context) {
 	for (const auto &expr: exprs)
-		children.emplace_back(expr->getType(scope));
+		children.emplace_back(expr->getType(context));
 }
 
 Type * InitializerType::copy() const {
