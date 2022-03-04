@@ -1255,7 +1255,10 @@ void DotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 
 std::unique_ptr<Type> DotExpr::getType(const Context &context) const {
 	auto struct_type = checkType(context.scope);
-	auto out = std::unique_ptr<Type>(struct_type->getMap().at(ident)->copy());
+	const auto &map = struct_type->getMap();
+	if (map.count(ident) == 0)
+		throw ResolutionError(ident, context.scope, getLocation());
+	auto out = std::unique_ptr<Type>(map.at(ident)->copy());
 	if (struct_type->isConst)
 		out->setConst(true);
 	return out;
@@ -1305,7 +1308,7 @@ std::unique_ptr<Type> ArrowExpr::getType(const Context &context) const {
 	const auto &map = struct_type->getMap();
 	if (map.count(ident) == 0)
 		throw ResolutionError(ident, context.scope, getLocation());
-	auto out = std::unique_ptr<Type>(struct_type->getMap().at(ident)->copy());
+	auto out = std::unique_ptr<Type>(map.at(ident)->copy());
 	if (struct_type->isConst)
 		out->setConst(true);
 	return out;
