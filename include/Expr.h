@@ -102,6 +102,12 @@ struct BinaryExpr: Expr {
 			throw ImplicitConversionError(*left_type, *right_type, getLocation());
 		return left_type;
 	}
+
+	FunctionPtr getOperator(const Context &context) const {
+		auto left_type = left->getType(context), right_type = right->getType(context);
+		return context.program->getOperator({left_type.get(), right_type.get()}, operator_str_map.at(std::string(O)),
+			getLocation());
+	}
 };
 
 template <fixstr::fixed_string O>

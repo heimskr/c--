@@ -401,7 +401,7 @@ std::ostream & operator<<(std::ostream &os, const Expr &expr) {
 void PlusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
 	auto left_type = left->getType(context), right_type = right->getType(context);
-	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_PLUS, getLocation())) {
+	if (auto fnptr = getOperator(context)) {
 		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr left_var = function.newVar(), right_var = function.newVar();
@@ -438,6 +438,8 @@ std::optional<ssize_t> PlusExpr::evaluate(const Context &context) const {
 }
 
 std::unique_ptr<Type> PlusExpr::getType(const Context &context) const {
+	if (auto fnptr = getOperator(context))
+		return std::unique_ptr<Type>(fnptr->returnType->copy());
 	auto left_type = left->getType(context), right_type = right->getType(context);
 	if (left_type->isPointer() && right_type->isInt())
 		return left_type;
@@ -1149,7 +1151,8 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 		argument->compile(argument_register, fn, scope);
 		try {
 			typeCheck(*argument_type, get_arg_type(i), argument_register, fn, argument->getLocation());
-		} catch (std::out_of_range &err) {
+		} catch (ImplicitConversionError &) {
+			error() << "expr_type[" << *argument_type << "], var_type[" << get_arg_type(i) << "], argument[" << *argument << "]\n";
 			std::cerr << "\e[31mBad function argument at " << argument->getLocation() << "\e[39m\n";
 			throw;
 		}
