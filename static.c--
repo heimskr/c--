@@ -1,13 +1,13 @@
 #name "Static Methods"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "1.0"
+#version "2.0"
 
 struct Foo {
 	u8 ch;
 	void print();
 	static void create(%Foo* out);
-	static u8 const *str = "Hello!";
+	static u8 const *str = "Hello!\n";
 	static s64 empty;
 };
 
@@ -17,7 +17,7 @@ static void Foo::create(%Foo* out) {
 
 void Foo::print() {
 	`c(this->ch);
-	`c('\n');
+	`c(' ');
 	`u64(sizeof(%Foo));
 	`c('\n');
 }
@@ -26,4 +26,10 @@ void main() {
 	%Foo foo;
 	%Foo::create(&foo);
 	foo::print();
+	`s(%Foo::str);
+	`ptr(&%Foo::str);
+	`c('\n');
+	%Foo::str = "Goodbye!\n";
+	`s(%Foo::str);
+
 }

@@ -1,6 +1,5 @@
 - Enums
 - Default destructors
 - References
-- Static fields
 - Pointers to struct methods
 - Operator overloading

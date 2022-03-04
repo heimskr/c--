@@ -136,7 +136,7 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 									throw NameConflictError(field_name, child->location);
 								auto type = TypePtr(Type::get(*child->front(), out));
 								const std::string mangled = Util::mangleStaticField(struct_name, type, field_name);
-								statics.emplace(mangled, type);
+								statics.emplace(field_name, type);
 								GlobalPtr global;
 								if (child->size() == 1) {
 									global = std::make_shared<Global>(mangled, type, nullptr);

@@ -321,6 +321,9 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			out = new InitializerExpr(std::move(exprs), node.attributes.count("constructor") != 0);
 			break;
 		}
+		case CMMTOK_SCOPE:
+			out = new StaticFieldExpr(*node.front()->front()->text, *node.at(1)->text);
+			break;
 		default:
 			throw GenericError(node.location, "Unrecognized symbol in Expr::get: " +
 				std::string(cmmParser.getName(node.symbol)));
@@ -733,10 +736,6 @@ void VregExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_
 	}
 }
 
-bool VregExpr::compileAddress(VregPtr, Function &, ScopePtr) {
-	return false;
-}
-
 size_t VregExpr::getSize(const Context &) const {
 	if (!virtualRegister->type)
 		return 8;
@@ -818,9 +817,8 @@ void AddressOfExpr::compile(VregPtr destination, Function &function, ScopePtr sc
 }
 
 std::unique_ptr<Type> AddressOfExpr::getType(const Context &context) const {
-	if (!subexpr->is<VariableExpr>() && !subexpr->is<DerefExpr>() && !subexpr->is<AccessExpr>())
-		if (!subexpr->is<ArrowExpr>() && !subexpr->is<DotExpr>())
-			throw LvalueError(*subexpr);
+	if (!subexpr->isLvalue())
+		throw LvalueError(*subexpr);
 	auto subexpr_type = subexpr->getType(context.scope);
 	auto out = std::make_unique<PointerType>(subexpr_type->copy());
 	out->subtype->setConst(subexpr_type->isConst);
@@ -850,12 +848,6 @@ void StringExpr::compile(VregPtr destination, Function &function, ScopePtr, ssiz
 
 std::unique_ptr<Type> StringExpr::getType(const Context &) const {
 	return std::make_unique<PointerType>((new UnsignedType(8))->setConst(true));
-}
-
-bool StringExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
-	// TODO: is this correct?
-	compile(destination, function, scope, 1);
-	return true;
 }
 
 std::string StringExpr::getID(Program &program) const {
@@ -1662,4 +1654,53 @@ FunctionPtr NewExpr::findFunction(const Context &context) const {
 	for (const auto &expr: arguments)
 		arg_types.push_back(expr->getType(context));
 	return context.scope->lookupFunction("$c", arg_types, context.structName, getLocation());
+}
+
+StaticFieldExpr::StaticFieldExpr(const std::string &struct_name, const std::string &field_name):
+	structName(struct_name), fieldName(field_name) {}
+
+Expr * StaticFieldExpr::copy() const {
+	return (new StaticFieldExpr(structName, fieldName))->setDebug(debug);
+}
+
+void StaticFieldExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
+	function.add<LoadIInstruction>(destination, mangle(scope), getSize(scope));
+	if (multiplier != 1)
+		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+}
+
+bool StaticFieldExpr::compileAddress(VregPtr destination, Function &function, ScopePtr scope) {
+	function.add<SetIInstruction>(destination, mangle(scope));
+	return true;
+}
+
+StaticFieldExpr::operator std::string() const {
+	return "%" + structName + "::" + fieldName;
+}
+
+size_t StaticFieldExpr::getSize(const Context &context) const {
+	return getType(context)->getSize();
+}
+
+std::unique_ptr<Type> StaticFieldExpr::getType(const Context &context) const {
+	const auto &statics = getStruct(context.scope)->getStatics();
+	if (statics.count(fieldName) == 0)
+		throw ResolutionError(fieldName, {context.scope, structName}, getLocation());
+	return std::unique_ptr<Type>(statics.at(fieldName)->copy());
+}
+
+std::shared_ptr<StructType> StaticFieldExpr::getStruct(ScopePtr scope) const {
+	auto type = scope->lookupType(structName);
+	if (!type)
+		throw ResolutionError(structName, scope, getLocation());
+	if (auto struct_type = type->ptrcast<StructType>())
+		return struct_type;
+	throw NotStructError(type, getLocation());
+}
+
+std::string StaticFieldExpr::mangle(ScopePtr scope) const {
+	const auto &statics = getStruct(scope)->getStatics();
+	if (statics.count(fieldName) == 0)
+		throw ResolutionError(fieldName, {scope, structName}, getLocation());
+	return Util::mangleStaticField(structName, statics.at(fieldName), fieldName);
 }

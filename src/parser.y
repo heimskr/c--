@@ -282,6 +282,7 @@ expr: expr "&&"  expr { $$ = $2->adopt({$1, $3}); }
     | "[" _exprlist "]" { $$ = $2; $$->symbol = CMM_INITIALIZER; D($1, $3); }
     | "%" "[" _exprlist "]" { $$ = $3; $$->symbol = CMM_INITIALIZER; $$->attributes.insert("constructor"); D($1, $2, $4); }
     | "new" new_type "(" _exprlist ")" %prec "new" { $$ = $1->adopt({$2, $4}); D($3, $5); }
+    | struct_type "::" CMMTOK_IDENT { $$ = $2->adopt({$1, $3}); }
     | "null";
 
 string: CMMTOK_STRING;
