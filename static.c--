@@ -1,15 +1,16 @@
 #name "Static Methods"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "0.1"
+#version "1.0"
 
 struct Foo {
 	u8 ch;
 	void print();
-	static void new(%Foo* out);
+	static void create(%Foo* out);
+	static u8 const *str = "Hello!";
 };
 
-static void Foo::new(%Foo* out) {
+static void Foo::create(%Foo* out) {
 	out->ch = '*';
 }
 
@@ -22,6 +23,6 @@ void Foo::print() {
 
 void main() {
 	%Foo foo;
-	%Foo::new(&foo);
+	%Foo::create(&foo);
 	foo::print();
 }

@@ -1307,6 +1307,7 @@ void Function::closeScope() {
 
 void Function::setStructParent(std::shared_ptr<StructType> new_struct_parent, bool is_static) {
 	structParent = new_struct_parent;
+	isStatic = is_static;
 	if (!is_static && !thisAdded) {
 		thisAdded = true;
 		const std::string &struct_name = structParent->name;
