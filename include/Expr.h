@@ -15,6 +15,7 @@
 #include "Function.h"
 #include "Global.h"
 #include "Makeable.h"
+#include "Program.h"
 #include "Scope.h"
 #include "Type.h"
 #include "Util.h"
@@ -450,23 +451,32 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 		TypePtr left_type = this->left->getType(scope);
 		if (left_type->isConst)
 			throw ConstError("Can't assign", *left_type, this->getLocation());
-		auto temp_var = function.newVar();
-		if (!destination)
-			destination = function.newVar();
-		this->left->compile(destination, function, scope);
-		this->right->compile(temp_var, function, scope);
-		if (this->left->getType(scope)->isUnsigned())
-			function.add<RU>(destination, temp_var, destination)->setDebug(*this);
-		else
-			function.add<RS>(destination, temp_var, destination)->setDebug(*this);
-		TypePtr right_type = this->right->getType(scope);
-		if (!tryCast(*right_type, *left_type, destination, function, this->getLocation()))
-			throw ImplicitConversionError(right_type, left_type, this->getLocation());
-		if (!this->left->compileAddress(temp_var, function, scope))
-			throw LvalueError(*this->left->getType(scope), this->getLocation());
-		function.add<StoreRInstruction>(destination, temp_var, getSize(scope))->setDebug(*this);
-		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+		auto left_ptr = std::make_shared<PointerType>(left_type->copy());
+		auto right_type = this->right->getType(scope);
+		if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()},
+		                                              operator_str_map.at(std::string(O)), this->getLocation())) {
+			auto addrof = std::make_unique<AddressOfExpr>(this->left->copy());
+			compileCall(destination, function, scope, fnptr, {addrof.get(), this->right.get()}, this->getLocation(),
+			            multiplier);
+		} else {
+			auto temp_var = function.newVar();
+			if (!destination)
+				destination = function.newVar();
+			this->left->compile(destination, function, scope);
+			this->right->compile(temp_var, function, scope);
+			if (this->left->getType(scope)->isUnsigned())
+				function.add<RU>(destination, temp_var, destination)->setDebug(*this);
+			else
+				function.add<RS>(destination, temp_var, destination)->setDebug(*this);
+			TypePtr right_type = this->right->getType(scope);
+			if (!tryCast(*right_type, *left_type, destination, function, this->getLocation()))
+				throw ImplicitConversionError(right_type, left_type, this->getLocation());
+			if (!this->left->compileAddress(temp_var, function, scope))
+				throw LvalueError(*this->left->getType(scope), this->getLocation());
+			function.add<StoreRInstruction>(destination, temp_var, getSize(scope))->setDebug(*this);
+			if (multiplier != 1)
+				function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+		}
 	}
 	size_t getSize(const Context &context) const override {
 		return this->left->getSize(context);

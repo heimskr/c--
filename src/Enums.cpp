@@ -18,10 +18,14 @@ std::unordered_map<int, std::string> operator_map {
 	{CMMTOK_PLUSPLUS, "pp"}, {CMMTOK_MINUSMINUS, "mm"}, {CMM_POSTPLUS, "Pp"}, {CMM_POSTMINUS, "Mm"}, {CMMTOK_HASH, "ha"}
 };
 
-std::unordered_map<std::string, std::string> operator_str_map {
-	{"+",  "pl"}, {"-",   "mi"}, {"*",  "ti"}, {"/",   "di"}, {"%",   "mo"}, {"&",   "an"}, {"|",   "or"}, {"^",  "xo"},
-	{"!",  "nt"}, {"~",   "td"}, {"&&", "la"}, {"||",  "lo"}, {"^^",  "lx"}, {"<<",  "ls"}, {">>",  "rs"}, {"<",  "lt"},
-	{">",  "gt"}, {"<=",  "le"}, {">=", "ge"}, {"==",  "eq"}, {"!=",  "ne"}, {"=",   "as"}, {"->",  "ar"}, {"+=", "Pl"},
-	{"-=", "Mi"}, {">>=", "Rs"}, {"%=", "Mo"}, {"<<=", "Ls"}, {"/=",  "Di"}, {"*=",  "Ti"}, {"&=",  "An"}, {"|=", "Or"},
-	{"^=", "Xo"}, {"[",   "ac"}, {"(",  "ca"}, {"++.", "pp"}, {"--.", "mm"}, {".++", "Pp"}, {".--", "Mm"}, {"#",  "ha"}
+std::unordered_map<std::string, int> operator_str_map {
+	{"+",   CMMTOK_PLUS},  {"-",  CMMTOK_MINUS},  {"*",   CMMTOK_TIMES}, {"/",  CMMTOK_DIV},    {"%",  CMMTOK_MOD},
+	{"&",   CMMTOK_AND},   {"|",  CMMTOK_OR},     {"^",   CMMTOK_XOR},   {"!",  CMMTOK_NOT},    {"~",  CMMTOK_TILDE},
+	{"&&",  CMMTOK_LAND},  {"||", CMMTOK_LOR},    {"^^",  CMMTOK_LXOR},  {"<<", CMMTOK_LSHIFT}, {">>", CMMTOK_RSHIFT},
+	{"<",   CMMTOK_LT},    {">",  CMMTOK_GT},     {"<=",  CMMTOK_LTE},   {">=", CMMTOK_GTE},    {"==", CMMTOK_DEQ},
+	{"!=",  CMMTOK_NEQ},   {"=",  CMMTOK_ASSIGN}, {"->",  CMMTOK_ARROW}, {"+=", CMMTOK_PLUSEQ}, {"-=", CMMTOK_MINUSEQ},
+	{">>=", CMMTOK_SREQ},  {"%=", CMMTOK_MODEQ},  {"<<=", CMMTOK_SLEQ},  {"/=", CMMTOK_DIVEQ},  {"*=", CMMTOK_TIMESEQ},
+	{"&=",  CMMTOK_ANDEQ}, {"|=", CMMTOK_OREQ},   {"^=",  CMMTOK_XOREQ}, {"[",  CMM_ACCESS},    {"(",  CMMTOK_LPAREN},
+	{"++.", CMMTOK_PLUSPLUS}, {"--.", CMMTOK_MINUSMINUS}, {".++", CMM_POSTPLUS}, {".--", CMM_POSTMINUS},
+	{"#",   CMMTOK_HASH}
 };
