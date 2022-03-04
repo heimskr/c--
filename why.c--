@@ -305,9 +305,8 @@ void String::debug() #const {
 }
 
 void String::pop() {
-	if (this->size == 0u64)
-		return;
-	this->data[--this->size] = '\0';
+	if (this->size != 0u64)
+		this->data[--this->size] = '\0';
 }
 
 void String::clear() {
@@ -368,6 +367,9 @@ void mkstring(u8 *data) {
 	p("[["); bar::print(); p("]]\n");
 	bar::$d();
 	free(bar);
+	bar = new %String("there");
+	p("[["); bar::print(); p("]]\n");
+	delete bar;
 }
 
 void String::print() {

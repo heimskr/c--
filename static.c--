@@ -31,5 +31,4 @@ void main() {
 	`c('\n');
 	%Foo::str = "Goodbye!\n";
 	`s(%Foo::str);
-
 }
