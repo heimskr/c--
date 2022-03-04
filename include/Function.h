@@ -87,7 +87,7 @@ class Function: public Makeable<Function> {
 
 		std::shared_ptr<Scope> newScope(int *id_out = nullptr);
 
-		VregPtr precolored(int reg);
+		VregPtr precolored(int reg, bool bypass = false);
 
 		size_t addToStack(VariablePtr);
 
@@ -181,6 +181,9 @@ class Function: public Makeable<Function> {
 		bool isDeclaredOnly() const;
 
 		bool isMatch(TypePtr return_type, const std::vector<TypePtr> &argument_types, const std::string &struct_name)
+			const;
+
+		bool isMatch(TypePtr return_type, const std::vector<Type *> &argument_types, const std::string &struct_name)
 			const;
 
 		TypePtr & getArgumentType(size_t) const;

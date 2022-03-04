@@ -70,8 +70,9 @@ struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 	}
 };
 
-using Argument = std::variant<ExprPtr, VregPtr>;
-void compileCall(VregPtr, Function &, ScopePtr, FunctionPtr, std::initializer_list<Argument>, const ASTLocation &);
+using Argument = std::variant<Expr *, VregPtr>;
+void compileCall(VregPtr, Function &, ScopePtr, FunctionPtr, std::initializer_list<Argument>, const ASTLocation &,
+                 size_t = 1);
 
 std::string stringify(const Expr *);
 

@@ -8,10 +8,10 @@ std::set<VregPtr> BasicBlock::gatherVariables() const {
 
 	for (const auto &instruction: instructions) {
 		for (const auto &read: instruction->getRead())
-			if (!read->is<Global>() && read->reg < 0)
+			if (!read->is<Global>() && read->getReg() < 0)
 				out.insert(read);
 		for (const auto &written: instruction->getWritten())
-			if (!written->is<Global>() && written->reg < 0)
+			if (!written->is<Global>() && written->getReg() < 0)
 				out.insert(written);
 	}
 

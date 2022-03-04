@@ -88,7 +88,7 @@ WASMBaseNode::WASMBaseNode(int sym): ASTNode(wasmParser, sym) {}
 
 VregPtr WASMInstructionNode::convertVariable(Function &function, VarMap &map, const std::string *name) {
 	if (registerMap.count(*name) != 0)
-		return function.precolored(registerMap.at(*name));
+		return function.precolored(registerMap.at(*name), true);
 	if (map.count(*name) == 0) {
 		throw std::out_of_range("Placeholder not in map: " + *name);
 	} else {

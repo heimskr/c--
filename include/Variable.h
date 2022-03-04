@@ -15,26 +15,31 @@ struct Type;
 struct WhyInstruction;
 
 struct VirtualRegister: Checkable, std::enable_shared_from_this<VirtualRegister> {
-	Function *function = nullptr;
-	int id;
-	int reg = -1;
-	bool precolored = false;
-	std::shared_ptr<Type> type;
+	private:
+		int reg = -1;
 
-	VirtualRegister(Function &, std::shared_ptr<Type> = nullptr);
-	VirtualRegister(int id_, std::shared_ptr<Type> = nullptr);
-	std::shared_ptr<VirtualRegister> init();
+	public:
+		Function *function = nullptr;
+		int id;
+		bool precolored = false;
+		std::shared_ptr<Type> type;
 
-	virtual ~VirtualRegister() {}
+		VirtualRegister(Function &, std::shared_ptr<Type> = nullptr);
+		VirtualRegister(int id_, std::shared_ptr<Type> = nullptr);
+		std::shared_ptr<VirtualRegister> init();
 
-	std::string regOrID(bool colored = false) const;
-	bool special() const;
+		virtual ~VirtualRegister() {}
 
-	WeakSet<BasicBlock> readingBlocks, writingBlocks;
-	WeakSet<WhyInstruction> readers, writers;
+		std::string regOrID(bool colored = false) const;
+		bool special() const;
 
-	size_t getSize() const;
-	virtual operator std::string() const { return regOrID(true); }
+		WeakSet<BasicBlock> readingBlocks, writingBlocks;
+		WeakSet<WhyInstruction> readers, writers;
+
+		size_t getSize() const;
+		virtual operator std::string() const { return regOrID(true); }
+		VirtualRegister & setReg(int, bool bypass = false);
+		int getReg() const { return reg; }
 };
 
 struct Variable: VirtualRegister, Makeable<Variable> {

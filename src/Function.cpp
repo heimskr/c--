@@ -125,7 +125,7 @@ void Function::setArguments(const std::vector<std::pair<std::string, TypePtr>> &
 		argument->init();
 		argumentMap.emplace(argument_name, argument);
 		if (i < Why::argumentCount) {
-			argument->reg = Why::argumentOffset + i;
+			argument->setReg(Why::argumentOffset + i);
 		} else
 			throw GenericError(getLocation(), "Functions with greater than " + std::to_string(Why::argumentCount) +
 				" arguments are currently unsupported.");
@@ -199,7 +199,6 @@ void Function::compile() {
 
 		auto rt = precolored(Why::returnAddressOffset);
 
-
 		if (!is_init) {
 			closeScope();
 			auto gp_regs = usedGPRegisters();
@@ -235,11 +234,11 @@ std::set<int> Function::usedGPRegisters() const {
 	std::set<int> out;
 	for (const auto &instruction: instructions) {
 		for (const auto &var: instruction->getRead())
-			if (Why::isGeneralPurpose(var->reg))
-				out.insert(var->reg);
+			if (Why::isGeneralPurpose(var->getReg()))
+				out.insert(var->getReg());
 		for (const auto &var: instruction->getWritten())
-			if (Why::isGeneralPurpose(var->reg))
-				out.insert(var->reg);
+			if (Why::isGeneralPurpose(var->getReg()))
+				out.insert(var->getReg());
 	}
 	return out;
 }
@@ -257,9 +256,9 @@ ScopePtr Function::newScope(int *id_out) {
 	return new_scope;
 }
 
-VregPtr Function::precolored(int reg) {
+VregPtr Function::precolored(int reg, bool bypass) {
 	auto out = std::make_shared<VirtualRegister>(*this)->init();
-	out->reg = reg;
+	out->setReg(reg, bypass);
 	out->precolored = true;
 	return out;
 }
@@ -1238,6 +1237,15 @@ bool Function::isDeclaredOnly() const {
 }
 
 bool Function::isMatch(TypePtr return_type, const std::vector<TypePtr> &argument_types, const std::string &struct_name)
+const {
+	std::vector<Type *> raw_pointers;
+	for (const auto &type: argument_types)
+		raw_pointers.push_back(type.get());
+
+	return isMatch(return_type, raw_pointers, struct_name);
+}
+
+bool Function::isMatch(TypePtr return_type, const std::vector<Type *> &argument_types, const std::string &struct_name)
 const {
 	if (return_type && *returnType != *return_type)
 		return false;

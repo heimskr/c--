@@ -45,8 +45,8 @@ ColoringAllocator::Result ColoringAllocator::attempt() {
 
 	for (const std::pair<const std::string, Node *> &pair: interference) {
 		VregPtr ptr = pair.second->get<VregPtr>();
-		if (ptr->reg == -1)
-			ptr->reg = *pair.second->colors.begin();
+		if (ptr->getReg() == -1)
+			ptr->setReg(*pair.second->colors.begin());
 	}
 
 	return Result::Success;
@@ -57,7 +57,7 @@ VregPtr ColoringAllocator::selectMostLive(int *liveness_out) const {
 	VregPtr ptr;
 	int highest = -1;
 	for (const auto &var: function.virtualRegisters) {
-		if (Why::isSpecialPurpose(var->reg) || !function.canSpill(var))
+		if (Why::isSpecialPurpose(var->getReg()) || !function.canSpill(var))
 			continue;
 
 		const int sum = function.getLiveIn(var).size() + function.getLiveOut(var).size();
@@ -87,7 +87,7 @@ void ColoringAllocator::makeInterferenceGraph() {
 	size_t links = 0;
 
 	for (const auto &var: function.virtualRegisters) {
-		if (var->reg == -1) {
+		if (var->getReg() == -1) {
 			const std::string id = std::to_string(var->id);
 			if (!interference.hasLabel(id)) {
 				Node &node = interference.addNode(id);
@@ -107,7 +107,7 @@ void ColoringAllocator::makeInterferenceGraph() {
 
 	for (const auto &var: function.virtualRegisters) {
 		const int id = var->id;
-		if (var->reg != -1)
+		if (var->getReg() != -1)
 			continue;
 		for (const std::weak_ptr<BasicBlock> &bptr: var->writingBlocks) {
 			const auto index = bptr.lock()->index;
@@ -130,14 +130,14 @@ void ColoringAllocator::makeInterferenceGraph() {
 		auto &set = sets[block->index];
 		for (const VregPtr &var: block->liveIn) {
 			const int id = var->id;
-			if (var->reg == -1 && set.count(id) == 0) {
+			if (var->getReg() == -1 && set.count(id) == 0) {
 				vec.push_back(id);
 				set.insert(id);
 			}
 		}
 		for (const VregPtr &var: block->liveOut) {
 			const int id = var->id;
-			if (var->reg == -1 && set.count(id) == 0) {
+			if (var->getReg() == -1 && set.count(id) == 0) {
 				vec.push_back(id);
 				set.insert(id);
 			}

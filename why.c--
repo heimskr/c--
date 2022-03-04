@@ -131,6 +131,10 @@ void int_keybrd_(u64 key_full) {
 				mkstring(input.data);
 			} else if (first::eq("noisy")) {
 				%Noisy noisy = [42];
+			} else if (first::eq("+")) {
+				%String *combined = split::at(1u64) + split::at(2u64);
+				combined::print(); l();
+				delete combined;
 			} else {
 				p("Unknown command: \"");
 				first::print();
@@ -360,6 +364,7 @@ void String::init(u8 const *data) {
 }
 
 %String * operator+(%String *left, %String *right) {
+	p("operator+(%String *, %String *)\n");
 	%String *out = new %String(left);
 	out::append(right);
 	return out;

@@ -15,10 +15,8 @@
 #include "Scope.h"
 #include "WhyInstructions.h"
 
-using Argument = std::variant<ExprPtr, VregPtr>;
-
 void compileCall(VregPtr destination, Function &function, ScopePtr scope, FunctionPtr fnptr,
-                 std::initializer_list<Argument> arguments, const ASTLocation &location) {
+                 std::initializer_list<Argument> arguments, const ASTLocation &location, size_t multiplier) {
 	if (arguments.size() != fnptr->argumentCount())
 		throw GenericError(location, "Invalid number of arguments in call to " + fnptr->name + " at " +
 			std::string(location) + ": " + std::to_string(arguments.size()) + " (expected " +
@@ -32,10 +30,10 @@ void compileCall(VregPtr destination, Function &function, ScopePtr scope, Functi
 	size_t i = 0;
 
 	for (const auto &argument: arguments) {
-		auto argument_register = function.precolored(i);
+		auto argument_register = function.precolored(Why::argumentOffset + i);
 		auto &fn_arg_type = *fnptr->getArgumentType(i);
-		if (std::holds_alternative<ExprPtr>(argument)) {
-			auto expr = std::get<ExprPtr>(argument);
+		if (std::holds_alternative<Expr *>(argument)) {
+			auto expr = std::get<Expr *>(argument);
 			auto argument_type = expr->getType(scope);
 			if (argument_type->isStruct())
 				throw GenericError(expr->getLocation(), "Structs cannot be directly passed to functions; "
@@ -67,8 +65,13 @@ void compileCall(VregPtr destination, Function &function, ScopePtr scope, Functi
 	for (size_t i = arguments.size(); 0 < i; --i)
 		function.add<StackPopInstruction>(function.precolored(Why::argumentOffset + i - 1))->setDebug(debug);
 
-	if (!fnptr->returnType->isVoid() && destination)
-		function.add<MoveInstruction>(function.precolored(Why::returnValueOffset), destination)->setDebug(debug);
+	if (!fnptr->returnType->isVoid() && destination) {
+		auto r0 = function.precolored(Why::returnValueOffset);
+		if (multiplier == 1)
+			function.add<MoveInstruction>(r0, destination)->setDebug(debug);
+		else
+			function.add<MultIInstruction>(r0, destination, multiplier)->setDebug(debug);
+	}
 }
 
 std::string stringify(const Expr *expr) {
@@ -396,29 +399,33 @@ std::ostream & operator<<(std::ostream &os, const Expr &expr) {
 }
 
 void PlusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	VregPtr left_var = function.newVar(), right_var = function.newVar();
 	auto left_type = left->getType(scope), right_type = right->getType(scope);
-
-	if (left_type->isPointer() && right_type->isInt()) {
-		if (multiplier != 1)
-			throw GenericError(getLocation(), "Cannot multiply in pointer arithmetic PlusExpr");
-		auto *left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
-		left->compile(left_var, function, scope, 1);
-		right->compile(right_var, function, scope, left_subtype->getSize());
-	} else if (left_type->isInt() && right_type->isPointer()) {
-		if (multiplier != 1)
-			throw GenericError(getLocation(), "Cannot multiply in pointer arithmetic PlusExpr");
-		auto *right_subtype = dynamic_cast<PointerType &>(*right_type).subtype;
-		left->compile(left_var, function, scope, right_subtype->getSize());
-		right->compile(right_var, function, scope, 1);
-	} else if (!(*left_type && *right_type)) {
-		throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()), getLocation());
+	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_PLUS, getLocation())) {
+		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
-		left->compile(left_var, function, scope);
-		right->compile(right_var, function, scope);
-	}
+		VregPtr left_var = function.newVar(), right_var = function.newVar();
 
-	function.add<AddRInstruction>(left_var, right_var, destination)->setDebug(*this);
+		if (left_type->isPointer() && right_type->isInt()) {
+			if (multiplier != 1)
+				throw GenericError(getLocation(), "Cannot multiply in pointer arithmetic PlusExpr");
+			auto *left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
+			left->compile(left_var, function, scope, 1);
+			right->compile(right_var, function, scope, left_subtype->getSize());
+		} else if (left_type->isInt() && right_type->isPointer()) {
+			if (multiplier != 1)
+				throw GenericError(getLocation(), "Cannot multiply in pointer arithmetic PlusExpr");
+			auto *right_subtype = dynamic_cast<PointerType &>(*right_type).subtype;
+			left->compile(left_var, function, scope, right_subtype->getSize());
+			right->compile(right_var, function, scope, 1);
+		} else if (!(*left_type && *right_type)) {
+			throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()), getLocation());
+		} else {
+			left->compile(left_var, function, scope, multiplier);
+			right->compile(right_var, function, scope, multiplier);
+		}
+
+		function.add<AddRInstruction>(left_var, right_var, destination)->setDebug(*this);
+	}
 }
 
 std::optional<ssize_t> PlusExpr::evaluate(ScopePtr scope) const {

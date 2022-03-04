@@ -369,7 +369,7 @@ size_t Program::getStringID(const std::string &str) {
 	return stringIDs[str] = stringIDs.size();
 }
 
-FunctionPtr Program::getOperator(const std::vector<TypePtr> &types, int oper, const ASTLocation &location) const {
+FunctionPtr Program::getOperator(const std::vector<Type *> &types, int oper, const ASTLocation &location) const {
 	if (operators.count(oper) == 0)
 		return nullptr;
 

@@ -31,6 +31,13 @@ size_t VirtualRegister::getSize() const {
 	return type->getSize();
 }
 
+VirtualRegister & VirtualRegister::setReg(int new_reg, bool bypass) {
+	if (!bypass && (new_reg == 0 || new_reg == 1))
+		throw std::out_of_range("Invalid register: " + std::to_string(new_reg));
+	reg = new_reg;
+	return *this;
+}
+
 Variable::Variable(const std::string &name_, std::shared_ptr<Type> type_, Function &function_):
 	VirtualRegister(function_, type_), name(name_) {}
 
