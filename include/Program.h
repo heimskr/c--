@@ -43,6 +43,8 @@ struct Program {
 
 	void compile();
 	size_t getStringID(const std::string &);
+
+	FunctionPtr getOperator(const std::vector<TypePtr> &, int, const ASTLocation & = {}) const;
 };
 
 Program compileRoot(const ASTNode &, const std::string &filename);

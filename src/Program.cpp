@@ -1,6 +1,7 @@
 #include "ASTNode.h"
 #include "Casting.h"
 #include "Enums.h"
+#include "Errors.h"
 #include "Expr.h"
 #include "Lexer.h"
 #include "Parser.h"
@@ -366,4 +367,32 @@ size_t Program::getStringID(const std::string &str) {
 	if (stringIDs.count(str) != 0)
 		return stringIDs.at(str);
 	return stringIDs[str] = stringIDs.size();
+}
+
+FunctionPtr Program::getOperator(const std::vector<TypePtr> &types, int oper, const ASTLocation &location) const {
+	if (operators.count(oper) == 0)
+		return nullptr;
+
+	std::vector<FunctionPtr> candidates;
+
+	auto [begin, end] = operators.equal_range(oper);
+	for (auto iter = begin; iter != end; ++iter)
+		if (iter->second->isMatch(nullptr, types, ""))
+			candidates.push_back(iter->second);
+
+	if (candidates.empty())
+		return nullptr;
+
+	if (candidates.size() == 1)
+		return candidates.front();
+
+	std::stringstream error;
+	error << "Multiple results found for " << Util::getOperator(oper) << '(';
+	for (size_t i = 0, max = types.size(); i < max; ++i) {
+		if (i != 0)
+			error << ", ";
+		error << *types.at(i);
+	}
+	error << ')';
+	throw AmbiguousError(location, error.str());
 }
