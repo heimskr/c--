@@ -294,8 +294,16 @@ FunctionPointerType::FunctionPointerType(const Function &function): returnType(f
 StructType::StructType(const Program &program_, const std::string &name_):
 	program(program_), name(name_), isForwardDeclaration(true) {}
 
-StructType::StructType(const Program &program_, const std::string &name_, const decltype(order) &order_):
-order(order_), program(program_), name(name_) {
+StructType::StructType(const Program &program_, const std::string &name_, const decltype(order) &order_,
+                       const decltype(statics) &statics_):
+order(order_), statics(statics_), program(program_), name(name_) {
+	for (const auto &pair: order_)
+		map.insert(pair);
+}
+
+StructType::StructType(const Program &program_, const std::string &name_, decltype(order) &&order_,
+                       decltype(statics) &&statics_):
+order(std::move(order_)), statics(std::move(statics_)), program(program_), name(name_) {
 	for (const auto &pair: order_)
 		map.insert(pair);
 }
@@ -303,10 +311,7 @@ order(order_), program(program_), name(name_) {
 Type * StructType::copy() const {
 	if (isForwardDeclaration)
 		return new StructType(program, name);
-	decltype(order) order_copy;
-	for (const auto &[field_name, field_type]: order)
-		order_copy.emplace_back(field_name, TypePtr(field_type->copy()));
-	auto *out = new StructType(program, name, order_copy);
+	auto *out = new StructType(program, name, getOrder(), getStatics());
 	out->setConst(isConst);
 	out->destructor = destructor;
 	return out;
@@ -367,6 +372,16 @@ const decltype(StructType::map) & StructType::getMap() const {
 	}
 
 	return map;
+}
+
+const decltype(StructType::statics) & StructType::getStatics() const {
+	if (isForwardDeclaration) {
+		if (program.structs.count(name) == 0)
+			throw IncompleteStructError(name);
+		return program.structs.at(name)->statics;
+	}
+
+	return statics;
 }
 
 FunctionPtr StructType::getDestructor() const {

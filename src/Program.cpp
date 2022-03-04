@@ -121,11 +121,34 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 					out.forwardDeclarations.insert(struct_name);
 				} else {
 					std::vector<std::pair<std::string, TypePtr>> order;
+					std::map<std::string, TypePtr> statics;
+					std::unordered_set<std::string> field_names;
 					for (const ASTNode *child: *node->at(1))
-						if (child->symbol != CMM_FNDECL && child->symbol != CMMTOK_TILDE)
-							order.emplace_back(*child->text, Type::get(*child->front(), out));
-					auto struct_type = out.structs.emplace(struct_name, StructType::make(out, struct_name, order))
-						.first->second;
+						if (child->symbol == CMMTOK_IDENT) {
+							const std::string &field_name = *child->text;
+							if (field_names.count(field_name) != 0)
+								throw NameConflictError(field_name, child->location);
+							field_names.insert(field_name);
+							if (child->attributes.count("static") == 0) {
+								order.emplace_back(field_name, Type::get(*child->front(), out));
+							} else {
+								if (out.globals.count(field_name) != 0)
+									throw NameConflictError(field_name, child->location);
+								auto type = TypePtr(Type::get(*child->front(), out));
+								const std::string mangled = Util::mangleStaticField(struct_name, type, field_name);
+								statics.emplace(mangled, type);
+								GlobalPtr global;
+								if (child->size() == 1) {
+									global = std::make_shared<Global>(mangled, type, nullptr);
+								} else {
+									auto expr = ExprPtr(Expr::get(*child->at(1), init.get()));
+									global = std::make_shared<Global>(mangled, type, expr);
+								}
+								out.globalOrder.push_back(out.globals.emplace(mangled, global).first);
+							}
+						}
+					auto struct_type = out.structs.emplace(struct_name, StructType::make(out, struct_name,
+						std::move(order), std::move(statics))).first->second;
 					for (const ASTNode *child: *node->at(1))
 						if (child->symbol == CMM_FNDECL) {
 							const std::string &name = *child->text;
@@ -154,7 +177,8 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 							out.signatures.try_emplace(mangled, VoidType::make(), Types());
 							out.functionDeclarations.emplace(mangled, fn);
 							out.bareFunctionDeclarations.emplace("$d", fn);
-						}
+						} else if (child->symbol != CMMTOK_IDENT)
+							child->debug();
 				}
 				break;
 			}
@@ -240,7 +264,7 @@ void Program::compile() {
 					expr->compile(vreg, *init, init_scope);
 					if (!tryCast(*expr_type, *type, vreg, *init, expr->getLocation()))
 						throw ImplicitConversionError(expr_type, type, expr->getLocation());
-					init->add<StoreIInstruction>(vreg, iter->first, size);
+					init->add<StoreIInstruction>(vreg, iter->first, size)->setDebug(*expr);
 				}
 			}
 		} else if (size == 1) {

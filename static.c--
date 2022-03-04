@@ -8,6 +8,7 @@ struct Foo {
 	void print();
 	static void create(%Foo* out);
 	static u8 const *str = "Hello!";
+	static s64 empty;
 };
 
 static void Foo::create(%Foo* out) {

@@ -181,6 +181,7 @@ class StructType: public Type, public Makeable<StructType> {
 	private:
 		std::map<std::string, TypePtr> map;
 		std::vector<std::pair<std::string, TypePtr>> order;
+		std::map<std::string, TypePtr> statics;
 
 	public:
 		const Program &program;
@@ -191,7 +192,8 @@ class StructType: public Type, public Makeable<StructType> {
 		WeakSet<Function> constructors;
 
 		StructType(const Program &, const std::string &name_);
-		StructType(const Program &, const std::string &name_, const decltype(order) &order_);
+		StructType(const Program &, const std::string &name_, const decltype(order) &, const decltype(statics) &);
+		StructType(const Program &, const std::string &name_, decltype(order) &&, decltype(statics) &&);
 		Type * copy() const override;
 		std::string mangle() const override { return "S" + std::to_string(name.size()) + name; }
 		size_t getSize() const override;
@@ -202,6 +204,7 @@ class StructType: public Type, public Makeable<StructType> {
 		size_t getFieldSize(const std::string &) const;
 		const decltype(order) & getOrder() const;
 		const decltype(map) & getMap() const;
+		const decltype(statics) & getStatics() const;
 		std::shared_ptr<Function> getDestructor() const;
 
 	protected:

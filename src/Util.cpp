@@ -7,6 +7,12 @@
 #include "Util.h"
 
 namespace Util {
+	std::string mangleStaticField(const std::string &struct_name, TypePtr type, const std::string &field) {
+		std::stringstream out;
+		out << ".f" << struct_name.size() << struct_name << type->mangle() << field.size() << field;
+		return out.str();
+	}
+
 	std::string getSignature(std::shared_ptr<Type> ret, const std::vector<std::shared_ptr<Type>> &args) {
 		std::stringstream out;
 		if (ret)

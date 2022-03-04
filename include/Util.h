@@ -7,9 +7,11 @@
 #include <string>
 #include <vector>
 
+class StructType;
 struct Type;
 
 namespace Util {
+	std::string mangleStaticField(const std::string &struct_name, std::shared_ptr<Type>, const std::string &field);
 	std::string getSignature(std::shared_ptr<Type>, const std::vector<std::shared_ptr<Type>> &);
 	std::vector<std::string> split(const std::string &str, const std::string &delimiter, bool condense = true);
 	long parseLong(const std::string &, int base = 10);
