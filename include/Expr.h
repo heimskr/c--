@@ -67,7 +67,7 @@ struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 };
 
 using Argument = std::variant<Expr *, VregPtr>;
-void compileCall(VregPtr, Function &, ScopePtr, FunctionPtr, const std::vector<Argument> &, const ASTLocation &,
+void compileCall(VregPtr, Function &, const Context &, FunctionPtr, const std::vector<Argument> &, const ASTLocation &,
                  size_t = 1);
 
 std::string stringify(const Expr *);
@@ -147,7 +147,7 @@ struct CompExpr: BinaryExpr<O> {
 		if (auto fnptr = this->getOperator(context)) {
 			auto left_ptr = structToPointer(*this->left, context);
 			auto right_ptr = structToPointer(*this->right, context);
-			compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, this->getLocation(),
+			compileCall(destination, function, context, fnptr, {left_ptr.get(), right_ptr.get()}, this->getLocation(),
 				multiplier);
 		} else {
 			VregPtr temp_var = function.newVar();
@@ -480,7 +480,7 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 		if (auto fnptr = this->getOperator(context)) {
 			auto left_ptr = structToPointer(*this->left, context);
 			auto right_ptr = structToPointer(*this->right, context);
-			compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, this->getLocation(),
+			compileCall(destination, function, context, fnptr, {left_ptr.get(), right_ptr.get()}, this->getLocation(),
 				multiplier);
 		} else {
 			auto temp_var = function.newVar();
@@ -595,7 +595,7 @@ struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {
 		if (auto fnptr = this->getOperator(context)) {
 			auto pointer = AddressOfExpr::make(this->left->copy());
 			pointer->setDebug(this->left->getLocation());
-			compileCall(destination, function, scope, fnptr, {pointer.get(), this->right.get()}, this->getLocation(),
+			compileCall(destination, function, context, fnptr, {pointer.get(), this->right.get()}, this->getLocation(),
 			            multiplier);
 		} else {
 			auto temp_var = function.newVar();
@@ -680,7 +680,7 @@ struct PrefixExpr: Expr {
 		Context context(function.program, scope);
 		if (auto fnptr = getOperator(context)) {
 			auto sub_ptr = structToPointer(*this->subexpr, context);
-			compileCall(destination, function, scope, fnptr, {sub_ptr.get()}, getLocation(), multiplier);
+			compileCall(destination, function, context, fnptr, {sub_ptr.get()}, getLocation(), multiplier);
 		} else {
 			TypePtr subtype = subexpr->getType(context);
 			if (subtype->isConst)
@@ -739,7 +739,7 @@ struct PostfixExpr: Expr {
 		Context context(function.program, scope);
 		if (auto fnptr = getOperator(context)) {
 			auto sub_ptr = structToPointer(*this->subexpr, context);
-			compileCall(destination, function, scope, fnptr, {sub_ptr.get()}, getLocation(), multiplier);
+			compileCall(destination, function, context, fnptr, {sub_ptr.get()}, getLocation(), multiplier);
 		} else {
 			TypePtr subtype = subexpr->getType(context);
 			if (subtype->isConst)

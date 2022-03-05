@@ -15,7 +15,7 @@
 #include "Scope.h"
 #include "WhyInstructions.h"
 
-void compileCall(VregPtr destination, Function &function, ScopePtr scope, FunctionPtr fnptr,
+void compileCall(VregPtr destination, Function &function, const Context &context, FunctionPtr fnptr,
                  const std::vector<Argument> &arguments, const ASTLocation &location, size_t multiplier) {
 	if (arguments.size() != fnptr->argumentCount())
 		throw GenericError(location, "Invalid number of arguments in call to " + fnptr->name + " at " +
@@ -34,11 +34,11 @@ void compileCall(VregPtr destination, Function &function, ScopePtr scope, Functi
 		auto &fn_arg_type = *fnptr->getArgumentType(i);
 		if (std::holds_alternative<Expr *>(argument)) {
 			auto expr = std::get<Expr *>(argument);
-			auto argument_type = expr->getType({function.program, scope});
+			auto argument_type = expr->getType(context);
 			if (argument_type->isStruct())
 				throw GenericError(expr->getLocation(), "Structs cannot be directly passed to functions; "
 					"use a pointer");
-			expr->compile(argument_register, function, scope);
+			expr->compile(argument_register, function, context.scope);
 			try {
 				typeCheck(*argument_type, fn_arg_type, argument_register, function, expr->getLocation());
 			} catch (std::out_of_range &err) {
@@ -403,7 +403,8 @@ void PlusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 	if (auto fnptr = getOperator(context)) {
 		auto left_ptr = structToPointer(*left, context);
 		auto right_ptr = structToPointer(*right, context);
-		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
+		compileCall(destination, function, context, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(),
+			multiplier);
 	} else {
 		auto left_type = left->getType(context), right_type = right->getType(context);
 		VregPtr left_var = function.newVar(), right_var = function.newVar();
@@ -456,7 +457,7 @@ void MinusExpr::compile(VregPtr destination, Function &function, ScopePtr scope,
 	Context context(function.program, scope);
 	auto left_type = left->getType(context), right_type = right->getType(context);
 	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CPMTOK_MINUS, getLocation())) {
-		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr left_var = function.newVar(), right_var = function.newVar();
 		if (left_type->isPointer() && right_type->isInt()) {
@@ -498,7 +499,8 @@ void MultExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 	if (auto fnptr = getOperator({function.program, scope})) {
 		auto left_ptr = structToPointer(*left, context);
 		auto right_ptr = structToPointer(*right, context);
-		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
+		compileCall(destination, function, context, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(),
+			multiplier);
 	} else {
 		VregPtr left_var = function.newVar(), right_var = function.newVar();
 		left->compile(left_var, function, scope, 1);
@@ -513,7 +515,8 @@ void ShiftLeftExpr::compile(VregPtr destination, Function &function, ScopePtr sc
 	if (auto fnptr = getOperator({function.program, scope})) {
 		auto left_ptr = structToPointer(*left, context);
 		auto right_ptr = structToPointer(*right, context);
-		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
+		compileCall(destination, function, context, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(),
+			multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, scope, multiplier);
@@ -539,7 +542,8 @@ void ShiftRightExpr::compile(VregPtr destination, Function &function, ScopePtr s
 	if (auto fnptr = getOperator({function.program, scope})) {
 		auto left_ptr = structToPointer(*left, context);
 		auto right_ptr = structToPointer(*right, context);
-		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
+		compileCall(destination, function, context, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(),
+			multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, scope, multiplier);
@@ -571,7 +575,8 @@ void AndExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	if (auto fnptr = getOperator(context)) {
 		auto left_ptr = structToPointer(*left, context);
 		auto right_ptr = structToPointer(*right, context);
-		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
+		compileCall(destination, function, context, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(),
+			multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, scope);
@@ -599,7 +604,8 @@ void OrExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ss
 	if (auto fnptr = getOperator(context)) {
 		auto left_ptr = structToPointer(*left, context);
 		auto right_ptr = structToPointer(*right, context);
-		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
+		compileCall(destination, function, context, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(),
+			multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, scope);
@@ -627,7 +633,8 @@ void XorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	if (auto fnptr = getOperator(context)) {
 		auto left_ptr = structToPointer(*left, context);
 		auto right_ptr = structToPointer(*right, context);
-		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
+		compileCall(destination, function, context, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(),
+			multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, scope);
@@ -655,7 +662,8 @@ void LandExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 	if (auto fnptr = getOperator(context)) {
 		auto left_ptr = structToPointer(*left, context);
 		auto right_ptr = structToPointer(*right, context);
-		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
+		compileCall(destination, function, context, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(),
+			multiplier);
 	} else {
 		const std::string base = "." + function.name + "." + std::to_string(function.getNextBlock());
 		const std::string success = base + "land.s", end = base + "land.e";
@@ -684,7 +692,8 @@ void LorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	if (auto fnptr = getOperator(context)) {
 		auto left_ptr = structToPointer(*left, context);
 		auto right_ptr = structToPointer(*right, context);
-		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
+		compileCall(destination, function, context, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(),
+			multiplier);
 	} else {
 		const std::string success = "." + function.name + "." + std::to_string(function.getNextBlock()) + "lor.s";
 		left->compile(destination, function, scope);
@@ -709,7 +718,8 @@ void LxorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 	if (auto fnptr = getOperator(context)) {
 		auto left_ptr = structToPointer(*left, context);
 		auto right_ptr = structToPointer(*right, context);
-		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
+		compileCall(destination, function, context, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(),
+			multiplier);
 	} else {
 		auto temp_var = function.newVar();
 		left->compile(destination, function, scope);
@@ -733,7 +743,8 @@ void DivExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	if (auto fnptr = getOperator(context)) {
 		auto left_ptr = structToPointer(*left, context);
 		auto right_ptr = structToPointer(*right, context);
-		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
+		compileCall(destination, function, context, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(),
+			multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, scope, multiplier);
@@ -766,7 +777,8 @@ void ModExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CPMTOK_MOD, getLocation())) {
 		auto left_ptr = structToPointer(*left, context);
 		auto right_ptr = structToPointer(*right, context);
-		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
+		compileCall(destination, function, context, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(),
+			multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, scope, multiplier);
@@ -989,7 +1001,7 @@ void NotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	auto type = subexpr->getType(context);
 	if (auto fnptr = function.program.getOperator({type.get()}, CPMTOK_TILDE, getLocation())) {
 		auto subexpr_ptr = structToPointer(*subexpr, context);
-		compileCall(destination, function, scope, fnptr, {subexpr_ptr.get()}, getLocation(), multiplier);
+		compileCall(destination, function, context, fnptr, {subexpr_ptr.get()}, getLocation(), multiplier);
 	} else {
 		subexpr->compile(destination, function, scope);
 		function.add<NotRInstruction>(destination, destination)->setDebug(*this);
@@ -1010,7 +1022,7 @@ void LnotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 	auto type = subexpr->getType(context);
 	if (auto fnptr = function.program.getOperator({type.get()}, CPMTOK_NOT, getLocation())) {
 		auto subexpr_ptr = structToPointer(*subexpr, context);
-		compileCall(destination, function, scope, fnptr, {subexpr_ptr.get()}, getLocation(), multiplier);
+		compileCall(destination, function, context, fnptr, {subexpr_ptr.get()}, getLocation(), multiplier);
 	} else {
 		subexpr->compile(destination, function, scope);
 		function.add<LnotRInstruction>(destination, destination)->setDebug(*this);
@@ -1045,7 +1057,7 @@ void DerefExpr::compile(VregPtr destination, Function &function, ScopePtr scope,
 	Context context(function.program, scope);
 	if (auto fnptr = getOperator(context)) {
 		auto addrof = std::make_unique<AddressOfExpr>(subexpr->copy());
-		compileCall(destination, function, scope, fnptr, {addrof.get()}, getLocation(), multiplier);
+		compileCall(destination, function, context, fnptr, {addrof.get()}, getLocation(), multiplier);
 	} else {
 		checkType(context);
 		subexpr->compile(destination, function, scope, multiplier);
@@ -1106,7 +1118,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 			call_args.reserve(1 + arguments.size());
 			for (const auto &expr: call_exprs)
 				call_args.push_back(expr.get());
-			compileCall(destination, fn, scope, fnptr, call_args, getLocation(), multiplier);
+			compileCall(destination, fn, context, fnptr, call_args, getLocation(), multiplier);
 			return;
 		}
 	}
@@ -1202,12 +1214,12 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 		auto argument_register = fn.precolored(argument_offset + i);
 		auto argument_type = argument->getType(context);
 		if (argument_type->isStruct())
-			throw GenericError(argument->getLocation(), "Structs cannot be directly passed to functions; use a pointer");
+			throw GenericError(argument->getLocation(),
+				"Structs cannot be directly passed to functions; use a pointer");
 		argument->compile(argument_register, fn, scope);
 		try {
 			typeCheck(*argument_type, get_arg_type(i), argument_register, fn, argument->getLocation());
 		} catch (ImplicitConversionError &) {
-			error() << "expr_type[" << *argument_type << "], var_type[" << get_arg_type(i) << "], argument[" << *argument << "]\n";
 			std::cerr << "\e[31mBad function argument at " << argument->getLocation() << "\e[39m\n";
 			throw;
 		}
@@ -1320,7 +1332,7 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 	auto left_ptr = std::make_unique<PointerType>(left_type->copy());
 	if (auto fnptr = function.program.getOperator({left_ptr.get(), right_type.get()}, CPMTOK_ASSIGN, getLocation())) {
 		auto addrof = std::make_unique<AddressOfExpr>(left->copy());
-		compileCall(destination, function, scope, fnptr, {addrof.get(), right.get()}, getLocation(), multiplier);
+		compileCall(destination, function, context, fnptr, {addrof.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		auto addr_var = function.newVar();
 		if (!destination)
@@ -1392,7 +1404,7 @@ void AccessExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 		// TODO: verify both pointers and arrays
 		auto array_ptr = structToPointer(*array, context);
 		auto subscript_ptr = structToPointer(*subscript, context);
-		compileCall(destination, function, scope, fnptr, {array_ptr.get(), subscript_ptr.get()}, getLocation(),
+		compileCall(destination, function, context, fnptr, {array_ptr.get(), subscript_ptr.get()}, getLocation(),
 			multiplier);
 	} else {
 		TypePtr array_type = array->getType(context);
@@ -1473,7 +1485,7 @@ void LengthExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 	TypePtr type = subexpr->getType(context);
 	if (auto fnptr = function.program.getOperator({type.get()}, CPMTOK_HASH, getLocation())) {
 		auto subexpr_ptr = structToPointer(*subexpr, context);
-		compileCall(destination, function, scope, fnptr, {subexpr_ptr.get()}, getLocation(), multiplier);
+		compileCall(destination, function, context, fnptr, {subexpr_ptr.get()}, getLocation(), multiplier);
 	} else if (auto *array = type->cast<const ArrayType>()) {
 		function.add<SetIInstruction>(destination, array->count * multiplier)->setDebug(*this);
 	} else
