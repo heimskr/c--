@@ -1357,17 +1357,19 @@ std::unique_ptr<Type> CastExpr::getType(const Context &) const {
 
 void AccessExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
-	TypePtr array_type = array->getType(context);
-	if (auto casted = array_type->ptrcast<ArrayType>())
-		array_type = PointerType::make(casted->subtype->copy());
-	else if (!array_type->is<PointerType>())
-		fail();
 
-	auto subscript_type = subscript->getType(context);
-	if (auto fnptr = function.program.getOperator({array_type.get(), subscript_type.get()}, CPM_ACCESS, getLocation()))
+	if (auto fnptr = getOperator(context)) {
 		// TODO: verify both pointers and arrays
-		compileCall(destination, function, scope, fnptr, {array.get(), subscript.get()}, getLocation(), multiplier);
-	else {
+		auto array_ptr = structToPointer(*array, context);
+		auto subscript_ptr = structToPointer(*subscript, context);
+		compileCall(destination, function, scope, fnptr, {array_ptr.get(), subscript_ptr.get()}, getLocation(),
+			multiplier);
+	} else {
+		TypePtr array_type = array->getType(context);
+		if (auto casted = array_type->ptrcast<ArrayType>())
+			array_type = PointerType::make(casted->subtype->copy());
+		else if (!array_type->is<PointerType>())
+			fail();
 		compileAddress(destination, function, scope);
 		function.add<LoadRInstruction>(destination, destination, getSize(context))->setDebug(*this);
 		if (multiplier != 1)
@@ -1376,9 +1378,8 @@ void AccessExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 }
 
 std::unique_ptr<Type> AccessExpr::getType(const Context &context) const {
-	// TODO: implement
-	// if (auto fnptr = getOperator(context))
-	// 	return std::unique_ptr<Type>(fnptr->returnType->copy());
+	if (auto fnptr = getOperator(context))
+		return std::unique_ptr<Type>(fnptr->returnType->copy());
 	auto array_type = array->getType(context);
 	if (auto *casted = array_type->cast<const ArrayType>())
 		return std::unique_ptr<Type>(casted->subtype->copy());
@@ -1430,6 +1431,11 @@ std::unique_ptr<Type> AccessExpr::check(const Context &context) {
 			}
 		}
 	return std::unique_ptr<Type>(type->copy());
+}
+
+FunctionPtr AccessExpr::getOperator(const Context &context) const {
+	auto array_type = array->getType(context), subscript_type = subscript->getType(context);
+	return context.program->getOperator({array_type.get(), subscript_type.get()}, CPM_ACCESS, getLocation());
 }
 
 void LengthExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {

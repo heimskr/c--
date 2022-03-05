@@ -646,6 +646,7 @@ struct AccessExpr: Expr {
 	bool compileAddress(VregPtr, Function &, ScopePtr) override;
 	bool isLvalue() const override { return true; } // TODO: verify
 	std::unique_ptr<Type> check(const Context &);
+	FunctionPtr getOperator(const Context &) const;
 
 	private:
 		bool warned = false;

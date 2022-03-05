@@ -1,7 +1,7 @@
 #name "Operator Overloading"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "3.0"
+#version "3.1"
 
 struct Foo {
 	s64 value;
@@ -55,6 +55,9 @@ bool operator!=(%Foo *left, s64   right) { return left->value != right; }
 %Foo * operator--.(%Foo *foo) { --foo->value; return foo; }
 s64 operator.++(%Foo *foo) { return foo->value++; }
 s64 operator.--(%Foo *foo) { return foo->value--; }
+bool operator[](%Foo *foo, s64 index) {
+	return (foo->value >> index) & 1;
+}
 
 u64 operator#(%Foo *foo) {
 	s64 count = 0;
@@ -115,6 +118,8 @@ void main() {
 	one.value &= ~3;
 	p(one.value);
 	p("#one: "); p(#one);
+	p("one[1]: "); p(one[1]);
+	p("one[2]: "); p(one[2]);
 }
 
 void l() { asm("<prc $1>":10); }
