@@ -477,19 +477,6 @@ void MinusExpr::compile(VregPtr destination, Function &function, ScopePtr scope,
 	}
 }
 
-void MultExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
-	Context context(function.program, scope);
-	auto left_type = left->getType(context), right_type = right->getType(context);
-	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_TIMES, getLocation())) {
-		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
-	} else {
-		VregPtr left_var = function.newVar(), right_var = function.newVar();
-		left->compile(left_var, function, scope, 1);
-		right->compile(right_var, function, scope, multiplier); // TODO: verify
-		function.add<MultRInstruction>(left_var, right_var, destination)->setDebug(*this);
-	}
-}
-
 std::unique_ptr<Type> MinusExpr::getType(const Context &context) const {
 	if (auto fnptr = getOperator(context))
 		return std::unique_ptr<Type>(fnptr->returnType->copy());
@@ -503,11 +490,28 @@ std::unique_ptr<Type> MinusExpr::getType(const Context &context) const {
 	return left_type;
 }
 
+void MultExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
+	Context context(function.program, scope);
+	auto left_type = left->getType(context), right_type = right->getType(context);
+	if (auto fnptr = getOperator({function.program, scope})) {
+		auto left_ptr = structToPointer(*left, context);
+		auto right_ptr = structToPointer(*right, context);
+		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
+	} else {
+		VregPtr left_var = function.newVar(), right_var = function.newVar();
+		left->compile(left_var, function, scope, 1);
+		right->compile(right_var, function, scope, multiplier); // TODO: verify
+		function.add<MultRInstruction>(left_var, right_var, destination)->setDebug(*this);
+	}
+}
+
 void ShiftLeftExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
 	auto left_type = left->getType(context), right_type = right->getType(context);
-	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_LSHIFT, getLocation())) {
-		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+	if (auto fnptr = getOperator({function.program, scope})) {
+		auto left_ptr = structToPointer(*left, context);
+		auto right_ptr = structToPointer(*right, context);
+		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, scope, multiplier);
@@ -531,7 +535,7 @@ std::optional<ssize_t> ShiftLeftExpr::evaluate(const Context &context) const {
 void ShiftRightExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
 	auto left_type = left->getType(context), right_type = right->getType(context);
-	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_RSHIFT, getLocation())) {
+	if (auto fnptr = getOperator({function.program, scope})) {
 		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();

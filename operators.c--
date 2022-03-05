@@ -16,16 +16,41 @@ s64 operator+(%Foo *left, %Foo *right) {
 	return left;
 }
 
+%Foo * operator-=(%Foo *left, s64 right) {
+	left->value -= right;
+	return left;
+}
+
 s64 operator*(%Foo *foo) {
 	return 0 - foo->value;
+}
+
+%Foo * operator<<=(%Foo *left, s64 right) {
+	left->value <<= right;
+	return left;
+}
+
+s64 operator<<(%Foo *left, s64 right) {
+	return left->value << right;
+}
+
+s64 operator*(%Foo *left, %Foo *right) {
+	return left->value * right->value;
 }
 
 void main() {
 	%Foo one = [10];
 	%Foo two = [20];
-	one += 40;
-	`s64(one.value); `c('\n');
-	`s64(two.value); `c('\n');
-	`s64(&one + &two); `c('\n');
-	`s64(*two); `c('\n');
+	// one += 40;
+	// one -= 5;
+	// p(one.value);
+	// p(two.value);
+	// p(&one + &two);
+	p(one << 1);
+	p(one * two);
+	// p(*two);
+
 }
+
+void l() { asm("<prc $1>":10); }
+void p(s64 value) { asm("<prd $1>":value); l(); }
