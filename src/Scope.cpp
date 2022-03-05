@@ -60,24 +60,25 @@ FunctionPtr Scope::lookupFunction(const std::string &function_name, TypePtr retu
 	Functions filtered = filterResults(lookupFunctions(function_name, return_type, arg_types, struct_name), arg_types);
 
 	if (1 < filtered.size()) {
-		std::stringstream error;
-		error << "Multiple results found for ";
+		std::stringstream err;
+		err << "Multiple results found for ";
 		if (return_type)
-			error << *return_type;
+			err << *return_type;
 		else
-			error << "<unknown>";
-		error << ' ' << function_name << '(';
+			err << "<unknown>";
+		err << ' ' << function_name << '(';
 		for (size_t i = 0, max = arg_types.size(); i < max; ++i) {
 			if (i != 0)
-				error << ", ";
-			error << *arg_types.at(i);
+				err << ", ";
+			err << *arg_types.at(i);
 		}
-		error << ')';
+		err << ')';
 		if (!struct_name.empty())
-			error << " for %" << struct_name;
+			err << " for %" << struct_name;
+		error() << err.str() << "\n";
 		for (const auto &result: filtered)
 			warn() << result->mangle() << '\n';
-		throw AmbiguousError(location, error.str());
+		throw AmbiguousError(location, err.str());
 	}
 
 	return filtered.empty()? nullptr : filtered.front();
@@ -85,24 +86,26 @@ FunctionPtr Scope::lookupFunction(const std::string &function_name, TypePtr retu
 
 FunctionPtr Scope::lookupFunction(const std::string &function_name, const Types &arg_types,
                                   const std::string &struct_name, const ASTLocation &location) const {
-	Functions results = filterResults(lookupFunctions(function_name, arg_types, struct_name), arg_types);
-	if (1 < results.size()) {
-		std::stringstream error;
-		error << "Multiple results found for " << function_name << '(';
+	Functions filtered = filterResults(lookupFunctions(function_name, arg_types, struct_name), arg_types);
+
+	if (1 < filtered.size()) {
+		std::stringstream err;
+		err << "Multiple results found for " << function_name << '(';
 		for (size_t i = 0, max = arg_types.size(); i < max; ++i) {
 			if (i != 0)
-				error << ", ";
-			error << *arg_types.at(i);
+				err << ", ";
+			err << *arg_types.at(i);
 		}
-		error << ')';
+		err << ')';
 		if (!struct_name.empty())
-			error << " for %" << struct_name;
-		for (const auto &result: results)
+			err << " for %" << struct_name;
+		error() << err.str() << "\n";
+		for (const auto &result: filtered)
 			warn() << result->mangle() << '\n';
-		throw AmbiguousError(location, error.str());
+		throw AmbiguousError(location, err.str());
 	}
 
-	return results.empty()? nullptr : results.front();
+	return filtered.empty()? nullptr : filtered.front();
 }
 
 FunctionPtr Scope::lookupFunction(const std::string &function_name, const ASTLocation &location) const {

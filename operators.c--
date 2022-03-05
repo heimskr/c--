@@ -1,7 +1,7 @@
 #name "Operator Overloading"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "0.1"
+#version "2.0"
 
 struct Foo {
 	s64 value;
@@ -30,16 +30,30 @@ s64 operator*(%Foo *foo) {
 	return left;
 }
 
-s64 operator<<(%Foo *left, s64   right) { return left->value << right;        }
-s64 operator *(%Foo *left, %Foo *right) { return left->value *  right->value; }
-s64 operator /(%Foo *left, %Foo *right) { return left->value /  right->value; }
-s64 operator %(%Foo *left, %Foo *right) { return left->value %  right->value; }
+%Foo * operator=(%Foo *left, s64 right) {
+	left->value = right;
+	return left;
+}
+
+s64  operator<<(%Foo *left, s64   right) { return left->value << right;        }
+s64  operator>>(%Foo *left, s64   right) { return left->value >> right;        }
+s64  operator *(%Foo *left, %Foo *right) { return left->value *  right->value; }
+s64  operator /(%Foo *left, %Foo *right) { return left->value /  right->value; }
+s64  operator %(%Foo *left, %Foo *right) { return left->value %  right->value; }
 bool operator&&(%Foo *left, %Foo *right) { return left->value && right->value; }
 bool operator||(%Foo *left, %Foo *right) { return left->value || right->value; }
 bool operator^^(%Foo *left, %Foo *right) { return left->value ^^ right->value; }
-s64 operator&(%Foo *left, %Foo *right) { return left->value & right->value; }
-s64 operator|(%Foo *left, %Foo *right) { return left->value | right->value; }
-s64 operator^(%Foo *left, %Foo *right) { return left->value ^ right->value; }
+s64  operator &(%Foo *left, %Foo *right) { return left->value &  right->value; }
+s64  operator |(%Foo *left, %Foo *right) { return left->value |  right->value; }
+s64  operator ^(%Foo *left, %Foo *right) { return left->value ^  right->value; }
+s64  operator ~(%Foo *foo) { return ~foo->value; }
+bool operator !(%Foo *foo) { return !foo->value; }
+bool operator <(%Foo *left, s64   right) { return left->value <  right; }
+bool operator >(%Foo *left, s64   right) { return left->value >  right; }
+bool operator<=(%Foo *left, s64   right) { return left->value <=  right; }
+bool operator>=(%Foo *left, s64   right) { return left->value >= right; }
+bool operator==(%Foo *left, s64   right) { return left->value == right; }
+bool operator!=(%Foo *left, s64   right) { return left->value != right; }
 
 void main() {
 	%Foo one = [10];
@@ -60,6 +74,18 @@ void main() {
 	p("one & two: "); p(one & two);
 	p("one | two: "); p(one | two);
 	p("one ^ two: "); p(one ^ two);
+	p("~one: "); p(~one);
+	p("!one: "); p(!one);
+	p("one >> 2: "); p(one >> 2);
+	p("one > 40: "); p(one > 40);
+	p("one < 40: "); p(one < 40);
+	p("one >= 45: "); p(one >= 45);
+	p("one <= 44: "); p(one <= 44);
+	p("one == 45: "); p(one == 45);
+	p("one != 45: "); p(one != 45);
+	p("Setting one to 31.\n");
+	one = 31;
+	p("one: "); p(one.value);
 }
 
 void l() { asm("<prc $1>":10); }

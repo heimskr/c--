@@ -536,9 +536,10 @@ std::optional<ssize_t> ShiftLeftExpr::evaluate(const Context &context) const {
 
 void ShiftRightExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
-	auto left_type = left->getType(context), right_type = right->getType(context);
 	if (auto fnptr = getOperator({function.program, scope})) {
-		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+		auto left_ptr = structToPointer(*left, context);
+		auto right_ptr = structToPointer(*right, context);
+		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, scope, multiplier);
@@ -729,8 +730,7 @@ std::optional<ssize_t> LxorExpr::evaluate(const Context &context) const {
 
 void DivExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
-	auto left_type = left->getType(context), right_type = right->getType(context);
-	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_DIV, getLocation())) {
+	if (auto fnptr = getOperator(context)) {
 		auto left_ptr = structToPointer(*left, context);
 		auto right_ptr = structToPointer(*right, context);
 		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
@@ -988,7 +988,8 @@ void NotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	Context context(function.program, scope);
 	auto type = subexpr->getType(context);
 	if (auto fnptr = function.program.getOperator({type.get()}, CMMTOK_TILDE, getLocation())) {
-		compileCall(destination, function, scope, fnptr, {subexpr.get()}, getLocation(), multiplier);
+		auto subexpr_ptr = structToPointer(*subexpr, context);
+		compileCall(destination, function, scope, fnptr, {subexpr_ptr.get()}, getLocation(), multiplier);
 	} else {
 		subexpr->compile(destination, function, scope);
 		function.add<NotRInstruction>(destination, destination)->setDebug(*this);
@@ -997,17 +998,32 @@ void NotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	}
 }
 
+std::unique_ptr<Type> NotExpr::getType(const Context &context) const {
+	auto type = subexpr->getType(context);
+	if (auto fnptr = context.program->getOperator({type.get()}, CMMTOK_TILDE, getLocation()))
+		return std::unique_ptr<Type>(fnptr->returnType->copy());
+	return type;
+}
+
 void LnotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
 	auto type = subexpr->getType(context);
 	if (auto fnptr = function.program.getOperator({type.get()}, CMMTOK_NOT, getLocation())) {
-		compileCall(destination, function, scope, fnptr, {subexpr.get()}, getLocation(), multiplier);
+		auto subexpr_ptr = structToPointer(*subexpr, context);
+		compileCall(destination, function, scope, fnptr, {subexpr_ptr.get()}, getLocation(), multiplier);
 	} else {
 		subexpr->compile(destination, function, scope);
 		function.add<LnotRInstruction>(destination, destination)->setDebug(*this);
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 	}
+}
+
+std::unique_ptr<Type> LnotExpr::getType(const Context &context) const {
+	auto type = subexpr->getType(context);
+	if (auto fnptr = context.program->getOperator({type.get()}, CMMTOK_NOT, getLocation()))
+		return std::unique_ptr<Type>(fnptr->returnType->copy());
+	return std::make_unique<BoolType>();
 }
 
 void StringExpr::compile(VregPtr destination, Function &function, ScopePtr, ssize_t multiplier) {
