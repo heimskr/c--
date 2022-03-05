@@ -640,7 +640,7 @@ struct NorRInstruction:   BinaryRType<"~|">  { using BinaryRType::BinaryRType; }
 struct XnorRInstruction:  BinaryRType<"~x">  { using BinaryRType::BinaryRType; };
 struct LandRInstruction:  BinaryRType<"&&">  { using BinaryRType::BinaryRType; };
 struct LorRInstruction:   BinaryRType<"||">  { using BinaryRType::BinaryRType; };
-struct LxorRInstruction:  BinaryRType<"^^">  { using BinaryRType::BinaryRType; };
+struct LxorRInstruction:  BinaryRType<"xx">  { using BinaryRType::BinaryRType; };
 struct LnandRInstruction: BinaryRType<"~&&"> { using BinaryRType::BinaryRType; };
 struct LnorRInstruction:  BinaryRType<"~||"> { using BinaryRType::BinaryRType; };
 struct LxnorRInstruction: BinaryRType<"~xx"> { using BinaryRType::BinaryRType; };

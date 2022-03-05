@@ -245,7 +245,7 @@ struct AndExpr: BinaryExpr<"&"> {
 	std::optional<ssize_t> evaluate(const Context &) const override;
 };
 
-struct OrExpr: BinaryExpr<"&"> {
+struct OrExpr: BinaryExpr<"|"> {
 	using BinaryExpr::BinaryExpr;
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	size_t getSize(const Context &) const override;

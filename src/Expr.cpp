@@ -567,9 +567,10 @@ std::optional<ssize_t> ShiftRightExpr::evaluate(const Context &context) const {
 
 void AndExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
-	auto left_type = left->getType(context), right_type = right->getType(context);
-	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_AND, getLocation())) {
-		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+	if (auto fnptr = getOperator(context)) {
+		auto left_ptr = structToPointer(*left, context);
+		auto right_ptr = structToPointer(*right, context);
+		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, scope);
@@ -594,9 +595,10 @@ std::optional<ssize_t> AndExpr::evaluate(const Context &context) const {
 
 void OrExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
-	auto left_type = left->getType(context), right_type = right->getType(context);
-	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_OR, getLocation())) {
-		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+	if (auto fnptr = getOperator(context)) {
+		auto left_ptr = structToPointer(*left, context);
+		auto right_ptr = structToPointer(*right, context);
+		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, scope);
@@ -621,9 +623,10 @@ std::optional<ssize_t> OrExpr::evaluate(const Context &context) const {
 
 void XorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
-	auto left_type = left->getType(context), right_type = right->getType(context);
-	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_XOR, getLocation())) {
-		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+	if (auto fnptr = getOperator(context)) {
+		auto left_ptr = structToPointer(*left, context);
+		auto right_ptr = structToPointer(*right, context);
+		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, scope);
@@ -702,9 +705,10 @@ std::optional<ssize_t> LorExpr::evaluate(const Context &context) const {
 
 void LxorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
-	auto left_type = left->getType(context), right_type = right->getType(context);
-	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_LXOR, getLocation())) {
-		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+	if (auto fnptr = getOperator(context)) {
+		auto left_ptr = structToPointer(*left, context);
+		auto right_ptr = structToPointer(*right, context);
+		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
 	} else {
 		auto temp_var = function.newVar();
 		left->compile(destination, function, scope);
