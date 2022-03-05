@@ -15,6 +15,7 @@
 #include "fixed_string.h"
 #include "Function.h"
 #include "Global.h"
+#include "Lexer.h"
 #include "Makeable.h"
 #include "Program.h"
 #include "Scope.h"
@@ -659,7 +660,12 @@ struct LengthExpr: Expr {
 	void compile(VregPtr, Function &, ScopePtr, ssize_t) override;
 	operator std::string() const override { return "#" + std::string(*subexpr); }
 	size_t getSize(const Context &context) const override { return subexpr->getSize(context); }
-	std::unique_ptr<Type> getType(const Context &) const override { return std::make_unique<UnsignedType>(64); }
+	std::unique_ptr<Type> getType(const Context &context) const override {
+		auto type = subexpr->getType(context);
+		if (auto fnptr = context.program->getOperator({type.get()}, CPMTOK_HASH, getLocation()))
+			return std::unique_ptr<Type>(fnptr->returnType->copy());
+		return std::make_unique<UnsignedType>(64);
+	}
 };
 
 template <fixstr::fixed_string O, typename I>

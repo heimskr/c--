@@ -1435,11 +1435,12 @@ std::unique_ptr<Type> AccessExpr::check(const Context &context) {
 void LengthExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
 	TypePtr type = subexpr->getType(context);
-	if (auto fnptr = function.program.getOperator({type.get()}, CPMTOK_HASH, getLocation()))
-		compileCall(destination, function, scope, fnptr, {subexpr.get()}, getLocation(), multiplier);
-	else if (auto *array = type->cast<const ArrayType>())
+	if (auto fnptr = function.program.getOperator({type.get()}, CPMTOK_HASH, getLocation())) {
+		auto subexpr_ptr = structToPointer(*subexpr, context);
+		compileCall(destination, function, scope, fnptr, {subexpr_ptr.get()}, getLocation(), multiplier);
+	} else if (auto *array = type->cast<const ArrayType>()) {
 		function.add<SetIInstruction>(destination, array->count * multiplier)->setDebug(*this);
-	else
+	} else
 		throw NotArrayError(type);
 }
 
