@@ -16,7 +16,7 @@
 #include "WhyInstructions.h"
 
 void compileCall(VregPtr destination, Function &function, ScopePtr scope, FunctionPtr fnptr,
-                 std::initializer_list<Argument> arguments, const ASTLocation &location, size_t multiplier) {
+                 const std::vector<Argument> &arguments, const ASTLocation &location, size_t multiplier) {
 	if (arguments.size() != fnptr->argumentCount())
 		throw GenericError(location, "Invalid number of arguments in call to " + fnptr->name + " at " +
 			std::string(location) + ": " + std::to_string(arguments.size()) + " (expected " +
@@ -1093,7 +1093,23 @@ Expr * CallExpr::copy() const {
 }
 
 void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_t multiplier) {
-	// TODO: operator()
+	Context context(fn.program, scope);
+	context.structName = getStructName(context);
+
+	if (context.structName.empty()) {
+		if (auto fnptr = getOperator(context)) {
+			std::vector<ExprPtr> call_exprs {structToPointer(*subexpr, context)};
+			call_exprs.reserve(1 + arguments.size());
+			for (const auto &argument: arguments)
+				call_exprs.push_back(structToPointer(*argument, context));
+			std::vector<Argument> call_args;
+			call_args.reserve(1 + arguments.size());
+			for (const auto &expr: call_exprs)
+				call_args.push_back(expr.get());
+			compileCall(destination, fn, scope, fnptr, call_args, getLocation(), multiplier);
+			return;
+		}
+	}
 
 	std::function<const Type &(size_t)> get_arg_type = [this](size_t) -> const Type & {
 		throw GenericError(getLocation(), "get_arg_type not redefined");
@@ -1105,8 +1121,6 @@ void CallExpr::compile(VregPtr destination, Function &fn, ScopePtr scope, ssize_
 
 	TypePtr found_return_type = nullptr;
 
-	Context context(fn.program, scope);
-	context.structName = getStructName(context);
 
 	bool function_found = false;
 	int argument_offset = Why::argumentOffset;
@@ -1237,9 +1251,8 @@ size_t CallExpr::getSize(const Context &context) const {
 }
 
 std::unique_ptr<Type> CallExpr::getType(const Context &context) const {
-	// TODO: implement
-	// if (auto fnptr = getOperator(context))
-	// 	return std::unique_ptr<Type>(fnptr->returnType->copy());
+	if (auto fnptr = getOperator(context))
+		return std::unique_ptr<Type>(fnptr->returnType->copy());
 	if (auto *var_expr = subexpr->cast<VariableExpr>()) {
 		if (const auto fn = findFunction(var_expr->name, context))
 			return std::unique_ptr<Type>(fn->returnType->copy());
@@ -1280,6 +1293,23 @@ std::string CallExpr::getStructName(const Context &context) const {
 	}
 
 	return structName;
+}
+
+FunctionPtr CallExpr::getOperator(const Context &context) const {
+	try {
+		std::vector<std::unique_ptr<Type>> unique_types;
+		unique_types.push_back(subexpr->getType(context));
+		for (const auto &argument: arguments)
+			unique_types.push_back(argument->getType(context));
+		std::vector<Type *> types;
+		for (auto &unique_type: unique_types)
+			types.push_back(unique_type.get());
+		return context.program->getOperator(types, CPMTOK_LPAREN, getLocation());
+	} catch (ResolutionError &) {
+		return nullptr;
+	} catch (AmbiguousError &) {
+		return nullptr;
+	}
 }
 
 void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {

@@ -67,7 +67,7 @@ struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 };
 
 using Argument = std::variant<Expr *, VregPtr>;
-void compileCall(VregPtr, Function &, ScopePtr, FunctionPtr, std::initializer_list<Argument>, const ASTLocation &,
+void compileCall(VregPtr, Function &, ScopePtr, FunctionPtr, const std::vector<Argument> &, const ASTLocation &,
                  size_t = 1);
 
 std::string stringify(const Expr *);
@@ -442,6 +442,7 @@ struct CallExpr: Expr {
 	std::unique_ptr<Type> getType(const Context &) const override;
 	FunctionPtr findFunction(const std::string &name, const Context &) const;
 	std::string getStructName(const Context &) const;
+	FunctionPtr getOperator(const Context &) const;
 };
 
 struct AssignExpr: BinaryExpr<"="> {
