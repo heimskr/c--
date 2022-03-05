@@ -497,6 +497,12 @@ bool String::eq(%String *other) #const {
 	}
 }
 
+u8 String::at(u64 index) {
+	if (this->size <= index)
+		panic("Invalid index in String::at");
+	return this->data[index];
+}
+
 struct StringVec {
 	%String *data;
 	u64 size;

@@ -298,15 +298,15 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 						constructor_expr->setLocation(call->structExpr->getLocation());
 						constructor_expr->setFunction(*this);
 						addComment("Calling constructor for " + std::string(*variable->type));
-						call->compile(nullptr, *this, currentScope(), 1);
+						call->compile(nullptr, *this, currentContext(), 1);
 					} else {
 						auto addr_var = newVar();
 						add<SubIInstruction>(fp, addr_var, offset)->setDebug({node.location, *this});
-						initializer->fullCompile(addr_var, *this, currentScope());
+						initializer->fullCompile(addr_var, *this, currentContext());
 					}
 				} else {
-					expr->compile(variable, *this, currentScope());
-					typeCheck(*expr->getType({program, currentScope()}), *variable->type, variable, *this,
+					expr->compile(variable, *this, currentContext());
+					typeCheck(*expr->getType(currentContext()), *variable->type, variable, *this,
 						expr->getLocation());
 					if (offset == 0) {
 						add<StoreRInstruction>(variable, fp, variable->getSize())->setDebug({node.location, *this});
@@ -327,8 +327,8 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			} else {
 				auto expr = ExprPtr(Expr::get(*node.front(), this));
 				auto r0 = precolored(Why::returnValueOffset);
-				expr->compile(r0, *this, currentScope());
-				auto expr_type = expr->getType({program, currentScope()});
+				expr->compile(r0, *this, currentContext());
+				auto expr_type = expr->getType(currentContext());
 				typeCheck(*expr_type, *returnType, r0, *this, node.location);
 			}
 			add<JumpInstruction>("." + mangle() + ".e")->setDebug({node.location, *this});
@@ -336,7 +336,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 		}
 		case CPMTOK_LPAREN:
 			checkNaked(node);
-			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, currentScope());
+			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, currentContext());
 			break;
 		case CPMTOK_WHILE: {
 			checkNaked(node);
@@ -348,7 +348,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			const TypePtr condition_type = condition->getType({program, currentScope()});
 			if (!(*condition_type && BoolType()))
 				throw ImplicitConversionError(condition_type, BoolType::make(), condition->getLocation());
-			condition->compile(temp_var, *this, currentScope());
+			condition->compile(temp_var, *this, currentContext());
 			add<LnotRInstruction>(temp_var, temp_var)->setDebug({node.location, *this});
 			add<JumpConditionalInstruction>(end, temp_var)->setDebug({node.location, *this});
 			openScope();
@@ -369,10 +369,10 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			compile(*node.front());
 			add<Label>(start);
 			ExprPtr condition = ExprPtr(Expr::get(*node.at(1), this));
-			const TypePtr condition_type = condition->getType({program, currentScope()});
+			const TypePtr condition_type = condition->getType(currentContext());
 			if (!(*condition_type && BoolType()))
 				throw ImplicitConversionError(condition_type, BoolType::make(), condition->getLocation());
-			condition->compile(temp_var, *this, currentScope());
+			condition->compile(temp_var, *this, currentContext());
 			add<LnotRInstruction>(temp_var, temp_var)->setDebug({node.location, *this});
 			add<JumpConditionalInstruction>(end, temp_var)->setDebug({node.location, *this});
 			compile(*node.at(3), end, next);
@@ -412,7 +412,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			const TypePtr condition_type = condition->getType({program, currentScope()});
 			if (!(*condition_type && BoolType()))
 				throw ImplicitConversionError(condition_type, BoolType::make(), condition->getLocation());
-			condition->compile(temp_var, *this, currentScope());
+			condition->compile(temp_var, *this, currentContext());
 			add<LnotRInstruction>(temp_var, temp_var)->setDebug({node.location, *this});
 			if (node.size() == 3) {
 				const std::string else_label = base + "if.else";
@@ -473,7 +473,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 						auto expr = ExprPtr(Expr::get(*child, this));
 						const std::string wasm_vreg = "$" + std::to_string(1 + input_counter++);
 						VregPtr temp_var = newVar();
-						expr->compile(temp_var, *this, currentScope());
+						expr->compile(temp_var, *this, currentContext());
 						map.emplace(wasm_vreg, temp_var);
 					}
 				}
@@ -487,10 +487,9 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 
 				if (!out_exprs.empty()) {
 					auto addr_var = newVar();
-					auto scope = currentScope();
-					Context context(program, scope);
+					Context context = currentContext();
 					for (const auto &[wasm_vreg, expr]: out_exprs) {
-						if (!expr->compileAddress(addr_var, *this, scope))
+						if (!expr->compileAddress(addr_var, *this, context))
 							throw LvalueError(std::string(*expr->getType(context)));
 						add<StoreRInstruction>(map.at(wasm_vreg), addr_var, expr->getSize(context))
 							->setDebug({node.location, *this});
@@ -507,16 +506,16 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				throw GenericError(node.front()->location, "Only pointers can be deleted");
 			auto pointer_type = type->ptrcast<PointerType>();
 			auto temp_var = newVar(type);
-			expr->compile(temp_var, *this, currentScope());
+			expr->compile(temp_var, *this, currentContext());
 			if (auto *struct_type = pointer_type->subtype->cast<StructType>())
 				if (struct_type->getDestructor()) {
 					auto call = std::make_unique<CallExpr>(new VariableExpr("$d"));
 					call->structExpr = std::make_unique<VregExpr>(temp_var);
 					addComment("Calling destructor for " + std::string(*struct_type) + " " + std::string(*expr));
-					call->compile(nullptr, *this, currentScope(), 1);
+					call->compile(nullptr, *this, currentContext(), 1);
 				}
 			CallExpr(new VariableExpr("free"), {VregExpr::make(temp_var)}).setLocation(node.location)
-				->setFunction(*this)->compile(nullptr, *this, currentScope(), 1);
+				->setFunction(*this)->compile(nullptr, *this, currentContext(), 1);
 			break;
 		}
 		case CPM_CAST:
@@ -535,7 +534,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 		case CPMTOK_ANDEQ:
 		case CPMTOK_OREQ:
 		case CPMTOK_XOREQ: {
-			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, currentScope());
+			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, currentContext());
 			break;
 		}
 		default:
@@ -1153,20 +1152,20 @@ void Function::checkNaked(const ASTNode &node) const {
 }
 
 void Function::doPointerArithmetic(TypePtr left_type, TypePtr right_type, Expr &left, Expr &right, VregPtr left_var,
-                                   VregPtr right_var, ScopePtr scope, const ASTLocation &location) {
+                                   VregPtr right_var, const Context &context, const ASTLocation &location) {
 	if (left_type->isPointer() && right_type->isInt()) {
 		auto *left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
-		left.compile(left_var, *this, scope, 1);
-		right.compile(right_var, *this, scope, left_subtype->getSize());
+		left.compile(left_var, *this, context, 1);
+		right.compile(right_var, *this, context, left_subtype->getSize());
 	} else if (left_type->isInt() && right_type->isPointer()) {
 		auto *right_subtype = dynamic_cast<PointerType &>(*right_type).subtype;
-		left.compile(left_var, *this, scope, right_subtype->getSize());
-		right.compile(right_var, *this, scope, 1);
+		left.compile(left_var, *this, context, right_subtype->getSize());
+		right.compile(right_var, *this, context, 1);
 	} else if (!(*left_type && *right_type)) {
 		throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()), location);
 	} else {
-		left.compile(left_var, *this, scope);
-		right.compile(right_var, *this, scope);
+		left.compile(left_var, *this, context);
+		right.compile(right_var, *this, context);
 	}
 }
 
@@ -1293,16 +1292,17 @@ void Function::openScope() {
 }
 
 void Function::closeScope() {
-	auto scope = currentScope();
+	Context context = currentContext();
 	std::vector<VariablePtr> *order = nullptr;
 
-	if (auto *block_scope = scope->cast<BlockScope>())
+	if (auto *block_scope = context.scope->cast<BlockScope>())
 		order = &block_scope->variableOrder;
-	else if (auto *function_scope = scope->cast<FunctionScope>())
+	else if (auto *function_scope = context.scope->cast<FunctionScope>())
 		order = &variableOrder;
 
 	if (!order)
-		throw std::runtime_error("Can't close scope " + scope->partialStringify());
+		throw std::runtime_error("Can't close scope " + context.scope->partialStringify());
+
 
 	for (auto iter = order->rbegin(), end = order->rend(); iter != end; ++iter) {
 		auto &var = *iter;
@@ -1312,7 +1312,7 @@ void Function::closeScope() {
 				auto call = std::make_unique<CallExpr>(destructor_expr);
 				call->structExpr = std::make_unique<VariableExpr>(var->name);
 				addComment("Calling destructor for " + std::string(*struct_type) + " " + var->name);
-				call->compile(nullptr, *this, scope, 1);
+				call->compile(nullptr, *this, context, 1);
 			}
 	}
 

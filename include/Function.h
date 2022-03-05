@@ -74,6 +74,7 @@ class Function: public Makeable<Function> {
 		size_t argumentCount() const;
 
 		std::shared_ptr<Scope> currentScope() const { return scopeStack.back(); }
+		Context currentContext() { return {program, currentScope()}; }
 
 		std::vector<std::string> stringify(const std::map<DebugData, size_t> &debug_map, bool colored = false) const;
 
@@ -174,7 +175,7 @@ class Function: public Makeable<Function> {
 		ASTLocation getLocation() const { return source? source->location : ASTLocation(); }
 
 		void doPointerArithmetic(TypePtr left_type, TypePtr right_type, Expr &left, Expr &right, VregPtr left_var,
-		                         VregPtr right_var, ScopePtr scope, const ASTLocation &location);
+		                         VregPtr right_var, const Context &, const ASTLocation &);
 
 		static Function * demangle(const std::string &, Program &);
 

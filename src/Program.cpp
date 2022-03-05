@@ -280,9 +280,9 @@ void Program::compile() {
 				VregPtr vreg = init->newVar();
 				if (auto *initializer = expr->cast<InitializerExpr>()) {
 					init->add<SetIInstruction>(vreg, global_name);
-					initializer->fullCompile(vreg, *init, init_scope);
+					initializer->fullCompile(vreg, *init, {*this, init_scope});
 				} else {
-					expr->compile(vreg, *init, init_scope);
+					expr->compile(vreg, *init, {*this, init_scope});
 					if (!tryCast(*expr_type, *type, vreg, *init, expr->getLocation()))
 						throw ImplicitConversionError(expr_type, type, expr->getLocation());
 					init->add<StoreIInstruction>(vreg, iter->first, size)->setDebug(*expr);
@@ -376,8 +376,6 @@ FunctionPtr Program::getOperator(const std::vector<Type *> &types, int oper, con
 	std::vector<FunctionPtr> candidates;
 	const size_t types_size = types.size();
 
-	info() << "\e[1m" << location << "\e[0m\n";
-
 	auto [begin, end] = operators.equal_range(oper);
 	for (auto iter = begin; iter != end; ++iter)
 		if (iter->second->arguments.size() == types_size) {
@@ -385,16 +383,13 @@ FunctionPtr Program::getOperator(const std::vector<Type *> &types, int oper, con
 			for (size_t i = 0; i < types_size; ++i) {
 				Type *type = types.at(i);
 				auto left = type->isStruct()? PointerType::make(type->copy()) : TypePtr(type->copy());
-				info() << "left[" << *left << "], fnarg[" << *iter->second->getArgumentType(i) << "]\n";
 				if (!(*left && *iter->second->getArgumentType(i))) {
 					good = false;
 					break;
 				}
 			}
-			if (good) {
-				info() << "Pushing candidate " << iter->second->mangle() << " at " << location << "\n";	
+			if (good)
 				candidates.push_back(iter->second);
-			}
 		}
 
 	if (candidates.empty())
@@ -403,13 +398,13 @@ FunctionPtr Program::getOperator(const std::vector<Type *> &types, int oper, con
 	if (candidates.size() == 1)
 		return candidates.front();
 
-	std::stringstream error;
-	error << "Multiple results found for " << Util::getOperator(oper) << '(';
+	std::stringstream err;
+	err << "Multiple results found for " << Util::getOperator(oper) << '(';
 	for (size_t i = 0, max = types.size(); i < max; ++i) {
 		if (i != 0)
-			error << ", ";
-		error << *types.at(i);
+			err << ", ";
+		err << *types.at(i);
 	}
-	error << ')';
-	throw AmbiguousError(location, error.str());
+	err << ')';
+	throw AmbiguousError(location, err.str());
 }

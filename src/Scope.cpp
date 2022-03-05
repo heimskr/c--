@@ -75,9 +75,6 @@ FunctionPtr Scope::lookupFunction(const std::string &function_name, TypePtr retu
 		err << ')';
 		if (!struct_name.empty())
 			err << " for %" << struct_name;
-		error() << err.str() << "\n";
-		for (const auto &result: filtered)
-			warn() << result->mangle() << '\n';
 		throw AmbiguousError(location, err.str());
 	}
 
@@ -99,9 +96,6 @@ FunctionPtr Scope::lookupFunction(const std::string &function_name, const Types 
 		err << ')';
 		if (!struct_name.empty())
 			err << " for %" << struct_name;
-		error() << err.str() << "\n";
-		for (const auto &result: filtered)
-			warn() << result->mangle() << '\n';
 		throw AmbiguousError(location, err.str());
 	}
 
