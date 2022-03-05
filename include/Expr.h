@@ -461,13 +461,8 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 		return (new CompoundAssignExpr<O, RS, FnS, RU, FnU>(this->left->copy(), this->right->copy()))
 			->setDebug(this->debug);
 	}
-	FunctionPtr getOperator(const Context &context) const override {
-		auto left_type = this->left->getType(context), right_type = this->right->getType(context);
-		return context.program->getOperator({left_type.get(), right_type.get()}, operator_str_map.at(std::string(O)),
-			this->getLocation());
-	}
 	std::unique_ptr<Type> getType(const Context &context) const override {
-		if (auto fnptr = getOperator(context))
+		if (auto fnptr = this->getOperator(context))
 			return std::unique_ptr<Type>(fnptr->returnType->copy());
 		auto left_type = this->left->getType(context), right_type = this->right->getType(context);
 		if (!(*right_type && *left_type))
@@ -480,7 +475,7 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 		if (left_type->isConst)
 			throw ConstError("Can't assign", *left_type, this->getLocation());
 		auto right_type = this->right->getType(context);
-		if (auto fnptr = getOperator(context)) {
+		if (auto fnptr = this->getOperator(context)) {
 			auto left_ptr = structToPointer(*this->left, context);
 			auto right_ptr = structToPointer(*this->right, context);
 			compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, this->getLocation(),
@@ -675,30 +670,40 @@ struct PrefixExpr: Expr {
 	Expr * copy() const override { return (new PrefixExpr<O, I>(subexpr->copy()))->setDebug(debug); }
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
 		Context context(function.program, scope);
-		TypePtr subtype = subexpr->getType(context);
-		if (subtype->isConst)
-			throw ConstError("Can't modify", *subtype, getLocation());
-		size_t to_add = 1;
-		if (!subtype->isInt()) {
-			if (subtype->isPointer())
-				to_add = dynamic_cast<PointerType &>(*subtype).subtype->getSize();
-			else
-				throw GenericError(getLocation(), "Cannot increment/decrement " + std::string(*subtype));
+		if (auto fnptr = getOperator(context)) {
+			auto sub_ptr = structToPointer(*this->subexpr, context);
+			compileCall(destination, function, scope, fnptr, {sub_ptr.get()}, getLocation(), multiplier);
+		} else {
+			TypePtr subtype = subexpr->getType(context);
+			if (subtype->isConst)
+				throw ConstError("Can't modify", *subtype, getLocation());
+			size_t to_add = 1;
+			if (!subtype->isInt()) {
+				if (subtype->isPointer())
+					to_add = dynamic_cast<PointerType &>(*subtype).subtype->getSize();
+				else
+					throw GenericError(getLocation(), "Cannot prefix increment/decrement " + std::string(*subtype));
+			}
+			if (!destination)
+				destination = function.newVar();
+			auto addr_variable = function.newVar();
+			const auto size = subexpr->getSize(context);
+			subexpr->compile(function.newVar(), function, scope, multiplier);
+			if (!subexpr->compileAddress(addr_variable, function, scope))
+				throw LvalueError(*subexpr->getType(context));
+			function.addComment("Prefix operator" + std::string(O));
+			function.add<LoadRInstruction>(addr_variable, destination, size)->setDebug(*this);
+			function.add<I>(destination, destination, to_add)->setDebug(*this);
+			function.add<StoreRInstruction>(destination, addr_variable, size)->setDebug(*this);
+			if (multiplier != 1)
+				function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 		}
-		if (!destination)
-			destination = function.newVar();
-		auto addr_variable = function.newVar();
-		const auto size = subexpr->getSize(context);
-		subexpr->compile(function.newVar(), function, scope, multiplier);
-		if (!subexpr->compileAddress(addr_variable, function, scope))
-			throw LvalueError(*subexpr->getType(context));
-		function.addComment("Prefix operator" + std::string(O));
-		function.add<LoadRInstruction>(addr_variable, destination, size)->setDebug(*this);
-		function.add<I>(destination, destination, to_add)->setDebug(*this);
-		function.add<StoreRInstruction>(destination, addr_variable, size)->setDebug(*this);
-
-		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	}
+	FunctionPtr getOperator(const Context &context) const {
+		TypePtr sub_type = this->subexpr->getType(context);
+		if (sub_type->isStruct())
+			sub_type = PointerType::make(sub_type->copy());
+		return context.program->getOperator({sub_type.get()}, operator_str_map.at(std::string(O) + "."), getLocation());
 	}
 	bool compileAddress(VregPtr destination, Function &function, ScopePtr scope) override {
 		return subexpr->compileAddress(destination, function, scope);
@@ -706,7 +711,11 @@ struct PrefixExpr: Expr {
 	bool isLvalue() const override { return true; }
 	operator std::string() const override { return std::string(O) + std::string(*subexpr); }
 	size_t getSize(const Context &context) const override { return subexpr->getSize(context); }
-	std::unique_ptr<Type> getType(const Context &context) const override { return subexpr->getType(context); }
+	std::unique_ptr<Type> getType(const Context &context) const override {
+		if (auto fnptr = getOperator(context))
+			return std::unique_ptr<Type>(fnptr->returnType->copy());
+		return subexpr->getType(context);
+	}
 };
 
 struct PrefixPlusExpr:  PrefixExpr<"++", AddIInstruction> { using PrefixExpr::PrefixExpr; };
@@ -720,33 +729,48 @@ struct PostfixExpr: Expr {
 	Expr * copy() const override { return (new PostfixExpr<O, I>(subexpr->copy()))->setDebug(debug); }
 	void compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) override {
 		Context context(function.program, scope);
-		TypePtr subtype = subexpr->getType(context);
-		if (subtype->isConst)
-			throw ConstError("Can't modify", *subtype, getLocation());
-		size_t to_add = 1;
-		if (!subtype->isInt()) {
-			if (subtype->isPointer())
-				to_add = dynamic_cast<PointerType &>(*subtype).subtype->getSize();
-			else
-				throw GenericError(getLocation(), "Cannot increment/decrement " + std::string(*subtype));
+		if (auto fnptr = getOperator(context)) {
+			auto sub_ptr = structToPointer(*this->subexpr, context);
+			compileCall(destination, function, scope, fnptr, {sub_ptr.get()}, getLocation(), multiplier);
+		} else {
+			TypePtr subtype = subexpr->getType(context);
+			if (subtype->isConst)
+				throw ConstError("Can't modify", *subtype, getLocation());
+			size_t to_add = 1;
+			if (!subtype->isInt()) {
+				if (subtype->isPointer())
+					to_add = dynamic_cast<PointerType &>(*subtype).subtype->getSize();
+				else
+					throw GenericError(getLocation(), "Cannot postfix increment/decrement " + std::string(*subtype));
+			}
+			if (!destination)
+				destination = function.newVar();
+			auto temp_var = function.newVar(), addr_var = function.newVar();
+			const auto size = subexpr->getSize(context);
+			subexpr->compile(function.newVar(), function, scope, multiplier);
+			if (!subexpr->compileAddress(addr_var, function, scope))
+				throw LvalueError(*subexpr->getType(context));
+			function.addComment("Postfix operator" + std::string(O));
+			function.add<LoadRInstruction>(addr_var, destination, size)->setDebug(*this);
+			function.add<I>(destination, temp_var, to_add)->setDebug(*this);
+			function.add<StoreRInstruction>(temp_var, addr_var, size)->setDebug(*this);
+			if (multiplier != 1)
+				function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 		}
-		if (!destination)
-			destination = function.newVar();
-		auto temp_var = function.newVar(), addr_var = function.newVar();
-		const auto size = subexpr->getSize(context);
-		subexpr->compile(function.newVar(), function, scope, multiplier);
-		if (!subexpr->compileAddress(addr_var, function, scope))
-			throw LvalueError(*subexpr->getType(context));
-		function.addComment("Postfix operator" + std::string(O));
-		function.add<LoadRInstruction>(addr_var, destination, size)->setDebug(*this);
-		function.add<I>(destination, temp_var, to_add)->setDebug(*this);
-		function.add<StoreRInstruction>(temp_var, addr_var, size)->setDebug(*this);
-		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	}
+	FunctionPtr getOperator(const Context &context) const {
+		TypePtr sub_type = this->subexpr->getType(context);
+		if (sub_type->isStruct())
+			sub_type = PointerType::make(sub_type->copy());
+		return context.program->getOperator({sub_type.get()}, operator_str_map.at("." + std::string(O)), getLocation());
 	}
 	operator std::string() const override { return std::string(*subexpr) + std::string(O); }
 	size_t getSize(const Context &context) const override { return subexpr->getSize(context); }
-	std::unique_ptr<Type> getType(const Context &context) const override { return subexpr->getType(context); }
+	std::unique_ptr<Type> getType(const Context &context) const override {
+		if (auto fnptr = getOperator(context))
+			return std::unique_ptr<Type>(fnptr->returnType->copy());
+		return subexpr->getType(context);
+	}
 };
 
 struct PostfixPlusExpr:  PostfixExpr<"++", AddIInstruction> { using PostfixExpr::PostfixExpr; };

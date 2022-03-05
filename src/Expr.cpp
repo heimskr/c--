@@ -400,12 +400,12 @@ std::ostream & operator<<(std::ostream &os, const Expr &expr) {
 
 void PlusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
-	auto left_type = left->getType(context), right_type = right->getType(context);
 	if (auto fnptr = getOperator(context)) {
 		auto left_ptr = structToPointer(*left, context);
 		auto right_ptr = structToPointer(*right, context);
 		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
 	} else {
+		auto left_type = left->getType(context), right_type = right->getType(context);
 		VregPtr left_var = function.newVar(), right_var = function.newVar();
 
 		if (left_type->isPointer() && right_type->isInt()) {
@@ -1237,6 +1237,9 @@ size_t CallExpr::getSize(const Context &context) const {
 }
 
 std::unique_ptr<Type> CallExpr::getType(const Context &context) const {
+	// TODO: implement
+	// if (auto fnptr = getOperator(context))
+	// 	return std::unique_ptr<Type>(fnptr->returnType->copy());
 	if (auto *var_expr = subexpr->cast<VariableExpr>()) {
 		if (const auto fn = findFunction(var_expr->name, context))
 			return std::unique_ptr<Type>(fn->returnType->copy());
@@ -1325,6 +1328,8 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 }
 
 std::unique_ptr<Type> AssignExpr::getType(const Context &context) const {
+	if (auto fnptr = getOperator(context))
+		return std::unique_ptr<Type>(fnptr->returnType->copy());
 	auto left_type = left->getType(context), right_type = right->getType(context);
 	if (!(*right_type && *left_type))
 			throw ImplicitConversionError(*right_type, *left_type, getLocation());
@@ -1371,6 +1376,9 @@ void AccessExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 }
 
 std::unique_ptr<Type> AccessExpr::getType(const Context &context) const {
+	// TODO: implement
+	// if (auto fnptr = getOperator(context))
+	// 	return std::unique_ptr<Type>(fnptr->returnType->copy());
 	auto array_type = array->getType(context);
 	if (auto *casted = array_type->cast<const ArrayType>())
 		return std::unique_ptr<Type>(casted->subtype->copy());

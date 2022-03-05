@@ -11,23 +11,19 @@ s64 operator+(%Foo *left, %Foo *right) {
 	return left->value + right->value;
 }
 
-%Foo * operator+=(%Foo *left, s64 right) {
-	left->value += right;
-	return left;
-}
-
-%Foo * operator-=(%Foo *left, s64 right) {
-	left->value -= right;
-	return left;
-}
+%Foo * operator+= (%Foo *left, s64 right) { left->value +=  right; return left; }
+%Foo * operator-= (%Foo *left, s64 right) { left->value -=  right; return left; }
+%Foo * operator*= (%Foo *left, s64 right) { left->value *=  right; return left; }
+%Foo * operator/= (%Foo *left, s64 right) { left->value /=  right; return left; }
+%Foo * operator%= (%Foo *left, s64 right) { left->value %=  right; return left; }
+%Foo * operator&= (%Foo *left, s64 right) { left->value &=  right; return left; }
+%Foo * operator|= (%Foo *left, s64 right) { left->value |=  right; return left; }
+%Foo * operator^= (%Foo *left, s64 right) { left->value ^=  right; return left; }
+%Foo * operator<<=(%Foo *left, s64 right) { left->value <<= right; return left; }
+%Foo * operator>>=(%Foo *left, s64 right) { left->value >>= right; return left; }
 
 s64 operator*(%Foo *foo) {
 	return 0 - foo->value;
-}
-
-%Foo * operator<<=(%Foo *left, s64 right) {
-	left->value <<= right;
-	return left;
 }
 
 %Foo * operator=(%Foo *left, s64 right) {
@@ -55,6 +51,10 @@ bool operator>=(%Foo *left, s64   right) { return left->value >= right; }
 bool operator==(%Foo *left, s64   right) { return left->value == right; }
 bool operator!=(%Foo *left, s64   right) { return left->value != right; }
 %Foo * operator->(%Foo *foo) { return foo; }
+%Foo * operator++.(%Foo *foo) { ++foo->value; return foo; }
+%Foo * operator--.(%Foo *foo) { --foo->value; return foo; }
+s64 operator.++(%Foo *foo) { return foo->value++; }
+s64 operator.--(%Foo *foo) { return foo->value--; }
 
 void main() {
 	%Foo one = [10];
@@ -87,7 +87,20 @@ void main() {
 	p("Setting one to 31.\n");
 	one = 31;
 	p("one: "); p(one.value);
-	// p("one->value: "); p(one->value);
+	one ^= 1; p(one.value);
+	one &= ~7; p(one.value);
+	one |= 3; p(one.value);
+	one *= 2; p(one.value);
+	one /= 2; p(one.value);
+	one %= 20; p(one.value);
+	one <<= 5; p(one.value);
+	one >>= 1; p(one.value);
+	one += 1; p(one.value);
+	one -= 50; p(one.value);
+	++one; p(one.value);
+	--one; p(one.value);
+	p("one++: "); `s64(one++); p(" -> "); p(one.value);
+	p("one--: "); `s64(one--); p(" -> "); p(one.value);
 }
 
 void l() { asm("<prc $1>":10); }
