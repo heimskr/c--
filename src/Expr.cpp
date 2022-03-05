@@ -1012,7 +1012,8 @@ std::string StringExpr::getID(Program &program) const {
 void DerefExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
 	if (auto fnptr = getOperator(context)) {
-		compileCall(destination, function, scope, fnptr, {subexpr.get()}, getLocation(), multiplier);
+		auto addrof = std::make_unique<AddressOfExpr>(subexpr->copy());
+		compileCall(destination, function, scope, fnptr, {addrof.get()}, getLocation(), multiplier);
 	} else {
 		checkType(context);
 		subexpr->compile(destination, function, scope, multiplier);
