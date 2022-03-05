@@ -4,7 +4,7 @@
 #include "Parser.h"
 #include "Util.h"
 
-Lexer cmmLexer(cmmParser, cmmleng, cmmlval);
+Lexer cpmLexer(cpmParser, cpmleng, cpmlval);
 Lexer wasmLexer(wasmParser, wasmleng, wasmlval);
 
 Lexer::Lexer(Parser &parser_, yysize &yyleng_ref, ASTNode *&yylval_ref):
@@ -56,15 +56,15 @@ int Lexer::token(const char *text, int symbol) {
 	return symbol;
 }
 
-void cmmerror(const std::string &message) {
-	cmmerror(message, cmmLexer.location);
+void cpmerror(const std::string &message) {
+	cpmerror(message, cpmLexer.location);
 }
 
-void cmmerror(const std::string &message, const ASTLocation &location) {
-	std::cerr << Util::split(cmmParser.getBuffer(), "\n", false).at(location.line) << "\n";
+void cpmerror(const std::string &message, const ASTLocation &location) {
+	std::cerr << Util::split(cpmParser.getBuffer(), "\n", false).at(location.line) << "\n";
 	std::cerr << "\e[31mParsing error at \e[1m" << location << "\e[22m: " << message << "\e[0m\n";
-	++cmmParser.errorCount;
-	cmmLexer.errors.push_back({message, location});
+	++cpmParser.errorCount;
+	cpmLexer.errors.push_back({message, location});
 }
 
 void wasmerror(const char *message) {

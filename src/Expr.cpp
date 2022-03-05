@@ -97,27 +97,27 @@ Expr * Expr::setDebug(const DebugData &debug_) {
 Expr * Expr::get(const ASTNode &node, Function *function) {
 	Expr *out = nullptr;
 	switch (node.symbol) {
-		case CMMTOK_PLUS:
+		case CPMTOK_PLUS:
 			out = new PlusExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_MINUS:
+		case CPMTOK_MINUS:
 			out = new MinusExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_DIV:
+		case CPMTOK_DIV:
 			out = new DivExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_MOD:
+		case CPMTOK_MOD:
 			out = new ModExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_TIMES:
+		case CPMTOK_TIMES:
 			if (node.size() == 1)
 				out = new DerefExpr(Expr::get(*node.front(), function));
 			else
@@ -125,73 +125,73 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 					std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 					std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_NUMBER:
+		case CPMTOK_NUMBER:
 			if (node.size() == 1) // Contains a "-" child indicating unary negation
 				out = new NumberExpr("-" + *node.text);
 			else
 				out = new NumberExpr(*node.text);
 			break;
-		case CMMTOK_TRUE:
-		case CMM_EMPTY:
+		case CPMTOK_TRUE:
+		case CPM_EMPTY:
 			out = new BoolExpr(true);
 			break;
-		case CMMTOK_FALSE:
+		case CPMTOK_FALSE:
 			out = new BoolExpr(false);
 			break;
-		case CMMTOK_NULL:
+		case CPMTOK_NULL:
 			out = new NullExpr;
 			break;
-		case CMM_ADDROF:
+		case CPM_ADDROF:
 			out = new AddressOfExpr(Expr::get(*node.front(), function));
 			break;
-		case CMMTOK_TILDE:
+		case CPMTOK_TILDE:
 			out = new NotExpr(Expr::get(*node.front(), function));
 			break;
-		case CMMTOK_NOT:
+		case CPMTOK_NOT:
 			out = new LnotExpr(Expr::get(*node.front(), function));
 			break;
-		case CMMTOK_HASH:
+		case CPMTOK_HASH:
 			out = new LengthExpr(Expr::get(*node.front(), function));
 			break;
-		case CMMTOK_PLUSPLUS:
+		case CPMTOK_PLUSPLUS:
 			out = new PrefixPlusExpr(Expr::get(*node.front(), function));
 			break;
-		case CMMTOK_MINUSMINUS:
+		case CPMTOK_MINUSMINUS:
 			out = new PrefixMinusExpr(Expr::get(*node.front(), function));
 			break;
-		case CMM_POSTPLUS:
+		case CPM_POSTPLUS:
 			out = new PostfixPlusExpr(Expr::get(*node.front(), function));
 			break;
-		case CMM_POSTMINUS:
+		case CPM_POSTMINUS:
 			out = new PostfixMinusExpr(Expr::get(*node.front(), function));
 			break;
-		case CMMTOK_PERIOD:
+		case CPMTOK_PERIOD:
 			out = new DotExpr(Expr::get(*node.front(), function), *node.at(1)->text);
 			break;
-		case CMMTOK_ARROW:
+		case CPMTOK_ARROW:
 			out = new ArrowExpr(Expr::get(*node.front(), function), *node.at(1)->text);
 			break;
-		case CMMTOK_SIZEOF:
+		case CPMTOK_SIZEOF:
 			if (node.size() == 2)
 				out = new SizeofMemberExpr(*node.front()->text, *node.at(1)->text);
 			else
 				out = new SizeofExpr(TypePtr(Type::get(*node.front(), function->program)));
 			break;
-		case CMMTOK_OFFSETOF:
+		case CPMTOK_OFFSETOF:
 			out = new OffsetofExpr(*node.front()->text, *node.at(1)->text);
 			break;
-		case CMMTOK_IDENT:
+		case CPMTOK_IDENT:
 			if (!function)
 				throw GenericError(node.location, "Variable expression encountered in functionless context");
 			out = new VariableExpr(*node.text);
 			break;
-		case CMMTOK_LPAREN: {
+		case CPMTOK_LPAREN: {
 			std::vector<ExprPtr> arguments;
 			arguments.reserve(node.at(1)->size());
 			for (const ASTNode *child: *node.at(1))
 				arguments.emplace_back(Expr::get(*child, function));
 
-			if (node.front()->symbol == CMMTOK_MOD) {
+			if (node.front()->symbol == CPMTOK_MOD) {
 				if (!function)
 					throw GenericError(node.location, "Cannot find struct in functionless context");
 
@@ -209,7 +209,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				CallExpr *call = new CallExpr(Expr::get(*node.front(), function), arguments);
 
 				if (node.size() == 3) {
-					if (node.at(2)->symbol == CMMTOK_MOD)
+					if (node.at(2)->symbol == CPMTOK_MOD)
 						// Static struct method call
 						call->structName = *node.at(2)->front()->text;
 					else
@@ -221,7 +221,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			}
 			break;
 		}
-		case CMMTOK_NEW: {
+		case CPMTOK_NEW: {
 			std::vector<ExprPtr> arguments;
 			arguments.reserve(node.at(1)->size());
 			for (const ASTNode *child: *node.at(1))
@@ -229,164 +229,164 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			out = new NewExpr(TypePtr(Type::get(*node.front(), function->program)), std::move(arguments));
 			break;
 		}
-		case CMMTOK_STRING:
+		case CPMTOK_STRING:
 			out = new StringExpr(node.unquote());
 			break;
-		case CMMTOK_CHAR:
+		case CPMTOK_CHAR:
 			out = new NumberExpr(std::to_string(ssize_t(node.getChar())) + "u8");
 			break;
-		case CMMTOK_LT:
+		case CPMTOK_LT:
 			out = new LtExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_LTE:
+		case CPMTOK_LTE:
 			out = new LteExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_GT:
+		case CPMTOK_GT:
 			out = new GtExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_GTE:
+		case CPMTOK_GTE:
 			out = new GteExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_DEQ:
+		case CPMTOK_DEQ:
 			out = new EqExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_NEQ:
+		case CPMTOK_NEQ:
 			out = new NeqExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_ASSIGN:
+		case CPMTOK_ASSIGN:
 			out = new AssignExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMM_CAST:
+		case CPM_CAST:
 			out = new CastExpr(Type::get(*node.at(0), function->program), Expr::get(*node.at(1), function));
 			break;
-		case CMMTOK_LSHIFT:
+		case CPMTOK_LSHIFT:
 			out = new ShiftLeftExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_RSHIFT:
+		case CPMTOK_RSHIFT:
 			out = new ShiftRightExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_AND:
+		case CPMTOK_AND:
 			out = new AndExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_OR:
+		case CPMTOK_OR:
 			out = new OrExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_XOR:
+		case CPMTOK_XOR:
 			out = new XorExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_LAND:
+		case CPMTOK_LAND:
 			out = new LandExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_LXOR:
+		case CPMTOK_LXOR:
 			out = new LxorExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_LOR:
+		case CPMTOK_LOR:
 			out = new LorExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_LSQUARE:
+		case CPMTOK_LSQUARE:
 			out = new AccessExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_QUESTION:
+		case CPMTOK_QUESTION:
 			out = new TernaryExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(2), function)));
 			break;
-		case CMMTOK_PLUSEQ:
+		case CPMTOK_PLUSEQ:
 			out = new PlusAssignExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_MINUSEQ:
+		case CPMTOK_MINUSEQ:
 			out = new MinusAssignExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_DIVEQ:
+		case CPMTOK_DIVEQ:
 			out = new DivAssignExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_TIMESEQ:
+		case CPMTOK_TIMESEQ:
 			out = new MultAssignExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_MODEQ:
+		case CPMTOK_MODEQ:
 			out = new ModAssignExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_SREQ:
+		case CPMTOK_SREQ:
 			out = new ShiftRightAssignExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_SLEQ:
+		case CPMTOK_SLEQ:
 			out = new ShiftLeftAssignExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_ANDEQ:
+		case CPMTOK_ANDEQ:
 			out = new AndAssignExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_OREQ:
+		case CPMTOK_OREQ:
 			out = new OrAssignExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMMTOK_XOREQ:
+		case CPMTOK_XOREQ:
 			out = new XorAssignExpr(
 				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
 				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
 			break;
-		case CMM_INITIALIZER: {
+		case CPM_INITIALIZER: {
 			std::vector<ExprPtr> exprs;
 			for (const ASTNode *child: node)
 				exprs.emplace_back(Expr::get(*child, function));
 			out = new InitializerExpr(std::move(exprs), node.attributes.count("constructor") != 0);
 			break;
 		}
-		case CMMTOK_SCOPE:
+		case CPMTOK_SCOPE:
 			out = new StaticFieldExpr(*node.front()->front()->text, *node.at(1)->text);
 			break;
 		default:
 			throw GenericError(node.location, "Unrecognized symbol in Expr::get: " +
-				std::string(cmmParser.getName(node.symbol)));
+				std::string(cpmParser.getName(node.symbol)));
 	}
 
 	if (function)
@@ -455,7 +455,7 @@ std::unique_ptr<Type> PlusExpr::getType(const Context &context) const {
 void MinusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
 	auto left_type = left->getType(context), right_type = right->getType(context);
-	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_MINUS, getLocation())) {
+	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CPMTOK_MINUS, getLocation())) {
 		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr left_var = function.newVar(), right_var = function.newVar();
@@ -763,7 +763,7 @@ std::optional<ssize_t> DivExpr::evaluate(const Context &context) const {
 void ModExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
 	auto left_type = left->getType(context), right_type = right->getType(context);
-	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_MOD, getLocation())) {
+	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CPMTOK_MOD, getLocation())) {
 		auto left_ptr = structToPointer(*left, context);
 		auto right_ptr = structToPointer(*right, context);
 		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
@@ -987,7 +987,7 @@ std::unique_ptr<Type> AddressOfExpr::getType(const Context &context) const {
 void NotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
 	auto type = subexpr->getType(context);
-	if (auto fnptr = function.program.getOperator({type.get()}, CMMTOK_TILDE, getLocation())) {
+	if (auto fnptr = function.program.getOperator({type.get()}, CPMTOK_TILDE, getLocation())) {
 		auto subexpr_ptr = structToPointer(*subexpr, context);
 		compileCall(destination, function, scope, fnptr, {subexpr_ptr.get()}, getLocation(), multiplier);
 	} else {
@@ -1000,7 +1000,7 @@ void NotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 
 std::unique_ptr<Type> NotExpr::getType(const Context &context) const {
 	auto type = subexpr->getType(context);
-	if (auto fnptr = context.program->getOperator({type.get()}, CMMTOK_TILDE, getLocation()))
+	if (auto fnptr = context.program->getOperator({type.get()}, CPMTOK_TILDE, getLocation()))
 		return std::unique_ptr<Type>(fnptr->returnType->copy());
 	return type;
 }
@@ -1008,7 +1008,7 @@ std::unique_ptr<Type> NotExpr::getType(const Context &context) const {
 void LnotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
 	auto type = subexpr->getType(context);
-	if (auto fnptr = function.program.getOperator({type.get()}, CMMTOK_NOT, getLocation())) {
+	if (auto fnptr = function.program.getOperator({type.get()}, CPMTOK_NOT, getLocation())) {
 		auto subexpr_ptr = structToPointer(*subexpr, context);
 		compileCall(destination, function, scope, fnptr, {subexpr_ptr.get()}, getLocation(), multiplier);
 	} else {
@@ -1021,7 +1021,7 @@ void LnotExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 
 std::unique_ptr<Type> LnotExpr::getType(const Context &context) const {
 	auto type = subexpr->getType(context);
-	if (auto fnptr = context.program->getOperator({type.get()}, CMMTOK_NOT, getLocation()))
+	if (auto fnptr = context.program->getOperator({type.get()}, CPMTOK_NOT, getLocation()))
 		return std::unique_ptr<Type>(fnptr->returnType->copy());
 	return std::make_unique<BoolType>();
 }
@@ -1082,7 +1082,7 @@ bool DerefExpr::compileAddress(VregPtr destination, Function &function, ScopePtr
 
 FunctionPtr DerefExpr::getOperator(const Context &context) const {
 	auto pointer = std::make_unique<PointerType>(subexpr->getType(context)->copy());
-	return context.program->getOperator({pointer.get()}, CMMTOK_TIMES, getLocation());
+	return context.program->getOperator({pointer.get()}, CPMTOK_TIMES, getLocation());
 }
 
 Expr * CallExpr::copy() const {
@@ -1285,7 +1285,7 @@ void AssignExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 	if (left_type->isConst)
 		throw ConstError("Can't assign", *left_type, getLocation());
 	auto left_ptr = std::make_unique<PointerType>(left_type->copy());
-	if (auto fnptr = function.program.getOperator({left_ptr.get(), right_type.get()}, CMMTOK_ASSIGN, getLocation())) {
+	if (auto fnptr = function.program.getOperator({left_ptr.get(), right_type.get()}, CPMTOK_ASSIGN, getLocation())) {
 		auto addrof = std::make_unique<AddressOfExpr>(left->copy());
 		compileCall(destination, function, scope, fnptr, {addrof.get(), right.get()}, getLocation(), multiplier);
 	} else {
@@ -1359,7 +1359,7 @@ void AccessExpr::compile(VregPtr destination, Function &function, ScopePtr scope
 		fail();
 
 	auto subscript_type = subscript->getType(context);
-	if (auto fnptr = function.program.getOperator({array_type.get(), subscript_type.get()}, CMM_ACCESS, getLocation()))
+	if (auto fnptr = function.program.getOperator({array_type.get(), subscript_type.get()}, CPM_ACCESS, getLocation()))
 		// TODO: verify both pointers and arrays
 		compileCall(destination, function, scope, fnptr, {array.get(), subscript.get()}, getLocation(), multiplier);
 	else {
@@ -1427,7 +1427,7 @@ std::unique_ptr<Type> AccessExpr::check(const Context &context) {
 void LengthExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
 	TypePtr type = subexpr->getType(context);
-	if (auto fnptr = function.program.getOperator({type.get()}, CMMTOK_HASH, getLocation()))
+	if (auto fnptr = function.program.getOperator({type.get()}, CPMTOK_HASH, getLocation()))
 		compileCall(destination, function, scope, fnptr, {subexpr.get()}, getLocation(), multiplier);
 	else if (auto *array = type->cast<const ArrayType>())
 		function.add<SetIInstruction>(destination, array->count * multiplier)->setDebug(*this);

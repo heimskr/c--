@@ -3,7 +3,7 @@ OPTIMIZATION    ?= -O0 -g
 STANDARD        ?= c++20
 WARNINGS        ?= -Wall -Wextra
 CFLAGS          := -std=$(STANDARD) $(OPTIMIZATION) $(WARNINGS) -Iinclude
-OUTPUT          ?= c--
+OUTPUT          ?= c+-
 
 LEXERCPP        := src/flex.cpp
 PARSERCPP       := src/bison.cpp
@@ -33,13 +33,13 @@ $(OUTPUT): $(OBJECTS)
 	$(COMPILER) -o $@ $^ $(LDFLAGS)
 
 test: $(OUTPUT)
-	./$(OUTPUT) operators.c-- -d >/dev/null
+	./$(OUTPUT) operators.c+- -d >/dev/null
 
 %.o: %.cpp $(PARSERHDR) $(WASMPARSERHDR)
 	$(COMPILER) $(CFLAGS) -c $< -o $@
 
 $(LEXERCPP): $(LEXERSRC) $(PARSERHDR)
-	flex --prefix=cmm --outfile=$(LEXERCPP) $(LEXERSRC)
+	flex --prefix=cpm --outfile=$(LEXERCPP) $(LEXERSRC)
 
 $(PARSERCPP) $(PARSERHDR): $(PARSERSRC)
 	bison $(BISONFLAGS) --defines=$(PARSERHDR) --output=$(PARSERCPP) $(PARSERSRC)

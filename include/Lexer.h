@@ -7,8 +7,8 @@
 
 #include "ASTNode.h"
 
-#define CMMSTYPE_IS_DECLARED
-typedef ASTNode * CMMSTYPE;
+#define CPMSTYPE_IS_DECLARED
+typedef ASTNode * CPMSTYPE;
 
 #define WASMSTYPE_IS_DECLARED
 typedef ASTNode * WASMSTYPE;
@@ -24,11 +24,11 @@ typedef size_t yysize;
 typedef int yysize;
 #endif
 
-extern FILE *cmmin, *wasmin;
-extern char *cmmtext, *wasmtext;
-extern yysize cmmleng, wasmleng;
-extern int cmm_flex_debug, wasm_flex_debug;
-extern int cmmdebug, wasmdebug;
+extern FILE *cpmin, *wasmin;
+extern char *cpmtext, *wasmtext;
+extern yysize cpmleng, wasmleng;
+extern int cpm_flex_debug, wasm_flex_debug;
+extern int cpmdebug, wasmdebug;
 
 class Parser;
 
@@ -54,13 +54,13 @@ class Lexer {
 		int token(const char *, int symbol);
 };
 
-extern Lexer cmmLexer, wasmLexer;
+extern Lexer cpmLexer, wasmLexer;
 
-int cmmlex();
-int cmmlex_destroy();
-int cmmparse();
-void cmmerror(const std::string &);
-void cmmerror(const std::string &, const ASTLocation &);
+int cpmlex();
+int cpmlex_destroy();
+int cpmparse();
+void cpmerror(const std::string &);
+void cpmerror(const std::string &, const ASTLocation &);
 
 int wasmlex();
 int wasmlex_destroy();

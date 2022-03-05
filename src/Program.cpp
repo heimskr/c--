@@ -21,7 +21,7 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 
 	for (const ASTNode *node: root)
 		switch (node->symbol) {
-			case CMMTOK_IDENT: { // Function definition
+			case CPMTOK_IDENT: { // Function definition
 				const size_t size = node->size();
 				if (size < 4 || 6 < size)
 					throw GenericError(node->location, "Ident under program root not a function definition");
@@ -63,7 +63,7 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 				out.bareFunctions.emplace(name, function);
 				break;
 			}
-			case CMMTOK_OPERATOR: { // Operator overload definition
+			case CPMTOK_OPERATOR: { // Operator overload definition
 				// 0: return type
 				// 1: operator type
 				// 2: args list
@@ -82,7 +82,7 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 				out.operators.emplace(node->at(1)->symbol, function);
 				break;
 			}
-			case CMMTOK_PLUS: { // Constructor definition
+			case CPMTOK_PLUS: { // Constructor definition
 				// 0: struct name
 				// 1: args list
 				// 2: fnattrs
@@ -107,7 +107,7 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 				out.bareFunctions.emplace(fn->name, fn);
 				break;
 			}
-			case CMM_FNDECL: {
+			case CPM_FNDECL: {
 				const std::string &name = *node->text;
 				decltype(Signature::argumentTypes) args;
 				for (const ASTNode *arg: *node->at(1))
@@ -121,7 +121,7 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 				out.bareFunctionDeclarations.emplace(name, fn);
 				break;
 			}
-			case CMM_DECL: { // Global variable
+			case CPM_DECL: { // Global variable
 				const std::string &name = *node->at(1)->text;
 				if (out.globals.count(name) != 0)
 					throw GenericError(node->location, "Cannot redefine global " + name);
@@ -134,7 +134,7 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 						std::shared_ptr<Expr>(Expr::get(*node->at(2), init.get())))).first);
 				break;
 			}
-			case CMMTOK_STRUCT: {
+			case CPMTOK_STRUCT: {
 				const std::string &struct_name = *node->front()->text;
 				if (node->size() == 1) {
 					if (out.forwardDeclarations.count(struct_name) != 0)
@@ -145,7 +145,7 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 					std::map<std::string, TypePtr> statics;
 					std::unordered_set<std::string> field_names;
 					for (const ASTNode *child: *node->at(1))
-						if (child->symbol == CMMTOK_IDENT) {
+						if (child->symbol == CPMTOK_IDENT) {
 							const std::string &field_name = *child->text;
 							if (field_names.count(field_name) != 0)
 								throw NameConflictError(field_name, child->location);
@@ -171,7 +171,7 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 					auto struct_type = out.structs.emplace(struct_name, StructType::make(out, struct_name,
 						std::move(order), std::move(statics))).first->second;
 					for (const ASTNode *child: *node->at(1))
-						if (child->symbol == CMM_FNDECL) {
+						if (child->symbol == CPM_FNDECL) {
 							const std::string &name = *child->text;
 							decltype(Signature::argumentTypes) args;
 							for (const ASTNode *arg: *child->at(1))
@@ -186,7 +186,7 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 							out.signatures.try_emplace(mangled, ret_type, std::move(args));
 							out.functionDeclarations.emplace(mangled, fn);
 							out.bareFunctionDeclarations.emplace(name, fn);
-						} else if (child->symbol == CMMTOK_TILDE) {
+						} else if (child->symbol == CPMTOK_TILDE) {
 							FunctionPtr fn = Function::make(out, nullptr);
 							fn->structParent = struct_type;
 							fn->structParent->destructor = fn;
@@ -198,26 +198,26 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 							out.signatures.try_emplace(mangled, VoidType::make(), Types());
 							out.functionDeclarations.emplace(mangled, fn);
 							out.bareFunctionDeclarations.emplace("$d", fn);
-						} else if (child->symbol != CMMTOK_IDENT)
+						} else if (child->symbol != CPMTOK_IDENT)
 							child->debug();
 				}
 				break;
 			}
-			case CMMTOK_META_NAME:
+			case CPMTOK_META_NAME:
 				out.name = *node->front()->text;
 				break;
-			case CMMTOK_META_AUTHOR:
+			case CPMTOK_META_AUTHOR:
 				out.author = *node->front()->text;
 				break;
-			case CMMTOK_META_ORCID:
+			case CPMTOK_META_ORCID:
 				out.orcid = *node->front()->text;
 				break;
-			case CMMTOK_META_VERSION:
+			case CPMTOK_META_VERSION:
 				out.version = *node->front()->text;
 				break;
 			default:
 				throw GenericError(node->location, "Unexpected token under root: " +
-					std::string(cmmParser.getName(node->symbol)));
+					std::string(cpmParser.getName(node->symbol)));
 		}
 
 	auto add_dummy = [&](const std::string &function_name) -> Function & {

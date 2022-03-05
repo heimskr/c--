@@ -54,6 +54,7 @@ bool operator<=(%Foo *left, s64   right) { return left->value <=  right; }
 bool operator>=(%Foo *left, s64   right) { return left->value >= right; }
 bool operator==(%Foo *left, s64   right) { return left->value == right; }
 bool operator!=(%Foo *left, s64   right) { return left->value != right; }
+%Foo * operator->(%Foo *foo) { return foo; }
 
 void main() {
 	%Foo one = [10];
@@ -86,6 +87,7 @@ void main() {
 	p("Setting one to 31.\n");
 	one = 31;
 	p("one: "); p(one.value);
+	// p("one->value: "); p(one->value);
 }
 
 void l() { asm("<prc $1>":10); }

@@ -19,7 +19,7 @@
 Function::Function(Program &program_, const ASTNode *source_):
 program(program_), source(source_), selfScope(FunctionScope::make(*this, GlobalScope::make(program))) {
 	if (source) {
-		if (source->symbol == CMMTOK_PLUS) { // Constructor
+		if (source->symbol == CPMTOK_PLUS) { // Constructor
 			attributes.insert(Attribute::Constructor);
 			const std::string &struct_name = *source->at(0)->text;
 			if (program.structs.count(struct_name) == 0)
@@ -272,7 +272,7 @@ size_t Function::addToStack(VariablePtr variable) {
 
 void Function::compile(const ASTNode &node, const std::string &break_label, const std::string &continue_label) {
 	switch (node.symbol) {
-		case CMM_DECL: {
+		case CPM_DECL: {
 			checkNaked(node);
 			const std::string &var_name = *node.at(1)->text;
 			if (currentScope()->doesConflict(var_name))
@@ -319,7 +319,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			}
 			break;
 		}
-		case CMMTOK_RETURN: {
+		case CPMTOK_RETURN: {
 			checkNaked(node);
 			if (node.empty()) {
 				if (!returnType->isVoid())
@@ -334,11 +334,11 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			add<JumpInstruction>("." + mangle() + ".e")->setDebug({node.location, *this});
 			break;
 		}
-		case CMMTOK_LPAREN:
+		case CPMTOK_LPAREN:
 			checkNaked(node);
 			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, currentScope());
 			break;
-		case CMMTOK_WHILE: {
+		case CPMTOK_WHILE: {
 			checkNaked(node);
 			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
 			const std::string label = "." + mangle() + "." + std::to_string(++nextBlock);
@@ -358,7 +358,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			add<Label>(end);
 			break;
 		}
-		case CMMTOK_FOR: {
+		case CPMTOK_FOR: {
 			checkNaked(node);
 			openScope();
 
@@ -383,28 +383,28 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			closeScope();
 			break;
 		}
-		case CMMTOK_CONTINUE:
+		case CPMTOK_CONTINUE:
 			checkNaked(node);
 			if (continue_label.empty())
 				throw GenericError(node.location, "Encountered invalid continue statement");
 			add<JumpInstruction>(continue_label)->setDebug({node.location, *this});
 			break;
-		case CMMTOK_BREAK:
+		case CPMTOK_BREAK:
 			checkNaked(node);
 			if (break_label.empty())
 				throw GenericError(node.location, "Encountered invalid break statement");
 			add<JumpInstruction>(break_label)->setDebug({node.location, *this});
 			break;
-		case CMM_EMPTY:
+		case CPM_EMPTY:
 			break;
-		case CMM_BLOCK:
+		case CPM_BLOCK:
 			checkNaked(node);
 			openScope();
 			for (const ASTNode *child: node)
 				compile(*child, break_label, continue_label);
 			closeScope();
 			break;
-		case CMMTOK_IF: {
+		case CPMTOK_IF: {
 			checkNaked(node);
 			const std::string base = "." + mangle() + "." + std::to_string(++nextBlock), end_label = base + "if.end";
 			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
@@ -434,7 +434,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			add<Label>(end_label);
 			break;
 		}
-		case CMMTOK_ASM: {
+		case CPMTOK_ASM: {
 			wasmParser.errorCount = 0;
 			const std::string wasm_source = node.front()->unquote();
 			wasmLexer.location = {0, 0};
@@ -500,7 +500,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			wasmParser.done();
 			break;
 		}
-		case CMMTOK_DELETE: {
+		case CPMTOK_DELETE: {
 			auto expr = ExprPtr(Expr::get(*node.front(), this));
 			auto type = TypePtr(expr->getType({program, currentScope()}));
 			if (!type->isPointer())
@@ -519,22 +519,22 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				->setFunction(*this)->compile(nullptr, *this, currentScope(), 1);
 			break;
 		}
-		case CMM_CAST:
-		case CMMTOK_ASSIGN:
-		case CMMTOK_PLUSPLUS:
-		case CMMTOK_MINUSMINUS:
-		case CMM_POSTPLUS:
-		case CMM_POSTMINUS:
-		case CMMTOK_PLUSEQ:
-		case CMMTOK_MINUSEQ:
-		case CMMTOK_DIVEQ:
-		case CMMTOK_TIMESEQ:
-		case CMMTOK_MODEQ:
-		case CMMTOK_SREQ:
-		case CMMTOK_SLEQ:
-		case CMMTOK_ANDEQ:
-		case CMMTOK_OREQ:
-		case CMMTOK_XOREQ: {
+		case CPM_CAST:
+		case CPMTOK_ASSIGN:
+		case CPMTOK_PLUSPLUS:
+		case CPMTOK_MINUSMINUS:
+		case CPM_POSTPLUS:
+		case CPM_POSTMINUS:
+		case CPMTOK_PLUSEQ:
+		case CPMTOK_MINUSEQ:
+		case CPMTOK_DIVEQ:
+		case CPMTOK_TIMESEQ:
+		case CPMTOK_MODEQ:
+		case CPMTOK_SREQ:
+		case CPMTOK_SLEQ:
+		case CPMTOK_ANDEQ:
+		case CPMTOK_OREQ:
+		case CPMTOK_XOREQ: {
 			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, currentScope());
 			break;
 		}
@@ -1343,10 +1343,10 @@ void Function::setStructParent(std::shared_ptr<StructType> new_struct_parent, bo
 void Function::extractAttributes(const ASTNode &node) {
 	for (const ASTNode *child: node)
 		switch (child->symbol) {
-			case CMMTOK_NAKED:
+			case CPMTOK_NAKED:
 				attributes.insert(Attribute::Naked);
 				break;
-			case CMMTOK_CONSTATTR:
+			case CPMTOK_CONSTATTR:
 				attributes.insert(Attribute::Const);
 				break;
 			default:
@@ -1359,5 +1359,5 @@ bool Function::isConst() const {
 }
 
 bool Function::isOperator() const {
-	return source && source->symbol == CMMTOK_OPERATOR;
+	return source && source->symbol == CPMTOK_OPERATOR;
 }

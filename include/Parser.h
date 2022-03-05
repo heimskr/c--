@@ -14,7 +14,7 @@ class Parser {
 		YY_BUFFER_STATE bufferState = nullptr;
 
 	public:
-		enum class Type {Cmm, Wasm};
+		enum class Type {Cpm, Wasm};
 
 		ASTNode *root = nullptr;
 		int errorCount = 0;
@@ -27,10 +27,10 @@ class Parser {
 		void parse();
 		void done();
 
-		const char * getNameCMM(int symbol);
+		const char * getNameCPM(int symbol);
 		const char * getNameWASM(int symbol);
 		const char * getName(int symbol);
 		std::string getBuffer() const;
 };
 
-extern Parser cmmParser, wasmParser;
+extern Parser cpmParser, wasmParser;

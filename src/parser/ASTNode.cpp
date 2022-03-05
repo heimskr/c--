@@ -32,12 +32,12 @@ ASTNode::ASTNode(Parser &parser_, int sym, const ASTLocation &loc, const std::st
 	parser(&parser_), symbol(sym), location(loc), text(info) {}
 
 ASTNode::ASTNode(Parser &parser_, int sym, const std::string *info):
-	parser(&parser_), symbol(sym), location(cmmLexer.location), text(info) {}
+	parser(&parser_), symbol(sym), location(cpmLexer.location), text(info) {}
 
 ASTNode::ASTNode(Parser &parser_, int sym, const char *info) {
 	parser = &parser_;
 	symbol = sym;
-	location = cmmLexer.location;
+	location = cpmLexer.location;
 	text = StringSet::intern(info);
 }
 
@@ -239,7 +239,7 @@ std::string ASTNode::style() const {
 }
 
 std::string ASTNode::extractName() const {
-	if ((parser == &wasmParser && symbol == WASMTOK_STRING) || (parser == &cmmParser && symbol == CMMTOK_STRING))
+	if ((parser == &wasmParser && symbol == WASMTOK_STRING) || (parser == &cpmParser && symbol == CPMTOK_STRING))
 		return text->substr(1, text->size() - 2);
 	throw GenericError(location, "extractName() was called on an inappropriate symbol: " +
 		std::string(parser->getName(symbol)));

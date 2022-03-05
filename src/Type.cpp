@@ -106,31 +106,31 @@ bool ArrayType::operator==(const Type &other) const {
 
 Type * Type::get(const ASTNode &node, Program &program, bool allow_forward) {
 	switch (node.symbol) {
-		case CMMTOK_VOID:
+		case CPMTOK_VOID:
 			return new VoidType;
-		case CMMTOK_BOOL:
+		case CPMTOK_BOOL:
 			return new BoolType;
-		case CMMTOK_S8:
+		case CPMTOK_S8:
 			return new SignedType(8);
-		case CMMTOK_S16:
+		case CPMTOK_S16:
 			return new SignedType(16);
-		case CMMTOK_S32:
+		case CPMTOK_S32:
 			return new SignedType(32);
-		case CMMTOK_S64:
+		case CPMTOK_S64:
 			return new SignedType(64);
-		case CMMTOK_U8:
+		case CPMTOK_U8:
 			return new UnsignedType(8);
-		case CMMTOK_U16:
+		case CPMTOK_U16:
 			return new UnsignedType(16);
-		case CMMTOK_U32:
+		case CPMTOK_U32:
 			return new UnsignedType(32);
-		case CMMTOK_U64:
+		case CPMTOK_U64:
 			return new UnsignedType(64);
-		case CMMTOK_TIMES:
+		case CPMTOK_TIMES:
 			return new PointerType(Type::get(*node.front(), program, true));
-		case CMMTOK_STRING:
+		case CPMTOK_STRING:
 			return new PointerType(new UnsignedType(8));
-		case CMMTOK_LSQUARE: {
+		case CPMTOK_LSQUARE: {
 			auto expr = std::unique_ptr<Expr>(Expr::get(*node.at(1)));
 			auto count = expr->evaluate({program, nullptr});
 			if (!count)
@@ -138,14 +138,14 @@ Type * Type::get(const ASTNode &node, Program &program, bool allow_forward) {
 					std::string(*expr) + " (at " + std::string(expr->getLocation()) + ")");
 			return new ArrayType(Type::get(*node.front(), program), *count);
 		}
-		case CMM_FNPTR: {
+		case CPM_FNPTR: {
 			std::vector<Type *> argument_types;
 			argument_types.reserve(node.at(1)->size());
 			for (const ASTNode *child: *node.at(1))
 				argument_types.push_back(Type::get(*child, program));
 			return new FunctionPointerType(Type::get(*node.front(), program), std::move(argument_types));
 		}
-		case CMMTOK_MOD: {
+		case CPMTOK_MOD: {
 			const std::string &struct_name = *node.front()->text;
 			if (program.structs.count(struct_name) != 0)
 				return program.structs.at(struct_name)->copy();
@@ -157,14 +157,14 @@ Type * Type::get(const ASTNode &node, Program &program, bool allow_forward) {
 			}
 			throw ResolutionError(struct_name, nullptr);
 		}
-		case CMMTOK_CONST: {
+		case CPMTOK_CONST: {
 			Type *subtype = Type::get(*node.front(), program, allow_forward);
 			subtype->isConst = true;
 			return subtype;
 		}
 		default:
 			throw GenericError(node.location, "Invalid token in getType: " +
-				std::string(cmmParser.getName(node.symbol)));
+				std::string(cpmParser.getName(node.symbol)));
 	}
 }
 

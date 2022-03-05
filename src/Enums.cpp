@@ -8,24 +8,24 @@ std::unordered_map<Comparison, std::string> comparison_map {
 std::unordered_map<QueryType, std::string> query_map {{QueryType::Memory, "mem"}};
 
 std::unordered_map<int, std::string> operator_map {
-	{CMMTOK_PLUS,  "pl"}, {CMMTOK_MINUS,   "mi"}, {CMMTOK_TIMES, "ti"}, {CMMTOK_DIV,    "di"}, {CMMTOK_MOD,     "mo"},
-	{CMMTOK_AND,   "an"}, {CMMTOK_OR,      "or"}, {CMMTOK_XOR,   "xo"}, {CMMTOK_NOT,    "nt"}, {CMMTOK_TILDE,   "td"},
-	{CMMTOK_LAND,  "la"}, {CMMTOK_LOR,     "lo"}, {CMMTOK_LXOR,  "lx"}, {CMMTOK_LSHIFT, "ls"}, {CMMTOK_RSHIFT,  "rs"},
-	{CMMTOK_LT,    "lt"}, {CMMTOK_GT,      "gt"}, {CMMTOK_LTE,   "le"}, {CMMTOK_GTE,    "ge"}, {CMMTOK_DEQ,     "eq"},
-	{CMMTOK_NEQ,   "ne"}, {CMMTOK_ASSIGN,  "as"}, {CMMTOK_ARROW, "ar"}, {CMMTOK_PLUSEQ, "Pl"}, {CMMTOK_MINUSEQ, "Mi"},
-	{CMMTOK_SREQ,  "Rs"}, {CMMTOK_MODEQ,   "Mo"}, {CMMTOK_SLEQ,  "Ls"}, {CMMTOK_DIVEQ,  "Di"}, {CMMTOK_TIMESEQ, "Ti"},
-	{CMMTOK_ANDEQ, "An"}, {CMMTOK_OREQ,    "Or"}, {CMMTOK_XOREQ, "Xo"}, {CMM_ACCESS,    "ac"}, {CMMTOK_LPAREN,  "ca"},
-	{CMMTOK_PLUSPLUS, "pp"}, {CMMTOK_MINUSMINUS, "mm"}, {CMM_POSTPLUS, "Pp"}, {CMM_POSTMINUS, "Mm"}, {CMMTOK_HASH, "ha"}
+	{CPMTOK_PLUS,  "pl"}, {CPMTOK_MINUS,   "mi"}, {CPMTOK_TIMES, "ti"}, {CPMTOK_DIV,    "di"}, {CPMTOK_MOD,     "mo"},
+	{CPMTOK_AND,   "an"}, {CPMTOK_OR,      "or"}, {CPMTOK_XOR,   "xo"}, {CPMTOK_NOT,    "nt"}, {CPMTOK_TILDE,   "td"},
+	{CPMTOK_LAND,  "la"}, {CPMTOK_LOR,     "lo"}, {CPMTOK_LXOR,  "lx"}, {CPMTOK_LSHIFT, "ls"}, {CPMTOK_RSHIFT,  "rs"},
+	{CPMTOK_LT,    "lt"}, {CPMTOK_GT,      "gt"}, {CPMTOK_LTE,   "le"}, {CPMTOK_GTE,    "ge"}, {CPMTOK_DEQ,     "eq"},
+	{CPMTOK_NEQ,   "ne"}, {CPMTOK_ASSIGN,  "as"}, {CPMTOK_ARROW, "ar"}, {CPMTOK_PLUSEQ, "Pl"}, {CPMTOK_MINUSEQ, "Mi"},
+	{CPMTOK_SREQ,  "Rs"}, {CPMTOK_MODEQ,   "Mo"}, {CPMTOK_SLEQ,  "Ls"}, {CPMTOK_DIVEQ,  "Di"}, {CPMTOK_TIMESEQ, "Ti"},
+	{CPMTOK_ANDEQ, "An"}, {CPMTOK_OREQ,    "Or"}, {CPMTOK_XOREQ, "Xo"}, {CPM_ACCESS,    "ac"}, {CPMTOK_LPAREN,  "ca"},
+	{CPMTOK_PLUSPLUS, "pp"}, {CPMTOK_MINUSMINUS, "mm"}, {CPM_POSTPLUS, "Pp"}, {CPM_POSTMINUS, "Mm"}, {CPMTOK_HASH, "ha"}
 };
 
 std::unordered_map<std::string, int> operator_str_map {
-	{"+",   CMMTOK_PLUS},  {"-",  CMMTOK_MINUS},  {"*",   CMMTOK_TIMES}, {"/",  CMMTOK_DIV},    {"%",  CMMTOK_MOD},
-	{"&",   CMMTOK_AND},   {"|",  CMMTOK_OR},     {"^",   CMMTOK_XOR},   {"!",  CMMTOK_NOT},    {"~",  CMMTOK_TILDE},
-	{"&&",  CMMTOK_LAND},  {"||", CMMTOK_LOR},    {"^^",  CMMTOK_LXOR},  {"<<", CMMTOK_LSHIFT}, {">>", CMMTOK_RSHIFT},
-	{"<",   CMMTOK_LT},    {">",  CMMTOK_GT},     {"<=",  CMMTOK_LTE},   {">=", CMMTOK_GTE},    {"==", CMMTOK_DEQ},
-	{"!=",  CMMTOK_NEQ},   {"=",  CMMTOK_ASSIGN}, {"->",  CMMTOK_ARROW}, {"+=", CMMTOK_PLUSEQ}, {"-=", CMMTOK_MINUSEQ},
-	{">>=", CMMTOK_SREQ},  {"%=", CMMTOK_MODEQ},  {"<<=", CMMTOK_SLEQ},  {"/=", CMMTOK_DIVEQ},  {"*=", CMMTOK_TIMESEQ},
-	{"&=",  CMMTOK_ANDEQ}, {"|=", CMMTOK_OREQ},   {"^=",  CMMTOK_XOREQ}, {"[",  CMM_ACCESS},    {"(",  CMMTOK_LPAREN},
-	{"++.", CMMTOK_PLUSPLUS}, {"--.", CMMTOK_MINUSMINUS}, {".++", CMM_POSTPLUS}, {".--", CMM_POSTMINUS},
-	{"#",   CMMTOK_HASH}
+	{"+",   CPMTOK_PLUS},  {"-",  CPMTOK_MINUS},  {"*",   CPMTOK_TIMES}, {"/",  CPMTOK_DIV},    {"%",  CPMTOK_MOD},
+	{"&",   CPMTOK_AND},   {"|",  CPMTOK_OR},     {"^",   CPMTOK_XOR},   {"!",  CPMTOK_NOT},    {"~",  CPMTOK_TILDE},
+	{"&&",  CPMTOK_LAND},  {"||", CPMTOK_LOR},    {"^^",  CPMTOK_LXOR},  {"<<", CPMTOK_LSHIFT}, {">>", CPMTOK_RSHIFT},
+	{"<",   CPMTOK_LT},    {">",  CPMTOK_GT},     {"<=",  CPMTOK_LTE},   {">=", CPMTOK_GTE},    {"==", CPMTOK_DEQ},
+	{"!=",  CPMTOK_NEQ},   {"=",  CPMTOK_ASSIGN}, {"->",  CPMTOK_ARROW}, {"+=", CPMTOK_PLUSEQ}, {"-=", CPMTOK_MINUSEQ},
+	{">>=", CPMTOK_SREQ},  {"%=", CPMTOK_MODEQ},  {"<<=", CPMTOK_SLEQ},  {"/=", CPMTOK_DIVEQ},  {"*=", CPMTOK_TIMESEQ},
+	{"&=",  CPMTOK_ANDEQ}, {"|=", CPMTOK_OREQ},   {"^=",  CPMTOK_XOREQ}, {"[",  CPM_ACCESS},    {"(",  CPMTOK_LPAREN},
+	{"++.", CPMTOK_PLUSPLUS}, {"--.", CPMTOK_MINUSMINUS}, {".++", CPM_POSTPLUS}, {".--", CPM_POSTMINUS},
+	{"#",   CPMTOK_HASH}
 };

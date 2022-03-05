@@ -33,17 +33,17 @@ std::string demangle(const char *name) {
 
 int main(int argc, char **argv) {
 	if (argc <= 1) {
-		std::cerr << "Usage: c-- <input>\n";
+		std::cerr << "Usage: c+- <input>\n";
 		return 1;
 	}
 
 	const std::string input = Util::read(argv[1]);
 
-	cmmParser.in(input);
-	cmmParser.debug(false, false);
-	cmmParser.parse();
+	cpmParser.in(input);
+	cpmParser.debug(false, false);
+	cpmParser.parse();
 
-	if (cmmParser.errorCount == 0) {
+	if (cpmParser.errorCount == 0) {
 #ifdef CATCH_COMPILE
 		bool should_try = true;
 #else
@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
 			should_try = true;
 		if (should_try) {
 			try {
-				Program program = compileRoot(*cmmParser.root, argv[1]);
+				Program program = compileRoot(*cpmParser.root, argv[1]);
 				program.compile();
 				for (const std::string &line: program.lines)
 					std::cout << line << '\n';
@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
 				std::cerr << "\e[38;5;40;1m\n\e[38;5;44;1m :   ::  :::.     :::.\n\e[38;5;39;1m :...`:, :::::...:::\n\e[38;5;27;1m::::::.  :::::::::'      \e[0m\e[38;5;27;1m\n\e[38;5;92;1m ::::::::|::::::::  !\n\e[38;5;88;1m :;;;;;;;;;;;;;;;;']}\n\e[38;5;196;1m ;--.--.--.--.--.-\n\e[38;5;202;1m  \\/ \\/ \\/ \\/ \\/ \\/\n\e[38;5;208;1m     :::       ::::\n\e[38;5;142;1m      :::      ::\n\e[38;5;40;1m     :\\:      ::\n\e[38;5;44;1m   /\\::    /\\:::    \n\e[38;5;39;1m ^.:^:.^^^::`::\n\e[38;5;27;1m ::::::::.::::\n\e[38;5;92;1m  .::::::::::\n";
 			}
 		} else {
-			Program program = compileRoot(*cmmParser.root, argv[1]);
+			Program program = compileRoot(*cpmParser.root, argv[1]);
 			program.compile();
 			for (const std::string &line: program.lines)
 				std::cout << line << '\n';
@@ -74,5 +74,5 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	cmmParser.done();
+	cpmParser.done();
 }

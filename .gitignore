@@ -1,5 +1,5 @@
 *.o
-c--
+c+-
 .vscode
 src/bison.output
 include/bison.h
