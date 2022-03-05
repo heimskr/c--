@@ -30,27 +30,31 @@ s64 operator*(%Foo *foo) {
 	return left;
 }
 
-s64 operator<<(%Foo *left, s64 right) {
-	return left->value << right;
-}
-
-s64 operator*(%Foo *left, %Foo *right) {
-	return left->value * right->value;
-}
+s64 operator<<(%Foo *left, s64   right) { return left->value << right;        }
+s64 operator *(%Foo *left, %Foo *right) { return left->value *  right->value; }
+s64 operator /(%Foo *left, %Foo *right) { return left->value /  right->value; }
+s64 operator %(%Foo *left, %Foo *right) { return left->value %  right->value; }
+bool operator&&(%Foo *left, %Foo *right) { return left->value && right->value; }
+bool operator||(%Foo *left, %Foo *right) { return left->value || right->value; }
 
 void main() {
 	%Foo one = [10];
 	%Foo two = [20];
-	// one += 40;
-	// one -= 5;
-	// p(one.value);
-	// p(two.value);
-	// p(&one + &two);
-	p(one << 1);
-	p(one * two);
-	// p(*two);
-
+	one += 40;
+	one -= 5;
+	p("one: "); p(one.value);
+	p("two: "); p(two.value);
+	p("one + two: "); p(one + two);
+	p("one << 1: "); p(one << 1);
+	p("one * two: "); p(one * two);
+	p("*two: "); p(*two);
+	p("one / two: "); p(one / two);
+	p("one % two: "); p(one % two);
+	p("one && two: "); p(one && two);
+	p("one || two: "); p(one || two);
 }
 
 void l() { asm("<prc $1>":10); }
 void p(s64 value) { asm("<prd $1>":value); l(); }
+void p(bool b) { `s(b? "true" : "false"); l(); }
+void p(u8 const *str) { `s(str); }

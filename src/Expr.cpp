@@ -402,7 +402,9 @@ void PlusExpr::compile(VregPtr destination, Function &function, ScopePtr scope, 
 	Context context(function.program, scope);
 	auto left_type = left->getType(context), right_type = right->getType(context);
 	if (auto fnptr = getOperator(context)) {
-		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+		auto left_ptr = structToPointer(*left, context);
+		auto right_ptr = structToPointer(*right, context);
+		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr left_var = function.newVar(), right_var = function.newVar();
 
@@ -646,9 +648,10 @@ std::optional<ssize_t> XorExpr::evaluate(const Context &context) const {
 
 void LandExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
-	auto left_type = left->getType(context), right_type = right->getType(context);
-	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_LAND, getLocation())) {
-		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+	if (auto fnptr = getOperator(context)) {
+		auto left_ptr = structToPointer(*left, context);
+		auto right_ptr = structToPointer(*right, context);
+		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
 	} else {
 		const std::string base = "." + function.name + "." + std::to_string(function.getNextBlock());
 		const std::string success = base + "land.s", end = base + "land.e";
@@ -674,9 +677,10 @@ std::optional<ssize_t> LandExpr::evaluate(const Context &context) const {
 
 void LorExpr::compile(VregPtr destination, Function &function, ScopePtr scope, ssize_t multiplier) {
 	Context context(function.program, scope);
-	auto left_type = left->getType(context), right_type = right->getType(context);
-	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_LOR, getLocation())) {
-		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+	if (auto fnptr = getOperator(context)) {
+		auto left_ptr = structToPointer(*left, context);
+		auto right_ptr = structToPointer(*right, context);
+		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
 	} else {
 		const std::string success = "." + function.name + "." + std::to_string(function.getNextBlock()) + "lor.s";
 		left->compile(destination, function, scope);
@@ -723,7 +727,9 @@ void DivExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	Context context(function.program, scope);
 	auto left_type = left->getType(context), right_type = right->getType(context);
 	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_DIV, getLocation())) {
-		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+		auto left_ptr = structToPointer(*left, context);
+		auto right_ptr = structToPointer(*right, context);
+		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, scope, multiplier);
@@ -754,7 +760,9 @@ void ModExpr::compile(VregPtr destination, Function &function, ScopePtr scope, s
 	Context context(function.program, scope);
 	auto left_type = left->getType(context), right_type = right->getType(context);
 	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CMMTOK_MOD, getLocation())) {
-		compileCall(destination, function, scope, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
+		auto left_ptr = structToPointer(*left, context);
+		auto right_ptr = structToPointer(*right, context);
+		compileCall(destination, function, scope, fnptr, {left_ptr.get(), right_ptr.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, scope, multiplier);

@@ -123,6 +123,8 @@ struct LogicExpr: BinaryExpr<O> {
 	size_t getSize(const Context &context) const override { return this->left->getSize(context); }
 
 	std::unique_ptr<Type> getType(const Context &context) const override {
+		if (auto fnptr = this->getOperator(context))
+			return std::unique_ptr<Type>(fnptr->returnType->copy());
 		auto left_type = this->left->getType(context), right_type = this->right->getType(context);
 		auto bool_type = std::make_unique<BoolType>();
 		if (!(*left_type && *bool_type))
