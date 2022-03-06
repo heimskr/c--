@@ -200,6 +200,7 @@ class Function: public Makeable<Function> {
 
 		bool isConst() const;
 		bool isOperator() const;
+		bool isConstructorDeclaration() const;
 };
 
 using FunctionPtr = std::shared_ptr<Function>;

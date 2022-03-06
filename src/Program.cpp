@@ -96,7 +96,6 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 				for (const ASTNode *arg: *node->at(1))
 					args.emplace_back(Type::get(*arg->front(), out));
 				FunctionPtr fn = Function::make(out, node);
-				fn->name = "$c";
 				fn->setStructParent(struct_type, false);
 				fn->structParent->constructors.insert(fn);
 				const std::string mangled = fn->mangle();
@@ -170,7 +169,7 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 						}
 					auto struct_type = out.structs.emplace(struct_name, StructType::make(out, struct_name,
 						std::move(order), std::move(statics))).first->second;
-					for (const ASTNode *child: *node->at(1))
+					for (ASTNode *child: *node->at(1))
 						if (child->symbol == CPM_FNDECL) {
 							const std::string &name = *child->text;
 							decltype(Signature::argumentTypes) args;
@@ -186,6 +185,24 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 							out.signatures.try_emplace(mangled, ret_type, std::move(args));
 							out.functionDeclarations.emplace(mangled, fn);
 							out.bareFunctionDeclarations.emplace(name, fn);
+						} else if (child->symbol == CPM_CONSTRUCTORDECL) {
+							// 0: args
+							// 1: fnattrs
+							decltype(Signature::argumentTypes) args;
+							for (const ASTNode *arg: *child->at(0))
+								args.emplace_back(Type::get(*arg->front(), out));
+							child->map["StructName"] = struct_type->name;
+							FunctionPtr fn = Function::make(out, child);
+							fn->structParent = struct_type;
+							fn->name = "$c";
+							fn->setStructParent(struct_type, false);
+							fn->structParent->constructors.insert(fn);
+							const std::string mangled = fn->mangle();
+							if (out.functions.count(mangled) != 0)
+								throw GenericError(node->location, "Cannot redefine constructor " + mangled);
+							out.signatures.try_emplace(mangled, struct_type, std::move(args));
+							out.functionDeclarations.emplace(mangled, fn);
+							out.bareFunctionDeclarations.emplace(fn->name, fn);
 						} else if (child->symbol == CPMTOK_TILDE) {
 							FunctionPtr fn = Function::make(out, nullptr);
 							fn->structParent = struct_type;

@@ -122,7 +122,7 @@ using AN = ASTNode;
 %token CPMTOK_OPERATOR "operator"
 
 %token CPM_LIST CPM_ACCESS CPM_BLOCK CPM_CAST CPM_ADDROF CPM_EMPTY CPM_POSTPLUS CPM_POSTMINUS CPM_FNPTR CPM_DECL
-%token CPM_INITIALIZER CPM_FNDECL
+%token CPM_INITIALIZER CPM_FNDECL CPM_CONSTRUCTORDECL
 
 %start start
 
@@ -193,6 +193,7 @@ struct_list: struct_list type CPMTOK_IDENT ";" { $$ = $1->adopt($3->adopt($2)); 
            | struct_list "static" type CPMTOK_IDENT ";" { $$ = $1->adopt($4->adopt($3)); $4->attributes.insert("static"); D($2, $5); }
            | struct_list "static" type CPMTOK_IDENT "=" expr ";" { $$ = $1->adopt($4->adopt({$3, $6})); $4->attributes.insert("static"); D($2, $5, $7); }
            | struct_list "~" ";" { $$ = $1->adopt($2); D($3); }
+           | struct_list "+" "(" _arglist ")" fnattrs ";" { $$ = $1->adopt($2->adopt({$4, $6})); D($3, $5, $7); $2->symbol = CPM_CONSTRUCTORDECL; };
            | { $$ = new ASTNode(cpmParser, CPM_LIST); };
 
 function_def: type ident "(" _arglist ")" fnattrs block { $$ = $2->adopt({$1, $4, $6, $7}); D($3, $5); }
@@ -207,7 +208,7 @@ oper: "+" | "-" | "*" | "/" | "%" | "&" | "|" | "^" | "!" | "~" | "&&" | "||" | 
     | "." "++" { $$ = $2; D($1); $2->symbol = CPM_POSTPLUS;  } // postfix ++
     | "." "--" { $$ = $2; D($1); $2->symbol = CPM_POSTMINUS; } // postfix --
     | "++" "." { D($2); } // prefix ++
-    | "--" "." { D($2); }
+    | "--" "." { D($2); } // prefix --
     | "(" ")"  { D($2); }
     | "[" "]"  { D($2); $1->symbol = CPM_ACCESS; };
 

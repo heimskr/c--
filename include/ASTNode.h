@@ -5,6 +5,7 @@
 #include <ostream>
 #include <set>
 #include <string>
+#include <unordered_map>
 
 struct ASTLocation {
 	size_t line = 0;
@@ -30,7 +31,7 @@ class ASTNode {
 		ASTNode *parent = nullptr;
 		std::list<ASTNode *> children;
 		std::set<std::string> attributes;
-		int debugIndex = -1;
+		std::unordered_map<std::string, std::string> map;
 
 		ASTNode(Parser &, int sym, const ASTLocation &loc, const char *info);
 		ASTNode(Parser &, int sym, const ASTLocation &loc, const std::string *info);

@@ -135,9 +135,8 @@ void int_keybrd_(u64 key_full) {
 				if (split.size != 3u64) {
 					p("Exactly 3 arguments needed.\n");
 				} else {
-					%String *combined = split::at(1u64) + split::at(2u64);
-					combined::print(); l();
-					delete combined;
+					%StringPtr combined = %[split::at(1u64) + split::at(2u64)];
+					(*combined)::print(); l();
 				}
 			} else {
 				p("Unknown command: \"");
@@ -372,6 +371,29 @@ void String::init(u8 const *data) {
 	%String *out = new %String(left);
 	out::append(right);
 	return out;
+}
+
+%String * operator+=(%String *left, %String *right) {
+	left::append(right);
+	return left;
+}
+
+struct StringPtr {
+	%String *str;
+	~;
+	+(%String *str);
+};
+
++StringPtr(%String *str) {
+	this->str = str;
+}
+
+~StringPtr {
+	delete this->str;
+}
+
+%String * operator*(%StringPtr *sptr) {
+	return sptr->str;
 }
 
 void mkstring(u8 *data) {

@@ -1177,9 +1177,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 
 		function_found = true;
 		found_return_type = found->returnType;
-		get_arg_type = [found](size_t i) -> const Type & {
-			return *found->getArgumentType(i);
-		};
+		get_arg_type = [found](size_t i) -> const Type & { return *found->getArgumentType(i); };
 		add_jump = [this, found, &fn] { fn.add<JumpInstruction>(found->mangle(), true)->setDebug(*this); };
 	}
 

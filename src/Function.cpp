@@ -26,7 +26,13 @@ program(program_), source(source_), selfScope(FunctionScope::make(*this, GlobalS
 				throw GenericError(source->location, "Can't define constructor for " + struct_name +
 					": struct not defined");
 			auto struct_type = program.structs.at(struct_name);
-			name = struct_name;
+			name = "$c";
+			returnType = StructType::make(program, struct_name);
+		} else if (source->symbol == CPM_CONSTRUCTORDECL) {
+			attributes.insert(Attribute::Constructor);
+			const std::string &struct_name = source->map.at("StructName");
+			auto struct_type = program.structs.at(struct_name);
+			name = "$c";
 			returnType = StructType::make(program, struct_name);
 		} else if (isOperator()) {
 			name = Util::getOperator(source->at(1)->symbol);
@@ -42,7 +48,10 @@ program(program_), source(source_), selfScope(FunctionScope::make(*this, GlobalS
 		if (source->attributes.count("destructor") != 0)
 			attributes.insert(Attribute::Destructor);
 
-		extractAttributes(*source->at(isOperator()? 3 : 2));
+		if (source->symbol == CPM_CONSTRUCTORDECL)
+			extractAttributes(*source->at(1));
+		else
+			extractAttributes(*source->at(isOperator()? 3 : 2));
 	} else
 		returnType = VoidType::make();
 	scopes.emplace(0, selfScope);
@@ -98,7 +107,11 @@ void Function::extractArguments() {
 	if (!source)
 		return;
 
-	for (const ASTNode *child: *source->at(isOperator()? 2 : 1)) {
+	int index = 0;
+	if (!isConstructorDeclaration())
+		index = isOperator()? 2 : 1;
+
+	for (const ASTNode *child: *source->at(index)) {
 		const std::string &argument_name = *child->text;
 		arguments.push_back(argument_name);
 		auto type = TypePtr(Type::get(*child->front(), program));
@@ -942,9 +955,6 @@ WhyPtr Function::insertAfter(WhyPtr base, WhyPtr new_instruction, bool reindex) 
 		throw GenericError(getLocation(), "Couldn't lock instruction's parent block");
 	}
 
-	// if (new_instruction->debugIndex == -1)
-	// 	new_instruction->debugIndex = base->debugIndex;
-
 	if (reindex)
 		// There used to be a + 1 here, but I removed it because I believe it gets incremented in the loop shortly
 		// before the end of this function anyway.
@@ -985,9 +995,6 @@ WhyPtr Function::insertBefore(WhyPtr base, WhyPtr new_instruction, bool reindex,
 
 	if (&block->function != this)
 		throw GenericError(getLocation(), "Block parent isn't equal to this in Function::insertBefore");
-
-	// if (new_instruction->debugIndex == -1)
-	// 	new_instruction->debugIndex = base->debugIndex;
 
 	new_instruction->parent = base->parent;
 
@@ -1360,4 +1367,8 @@ bool Function::isConst() const {
 
 bool Function::isOperator() const {
 	return source && source->symbol == CPMTOK_OPERATOR;
+}
+
+bool Function::isConstructorDeclaration() const {
+	return source && source->symbol == CPM_CONSTRUCTORDECL;
 }
