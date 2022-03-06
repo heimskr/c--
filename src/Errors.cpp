@@ -15,14 +15,10 @@ NotOnStackError::NotOnStackError(VariablePtr variable_, const ASTLocation &locat
 		(variable_->function? " in function " + variable_->function->name : "")),
 	variable(variable_) {}
 
-ImplicitConversionError::ImplicitConversionError(std::shared_ptr<Type> left_, std::shared_ptr<Type> right_):
-	GenericError("Cannot implicitly convert " + std::string(*left_) + " to " + std::string(*right_)),
-	left(left_), right(right_) {}
-
 ImplicitConversionError::ImplicitConversionError(std::shared_ptr<Type> left_, std::shared_ptr<Type> right_,
 const ASTLocation &location_):
-	GenericError(location_, "Cannot implicitly convert " + std::string(*left_) + " to " + std::string(*right_) + " at "
-	+ std::string(location_)), left(left_), right(right_) {}
+	GenericError(location_, "Cannot implicitly convert " + std::string(*left_) + " to " + std::string(*right_)),
+	left(left_), right(right_) {}
 
 ImplicitConversionError::ImplicitConversionError(const Type &left_, const Type &right_):
 	ImplicitConversionError(TypePtr(left_.copy()), TypePtr(right_.copy())) {}

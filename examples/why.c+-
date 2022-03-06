@@ -34,7 +34,7 @@ void main() {
 	void *mem;
 	asm("? mem -> $1"::mem);
 	setBounds(g, mem);
-	input::init("");
+	input = %[""];
 	table[2] = timer_ptr;
 	table[7] = int_keybrd;
 	asm("%rit table");
@@ -107,8 +107,7 @@ void int_keybrd_(u64 key_full) {
 				l();
 			} else if (first::eq("hash") || first::eq("hash2") || first::eq("hash3")) {
 				u64 size = split.size;
-				%String new_str;
-				new_str::init("");
+				%String new_str = %[""];
 
 				for (u64 i = 1u64; i < size; ++i) {
 					if (i != 1u64)
@@ -120,7 +119,7 @@ void int_keybrd_(u64 key_full) {
 				if (first::eq("hash")) {
 					asm("<prx $1>":hash(&new_str));
 				} else if (first::eq("hash2")) {
-					asm("<prx $1>":hash2(0xdeadbeefcafef00du64, 0xcafeb0bau64, new_str.data));
+					asm("<prx $1>":hash2(0xdeadbeefcafef00du64, 0xb0bacafeu64, new_str.data));
 				} else if (first::eq("hash3")) {
 					asm("<prx $1>":hash3(&new_str));
 				} else {
@@ -402,7 +401,7 @@ void mkstring(u8 *data) {
 	%String *bar = checked_malloc(sizeof(%String));
 	*bar = %["Hello"];
 	p("[["); bar::print(); p("]]\n");
-	bar::$d();
+	bar::$d(); // Explicit destructor call
 	free(bar);
 	bar = new %String("there");
 	p("[["); bar::print(); p("]]\n");
@@ -620,7 +619,7 @@ void StringVec::eviscerate() {
 }
 
 +StringVec(%String *str, u8 const *delimiter) {
-	this::$c();
+	this::$c(); // Explicit constructor call
 	%StringVec::split(this, str, delimiter);
 }
 

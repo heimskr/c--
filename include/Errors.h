@@ -48,8 +48,8 @@ struct NotOnStackError: GenericError {
 
 struct ImplicitConversionError: GenericError {
 	std::shared_ptr<Type> left, right;
-	ImplicitConversionError(std::shared_ptr<Type> left_, std::shared_ptr<Type> right_, const ASTLocation &location_);
-	ImplicitConversionError(std::shared_ptr<Type> left_, std::shared_ptr<Type> right_);
+	ImplicitConversionError(std::shared_ptr<Type> left_, std::shared_ptr<Type> right_,
+	                        const ASTLocation &location_ = {});
 	ImplicitConversionError(const Type &left_, const Type &right_, const ASTLocation &location_);
 	ImplicitConversionError(const Type &left_, const Type &right_);
 };
