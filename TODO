@@ -3,6 +3,7 @@ To add:
 - Default destructors
 - References
 - Pointers to struct methods
+- Constructor declarations
 
 To investigate:
 - Preventing Expr::evaluate() with operator overloading
