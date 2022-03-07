@@ -597,7 +597,8 @@ struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {
 		if (auto fnptr = this->getOperator(context)) {
 			auto pointer = AddressOfExpr::make(this->left->copy());
 			pointer->setDebug(this->left->getLocation());
-			compileCall(destination, function, context, fnptr, {pointer.get(), this->right.get()}, this->getLocation(),
+			auto right_ptr = structToPointer(*this->right, context);
+			compileCall(destination, function, context, fnptr, {pointer.get(), right_ptr.get()}, this->getLocation(),
 			            multiplier);
 		} else {
 			auto temp_var = function.newVar();

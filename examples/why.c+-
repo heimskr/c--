@@ -77,9 +77,9 @@ void int_keybrd_(u64 key_full) {
 			%String str2 = [null, 0, 0];
 			str1::init("Hello");
 			str2::init(" there");
-			str1::append(&str2);
-			str1::append(", how are you");
-			str1::append('?');
+			str1 += str2;
+			str1 += ", how are you";
+			str1 += '?';
 			str1::debug();
 		} else if (key == 't') {
 			traverseBlocks();
@@ -145,7 +145,7 @@ void int_keybrd_(u64 key_full) {
 		}
 		input::clear();
 	} else {
-		input::append(key);
+		input += key;
 		p(key);
 	}
 }
@@ -374,6 +374,16 @@ void String::init(u8 const *data) {
 
 %String * operator+=(%String *left, %String *right) {
 	left::append(right);
+	return left;
+}
+
+%String * operator+=(%String *left, u8 ch) {
+	left::append(ch);
+	return left;
+}
+
+%String * operator+=(%String *left, u8 const *s) {
+	left::append(s);
 	return left;
 }
 
