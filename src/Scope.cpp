@@ -302,6 +302,6 @@ BlockScope::operator std::string() const {
 	std::stringstream out;
 	out << partialStringify() << ":\n";
 	for (const auto &var: variableOrder)
-		out << '\t' << var->name << ": " << *var->type << '\n';
+		out << '\t' << var->name << ": " << *var->getType() << '\n';
 	return out.str();
 }

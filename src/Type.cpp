@@ -356,7 +356,7 @@ bool FunctionPointerType::operator==(const Type &other) const {
 FunctionPointerType::FunctionPointerType(const Function &function): returnType(function.returnType->copy()) {
 	argumentTypes.reserve(function.arguments.size());
 	for (const std::string &name: function.arguments)
-		argumentTypes.push_back(function.argumentMap.at(name)->type->copy());
+		argumentTypes.push_back(function.argumentMap.at(name)->getType()->copy());
 }
 
 StructType::StructType(const Program &program_, const std::string &name_):

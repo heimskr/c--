@@ -18,11 +18,13 @@ struct VirtualRegister: Checkable, std::enable_shared_from_this<VirtualRegister>
 	private:
 		int reg = -1;
 
+	protected:
+		std::shared_ptr<Type> type;
+
 	public:
 		Function *function = nullptr;
 		int id;
 		bool precolored = false;
-		std::shared_ptr<Type> type;
 
 		VirtualRegister(Function &, std::shared_ptr<Type> = nullptr);
 		VirtualRegister(int id_, std::shared_ptr<Type> = nullptr);
@@ -40,6 +42,9 @@ struct VirtualRegister: Checkable, std::enable_shared_from_this<VirtualRegister>
 		virtual operator std::string() const { return regOrID(true); }
 		VirtualRegister & setReg(int, bool bypass = false);
 		int getReg() const { return reg; }
+		std::shared_ptr<Type> getType() { return type; }
+		std::shared_ptr<const Type> getType() const { return type; }
+		virtual VirtualRegister * setType(const Type &);
 };
 
 struct Variable: VirtualRegister, Makeable<Variable> {
@@ -49,6 +54,8 @@ struct Variable: VirtualRegister, Makeable<Variable> {
 	Variable(const std::string &name_, std::shared_ptr<Type>);
 
 	operator std::string() const override;
+
+	VirtualRegister * setType(const Type &type_) override;
 };
 
 using VregPtr = std::shared_ptr<VirtualRegister>;

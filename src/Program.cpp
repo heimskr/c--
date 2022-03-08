@@ -279,7 +279,7 @@ void Program::compile() {
 		const auto &expr = iter->second->value;
 		lines.push_back("");
 		lines.push_back("@" + global_name);
-		auto type = iter->second->type;
+		auto type = iter->second->getType();
 		auto size = type->getSize();
 		if (expr) {
 			auto value = expr->evaluate({*this, init->selfScope});

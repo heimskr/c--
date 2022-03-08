@@ -96,7 +96,7 @@ std::string Function::mangle() const {
 
 	for (const std::string &argument: arguments)
 		if (argument != "this")
-			out << argumentMap.at(argument)->type->mangle();
+			out << argumentMap.at(argument)->getType()->mangle();
 
 	return out.str();
 }
@@ -190,7 +190,8 @@ void Function::compile() {
 				const size_t offset = addToStack(argument);
 				add<MoveInstruction>(precolored(Why::argumentOffset + i++), argument)->setDebug(default_debug);
 				add<SubIInstruction>(fp, temp_var, offset)->setDebug(default_debug);
-				add<StoreRInstruction>(argument, temp_var, argument->getSize())->setDebug(default_debug);
+				const size_t argument_size = argument->getType()->isReference()? Why::wordSize : argument->getSize();
+				add<StoreRInstruction>(argument, temp_var, argument_size)->setDebug(default_debug);
 			}
 		}
 
@@ -279,7 +280,7 @@ VregPtr Function::precolored(int reg, bool bypass) {
 size_t Function::addToStack(VariablePtr variable) {
 	if (stackOffsets.count(variable) != 0)
 		throw GenericError(getLocation(), "Variable already on the stack in function " + name + ": " + variable->name);
-	stackOffsets.emplace(variable, stackUsage += variable->type->getSize());
+	stackOffsets.emplace(variable, stackUsage += variable->getType()->getSize());
 	return stackUsage;
 }
 
@@ -296,13 +297,13 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			size_t offset = addToStack(variable);
 			bool store_back = false;
 			VregPtr fp;
-			if (variable->type->isReference()) {
+			if (variable->getType()->isReference()) {
 				if (node.size() == 2)
 					throw GenericError(node.location, "Reference requires an initializer");
 				auto expr = ExprPtr(Expr::get(*node.at(2), this));
 				Context context = currentContext();
 				TypePtr expr_type = expr->getType(context);
-				TypePtr variable_subtype = TypePtr(variable->type->cast<ReferenceType>()->subtype->copy());
+				TypePtr variable_subtype = TypePtr(variable->getType()->cast<ReferenceType>()->subtype->copy());
 				if (!(*variable_subtype && *expr_type))
 					throw ImplicitConversionError(variable_subtype, expr_type, node.location);
 				if (!expr->compileAddress(variable, *this, context))
@@ -314,8 +315,8 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				fp = precolored(Why::framePointerOffset);
 				if (auto *initializer = expr->cast<InitializerExpr>()) {
 					if (initializer->isConstructor) {
-						if (!variable->type->isStruct())
-							throw NotStructError(variable->type, node.location);
+						if (!variable->getType()->isStruct())
+							throw NotStructError(variable->getType(), node.location);
 						auto *constructor_expr = new VariableExpr("$c");
 						auto call = std::make_unique<CallExpr>(constructor_expr, initializer->children);
 						call->structExpr = std::make_unique<VariableExpr>(var_name);
@@ -325,7 +326,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 						call->setFunction(*this);
 						constructor_expr->setLocation(call->structExpr->getLocation());
 						constructor_expr->setFunction(*this);
-						addComment("Calling constructor for " + std::string(*variable->type));
+						addComment("Calling constructor for " + std::string(*variable->getType()));
 						call->compile(nullptr, *this, currentContext(), 1);
 					} else {
 						auto addr_var = newVar();
@@ -334,7 +335,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 					}
 				} else {
 					expr->compile(variable, *this, currentContext());
-					typeCheck(*expr->getType(currentContext()), *variable->type, variable, *this,
+					typeCheck(*expr->getType(currentContext()), *variable->getType(), variable, *this,
 						expr->getLocation());
 					store_back = true;
 				}
@@ -358,8 +359,9 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			} else {
 				auto expr = ExprPtr(Expr::get(*node.front(), this));
 				auto r0 = precolored(Why::returnValueOffset);
+				TypePtr expr_type = expr->getType(currentContext());
+				r0->setType(*expr_type);
 				expr->compile(r0, *this, currentContext());
-				auto expr_type = expr->getType(currentContext());
 				typeCheck(*expr_type, *returnType, r0, *this, node.location);
 			}
 			add<JumpInstruction>("." + mangle() + ".e")->setDebug({node.location, *this});
@@ -1285,7 +1287,7 @@ const {
 
 		const size_t offset = count == arguments.size()? 0 : 1;
 		for (size_t i = offset; i < arguments.size(); ++i)
-			if (!(*argument_types.at(i - offset) && *argumentMap.at(arguments.at(i))->type))
+			if (!(*argument_types.at(i - offset) && *argumentMap.at(arguments.at(i))->getType()))
 				return false;
 
 		return true;
@@ -1295,16 +1297,16 @@ const {
 		return false;
 
 	for (size_t i = 0, max = arguments.size(); i < max; ++i)
-		if (!(*argument_types.at(i) && *argumentMap.at(arguments.at(i))->type))
+		if (!(*argument_types.at(i) && *argumentMap.at(arguments.at(i))->getType()))
 			return false;
 
 	return struct_name.empty();
 }
 
-TypePtr & Function::getArgumentType(size_t index) const {
+TypePtr Function::getArgumentType(size_t index) const {
 	if (argumentMap.count("this") != 0)
 		++index;
-	return argumentMap.at(arguments.at(index))->type;
+	return argumentMap.at(arguments.at(index))->getType();
 }
 
 Function & Function::setStatic(bool is_static) {
@@ -1332,7 +1334,7 @@ void Function::closeScope() {
 
 	for (auto iter = order->rbegin(), end = order->rend(); iter != end; ++iter) {
 		auto &var = *iter;
-		if (auto struct_type = var->type->ptrcast<StructType>())
+		if (auto struct_type = var->getType()->ptrcast<StructType>())
 			if (struct_type->getDestructor()) {
 				auto *destructor_expr = new VariableExpr("$d");
 				auto call = std::make_unique<CallExpr>(destructor_expr);
@@ -1359,7 +1361,7 @@ void Function::setStructParent(std::shared_ptr<StructType> new_struct_parent, bo
 		arguments = std::move(new_arguments);
 		auto this_var = Variable::make("this", PointerType::make(structParent->copy()), *this);
 		this_var->init();
-		this_var->type->setConst(attributes.count(Attribute::Const) != 0);
+		this_var->getType()->setConst(attributes.count(Attribute::Const) != 0);
 		argumentMap.emplace("this", this_var);
 		variables.emplace("this", this_var);
 		variableOrder.push_back(this_var);

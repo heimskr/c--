@@ -3,13 +3,24 @@
 #orcid "0000-0001-7405-6654"
 #version "0.1"
 
+struct Foo {
+	s64 foo;
+	s64 bar;
+};
+
+%Foo & operator+=(%Foo &left, %Foo const &right) {
+	left.foo += right.foo;
+	left.bar += right.bar;
+	return left;
+}
+
 s64 hack(s64 &var) {
 	s64 old = var;
 	var *= 2;
 	return old;
 }
 
-void main() {
+void basic() {
 	s64 x = 42;
 	s64 &y = x;
 	`s("x: "); `s64(x); `c('\n');
@@ -27,4 +38,19 @@ void main() {
 	`s("hack(y): "); `s64(hack(y)); `c('\n');
 	`s("x: "); `s64(x); `c('\n');
 	`s("y: "); `s64(y); `c('\n');
+}
+
+void oper() {
+	%Foo foo = [42, 64];
+	%Foo bar = [100, 200];
+	`s("&foo: "); `ptr(&foo); `c('\n');
+	`s("&bar: "); `ptr(&bar); `c('\n');
+	asm("<rest>");
+	foo += bar;
+	`s("foo.foo: "); `s64(foo.foo); `c('\n');
+	`s("foo.bar: "); `s64(foo.bar); `c('\n');
+}
+
+void main() {
+	oper();
 }

@@ -48,9 +48,9 @@ void compileCall(VregPtr destination, Function &function, const Context &context
 		} else {
 			auto vreg = std::get<VregPtr>(argument);
 			function.add<MoveInstruction>(vreg, argument_register)->setDebug(debug);
-			if (vreg->type)
+			if (auto vreg_type = vreg->getType())
 				try {
-					typeCheck(*vreg->type, fn_arg_type, argument_register, function, location);
+					typeCheck(*vreg_type, fn_arg_type, argument_register, function, location);
 				} catch (std::out_of_range &err) {
 					error() << "\e[31mBad function argument at position " + std::to_string(i + 1) << " at "
 					        << location << "\e[39m\n";
@@ -897,13 +897,15 @@ void VregExpr::compile(VregPtr destination, Function &function, const Context &,
 }
 
 size_t VregExpr::getSize(const Context &) const {
-	if (!virtualRegister->type)
-		return 8;
-	return virtualRegister->type->getSize();
+	if (auto vreg_type = virtualRegister->getType())
+		return vreg_type->getSize();
+	return 8;
 }
 
 std::unique_ptr<Type> VregExpr::getType(const Context &) const {
-	return std::unique_ptr<Type>(virtualRegister->type->copy());
+	if (auto vreg_type = virtualRegister->getType())
+		return std::unique_ptr<Type>(vreg_type->copy());
+	return nullptr;
 }
 
 void VariableExpr::compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) {
@@ -917,12 +919,15 @@ void VariableExpr::compile(VregPtr destination, Function &function, const Contex
 			function.addComment("Load variable " + name);
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset)
 				->setDebug(*this);
-			function.add<LoadRInstruction>(destination, destination, var->getSize())->setDebug(*this);
-			if (var->type->isReference()) {
-				auto ref = var->type->ptrcast<ReferenceType>();
-				function.addComment("Load reference " + name);
-				function.add<LoadRInstruction>(destination, destination, ref->subtype->getSize())->setDebug(*this);
-			}
+			if (var->getType()->isReference()) {
+				function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
+				auto ref = var->getType()->ptrcast<ReferenceType>();
+				if (!destination->getType() || !destination->getType()->isReference()) {
+					function.addComment("Load reference " + name);
+					function.add<LoadRInstruction>(destination, destination, ref->subtype->getSize())->setDebug(*this);
+				}
+			} else
+				function.add<LoadRInstruction>(destination, destination, var->getSize())->setDebug(*this);
 		}
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -944,10 +949,10 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, const
 			function.addComment("Get variable lvalue for " + name);
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset)
 				->setDebug(*this);
-			if (var->type->isReference()) {
-				auto ref = var->type->ptrcast<ReferenceType>();
+			if (var->getType()->isReference()) {
+				auto ref = var->getType()->ptrcast<ReferenceType>();
 				function.addComment("Load reference lvalue for " + name);
-				function.add<LoadRInstruction>(destination, destination, ref->subtype->getSize())->setDebug(*this);
+				function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
 			}
 		}
 	} else if (const auto fn = context.scope->lookupFunction(name, getLocation())) {
@@ -967,7 +972,7 @@ size_t VariableExpr::getSize(const Context &context) const {
 
 std::unique_ptr<Type> VariableExpr::getType(const Context &context) const {
 	if (VariablePtr var = context.scope->lookup(name))
-		return std::unique_ptr<Type>(var->type->copy()->setLvalue(true));
+		return std::unique_ptr<Type>(var->getType()->copy()->setLvalue(true));
 	try {
 		if (const auto fn = context.scope->lookupFunction(name, nullptr, {}, context.structName, getLocation()))
 			return std::make_unique<FunctionPointerType>(*fn);
@@ -1154,14 +1159,14 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 			if (const auto *pointer_type = struct_expr_type->cast<PointerType>())
 				if (pointer_type->subtype->isStruct()) {
 					fn.addComment("Setting \"this\" from pointer.");
-					this_var->type = TypePtr(pointer_type->copy());
+					this_var->setType(*pointer_type);
 					structExpr->compile(this_var, fn, context);
 					goto this_done; // Hehe :)
 				}
 			throw NotStructError(TypePtr(struct_expr_type->copy()), structExpr->getLocation());
 		} else {
 			fn.addComment("Setting \"this\" from struct.");
-			this_var->type = PointerType::make(struct_expr_type->copy());
+			this_var->setType(PointerType(struct_expr_type->copy()));
 			if (!structExpr->compileAddress(this_var, fn, context))
 				throw LvalueError(*struct_expr_type, structExpr->getLocation());
 		}
@@ -1213,12 +1218,12 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 		auto argument_register = fn.precolored(argument_offset + i);
 		auto argument_type = argument->getType(subcontext);
 		const Type &function_argument_type = get_arg_type(i);
-		if (argument_type->isStruct())
-			throw GenericError(argument->getLocation(),
-				"Structs cannot be directly passed to functions; use a pointer");
 		if (function_argument_type.isReference()) {
 			if (!argument->compileAddress(argument_register, fn, context))
 				throw LvalueError(*argument_type, argument->getLocation());
+		} else if (argument_type->isStruct()) {
+			throw GenericError(argument->getLocation(),
+				"Structs cannot be directly passed to functions; use a pointer");
 		} else
 			argument->compile(argument_register, fn, context);
 		try {
@@ -1277,9 +1282,9 @@ std::unique_ptr<Type> CallExpr::getType(const Context &context) const {
 		if (const auto fn = findFunction(var_expr->name, subcontext))
 			return std::unique_ptr<Type>(fn->returnType->copy());
 		if (auto var = subcontext.scope->lookup(var_expr->name)) {
-			if (auto *fnptr = var->type->cast<FunctionPointerType>())
+			if (auto *fnptr = var->getType()->cast<FunctionPointerType>())
 				return std::unique_ptr<Type>(fnptr->returnType->copy());
-			throw FunctionPointerError(*var->type);
+			throw FunctionPointerError(*var->getType());
 		}
 		throw ResolutionError(var_expr->name, subcontext, getLocation());
 	}
@@ -1561,8 +1566,12 @@ bool DotExpr::compileAddress(VregPtr destination, Function &function, const Cont
 
 std::shared_ptr<StructType> DotExpr::checkType(const Context &context) const {
 	auto left_type = left->getType(context);
-	if (!left_type->isStruct())
-		throw NotStructError(std::move(left_type), getLocation());
+	if (!left_type->isStruct()) {
+		auto *left_reference = left_type->cast<ReferenceType>();
+		if (!left_reference || !left_reference->subtype->isStruct())
+			throw NotStructError(std::move(left_type), getLocation());
+		return std::shared_ptr<StructType>(left_reference->subtype->copy()->cast<StructType>());
+	}
 	TypePtr shared_type = std::move(left_type);
 	return shared_type->ptrcast<StructType>();
 }

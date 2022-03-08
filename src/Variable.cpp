@@ -38,6 +38,11 @@ VirtualRegister & VirtualRegister::setReg(int new_reg, bool bypass) {
 	return *this;
 }
 
+VirtualRegister * VirtualRegister::setType(const Type &type_) {
+	type = std::shared_ptr<Type>(type_.copy()->setLvalue(false));
+	return this;
+}
+
 Variable::Variable(const std::string &name_, std::shared_ptr<Type> type_, Function &function_):
 	VirtualRegister(function_, type_), name(name_) {}
 
@@ -46,6 +51,11 @@ Variable::Variable(const std::string &name_, std::shared_ptr<Type> type_):
 
 Variable::operator std::string() const {
 	return name + ": " + std::string(*type);
+}
+
+VirtualRegister * Variable::setType(const Type &type_) {
+	type = std::shared_ptr<Type>(type_.copy()->setLvalue(true));
+	return this;
 }
 
 std::ostream & operator<<(std::ostream &os, const VirtualRegister &vreg) {

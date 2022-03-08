@@ -574,12 +574,12 @@ inline ExprPtr ensurePointer(const Expr &expr, const Context &context) {
 }
 
 inline ExprPtr structToPointer(const Expr &expr, const Context &context) {
-	auto type = expr.getType(context);
-	if (!type->isStruct())
+	// auto type = expr.getType(context);
+	// if (!type->isStruct())
 		return ExprPtr(expr.copy());
-	auto out = AddressOfExpr::make(expr.copy());
-	out->setDebug(expr.debug);
-	return out;
+	// auto out = AddressOfExpr::make(expr.copy());
+	// out->setDebug(expr.debug);
+	// return out;
 }
 
 template <fixstr::fixed_string O, typename R, typename Fn>
