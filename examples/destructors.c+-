@@ -1,7 +1,7 @@
 #name "Destructors"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "2.0"
+#version "2.1"
 
 struct Foo {
 	u8 const *str;
@@ -31,6 +31,7 @@ void fn3() {
 	{
 		%Foo foo = ["In fn3()"];
 		return;
+		%Foo bar = ["This shouldn't happen"];
 	}
 }
 
