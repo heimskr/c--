@@ -1265,6 +1265,7 @@ bool Function::isDeclaredOnly() const {
 bool Function::isMatch(TypePtr return_type, const std::vector<TypePtr> &argument_types, const std::string &struct_name)
 const {
 	std::vector<Type *> raw_pointers;
+	raw_pointers.reserve(argument_types.size());
 	for (const auto &type: argument_types)
 		raw_pointers.push_back(type.get());
 

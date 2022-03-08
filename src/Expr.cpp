@@ -1212,14 +1212,17 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 	for (const auto &argument: arguments) {
 		auto argument_register = fn.precolored(argument_offset + i);
 		auto argument_type = argument->getType(subcontext);
-		info() << (found? found->mangle() : "???") << " @ " << getLocation() << ", " << i << ": " << *argument_type << '\n';
-		// if (argument_type-
+		const Type &function_argument_type = get_arg_type(i);
 		if (argument_type->isStruct())
 			throw GenericError(argument->getLocation(),
 				"Structs cannot be directly passed to functions; use a pointer");
-		argument->compile(argument_register, fn, context);
+		if (function_argument_type.isReference()) {
+			if (!argument->compileAddress(argument_register, fn, context))
+				throw LvalueError(*argument_type, argument->getLocation());
+		} else
+			argument->compile(argument_register, fn, context);
 		try {
-			typeCheck(*argument_type, get_arg_type(i), argument_register, fn, argument->getLocation());
+			typeCheck(*argument_type, function_argument_type, argument_register, fn, argument->getLocation());
 		} catch (ImplicitConversionError &) {
 			std::cerr << "\e[31mBad function argument at " << argument->getLocation() << "\e[39m\n";
 			throw;
