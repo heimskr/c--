@@ -5,10 +5,10 @@
 #include "Why.h"
 
 VirtualRegister::VirtualRegister(Function &function_, std::shared_ptr<Type> type_):
-	function(&function_), id(function_.nextVariable++), type(type_) {}
+	type(type_), function(&function_), id(function_.nextVariable++) {}
 
 VirtualRegister::VirtualRegister(int id_, std::shared_ptr<Type> type_):
-	id(id_), type(type_) {}
+	type(type_), id(id_) {}
 
 std::shared_ptr<VirtualRegister> VirtualRegister::init() {
 	const auto ptr = shared_from_this();

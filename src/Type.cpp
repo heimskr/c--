@@ -478,7 +478,7 @@ Type * InitializerType::copy() const {
 	return (new InitializerType(std::move(children_copy)))->steal(*this);
 }
 
-bool InitializerType::similar(const Type &other, bool ignore_const) const {
+bool InitializerType::similar(const Type &other, bool) const {
 	if (const auto *other_init = other.cast<InitializerType>()) {
 		const size_t max = children.size();
 		if (other_init->children.size() != max)
@@ -508,7 +508,7 @@ bool InitializerType::similar(const Type &other, bool ignore_const) const {
 	return false;
 }
 
-bool InitializerType::equal(const Type &other, bool ignore_const) const {
+bool InitializerType::equal(const Type &other, bool) const {
 	if (const auto *other_init = other.cast<InitializerType>()) {
 		const size_t max = children.size();
 		if (other_init->children.size() != max)

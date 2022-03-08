@@ -121,8 +121,8 @@ struct BoolType: Type, Makeable<BoolType> {
 	Type * copy() const override { return (new BoolType)->steal(*this); }
 	std::string mangle() const override { return "b"; }
 	size_t getSize() const override { return 1; }
-	bool similar(const Type &other, bool ignore_const) const override { return other.isBool(); }
-	bool equal(const Type &other, bool ignore_const) const override { return other.isBool(); }
+	bool similar(const Type &other, bool) const override { return other.isBool(); }
+	bool equal(const Type &other, bool) const override { return other.isBool(); }
 	bool isBool() const override { return true; }
 	protected:
 		std::string stringify() const override { return "bool"; }
