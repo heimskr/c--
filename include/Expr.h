@@ -108,10 +108,6 @@ struct BinaryExpr: Expr {
 
 	virtual FunctionPtr getOperator(const Context &context) const {
 		TypePtr left_type = left->getType(context), right_type = right->getType(context);
-		// if (left_type->isStruct())
-		// 	left_type = PointerType::make(left_type->copy());
-		// if (right_type->isStruct())
-		// 	right_type = PointerType::make(right_type->copy());
 		return context.program->getOperator({left_type.get(), right_type.get()}, operator_str_map.at(std::string(O)),
 			getLocation());
 	}

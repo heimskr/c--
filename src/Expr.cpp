@@ -887,29 +887,9 @@ void VariableExpr::compile(VregPtr destination, Function &function, const Contex
 			function.addComment("Load variable " + name);
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset)
 				->setDebug(*this);
-
 			auto destination_type = destination->getType();
-			if (destination_type && destination_type->isReference()) {
-				// function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
-				// auto var_type = var->getType();
-				// if (var_type && var_type->isReference()) {
-				// 	function.addComment("Load reference " + name);
-				// 	function.add<LoadRInstruction>(destination, destination,
-				// 		var_type->cast<ReferenceType>()->subtype->getSize())->setDebug(*this);
-				// }
-
-			} else
+			if (!destination_type || !destination_type->isReference())
 				function.add<LoadRInstruction>(destination, destination, var->getSize())->setDebug(*this);
-
-			// if (var->getType()->isReference()) {
-			// 	function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
-			// 	auto ref = var->getType()->ptrcast<ReferenceType>();
-			// 	if (!destination->getType() || !destination->getType()->isReference()) {
-			// 		function.addComment("Load reference " + name);
-			// 		function.add<LoadRInstruction>(destination, destination, ref->subtype->getSize())->setDebug(*this);
-			// 	}
-			// } else
-			// 	function.add<LoadRInstruction>(destination, destination, var->getSize())->setDebug(*this);
 		}
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);

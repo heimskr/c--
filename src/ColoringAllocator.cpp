@@ -9,7 +9,6 @@
 #include "WhyInstructions.h"
 #include "Variable.h"
 #include "Errors.h"
-// #include "util/Timer.h"
 #include "Util.h"
 #include "Why.h"
 
@@ -53,7 +52,6 @@ ColoringAllocator::Result ColoringAllocator::attempt() {
 }
 
 VregPtr ColoringAllocator::selectMostLive(int *liveness_out) const {
-	// Timer timer("SelectMostLive");
 	VregPtr ptr;
 	int highest = -1;
 	for (const auto &var: function.virtualRegisters) {
@@ -82,7 +80,6 @@ VregPtr ColoringAllocator::selectMostLive(int *liveness_out) const {
 }
 
 void ColoringAllocator::makeInterferenceGraph() {
-	// Timer timer("MakeInterferenceGraph");
 	interference.clear();
 	size_t links = 0;
 
