@@ -967,7 +967,7 @@ size_t VariableExpr::getSize(const Context &context) const {
 
 std::unique_ptr<Type> VariableExpr::getType(const Context &context) const {
 	if (VariablePtr var = context.scope->lookup(name))
-		return std::unique_ptr<Type>(var->type->copy());
+		return std::unique_ptr<Type>(var->type->copy()->setLvalue(true));
 	try {
 		if (const auto fn = context.scope->lookupFunction(name, nullptr, {}, context.structName, getLocation()))
 			return std::make_unique<FunctionPointerType>(*fn);
@@ -1212,6 +1212,8 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 	for (const auto &argument: arguments) {
 		auto argument_register = fn.precolored(argument_offset + i);
 		auto argument_type = argument->getType(subcontext);
+		info() << (found? found->mangle() : "???") << " @ " << getLocation() << ", " << i << ": " << *argument_type << '\n';
+		// if (argument_type-
 		if (argument_type->isStruct())
 			throw GenericError(argument->getLocation(),
 				"Structs cannot be directly passed to functions; use a pointer");

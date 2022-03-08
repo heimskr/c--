@@ -21,6 +21,8 @@ std::ostream & operator<<(std::ostream &os, const Type &type) {
 }
 
 bool SignedType::operator&&(const Type &other) const {
+	if (other.isReferenceOf(*this))
+		return isLvalue;
 	if (other.isBool())
 		return true;
 	if (auto *other_signed = other.cast<SignedType>())
@@ -29,12 +31,16 @@ bool SignedType::operator&&(const Type &other) const {
 }
 
 bool SignedType::operator==(const Type &other) const {
+	if (other.isReferenceOf(*this))
+		return isLvalue;
 	if (auto *other_signed = other.cast<SignedType>())
 		return other_signed->width == width;
 	return false;
 }
 
 bool UnsignedType::operator&&(const Type &other) const {
+	if (other.isReferenceOf(*this))
+		return isLvalue;
 	if (other.cast<BoolType>())
 		return true;
 	if (auto *other_unsigned = other.cast<UnsignedType>())
@@ -43,12 +49,16 @@ bool UnsignedType::operator&&(const Type &other) const {
 }
 
 bool UnsignedType::operator==(const Type &other) const {
+	if (other.isReferenceOf(*this))
+		return isLvalue;
 	if (auto *other_unsigned = other.cast<UnsignedType>())
 		return other_unsigned->width == width;
 	return false;
 }
 
 bool PointerType::operator&&(const Type &other) const {
+	if (other.isReferenceOf(*this))
+		return isLvalue;
 	if (other.isBool())
 		return true;
 	if (auto *other_pointer = other.cast<PointerType>()) {
@@ -61,6 +71,8 @@ bool PointerType::operator&&(const Type &other) const {
 }
 
 bool PointerType::operator==(const Type &other) const {
+	if (other.isReferenceOf(*this))
+		return isLvalue;
 	if (auto *other_ptr = other.cast<PointerType>())
 		return *other_ptr->subtype == *subtype;
 	return false;
@@ -85,6 +97,8 @@ int PointerType::affinity(const Type &other) const {
 }
 
 bool ReferenceType::operator&&(const Type &other) const {
+	if (other.isReferenceOf(*this))
+		return isLvalue;
 	if (auto *other_reference = other.cast<ReferenceType>()) {
 		if (subtype->isVoid() || other_reference->subtype->isVoid() || (*subtype && *other_reference->subtype))
 			return true;
@@ -116,7 +130,13 @@ int ReferenceType::affinity(const Type &other) const {
 	return 0;
 }
 
+bool ReferenceType::isReferenceOf(const Type &other) const {
+	return *subtype == other;
+}
+
 bool ArrayType::operator&&(const Type &other) const {
+	if (other.isReferenceOf(*this))
+		return isLvalue;
 	if (auto *other_array = other.cast<ArrayType>()) {
 		if (subtype->isConst && !other_array->subtype->isConst)
 			return false;
@@ -131,6 +151,8 @@ bool ArrayType::operator&&(const Type &other) const {
 }
 
 bool ArrayType::operator==(const Type &other) const {
+	if (other.isReferenceOf(*this))
+		return isLvalue;
 	if (auto *other_array = other.cast<ArrayType>())
 		return (*subtype == *other_array->subtype) && count == other_array->count;
 	return false;
@@ -158,10 +180,18 @@ Type * Type::get(const ASTNode &node, Program &program, bool allow_forward) {
 			return new UnsignedType(32);
 		case CPMTOK_U64:
 			return new UnsignedType(64);
-		case CPMTOK_TIMES:
-			return new PointerType(Type::get(*node.front(), program, true));
-		case CPMTOK_AND:
-			return new ReferenceType(Type::get(*node.front(), program, true));
+		case CPMTOK_TIMES: {
+			Type *subtype = Type::get(*node.front(), program, true);
+			if (subtype->isReference())
+				throw GenericError(node.location, "Cannot take a pointer to a reference");
+			return new PointerType(subtype);
+		}
+		case CPMTOK_AND: {
+			Type *subtype = Type::get(*node.front(), program, true);
+			if (subtype->isReference())
+				throw GenericError(node.location, "Cannot take a reference to a reference");
+			return new ReferenceType(subtype);
+		}
 		case CPMTOK_STRING:
 			return new PointerType(new UnsignedType(8));
 		case CPMTOK_LSQUARE: {
@@ -273,7 +303,7 @@ Type * FunctionPointerType::copy() const {
 	arguments_copy.reserve(argumentTypes.size());
 	for (const Type *type: argumentTypes)
 		arguments_copy.push_back(type->copy());
-	return (new FunctionPointerType(returnType->copy(), std::move(arguments_copy)))->setConst(isConst);
+	return (new FunctionPointerType(returnType->copy(), std::move(arguments_copy)))->steal(*this);
 }
 
 std::string FunctionPointerType::mangle() const {
@@ -300,12 +330,16 @@ std::string FunctionPointerType::stringify() const {
 }
 
 bool FunctionPointerType::operator&&(const Type &other) const {
+	if (other.isReferenceOf(*this))
+		return isLvalue;
 	if (auto *ptr = other.cast<PointerType>())
 		return ptr->subtype->isVoid();
 	return *this == other;
 }
 
 bool FunctionPointerType::operator==(const Type &other) const {
+	if (other.isReferenceOf(*this))
+		return isLvalue;
 	if (auto *other_fnptr = other.cast<FunctionPointerType>()) {
 		if (*returnType != *other_fnptr->returnType)
 			return false;
@@ -346,7 +380,7 @@ Type * StructType::copy() const {
 	if (isForwardDeclaration)
 		return new StructType(program, name);
 	auto *out = new StructType(program, name, getOrder(), getStatics());
-	out->setConst(isConst);
+	out->steal(*this);
 	out->destructor = destructor;
 	return out;
 }
@@ -363,10 +397,14 @@ size_t StructType::getSize() const {
 }
 
 bool StructType::operator&&(const Type &other) const {
+	if (other.isReferenceOf(*this))
+		return isLvalue;
 	return *this == other;
 }
 
 bool StructType::operator==(const Type &other) const {
+	if (other.isReferenceOf(*this))
+		return isLvalue;
 	if (const auto *other_struct = other.cast<StructType>())
 		return name == other_struct->name && !(isConst && !other_struct->isConst);
 	return false;
@@ -437,7 +475,7 @@ Type * InitializerType::copy() const {
 	std::vector<TypePtr> children_copy;
 	for (const auto &child: children)
 		children_copy.emplace_back(child->copy());
-	return (new InitializerType(std::move(children_copy)))->setConst(isConst);
+	return (new InitializerType(std::move(children_copy)))->steal(*this);
 }
 
 bool InitializerType::operator&&(const Type &other) const {
