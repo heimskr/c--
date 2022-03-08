@@ -35,10 +35,14 @@ void compileCall(VregPtr destination, Function &function, const Context &context
 		if (std::holds_alternative<Expr *>(argument)) {
 			auto expr = std::get<Expr *>(argument);
 			auto argument_type = expr->getType(context);
-			if (argument_type->isStruct())
-				throw GenericError(expr->getLocation(), "Structs cannot be directly passed to functions; "
-					"use a pointer");
-			expr->compile(argument_register, function, context);
+			if (fn_arg_type.isReference()) {
+				if (!expr->compileAddress(argument_register, function, context))
+					throw LvalueError(*argument_type, expr->getLocation());
+			} else if (argument_type->isStruct()) {
+				throw GenericError(expr->getLocation(),
+					"Structs cannot be directly passed to functions; use a pointer");
+			} else
+				expr->compile(argument_register, function, context);
 			try {
 				typeCheck(*argument_type, fn_arg_type, argument_register, function, expr->getLocation());
 			} catch (std::out_of_range &err) {
@@ -1774,10 +1778,15 @@ void ConstructorExpr::compile(VregPtr destination, Function &function, const Con
 	for (const auto &argument: arguments) {
 		auto argument_register = function.precolored(argument_offset + i);
 		auto argument_type = argument->getType(subcontext);
-		if (argument_type->isStruct())
+		const Type &function_argument_type = *found->getArgumentType(i);
+		if (function_argument_type.isReference()) {
+			if (!argument->compileAddress(argument_register, function, context))
+				throw LvalueError(*argument_type, argument->getLocation());
+		} else if (argument_type->isStruct()) {
 			throw GenericError(argument->getLocation(),
 				"Structs cannot be directly passed to functions; use a pointer");
-		argument->compile(argument_register, function, subcontext);
+		} else
+			argument->compile(argument_register, function, context);
 		try {
 			typeCheck(*argument_type, *found->getArgumentType(i), argument_register, function, argument->getLocation());
 		} catch (std::out_of_range &err) {
@@ -1914,10 +1923,15 @@ void NewExpr::compile(VregPtr destination, Function &function, const Context &co
 		for (const auto &argument: arguments) {
 			auto argument_register = function.precolored(argument_offset + i);
 			auto argument_type = argument->getType(subcontext);
-			if (argument_type->isStruct())
+			const Type &function_argument_type = *found->getArgumentType(i);
+			if (function_argument_type.isReference()) {
+				if (!argument->compileAddress(argument_register, function, context))
+					throw LvalueError(*argument_type, argument->getLocation());
+			} else if (argument_type->isStruct()) {
 				throw GenericError(argument->getLocation(),
 					"Structs cannot be directly passed to functions; use a pointer");
-			argument->compile(argument_register, function, subcontext);
+			} else
+				argument->compile(argument_register, function, context);
 			try {
 				typeCheck(*argument_type, *found->getArgumentType(i), argument_register, function,
 					argument->getLocation());
