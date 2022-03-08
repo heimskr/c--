@@ -1,0 +1,56 @@
+#name "Destructors"
+#author "Kai Tamkun"
+#orcid "0000-0001-7405-6654"
+#version "2.0"
+
+struct Foo {
+	u8 const *str;
+	~;
+};
+
+~Foo {
+	`s("~Foo");
+	if (this->str) {
+		`s(": \"");
+		`s(this->str);
+		`s("\"");
+	}
+	`c('\n');
+}
+
+void fn1() {
+	%Foo foo = ["In fn1()"];
+}
+
+void fn2() {
+	%Foo foo = ["In fn2()"];
+	return;
+}
+
+void fn3() {
+	{
+		%Foo foo = ["In fn3()"];
+		return;
+	}
+}
+
+void fn4() {
+	if (true) {
+		%Foo foo = ["In fn4()"];
+		return;
+	}
+}
+
+void main() {
+	`s("Hello.\n");
+	while (true) {
+		%Foo foo = ["Hello"];
+		%Foo &bar = foo;
+		break;
+	}
+	fn1();
+	fn2();
+	fn3();
+	fn4();
+	`s("Goodbye.\n");
+}

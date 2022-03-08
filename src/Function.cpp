@@ -196,10 +196,15 @@ void Function::compile() {
 		}
 
 		for (const ASTNode *child: *source->at(isOperator()? 4 : 3))
-			compile(*child);
+			compile(*child, "", "", currentScope());
 	}
 
 	if (!isNaked()) {
+		if (!is_init) {
+			add<Label>("." + mangle() + ".e");
+			closeScope();
+		}
+
 		extractBlocks();
 		split();
 		updateVregs();
@@ -214,7 +219,6 @@ void Function::compile() {
 		auto rt = precolored(Why::returnAddressOffset);
 
 		if (!is_init) {
-			closeScope();
 			auto gp_regs = usedGPRegisters();
 			auto fp = precolored(Why::framePointerOffset), sp = precolored(Why::stackPointerOffset), m5 = mx(5);
 			if (stackUsage != 0)
@@ -226,7 +230,6 @@ void Function::compile() {
 			addFront<StackPushInstruction>(m5)->setDebug(default_debug);
 			addFront<StackPushInstruction>(fp)->setDebug(default_debug);
 			addFront<StackPushInstruction>(rt)->setDebug(default_debug);
-			add<Label>("." + mangle() + ".e");
 			if (attributes.count(Attribute::Constructor) != 0) {
 				addComment("Automatically return \"this\"");
 				add<MoveInstruction>(argumentMap.at("this"), precolored(Why::returnValueOffset))
@@ -261,9 +264,9 @@ VregPtr Function::newVar(TypePtr type) {
 	return std::make_shared<VirtualRegister>(*this, type)->init();
 }
 
-ScopePtr Function::newScope(int *id_out) {
+std::shared_ptr<BlockScope> Function::newScope(const std::string &name_, int *id_out) {
 	const int new_id = ++nextScope;
-	auto new_scope = std::make_shared<BlockScope>(currentScope());
+	auto new_scope = std::make_shared<BlockScope>(currentScope(), name_);
 	scopes.try_emplace(new_id, new_scope);
 	if (id_out)
 		*id_out = new_id;
@@ -284,7 +287,8 @@ size_t Function::addToStack(VariablePtr variable) {
 	return stackUsage;
 }
 
-void Function::compile(const ASTNode &node, const std::string &break_label, const std::string &continue_label) {
+void Function::compile(const ASTNode &node, const std::string &break_label, const std::string &continue_label,
+                       ScopePtr parent_scope) {
 	switch (node.symbol) {
 		case CPM_DECL: {
 			checkNaked(node);
@@ -365,6 +369,17 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				expr->compile(r0, *this, currentContext());
 				typeCheck(*expr->getType(currentContext()), *returnType, r0, *this, node.location);
 			}
+			ScopePtr scope = currentScope();
+			// Close scopes up to but not including the function scope
+			do {
+				if (scope->getName() == name)
+					break;
+				closeScope(scope);
+				if (auto block = scope->ptrcast<BlockScope>())
+					scope = block->parent;
+				else
+					break;
+			} while (scope);
 			add<JumpInstruction>("." + mangle() + ".e")->setDebug({node.location, *this});
 			break;
 		}
@@ -375,6 +390,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 		case CPMTOK_WHILE: {
 			checkNaked(node);
 			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
+			ScopePtr current_scope = currentScope();
 			const std::string label = "." + mangle() + "." + std::to_string(++nextBlock);
 			const std::string start = label + "w.s", end = label + "w.e";
 			add<Label>(start);
@@ -385,8 +401,8 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			condition->compile(temp_var, *this, currentContext());
 			add<LnotRInstruction>(temp_var, temp_var)->setDebug({node.location, *this});
 			add<JumpConditionalInstruction>(end, temp_var)->setDebug({node.location, *this});
-			openScope();
-			compile(*node.at(1), end, start);
+			openScope(start);
+			compile(*node.at(1), end, start, current_scope);
 			closeScope();
 			add<JumpInstruction>(start)->setDebug({node.location, *this});
 			add<Label>(end);
@@ -394,13 +410,14 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 		}
 		case CPMTOK_FOR: {
 			checkNaked(node);
-			openScope();
 
+			ScopePtr current_scope = currentScope();
 			const std::string label = "." + mangle() + "." + std::to_string(++nextBlock);
 			const std::string start = label + "f.s", end = label + "f.e", next = label + "f.n";
+			openScope(start);
 			auto temp_var = newVar();
 
-			compile(*node.front());
+			compile(*node.front(), break_label, continue_label, parent_scope);
 			add<Label>(start);
 			ExprPtr condition = ExprPtr(Expr::get(*node.at(1), this));
 			const TypePtr condition_type = condition->getType(currentContext());
@@ -409,9 +426,9 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			condition->compile(temp_var, *this, currentContext());
 			add<LnotRInstruction>(temp_var, temp_var)->setDebug({node.location, *this});
 			add<JumpConditionalInstruction>(end, temp_var)->setDebug({node.location, *this});
-			compile(*node.at(3), end, next);
+			compile(*node.at(3), end, next, current_scope);
 			add<Label>(next);
-			compile(*node.at(2));
+			compile(*node.at(2), break_label, continue_label, parent_scope);
 			add<JumpInstruction>(start)->setDebug({node.location, *this});
 			add<Label>(end);
 			closeScope();
@@ -419,14 +436,16 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 		}
 		case CPMTOK_CONTINUE:
 			checkNaked(node);
-			if (continue_label.empty())
+			if (continue_label.empty() || !parent_scope)
 				throw GenericError(node.location, "Encountered invalid continue statement");
+			closeScopes(parent_scope->getName());
 			add<JumpInstruction>(continue_label)->setDebug({node.location, *this});
 			break;
 		case CPMTOK_BREAK:
 			checkNaked(node);
-			if (break_label.empty())
+			if (break_label.empty() || !parent_scope)
 				throw GenericError(node.location, "Encountered invalid break statement");
+			closeScopes(parent_scope->getName());
 			add<JumpInstruction>(break_label)->setDebug({node.location, *this});
 			break;
 		case CPM_EMPTY:
@@ -435,7 +454,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			checkNaked(node);
 			openScope();
 			for (const ASTNode *child: node)
-				compile(*child, break_label, continue_label);
+				compile(*child, break_label, continue_label, parent_scope);
 			closeScope();
 			break;
 		case CPMTOK_IF: {
@@ -452,17 +471,17 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				const std::string else_label = base + "if.else";
 				add<JumpConditionalInstruction>(else_label, temp_var)->setDebug({node.location, *this});
 				openScope();
-				compile(*node.at(1), break_label, continue_label);
+				compile(*node.at(1), break_label, continue_label, parent_scope);
 				closeScope();
 				add<JumpInstruction>(end_label)->setDebug({node.location, *this});
 				add<Label>(else_label);
 				openScope();
-				compile(*node.at(2), break_label, continue_label);
+				compile(*node.at(2), break_label, continue_label, parent_scope);
 				closeScope();
 			} else {
 				add<JumpConditionalInstruction>(end_label, temp_var)->setDebug({node.location, *this});
 				openScope();
-				compile(*node.at(1), break_label, continue_label);
+				compile(*node.at(1), break_label, continue_label, parent_scope);
 				closeScope();
 			}
 			add<Label>(end_label);
@@ -1315,23 +1334,21 @@ Function & Function::setStatic(bool is_static) {
 	return *this;
 }
 
-void Function::openScope() {
-	auto scope = newScope();
+void Function::openScope(const std::string &name_) {
+	auto scope = newScope(name_);
 	scopeStack.push_back(scope);
 }
 
-void Function::closeScope() {
-	Context context = currentContext();
+void Function::closeScope(ScopePtr scope) {
 	std::vector<VariablePtr> *order = nullptr;
 
-	if (auto *block_scope = context.scope->cast<BlockScope>())
+	if (auto *block_scope = scope->cast<BlockScope>())
 		order = &block_scope->variableOrder;
-	else if (auto *function_scope = context.scope->cast<FunctionScope>())
+	else if (scope->cast<FunctionScope>())
 		order = &variableOrder;
 
 	if (!order)
-		throw std::runtime_error("Can't close scope " + context.scope->partialStringify());
-
+		throw std::runtime_error("Can't close scope " + scope->partialStringify() + ": order not found");
 
 	for (auto iter = order->rbegin(), end = order->rend(); iter != end; ++iter) {
 		auto &var = *iter;
@@ -1341,11 +1358,51 @@ void Function::closeScope() {
 				auto call = std::make_unique<CallExpr>(destructor_expr);
 				call->structExpr = std::make_unique<VariableExpr>(var->name);
 				addComment("Calling destructor for " + std::string(*struct_type) + " " + var->name);
-				call->compile(nullptr, *this, context, 1);
+				call->compile(nullptr, *this, {program, scope, currentContext().structName}, 1);
 			}
 	}
+}
 
+void Function::closeScope() {
+	if (scopeStack.empty())
+		throw std::runtime_error("scopeStack is empty in " + mangle());
+	closeScope(currentContext().scope);
 	scopeStack.pop_back();
+}
+
+void Function::closeScopes(const std::string &until, ScopePtr scope) {
+	bool found = false;
+	ScopePtr subscope = scope;
+	size_t scopes_found = 0;
+	do {
+		++scopes_found;
+
+		if (subscope->getName() == until) {
+			found = true;
+			break;
+		}
+
+		if (auto block = subscope->ptrcast<BlockScope>())
+			subscope = block->parent;
+		else
+			break;
+	} while (subscope);
+
+	if (!found)
+		throw std::runtime_error("Couldn't close scopes: \"" + until + "\" not found in stack");
+
+	subscope = scope;
+	for (size_t i = 0; i < scopes_found; ++i) {
+		closeScope(subscope);
+		if (auto block = subscope->ptrcast<BlockScope>())
+			subscope = block->parent;
+		else
+			break;
+	}
+}
+
+void Function::closeScopes(const std::string &until) {
+	closeScopes(until, currentContext().scope);
 }
 
 void Function::setStructParent(std::shared_ptr<StructType> new_struct_parent, bool is_static) {

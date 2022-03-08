@@ -33,7 +33,7 @@ $(OUTPUT): $(OBJECTS)
 	$(COMPILER) -o $@ $^ $(LDFLAGS)
 
 test: $(OUTPUT)
-	./$(OUTPUT) examples/references.c+- -d >/dev/null
+	./$(OUTPUT) examples/destructors.c+- -d >/dev/null
 
 %.o: %.cpp $(PARSERHDR) $(WASMPARSERHDR)
 	$(COMPILER) $(CFLAGS) -c $< -o $@

@@ -1,7 +1,7 @@
 #name "References"
 #author "Kai Tamkun"
 #orcid "0000-0001-7405-6654"
-#version "1.0"
+#version "1.1"
 
 struct Foo {
 	s64 foo;
@@ -45,11 +45,11 @@ void oper() {
 	%Foo bar = [100, 200];
 	`s("&foo: "); `ptr(&foo); `c('\n');
 	`s("&bar: "); `ptr(&bar); `c('\n');
-	foo += bar;
-	`s("foo.foo: "); `s64(foo.foo); `c('\n');
+	`s("foo.foo: "); asm("@hello"); `s64((foo += bar).foo); `c('\n');
 	`s("foo.bar: "); `s64(foo.bar); `c('\n');
 }
 
 void main() {
+	basic();
 	oper();
 }

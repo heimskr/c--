@@ -17,6 +17,7 @@
 #include "Variable.h"
 
 class ASTNode;
+struct BlockScope;
 struct Expr;
 struct Instruction;
 struct Program;
@@ -32,7 +33,8 @@ class Function: public Makeable<Function> {
 		int nextBlock = 0, nextScope = 0, anons = 0;
 		bool thisAdded = false;
 
-		void compile(const ASTNode &, const std::string &break_label = "", const std::string &continue_label = "");
+		void compile(const ASTNode &, const std::string &break_label = "", const std::string &continue_label = "",
+		             ScopePtr parent_scope = nullptr);
 		void extractArguments();
 
 	public:
@@ -86,7 +88,7 @@ class Function: public Makeable<Function> {
 
 		VregPtr newVar(TypePtr = nullptr);
 
-		std::shared_ptr<Scope> newScope(int *id_out = nullptr);
+		std::shared_ptr<BlockScope> newScope(const std::string &name_ = "", int *id_out = nullptr);
 
 		VregPtr precolored(int reg, bool bypass = false);
 
@@ -191,8 +193,11 @@ class Function: public Makeable<Function> {
 
 		Function & setStatic(bool);
 
-		void openScope();
+		void openScope(const std::string &name_ = "");
+		void closeScope(ScopePtr);
 		void closeScope();
+		void closeScopes(const std::string &until, ScopePtr);
+		void closeScopes(const std::string &until);
 
 		void setStructParent(std::shared_ptr<StructType>, bool is_static);
 
