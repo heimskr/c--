@@ -6,3 +6,4 @@ To add:
 
 To investigate:
 - Preventing Expr::evaluate() with operator overloading
+- Whether destructors are called as appropriate with break/continue/return
