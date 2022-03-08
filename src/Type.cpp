@@ -12,8 +12,8 @@
 
 Type::operator std::string() const {
 	if (isConst)
-		return stringify() + " const";
-	return stringify();
+		return (isLvalue? "^" : "") + stringify() + " const";
+	return (isLvalue? "^" : "") + stringify();
 }
 
 std::ostream & operator<<(std::ostream &os, const Type &type) {

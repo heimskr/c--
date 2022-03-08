@@ -112,7 +112,7 @@ void int_keybrd_(u64 key_full) {
 				for (u64 i = 1u64; i < size; ++i) {
 					if (i != 1u64)
 						new_str::append(' ');
-					new_str::append(split::at(i));
+					new_str::append(*split::at(i));
 				}
 
 				p('"'); new_str::print(); p("\" -> 0x");
@@ -239,8 +239,8 @@ u8 * String::copyData() #const {
 	return out;
 }
 
-void String::append(%String const *source) {
-	u64 required = source->size + this->size + 1u64;
+void String::append(%String const &source) {
+	u64 required = source.size + this->size + 1u64;
 	if (this->capacity < required) {
 		u8 *old_data = this->data;
 		this->data = this::copyData(&required);
@@ -248,8 +248,8 @@ void String::append(%String const *source) {
 			free(old_data);
 		this->capacity = required;
 	}
-	memcpy(this->data + this->size, source->data, source->size);
-	this->size += source->size;
+	memcpy(this->data + this->size, source.data, source.size);
+	this->size += source.size;
 	this->data[this->size] = '\0';
 }
 
@@ -368,21 +368,21 @@ void String::init(u8 const *data) {
 %String * operator+(%String *left, %String *right) {
 	p("operator+(%String *, %String *)\n");
 	%String *out = new %String(left);
-	out::append(right);
+	out::append(*right);
 	return out;
 }
 
-%String * operator+=(%String *left, %String *right) {
+%String & operator+=(%String &left, %String const &right) {
 	left::append(right);
 	return left;
 }
 
-%String * operator+=(%String *left, u8 ch) {
+%String & operator+=(%String &left, u8 ch) {
 	left::append(ch);
 	return left;
 }
 
-%String * operator+=(%String *left, u8 const *s) {
+%String & operator+=(%String &left, u8 const *s) {
 	left::append(s);
 	return left;
 }

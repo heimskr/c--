@@ -1033,10 +1033,10 @@ size_t DerefExpr::getSize(const Context &context) const {
 
 std::unique_ptr<Type> DerefExpr::getType(const Context &context) const {
 	if (auto fnptr = getOperator(context))
-		return std::unique_ptr<Type>(fnptr->returnType->copy());
+		return std::unique_ptr<Type>(fnptr->returnType->copy()->setLvalue(true));
 	auto type = checkType(context);
 	auto out = std::unique_ptr<Type>(dynamic_cast<PointerType &>(*type).subtype->copy());
-	out->setConst(type->isConst);
+	out->setConst(type->isConst)->setLvalue(true);
 	return out;
 }
 
@@ -1116,13 +1116,21 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 		struct_expr_type = structExpr->getType(subcontext);
 		auto this_var = fn.precolored(argument_offset++);
 		if (!struct_expr_type->isStruct()) {
-			if (const auto *pointer_type = struct_expr_type->cast<PointerType>())
+			if (const auto *pointer_type = struct_expr_type->cast<PointerType>()) {
 				if (pointer_type->subtype->isStruct()) {
 					fn.addComment("Setting \"this\" from pointer.");
-					this_var->setType(*pointer_type);
+					this_var->setType(*struct_expr_type);
 					structExpr->compile(this_var, fn, context);
 					goto this_done; // Hehe :)
 				}
+			} else if (const auto *reference_type = struct_expr_type->cast<ReferenceType>()) {
+				if (reference_type->subtype->isStruct()) {
+					fn.addComment("Setting \"this\" from reference.");
+					this_var->setType(*struct_expr_type);
+					structExpr->compileAddress(this_var, fn, context);
+					goto this_done; // Haha :)
+				}
+			}
 			throw NotStructError(TypePtr(struct_expr_type->copy()), structExpr->getLocation());
 		} else {
 			fn.addComment("Setting \"this\" from struct.");
@@ -1273,6 +1281,10 @@ std::string CallExpr::getStructName(const Context &context) const {
 			if (const auto *struct_type = pointer_type->subtype->cast<StructType>())
 				return struct_type->name;
 
+		if (const auto *reference_type = type->cast<ReferenceType>())
+			if (const auto *struct_type = reference_type->subtype->cast<StructType>())
+				return struct_type->name;
+
 		throw NotStructError(std::move(type), structExpr->getLocation());
 	}
 
@@ -1300,10 +1312,8 @@ void AssignExpr::compile(VregPtr destination, Function &function, const Context 
 	TypePtr left_type = left->getType(context), right_type = right->getType(context);
 	if (left_type->isConst)
 		throw ConstError("Can't assign", *left_type, getLocation());
-	auto left_ptr = std::make_unique<PointerType>(left_type->copy());
-	if (auto fnptr = function.program.getOperator({left_ptr.get(), right_type.get()}, CPMTOK_ASSIGN, getLocation())) {
-		auto addrof = std::make_unique<AddressOfExpr>(left->copy());
-		compileCall(destination, function, context, fnptr, {addrof.get(), right.get()}, getLocation(), multiplier);
+	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CPMTOK_ASSIGN, getLocation())) {
+		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		auto addr_var = function.newVar();
 		if (!destination)
