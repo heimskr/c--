@@ -43,6 +43,7 @@ struct Type: Checkable, std::enable_shared_from_this<Type> {
 	virtual bool isFunctionPointer() const { return false; }
 	virtual bool isStruct() const { return false; }
 	virtual bool isInitializer() const { return false; }
+	virtual bool isReference() const { return false; }
 	Type * setConst(bool is_const) { isConst = is_const; return this; }
 
 	static Type * get(const ASTNode &, Program &, bool allow_forward = false);
@@ -140,6 +141,19 @@ struct PointerType: SuperType, Makeable<PointerType> {
 	int affinity(const Type &) const override;
 	protected:
 		std::string stringify() const override { return subtype? std::string(*subtype) + "*" : "???*"; }
+};
+
+struct ReferenceType: SuperType, Makeable<ReferenceType> {
+	using SuperType::SuperType;
+	Type * copy() const override { return (new ReferenceType(subtype? subtype->copy() : nullptr))->setConst(isConst); }
+	std::string mangle() const override { return "r" + subtype->mangle(); }
+	size_t getSize() const override { return subtype->getSize(); }
+	bool operator&&(const Type &) const override;
+	bool operator==(const Type &) const override;
+	bool isReference() const override { return true; }
+	int affinity(const Type &) const override;
+	protected:
+		std::string stringify() const override { return subtype? std::string(*subtype) + "&" : "???&"; }
 };
 
 struct ArrayType: SuperType {

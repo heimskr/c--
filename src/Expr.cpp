@@ -918,6 +918,11 @@ void VariableExpr::compile(VregPtr destination, Function &function, const Contex
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset)
 				->setDebug(*this);
 			function.add<LoadRInstruction>(destination, destination, var->getSize())->setDebug(*this);
+			if (var->type->isReference()) {
+				auto ref = var->type->ptrcast<ReferenceType>();
+				function.addComment("Load reference " + name);
+				function.add<LoadRInstruction>(destination, destination, ref->subtype->getSize())->setDebug(*this);
+			}
 		}
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -939,6 +944,11 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, const
 			function.addComment("Get variable lvalue for " + name);
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset)
 				->setDebug(*this);
+			if (var->type->isReference()) {
+				auto ref = var->type->ptrcast<ReferenceType>();
+				function.addComment("Load reference lvalue for " + name);
+				function.add<LoadRInstruction>(destination, destination, ref->subtype->getSize())->setDebug(*this);
+			}
 		}
 	} else if (const auto fn = context.scope->lookupFunction(name, getLocation())) {
 		function.add<SetIInstruction>(destination, fn->mangle())->setDebug(*this);

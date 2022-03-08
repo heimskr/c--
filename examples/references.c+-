@@ -1,0 +1,17 @@
+#name "References"
+#author "Kai Tamkun"
+#orcid "0000-0001-7405-6654"
+#version "0.1"
+
+void main() {
+	u64 x = 42;
+	u64 &y = x;
+	y = 30u64;
+	`u64(x); `c('\n');
+	`u64(y); `c('\n');
+	x = 666;
+	`u64(x); `c('\n');
+	`u64(y); `c('\n');
+	`ptr(&x); `c('\n');
+	`ptr(&y); `c('\n');
+}

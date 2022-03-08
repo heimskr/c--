@@ -294,9 +294,24 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			variable->init();
 			currentScope()->insert(variable);
 			size_t offset = addToStack(variable);
-			if (node.size() == 3) {
+			bool store_back = false;
+			VregPtr fp;
+			if (variable->type->isReference()) {
+				if (node.size() == 2)
+					throw GenericError(node.location, "Reference requires an initializer");
 				auto expr = ExprPtr(Expr::get(*node.at(2), this));
-				auto fp = precolored(Why::framePointerOffset);
+				Context context = currentContext();
+				TypePtr expr_type = expr->getType(context);
+				TypePtr variable_subtype = TypePtr(variable->type->cast<ReferenceType>()->subtype->copy());
+				if (!(*variable_subtype && *expr_type))
+					throw ImplicitConversionError(variable_subtype, expr_type, node.location);
+				if (!expr->compileAddress(variable, *this, context))
+					throw LvalueError(*expr->getType(context), node.location);
+				store_back = true;
+				fp = precolored(Why::framePointerOffset);
+			} else if (node.size() == 3) {
+				auto expr = ExprPtr(Expr::get(*node.at(2), this));
+				fp = precolored(Why::framePointerOffset);
 				if (auto *initializer = expr->cast<InitializerExpr>()) {
 					if (initializer->isConstructor) {
 						if (!variable->type->isStruct())
@@ -321,13 +336,16 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 					expr->compile(variable, *this, currentContext());
 					typeCheck(*expr->getType(currentContext()), *variable->type, variable, *this,
 						expr->getLocation());
-					if (offset == 0) {
-						add<StoreRInstruction>(variable, fp, variable->getSize())->setDebug({node.location, *this});
-					} else {
-						VregPtr m0 = mx(0);
-						add<SubIInstruction>(fp, m0, offset)->setDebug({node.location, *this});
-						add<StoreRInstruction>(variable, m0, variable->getSize())->setDebug({node.location, *this});
-					}
+					store_back = true;
+				}
+			}
+			if (store_back) {
+				if (offset == 0) {
+					add<StoreRInstruction>(variable, fp, variable->getSize())->setDebug({node.location, *this});
+				} else {
+					VregPtr m0 = mx(0);
+					add<SubIInstruction>(fp, m0, offset)->setDebug({node.location, *this});
+					add<StoreRInstruction>(variable, m0, variable->getSize())->setDebug({node.location, *this});
 				}
 			}
 			break;

@@ -320,6 +320,8 @@ int_type: signed_type | unsigned_type;
 
 pointer_type: type "*" { $$ = $2->adopt($1); };
 
+reference_type: type "&" { $$ = $2->adopt($1); };
+
 array_type: type "[" expr "]" { $$ = $2->adopt({$1, $3}); D($4); };
 
 fnptr_type: type "(" _typelist ")" "*" { $$ = (new ASTNode(cpmParser, CPM_FNPTR))->locate($1)->adopt({$1, $3}); D($2, $4, $5); };
@@ -333,7 +335,7 @@ struct_type: "%" CPMTOK_IDENT { $$ = $1->adopt($2); };
 
 new_type: "bool" | int_type | new_type "*" { $$ = $2->adopt($1); } | struct_type | new_type "const" { $$ = $2->adopt($1); };
 
-type: "bool" | int_type | "void" | pointer_type | array_type | fnptr_type | struct_type | type "const" { $$ = $2->adopt($1); };
+type: "bool" | int_type | "void" | pointer_type | reference_type | array_type | fnptr_type | struct_type | type "const" { $$ = $2->adopt($1); };
 
 arg: type ident { $$ = $2->adopt($1); };
 

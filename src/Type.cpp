@@ -84,6 +84,38 @@ int PointerType::affinity(const Type &other) const {
 	return 0;
 }
 
+bool ReferenceType::operator&&(const Type &other) const {
+	if (auto *other_reference = other.cast<ReferenceType>()) {
+		if (subtype->isVoid() || other_reference->subtype->isVoid() || (*subtype && *other_reference->subtype))
+			return true;
+		if (auto *subtype_array = subtype->cast<ArrayType>())
+			return *subtype_array->subtype && *other_reference->subtype;
+	}
+	return false;
+}
+
+bool ReferenceType::operator==(const Type &other) const {
+	if (auto *other_ptr = other.cast<ReferenceType>())
+		return *other_ptr->subtype == *subtype;
+	return false;
+}
+
+int ReferenceType::affinity(const Type &other) const {
+	if (auto *other_reference = other.cast<ReferenceType>()) {
+		if (subtype->isConst && !other_reference->subtype->isConst)
+			return 0;
+		if (subtype->isVoid())
+			return other_reference->subtype->isVoid()? 3 : 2;
+		if (other_reference->subtype->isVoid())
+			return 2;
+		if (*subtype == *other_reference->subtype)
+			return subtype->affinity(*other_reference->subtype) + 1;
+		if (auto *subtype_array = subtype->cast<ArrayType>())
+			return subtype->affinity(*subtype_array->subtype) + 1;
+	}
+	return 0;
+}
+
 bool ArrayType::operator&&(const Type &other) const {
 	if (auto *other_array = other.cast<ArrayType>()) {
 		if (subtype->isConst && !other_array->subtype->isConst)
@@ -128,6 +160,8 @@ Type * Type::get(const ASTNode &node, Program &program, bool allow_forward) {
 			return new UnsignedType(64);
 		case CPMTOK_TIMES:
 			return new PointerType(Type::get(*node.front(), program, true));
+		case CPMTOK_AND:
+			return new ReferenceType(Type::get(*node.front(), program, true));
 		case CPMTOK_STRING:
 			return new PointerType(new UnsignedType(8));
 		case CPMTOK_LSQUARE: {
