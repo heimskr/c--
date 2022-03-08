@@ -108,10 +108,10 @@ struct BinaryExpr: Expr {
 
 	virtual FunctionPtr getOperator(const Context &context) const {
 		TypePtr left_type = left->getType(context), right_type = right->getType(context);
-		if (left_type->isStruct())
-			left_type = PointerType::make(left_type->copy());
-		if (right_type->isStruct())
-			right_type = PointerType::make(right_type->copy());
+		// if (left_type->isStruct())
+		// 	left_type = PointerType::make(left_type->copy());
+		// if (right_type->isStruct())
+		// 	right_type = PointerType::make(right_type->copy());
 		return context.program->getOperator({left_type.get(), right_type.get()}, operator_str_map.at(std::string(O)),
 			getLocation());
 	}
@@ -595,11 +595,13 @@ struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {
 			throw ConstError("Can't assign", *left_type, this->getLocation());
 		TypePtr right_type = this->right->getType(context);
 		if (auto fnptr = this->getOperator(context)) {
-			auto pointer = AddressOfExpr::make(this->left->copy());
-			pointer->setDebug(this->left->getLocation());
-			auto right_ptr = structToPointer(*this->right, context);
-			compileCall(destination, function, context, fnptr, {pointer.get(), right_ptr.get()}, this->getLocation(),
-			            multiplier);
+			// auto pointer = AddressOfExpr::make(this->left->copy());
+			// pointer->setDebug(this->left->getLocation());
+			// auto right_ptr = structToPointer(*this->right, context);
+			// compileCall(destination, function, context, fnptr, {pointer.get(), right_ptr.get()}, this->getLocation(),
+			//             multiplier);
+			compileCall(destination, function, context, fnptr, {this->left.get(), this->right.get()},
+			            this->getLocation(), multiplier);
 		} else {
 			auto temp_var = function.newVar();
 			if (!destination)

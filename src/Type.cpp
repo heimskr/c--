@@ -20,8 +20,8 @@ std::ostream & operator<<(std::ostream &os, const Type &type) {
 	return os << std::string(type);
 }
 
-bool SignedType::operator&&(const Type &other) const {
-	if (other.isReferenceOf(*this))
+bool SignedType::similar(const Type &other, bool ignore_const) const {
+	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
 	if (other.isBool())
 		return true;
@@ -30,16 +30,16 @@ bool SignedType::operator&&(const Type &other) const {
 	return false;
 }
 
-bool SignedType::operator==(const Type &other) const {
-	if (other.isReferenceOf(*this))
+bool SignedType::equal(const Type &other, bool ignore_const) const {
+	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
 	if (auto *other_signed = other.cast<SignedType>())
 		return other_signed->width == width;
 	return false;
 }
 
-bool UnsignedType::operator&&(const Type &other) const {
-	if (other.isReferenceOf(*this))
+bool UnsignedType::similar(const Type &other, bool ignore_const) const {
+	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
 	if (other.cast<BoolType>())
 		return true;
@@ -48,16 +48,16 @@ bool UnsignedType::operator&&(const Type &other) const {
 	return false;
 }
 
-bool UnsignedType::operator==(const Type &other) const {
-	if (other.isReferenceOf(*this))
+bool UnsignedType::equal(const Type &other, bool ignore_const) const {
+	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
 	if (auto *other_unsigned = other.cast<UnsignedType>())
 		return other_unsigned->width == width;
 	return false;
 }
 
-bool PointerType::operator&&(const Type &other) const {
-	if (other.isReferenceOf(*this))
+bool PointerType::similar(const Type &other, bool ignore_const) const {
+	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
 	if (other.isBool())
 		return true;
@@ -70,34 +70,34 @@ bool PointerType::operator&&(const Type &other) const {
 	return false;
 }
 
-bool PointerType::operator==(const Type &other) const {
-	if (other.isReferenceOf(*this))
+bool PointerType::equal(const Type &other, bool ignore_const) const {
+	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
 	if (auto *other_ptr = other.cast<PointerType>())
 		return *other_ptr->subtype == *subtype;
 	return false;
 }
 
-int PointerType::affinity(const Type &other) const {
+int PointerType::affinity(const Type &other, bool ignore_const) const {
 	if (other.isBool())
 		return 1;
 	if (auto *other_pointer = other.cast<PointerType>()) {
-		if (subtype->isConst && !other_pointer->subtype->isConst)
+		if (!ignore_const && subtype->isConst && !other_pointer->subtype->isConst)
 			return 0;
 		if (subtype->isVoid())
 			return other_pointer->subtype->isVoid()? 3 : 2;
 		if (other_pointer->subtype->isVoid())
 			return 2;
 		if (*subtype == *other_pointer->subtype)
-			return subtype->affinity(*other_pointer->subtype) + 1;
+			return subtype->affinity(*other_pointer->subtype, ignore_const) + 1;
 		if (auto *subtype_array = subtype->cast<ArrayType>())
-			return subtype->affinity(*subtype_array->subtype) + 1;
+			return subtype->affinity(*subtype_array->subtype, ignore_const) + 1;
 	}
 	return 0;
 }
 
-bool ReferenceType::operator&&(const Type &other) const {
-	if (other.isReferenceOf(*this))
+bool ReferenceType::similar(const Type &other, bool ignore_const) const {
+	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
 	if (auto *other_reference = other.cast<ReferenceType>()) {
 		if (subtype->isVoid() || other_reference->subtype->isVoid() || (*subtype && *other_reference->subtype))
@@ -108,53 +108,53 @@ bool ReferenceType::operator&&(const Type &other) const {
 	return false;
 }
 
-bool ReferenceType::operator==(const Type &other) const {
+bool ReferenceType::equal(const Type &other, bool ignore_const) const {
 	if (auto *other_ptr = other.cast<ReferenceType>())
-		return *other_ptr->subtype == *subtype;
+		return other_ptr->subtype->equal(*subtype, ignore_const);
 	return false;
 }
 
-int ReferenceType::affinity(const Type &other) const {
+int ReferenceType::affinity(const Type &other, bool ignore_const) const {
 	if (auto *other_reference = other.cast<ReferenceType>()) {
-		if (subtype->isConst && !other_reference->subtype->isConst)
+		if (!ignore_const && subtype->isConst && !other_reference->subtype->isConst)
 			return 0;
 		if (subtype->isVoid())
 			return other_reference->subtype->isVoid()? 3 : 2;
 		if (other_reference->subtype->isVoid())
 			return 2;
-		if (*subtype == *other_reference->subtype)
-			return subtype->affinity(*other_reference->subtype) + 1;
+		if (subtype->equal(*other_reference->subtype, ignore_const))
+			return subtype->affinity(*other_reference->subtype, ignore_const) + 1;
 		if (auto *subtype_array = subtype->cast<ArrayType>())
-			return subtype->affinity(*subtype_array->subtype) + 1;
+			return subtype->affinity(*subtype_array->subtype, ignore_const) + 1;
 	}
 	return 0;
 }
 
-bool ReferenceType::isReferenceOf(const Type &other) const {
-	return *subtype == other;
+bool ReferenceType::isReferenceOf(const Type &other, bool ignore_const) const {
+	return subtype->equal(other, true) && (ignore_const || !(!isConst && other.isConst));
 }
 
-bool ArrayType::operator&&(const Type &other) const {
-	if (other.isReferenceOf(*this))
+bool ArrayType::similar(const Type &other, bool ignore_const) const {
+	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
 	if (auto *other_array = other.cast<ArrayType>()) {
-		if (subtype->isConst && !other_array->subtype->isConst)
+		if (!ignore_const && subtype->isConst && !other_array->subtype->isConst)
 			return false;
-		return (*subtype && *other_array->subtype) && count == other_array->count;
+		return subtype->similar(*other_array->subtype, ignore_const) && count == other_array->count;
 	}
 	if (auto *pointer = other.cast<PointerType>()) {
-		if (subtype->isConst && !pointer->subtype->isConst)
+		if (!ignore_const && subtype->isConst && !pointer->subtype->isConst)
 			return false;
-		return *subtype && *pointer->subtype;
+		return subtype->similar(*pointer->subtype, ignore_const);
 	}
 	return false;
 }
 
-bool ArrayType::operator==(const Type &other) const {
-	if (other.isReferenceOf(*this))
+bool ArrayType::equal(const Type &other, bool ignore_const) const {
+	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
 	if (auto *other_array = other.cast<ArrayType>())
-		return (*subtype == *other_array->subtype) && count == other_array->count;
+		return subtype->equal(*other_array->subtype, ignore_const) && count == other_array->count;
 	return false;
 }
 
@@ -329,16 +329,16 @@ std::string FunctionPointerType::stringify() const {
 	return out.str();
 }
 
-bool FunctionPointerType::operator&&(const Type &other) const {
-	if (other.isReferenceOf(*this))
+bool FunctionPointerType::similar(const Type &other, bool ignore_const) const {
+	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
 	if (auto *ptr = other.cast<PointerType>())
 		return ptr->subtype->isVoid();
 	return *this == other;
 }
 
-bool FunctionPointerType::operator==(const Type &other) const {
-	if (other.isReferenceOf(*this))
+bool FunctionPointerType::equal(const Type &other, bool ignore_const) const {
+	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
 	if (auto *other_fnptr = other.cast<FunctionPointerType>()) {
 		if (*returnType != *other_fnptr->returnType)
@@ -396,17 +396,17 @@ size_t StructType::getSize() const {
 	return out;
 }
 
-bool StructType::operator&&(const Type &other) const {
-	if (other.isReferenceOf(*this))
+bool StructType::similar(const Type &other, bool ignore_const) const {
+	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
 	return *this == other;
 }
 
-bool StructType::operator==(const Type &other) const {
-	if (other.isReferenceOf(*this))
+bool StructType::equal(const Type &other, bool ignore_const) const {
+	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
 	if (const auto *other_struct = other.cast<StructType>())
-		return name == other_struct->name && !(isConst && !other_struct->isConst);
+		return name == other_struct->name && (ignore_const || !(isConst && !other_struct->isConst));
 	return false;
 }
 
@@ -478,7 +478,7 @@ Type * InitializerType::copy() const {
 	return (new InitializerType(std::move(children_copy)))->steal(*this);
 }
 
-bool InitializerType::operator&&(const Type &other) const {
+bool InitializerType::similar(const Type &other, bool ignore_const) const {
 	if (const auto *other_init = other.cast<InitializerType>()) {
 		const size_t max = children.size();
 		if (other_init->children.size() != max)
@@ -508,7 +508,7 @@ bool InitializerType::operator&&(const Type &other) const {
 	return false;
 }
 
-bool InitializerType::operator==(const Type &other) const {
+bool InitializerType::equal(const Type &other, bool ignore_const) const {
 	if (const auto *other_init = other.cast<InitializerType>()) {
 		const size_t max = children.size();
 		if (other_init->children.size() != max)

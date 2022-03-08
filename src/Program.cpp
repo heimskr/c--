@@ -399,8 +399,7 @@ FunctionPtr Program::getOperator(const std::vector<Type *> &types, int oper, con
 			bool good = true;
 			for (size_t i = 0; i < types_size; ++i) {
 				Type *type = types.at(i);
-				auto left = type->isStruct()? PointerType::make(type->copy()) : TypePtr(type->copy());
-				if (!(*left && *iter->second->getArgumentType(i))) {
+				if (!(*type && *iter->second->getArgumentType(i))) {
 					good = false;
 					break;
 				}

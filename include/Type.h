@@ -29,11 +29,13 @@ struct Type: Checkable, std::enable_shared_from_this<Type> {
 	virtual bool isUnsigned(size_t = 0) const { return false; }
 	virtual size_t getSize() const = 0; // in bytes
 	/** Returns whether this type can be implicitly converted to the given type. Order matters! */
-	virtual bool operator&&(const Type &) const { return false; }
+	bool operator&&(const Type &other) const { return similar(other, false); }
+	virtual bool similar(const Type &, bool ignore_const = false) const = 0;
 	/** Returns how favorable a conversion from this type to the given type is. Returns 0 if && would return false. */
-	virtual int affinity(const Type &other) const { return *this && other? 2 : 0; }
+	virtual int affinity(const Type &other, bool ignore_const) const { return similar(other, ignore_const)? 2 : 0; }
 	/** Returns whether this type is identical to the given type. Order shouldn't matter. */
-	virtual bool operator==(const Type &) const { return false; }
+	bool operator==(const Type &other) const { return equal(other, false); }
+	virtual bool equal(const Type &, bool ignore_const = false) const = 0;
 	virtual bool operator!=(const Type &other) const { return !(*this == other); }
 	virtual bool isInt()  const { return false; }
 	virtual bool isVoid() const { return false; }
@@ -44,7 +46,7 @@ struct Type: Checkable, std::enable_shared_from_this<Type> {
 	virtual bool isStruct() const { return false; }
 	virtual bool isInitializer() const { return false; }
 	virtual bool isReference() const { return false; }
-	virtual bool isReferenceOf(const Type &) const { return false; }
+	virtual bool isReferenceOf(const Type &, bool ignore_const) const { (void) ignore_const; return false; }
 	Type * setConst(bool is_const) { isConst = is_const; return this; }
 	Type * setLvalue(bool is_lvalue) { isLvalue = is_lvalue; return this; }
 	Type * steal(const Type &other) { return setConst(other.isConst)->setLvalue(other.isLvalue); }
@@ -85,8 +87,8 @@ struct SignedType: IntType, Makeable<SignedType> {
 	SignedType(size_t width_): IntType(width_) {}
 	Type * copy() const override { return (new SignedType(width))->steal(*this); }
 	bool isSigned(size_t width_) const override { return isNumber(width_); }
-	bool operator&&(const Type &) const override;
-	bool operator==(const Type &) const override;
+	bool similar(const Type &, bool) const override;
+	bool equal(const Type &, bool ignore_const) const override;
 	std::string mangle() const override { return "s" + std::to_string(width / 8); }
 	protected:
 		std::string stringify() const override { return "s" + std::to_string(width); }
@@ -96,8 +98,8 @@ struct UnsignedType: IntType, Makeable<UnsignedType> {
 	UnsignedType(size_t width_): IntType(width_) {}
 	Type * copy() const override { return (new UnsignedType(width))->steal(*this); }
 	bool isUnsigned(size_t width_) const override { return isNumber(width_); }
-	bool operator&&(const Type &) const override;
-	bool operator==(const Type &) const override;
+	bool similar(const Type &, bool) const override;
+	bool equal(const Type &, bool ignore_const) const override;
 	std::string mangle() const override { return "u" + std::to_string(width / 8); }
 	protected:
 		std::string stringify() const override { return "u" + std::to_string(width); }
@@ -108,8 +110,8 @@ struct VoidType: Type, Makeable<VoidType> {
 	std::string mangle() const override { return "v"; }
 	/** Returns 1 for the sake of void pointer arithmetic acting like byte pointer arithmetic. */
 	size_t getSize() const override { return 1; }
-	bool operator&&(const Type &other) const override { return other.isVoid(); }
-	bool operator==(const Type &other) const override { return other.isVoid(); }
+	bool similar(const Type &other, bool) const override { return other.isVoid(); }
+	bool equal(const Type &other, bool) const override { return other.isVoid(); }
 	bool isVoid() const override { return true; }
 	protected:
 		std::string stringify() const override { return "void"; }
@@ -119,8 +121,8 @@ struct BoolType: Type, Makeable<BoolType> {
 	Type * copy() const override { return (new BoolType)->steal(*this); }
 	std::string mangle() const override { return "b"; }
 	size_t getSize() const override { return 1; }
-	bool operator&&(const Type &other) const override { return other.isBool(); }
-	bool operator==(const Type &other) const override { return other.isBool(); }
+	bool similar(const Type &other, bool ignore_const) const override { return other.isBool(); }
+	bool equal(const Type &other, bool ignore_const) const override { return other.isBool(); }
 	bool isBool() const override { return true; }
 	protected:
 		std::string stringify() const override { return "bool"; }
@@ -138,10 +140,10 @@ struct PointerType: SuperType, Makeable<PointerType> {
 	Type * copy() const override { return (new PointerType(subtype? subtype->copy() : nullptr))->steal(*this); }
 	std::string mangle() const override { return "p" + subtype->mangle(); }
 	size_t getSize() const override { return 8; }
-	bool operator&&(const Type &) const override;
-	bool operator==(const Type &) const override;
+	bool similar(const Type &, bool) const override;
+	bool equal(const Type &, bool ignore_const) const override;
 	bool isPointer() const override { return true; }
-	int affinity(const Type &) const override;
+	int affinity(const Type &, bool ignore_const) const override;
 	protected:
 		std::string stringify() const override { return subtype? std::string(*subtype) + "*" : "???*"; }
 };
@@ -151,11 +153,11 @@ struct ReferenceType: SuperType, Makeable<ReferenceType> {
 	Type * copy() const override { return (new ReferenceType(subtype? subtype->copy() : nullptr))->setConst(isConst); }
 	std::string mangle() const override { return "r" + subtype->mangle(); }
 	size_t getSize() const override { return subtype->getSize(); }
-	bool operator&&(const Type &) const override;
-	bool operator==(const Type &) const override;
+	bool similar(const Type &, bool) const override;
+	bool equal(const Type &, bool ignore_const) const override;
 	bool isReference() const override { return true; }
-	bool isReferenceOf(const Type &) const override;
-	int affinity(const Type &) const override;
+	bool isReferenceOf(const Type &, bool ignore_const) const override;
+	int affinity(const Type &, bool ignore_const) const override;
 	protected:
 		std::string stringify() const override { return subtype? std::string(*subtype) + "&" : "???&"; }
 };
@@ -168,8 +170,8 @@ struct ArrayType: SuperType {
 	}
 	std::string mangle() const override { return "a" + std::to_string(count) + subtype->mangle(); }
 	size_t getSize() const override { return subtype? subtype->getSize() * count : 0; }
-	bool operator&&(const Type &) const override;
-	bool operator==(const Type &) const override;
+	bool similar(const Type &, bool) const override;
+	bool equal(const Type &, bool ignore_const) const override;
 	bool isArray() const override { return true; }
 	protected:
 		std::string stringify() const override {
@@ -189,8 +191,8 @@ struct FunctionPointerType: Type {
 	Type * copy() const override;
 	std::string mangle() const override;
 	size_t getSize() const override { return 8; }
-	bool operator&&(const Type &) const override;
-	bool operator==(const Type &) const override;
+	bool similar(const Type &, bool) const override;
+	bool equal(const Type &, bool ignore_const) const override;
 	bool isFunctionPointer() const override { return true; }
 	protected:
 		std::string stringify() const override;
@@ -216,8 +218,8 @@ class StructType: public Type, public Makeable<StructType> {
 		Type * copy() const override;
 		std::string mangle() const override { return "S" + std::to_string(name.size()) + name; }
 		size_t getSize() const override;
-		bool operator&&(const Type &) const override;
-		bool operator==(const Type &) const override;
+		bool similar(const Type &, bool) const override;
+		bool equal(const Type &, bool ignore_const) const override;
 		bool isStruct() const override { return true; }
 		size_t getFieldOffset(const std::string &) const;
 		size_t getFieldSize(const std::string &) const;
@@ -238,8 +240,8 @@ struct InitializerType: Type, Makeable<InitializerType> {
 	Type * copy() const override;
 	std::string mangle() const override { throw std::runtime_error("Cannot mangle InitializerType"); }
 	bool isInitializer() const override { return true; }
-	bool operator&&(const Type &) const override;
-	bool operator==(const Type &) const override;
+	bool similar(const Type &, bool) const override;
+	bool equal(const Type &, bool ignore_const) const override;
 	size_t getSize() const override;
 	protected:
 		std::string stringify() const override;
