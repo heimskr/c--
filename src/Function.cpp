@@ -357,12 +357,13 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				if (!returnType->isVoid())
 					throw GenericError(getLocation(), "Must return an expression in non-void function " + name);
 			} else {
+				if (returnType->isStruct())
+					throw GenericError(node.location, "Cannot return a struct by value");
 				auto expr = ExprPtr(Expr::get(*node.front(), this));
 				auto r0 = precolored(Why::returnValueOffset);
-				TypePtr expr_type = expr->getType(currentContext());
-				r0->setType(*expr_type);
+				r0->setType(*returnType);
 				expr->compile(r0, *this, currentContext());
-				typeCheck(*expr_type, *returnType, r0, *this, node.location);
+				typeCheck(*expr->getType(currentContext()), *returnType, r0, *this, node.location);
 			}
 			add<JumpInstruction>("." + mangle() + ".e")->setDebug({node.location, *this});
 			break;
