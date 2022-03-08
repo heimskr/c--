@@ -144,10 +144,8 @@ struct CompExpr: BinaryExpr<O> {
 		if (multiplier != 1)
 			throw GenericError(this->getLocation(), "Cannot multiply in CompExpr");
 		if (auto fnptr = this->getOperator(context)) {
-			auto left_ptr = structToPointer(*this->left, context);
-			auto right_ptr = structToPointer(*this->right, context);
-			compileCall(destination, function, context, fnptr, {left_ptr.get(), right_ptr.get()}, this->getLocation(),
-				multiplier);
+			compileCall(destination, function, context, fnptr, {this->left.get(), this->right.get()},
+				this->getLocation(), multiplier);
 		} else {
 			VregPtr temp_var = function.newVar();
 			this->left->compile(destination, function, context, 1);
@@ -429,9 +427,9 @@ struct HasArguments: Expr {
 };
 
 struct CallExpr: HasArguments {
-	std::unique_ptr<Expr> subexpr;
+	ExprPtr subexpr;
 	/** This will be null unless the call is for a non-static struct method. */
-	std::unique_ptr<Expr> structExpr;
+	ExprPtr structExpr;
 	/** This will be empty unless the call is for a static struct method. */
 	std::string structName;
 	/** Takes ownership of the subexpr argument. */
@@ -481,10 +479,8 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 			throw ConstError("Can't assign", *left_type, this->getLocation());
 		auto right_type = this->right->getType(context);
 		if (auto fnptr = this->getOperator(context)) {
-			auto left_ptr = structToPointer(*this->left, context);
-			auto right_ptr = structToPointer(*this->right, context);
-			compileCall(destination, function, context, fnptr, {left_ptr.get(), right_ptr.get()}, this->getLocation(),
-				multiplier);
+			compileCall(destination, function, context, fnptr, {this->left.get(), this->right.get()},
+				this->getLocation(), multiplier);
 		} else {
 			auto temp_var = function.newVar();
 			if (!destination)
@@ -573,15 +569,6 @@ inline ExprPtr ensurePointer(const Expr &expr, const Context &context) {
 	return out;
 }
 
-inline ExprPtr structToPointer(const Expr &expr, const Context &context) {
-	// auto type = expr.getType(context);
-	// if (!type->isStruct())
-		return ExprPtr(expr.copy());
-	// auto out = AddressOfExpr::make(expr.copy());
-	// out->setDebug(expr.debug);
-	// return out;
-}
-
 template <fixstr::fixed_string O, typename R, typename Fn>
 struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {
 	using CompoundAssignExpr<O, R, Fn>::CompoundAssignExpr;
@@ -595,11 +582,6 @@ struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {
 			throw ConstError("Can't assign", *left_type, this->getLocation());
 		TypePtr right_type = this->right->getType(context);
 		if (auto fnptr = this->getOperator(context)) {
-			// auto pointer = AddressOfExpr::make(this->left->copy());
-			// pointer->setDebug(this->left->getLocation());
-			// auto right_ptr = structToPointer(*this->right, context);
-			// compileCall(destination, function, context, fnptr, {pointer.get(), right_ptr.get()}, this->getLocation(),
-			//             multiplier);
 			compileCall(destination, function, context, fnptr, {this->left.get(), this->right.get()},
 			            this->getLocation(), multiplier);
 		} else {
@@ -683,8 +665,7 @@ struct PrefixExpr: Expr {
 	Expr * copy() const override { return (new PrefixExpr<O, I>(subexpr->copy()))->setDebug(debug); }
 	void compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) override {
 		if (auto fnptr = getOperator(context)) {
-			auto sub_ptr = structToPointer(*this->subexpr, context);
-			compileCall(destination, function, context, fnptr, {sub_ptr.get()}, getLocation(), multiplier);
+			compileCall(destination, function, context, fnptr, {this->subexpr.get()}, getLocation(), multiplier);
 		} else {
 			TypePtr subtype = subexpr->getType(context);
 			if (subtype->isConst)
@@ -741,8 +722,7 @@ struct PostfixExpr: Expr {
 	Expr * copy() const override { return (new PostfixExpr<O, I>(subexpr->copy()))->setDebug(debug); }
 	void compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) override {
 		if (auto fnptr = getOperator(context)) {
-			auto sub_ptr = structToPointer(*this->subexpr, context);
-			compileCall(destination, function, context, fnptr, {sub_ptr.get()}, getLocation(), multiplier);
+			compileCall(destination, function, context, fnptr, {this->subexpr.get()}, getLocation(), multiplier);
 		} else {
 			TypePtr subtype = subexpr->getType(context);
 			if (subtype->isConst)
