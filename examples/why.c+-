@@ -102,6 +102,7 @@ void int_keybrd_(u64 key_full) {
 			p("{"); p((void *) first.data); p("}\n");
 			p("["); p(first.data); p("]\n");
 			p("("); p(*first.data); p(")\n");
+			p("first::print(): \""); first::print(); p("\"\n");
 			if (first::eq("echo")) {
 				u64 size = split.size;
 				for (u64 i = 1u64; i < size; ++i) {
@@ -425,6 +426,7 @@ void mkstring(u8 *data) {
 }
 
 void String::print() {
+	p("String::print("); p(this); p("): data = "); p((void *) this->data); l();
 	for (u64 i = 0; i < this->size; ++i)
 		asm("<prc $1>":this->data[i]);
 }

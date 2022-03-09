@@ -951,6 +951,9 @@ void AddressOfExpr::compile(VregPtr destination, Function &function, const Conte
 
 	if (!subexpr->compileAddress(destination, function, context))
 		throw LvalueError(*subexpr);
+
+	if (subexpr->getType(context)->isReference())
+		function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
 }
 
 std::unique_ptr<Type> AddressOfExpr::getType(const Context &context) const {
