@@ -317,8 +317,10 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				if (!expr->compileAddress(variable, *this, context))
 					throw LvalueError(*expr->getType(context), node.location);
 
-				// addComment("Some hack.");
-				// add<LoadRInstruction>(variable, variable, Why::wordSize)->setDebug(*expr); /// ???
+				// if (expr_type->isReference()) {
+				// 	addComment("Some hack.");
+				// 	add<LoadRInstruction>(variable, variable, Why::wordSize)->setDebug(*expr); /// ???
+				// }
 
 				// expr->compile(variable, *this, context);
 

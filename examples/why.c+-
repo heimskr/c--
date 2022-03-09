@@ -97,6 +97,7 @@ void int_keybrd_(u64 key_full) {
 		%StringVec split = %[&input, " "];
 		if (split.size != 0u64) {
 			%String &first = split::front();
+			asm("@look");
 			p("first.data: "); p((void *) first.data); l();
 			p("&first: "); p(&first); l();
 			p("{"); p((void *) first.data); p("}\n");
@@ -148,6 +149,8 @@ void int_keybrd_(u64 key_full) {
 				first::print();
 				p("\"\n");
 			}
+		} else {
+			p("Empty.\n");
 		}
 		input::clear();
 	} else {
@@ -229,11 +232,18 @@ void memcpy(void *destination, void const *source, u64 count) {
 }
 
 u8 * String::copyData(u64* new_capacity) #const {
+	// asm("<halt>");
 	*new_capacity = roundUp(this->size + 1u64);
+	// p("String::copyData(u64*): this = "); p(this); p(", this->size = "); p(this->size); p(" @ "); p(&this->size); l();
+	// p("*new_capacity = "); p(*new_capacity); l();
+	// p("Foo4: "); p(this->size); l();
 	u8 *out = checked_malloc(*new_capacity);
+	// p("Foo3: "); p(this->size); l();
 	if (this->data)
 		memcpy(out, this->data, this->size);
+	// p("Foo2: "); p((void *) out); p(", "); p(this->size); p(" @ "); p(&this->size); l();
 	out[this->size] = '\0';
+	// p("Foo1\n");
 	return out;
 }
 
@@ -275,9 +285,11 @@ void String::append(u8 const *other) {
 }
 
 void String::append(u8 ch) {
+	// p("String::append: this = "); p(this); p(", this->size = "); p(this->size); l();
 	u64 required = this->size + 2u64;
 	if (this->capacity < required) {
 		u8 *old_data = this->data;
+		// p("old_data = "); p((void *) old_data); l();
 		this->data = this::copyData(&required);
 		if (old_data)
 			free(old_data);
@@ -344,6 +356,7 @@ void String::init(u8 const *data) {
 }
 
 +String(u8 const *data) {
+	// p("+String(u8 const *): this = "); p(this); p(", data = "); p((void *) data); l();
 	u64 const len = strlen(data);
 	this->data = strcpy(data);
 	this->size = len;
@@ -385,6 +398,7 @@ void String::init(u8 const *data) {
 }
 
 %String & operator+=(%String &left, u8 ch) {
+	// p("+=: &left: "); p(&left); l();
 	left::append(ch);
 	return left;
 }

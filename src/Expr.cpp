@@ -35,7 +35,9 @@ void compileCall(VregPtr destination, Function &function, const Context &context
 		if (std::holds_alternative<Expr *>(argument)) {
 			auto expr = std::get<Expr *>(argument);
 			auto argument_type = expr->getType(context);
+			// auto expr_type = expr->getType(context);
 			if (fn_arg_type.isReference()) {
+				function.addComment("compileCall: compiling address into reference argument");
 				if (!expr->compileAddress(argument_register, function, context))
 					throw LvalueError(*argument_type, expr->getLocation());
 			} else if (argument_type->isStruct()) {
@@ -914,6 +916,7 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, const
 			if (var->getType()->isReference()) {
 				auto ref = var->getType()->ptrcast<ReferenceType>();
 				function.addComment("Load reference lvalue for " + name);
+				// warn() << *this << ": vartype[" << *var->getType() << "], ref->subtype[" << *ref->subtype << "]\n";
 				function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
 			}
 		}
@@ -925,9 +928,11 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, const
 }
 
 size_t VariableExpr::getSize(const Context &context) const {
-	if (VariablePtr var = context.scope->lookup(name))
+	if (VariablePtr var = context.scope->lookup(name)) {
+		// if (var->getType()->isReference())
+		// 	return Why::wordSize;
 		return var->getSize();
-	else if (context.scope->lookupFunction(name, nullptr, {}, getLocation()))
+	} else if (context.scope->lookupFunction(name, nullptr, {}, getLocation()))
 		return Why::wordSize;
 	throw ResolutionError(name, context, getLocation());
 }
@@ -952,8 +957,8 @@ void AddressOfExpr::compile(VregPtr destination, Function &function, const Conte
 	if (!subexpr->compileAddress(destination, function, context))
 		throw LvalueError(*subexpr);
 
-	if (subexpr->getType(context)->isReference())
-		function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
+	// if (subexpr->getType(context)->isReference())
+	// 	function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
 }
 
 std::unique_ptr<Type> AddressOfExpr::getType(const Context &context) const {
@@ -1131,6 +1136,9 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 					fn.addComment("Setting \"this\" from reference.");
 					this_var->setType(*struct_expr_type);
 					structExpr->compileAddress(this_var, fn, context);
+					// structExpr->compile(this_var, fn, context);
+					// fn.addComment("Hack: loading reference again");
+					// fn.add<LoadRInstruction>(this_var, this_var, Why::wordSize)->setDebug(*this);
 					goto this_done; // Haha :)
 				}
 			}
@@ -1190,6 +1198,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 		auto argument_type = argument->getType(subcontext);
 		const Type &function_argument_type = get_arg_type(i);
 		if (function_argument_type.isReference()) {
+			fn.addComment("CallExpr::compile: compiling address into reference argument");
 			if (!argument->compileAddress(argument_register, fn, context))
 				throw LvalueError(*argument_type, argument->getLocation());
 		} else if (argument_type->isStruct()) {
@@ -1536,8 +1545,9 @@ void DotExpr::compile(VregPtr destination, Function &function, const Context &co
 	auto left_type = left->getType(context);
 	if (!left->compileAddress(destination, function, context))
 		throw LvalueError(*left);
-	if (left_type->isReference())
-		function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
+	function.add<PrintRInstruction>(destination, PrintType::Full);
+	// if (left_type->isReference())
+	// 	function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
 	if (field_offset != 0) {
 		function.addComment("Add field offset of " + struct_type->name + "::" + ident);
 		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);

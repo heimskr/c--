@@ -46,6 +46,9 @@ struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 	/** This function both performs type checking and returns a type. */
 	virtual std::unique_ptr<Type> getType(const Context &) const = 0;
 	virtual bool compileAddress(VregPtr, Function &, const Context &) { return false; }
+	virtual bool compileReference(VregPtr destination, Function &function, const Context &context) {
+		return compileAddress(destination, function, context);
+	}
 	virtual bool isLvalue(const Context &) const { return false; }
 	bool isUnsigned(const Context &context) const { return getType(context)->isUnsigned(); }
 	Expr * setLocation(const ASTLocation &location_) { debug.location = location_; return this; }
@@ -351,6 +354,7 @@ struct VariableExpr: Expr {
 	size_t getSize(const Context &) const override;
 	std::unique_ptr<Type> getType(const Context &) const override;
 	bool compileAddress(VregPtr, Function &, const Context &) override;
+	// bool compileReference(VregPtr, Function &, const Context &) override;
 	bool isLvalue(const Context &) const override { return true; }
 };
 
