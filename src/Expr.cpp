@@ -1237,7 +1237,10 @@ TypePtr CallExpr::getReturnType(const Context &context) const {
 
 bool CallExpr::compileAddress(VregPtr destination, Function &function, const Context &context) {
 	if (isLvalue(context)) {
+		function.addComment("Starting Call::compileAddress");
 		compile(destination, function, context, 1);
+		// function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
+		function.addComment("Finished Call::compileAddress");
 		return true;
 	}
 
@@ -1409,7 +1412,6 @@ std::unique_ptr<Type> CastExpr::getType(const Context &) const {
 }
 
 void AccessExpr::compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) {
-
 	if (auto fnptr = getOperator(context)) {
 		// TODO: verify both pointers and arrays
 		compileCall(destination, function, context, fnptr, {array.get(), subscript.get()}, getLocation(),

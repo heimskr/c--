@@ -64,14 +64,14 @@ std::vector<std::string> Function::stringify(const std::map<DebugData, size_t> &
 	if (colored) {
 		for (const auto &instruction: instructions)
 			for (const std::string &line: instruction->colored())
-				if (instruction->debug)
+				if (instruction->debug && instruction->enableDebug())
 					out.push_back(line + " !" + std::to_string(debug_map.at(instruction->debug)));
 				else
 					out.push_back(line);
 	} else {
 		for (const auto &instruction: instructions)
 			for (const std::string &line: std::vector<std::string>(*instruction))
-				if (instruction->debug)
+				if (instruction->debug && instruction->enableDebug())
 					out.push_back(line + " !" + std::to_string(debug_map.at(instruction->debug)));
 				else
 					out.push_back(line);
@@ -300,6 +300,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			currentScope()->insert(variable);
 			size_t offset = addToStack(variable);
 			bool store_back = false;
+			size_t store_size;
 			VregPtr fp;
 			if (variable->getType()->isReference()) {
 				if (node.size() == 2)
@@ -308,11 +309,21 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				Context context = currentContext();
 				TypePtr expr_type = expr->getType(context);
 				TypePtr variable_subtype = TypePtr(variable->getType()->cast<ReferenceType>()->subtype->copy());
-				if (!(*variable_subtype && *expr_type))
-					throw ImplicitConversionError(variable_subtype, expr_type, node.location);
+				if (!(*expr_type && *variable->getType()))
+					throw ImplicitConversionError(expr_type, variable->getType(), node.location);
+
+				addComment("Defining reference");
+
 				if (!expr->compileAddress(variable, *this, context))
 					throw LvalueError(*expr->getType(context), node.location);
+
+				addComment("Some hack.");
+				add<LoadRInstruction>(variable, variable, Why::wordSize)->setDebug(*expr); /// ???
+
+				// expr->compile(variable, *this, context);
+
 				store_back = true;
+				store_size = Why::wordSize;
 				fp = precolored(Why::framePointerOffset);
 			} else if (node.size() == 3) {
 				auto expr = ExprPtr(Expr::get(*node.at(2), this));
@@ -342,15 +353,16 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 					typeCheck(*expr->getType(currentContext()), *variable->getType(), variable, *this,
 						expr->getLocation());
 					store_back = true;
+					store_size = variable->getSize();
 				}
 			}
 			if (store_back) {
 				if (offset == 0) {
-					add<StoreRInstruction>(variable, fp, variable->getSize())->setDebug({node.location, *this});
+					add<StoreRInstruction>(variable, fp, store_size)->setDebug({node.location, *this});
 				} else {
 					VregPtr m0 = mx(0);
 					add<SubIInstruction>(fp, m0, offset)->setDebug({node.location, *this});
-					add<StoreRInstruction>(variable, m0, variable->getSize())->setDebug({node.location, *this});
+					add<StoreRInstruction>(variable, m0, store_size)->setDebug({node.location, *this});
 				}
 			}
 			break;
@@ -366,7 +378,14 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				auto expr = ExprPtr(Expr::get(*node.front(), this));
 				auto r0 = precolored(Why::returnValueOffset);
 				r0->setType(*returnType);
-				expr->compile(r0, *this, currentContext());
+				if (returnType->isReference()) {
+					addComment("Returning reference pointer");
+					if (!expr->compileAddress(r0, *this, currentContext()))
+						throw LvalueError(*expr->getType(currentContext()), expr->getLocation());
+				} else {
+					addComment("Returning value");
+					expr->compile(r0, *this, currentContext());
+				}
 				typeCheck(*expr->getType(currentContext()), *returnType, r0, *this, node.location);
 			}
 			ScopePtr scope = currentScope();

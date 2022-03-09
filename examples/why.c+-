@@ -64,7 +64,7 @@ void int_keybrd_(u64 key_full) {
 			delay = delay * 10 / 11;
 			p("Delay: "); p(delay); p('\n');
 		} else if (key == '\x0d') { // Ctrl-Enter, for some reason.
-			asm("%time $1":delay:);
+			asm("%time $1":delay);
 		} else if (key == '8') {
 			p("20 -> ");
 			s64(s64) *hacked_ptr = (s64(s64) *) (((s64) fnptr << 1) + 8);
@@ -96,7 +96,12 @@ void int_keybrd_(u64 key_full) {
 		l();
 		%StringVec split = %[&input, " "];
 		if (split.size != 0u64) {
-			%String *first = split::front();
+			%String &first = split::front();
+			p("first.data: "); p((void *) first.data); l();
+			p("&first: "); p(&first); l();
+			p("{"); p((void *) first.data); p("}\n");
+			p("["); p(first.data); p("]\n");
+			p("("); p(*first.data); p(")\n");
 			if (first::eq("echo")) {
 				u64 size = split.size;
 				for (u64 i = 1u64; i < size; ++i) {
@@ -112,7 +117,7 @@ void int_keybrd_(u64 key_full) {
 				for (u64 i = 1u64; i < size; ++i) {
 					if (i != 1u64)
 						new_str::append(' ');
-					new_str::append(*split::at(i));
+					new_str::append(split::at(i));
 				}
 
 				p('"'); new_str::print(); p("\" -> 0x");
@@ -357,18 +362,19 @@ void String::init(u8 const *data) {
 	this->data[0] = '\0';
 }
 
-+String(%String const *other) {
-	this->data = checked_malloc(other->size + 1u64);
-	memcpy(this->data, other->data, other->size);
-	this->size = other->size;
-	this->capacity = other->size + 1u64;
++String(%String const &other) {
+	this->data = checked_malloc(other.size + 1u64);
+	p("!!!\n");
+	memcpy(this->data, other.data, other.size);
+	this->size = other.size;
+	this->capacity = other.size + 1u64;
 	this->data[this->size] = '\0';
 }
 
-%String * operator+(%String *left, %String *right) {
+%String * operator+(%String &left, %String &right) {
 	p("operator+(%String *, %String *)\n");
 	%String *out = new %String(left);
-	out::append(*right);
+	out::append(right);
 	return out;
 }
 
@@ -522,7 +528,9 @@ bool String::eq(%String *other) #const {
 }
 
 ~String {
+	p("~String("); p(this); p(")\n");
 	if (this->data) {
+		p(":: \""); p(this->data); p("\" @ "); p((void *) this->data); l();
 		free(this->data);
 		this->data = null;
 	}
@@ -550,22 +558,25 @@ struct StringVec {
 	this->capacity = 0;
 }
 
-%String * StringVec::at(u64 index) {
+%String & StringVec::at(u64 index) {
 	if (this->size <= index)
 		panic("Invalid index in StringVec::at");
-	return &this->data[index];
+	return this->data[index];
 }
 
-%String * StringVec::front() {
+%String & StringVec::front() {
 	if (this->size == 0u64)
 		panic("Container empty in StringVec::front");
-	return this->data;
+	p("StringVec::front(): "); p(this); p("->data: "); p((void *) this->data); l();
+	p("StringVec->data[0].data = "); p((void *) this->data[0].data); l();
+	p("<"); p(this->data[0].data); p(">\n");
+	return *this->data;
 }
 
-%String * StringVec::back() {
+%String & StringVec::back() {
 	if (this->size == 0u64)
 		panic("Container empty in StringVec::back");
-	return &this->data[this->size - 1u64];
+	return this->data[this->size - 1u64];
 }
 
 %String * StringVec::copyData(u64 *new_capacity) #const {

@@ -18,6 +18,7 @@ struct WhyInstruction: Instruction, Checkable, std::enable_shared_from_this<WhyI
 	virtual std::vector<VregPtr> getRead() { return {}; }
 	virtual std::vector<VregPtr> getWritten() { return {}; }
 	virtual bool isTerminal() const { return false; }
+	virtual bool enableDebug() const { return true; }
 
 	template <typename T>
 	std::shared_ptr<T> ptrcast() {
@@ -512,6 +513,7 @@ struct JumpInstruction: JType, Conditional {
 
 struct Label: WhyInstruction {
 	std::string name;
+	bool enableDebug() const override { return false; }
 	Label(const std::string &name_): name(name_) {}
 	operator std::vector<std::string>() const override {
 		return {"@" + name};
