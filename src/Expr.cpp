@@ -1530,8 +1530,11 @@ void DotExpr::compile(VregPtr destination, Function &function, const Context &co
 	const size_t field_size = struct_type->getFieldSize(ident);
 	const size_t field_offset = struct_type->getFieldOffset(ident);
 	Util::validateSize(field_size);
+	auto left_type = left->getType(context);
 	if (!left->compileAddress(destination, function, context))
 		throw LvalueError(*left);
+	if (left_type->isReference())
+		function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
 	if (field_offset != 0) {
 		function.addComment("Add field offset of " + struct_type->name + "::" + ident);
 		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
