@@ -357,7 +357,7 @@ void String::init(u8 const *data) {
 	this->data[0] = '\0';
 }
 
-+String(%String *other) {
++String(%String const *other) {
 	this->data = checked_malloc(other->size + 1u64);
 	memcpy(this->data, other->data, other->size);
 	this->size = other->size;
@@ -579,7 +579,7 @@ void StringVec::freeData() {
 	if (!this->data)
 		return;
 	for (u64 i = 0; i < this->size; ++i)
-		this->data[i]::free();
+		this->data[i]::$d();
 	free(this->data);
 	this->data = null;
 }
@@ -607,7 +607,6 @@ void StringVec::push(%String *str) {
 	u64 required = this->size + 1u64;
 	this::adjust(&required);
 	u8 *data_copy = str::copyData();
-	u64 s = strlen(data_copy);
 	this->data[this->size].data = data_copy;
 	this->data[this->size].size = str->size;
 	this->data[this->size].capacity = str->size + 1u64;
@@ -648,7 +647,9 @@ static void StringVec::split(%StringVec *sv, %String *str, u8 const *delimiter) 
 	u64 const delimiter_size = strlen(delimiter);
 	u64 last = 0u64;
 
-	sv::push(str::substr(0u64, next));
+	%String *first_substr = str::substr(0u64, next);
+	sv::absorb(first_substr);
+	free(first_substr);
 
 	while (next != npos) {
 		last = next;
