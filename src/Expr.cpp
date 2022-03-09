@@ -954,7 +954,7 @@ void AddressOfExpr::compile(VregPtr destination, Function &function, const Conte
 }
 
 std::unique_ptr<Type> AddressOfExpr::getType(const Context &context) const {
-	if (!subexpr->isLvalue())
+	if (!subexpr->isLvalue(context))
 		throw LvalueError(*subexpr);
 	auto subexpr_type = subexpr->getType(context);
 	auto out = std::make_unique<PointerType>(subexpr_type->copy());
@@ -1215,6 +1215,37 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 			fn.add<MultIInstruction>(fn.precolored(Why::returnValueOffset), destination, size_t(multiplier))
 				->setDebug(*this);
 	}
+}
+
+TypePtr CallExpr::getReturnType(const Context &context) const {
+	Context subcontext(context);
+	subcontext.structName = getStructName(context);
+
+	FunctionPtr found;
+	TypePtr found_return_type;
+
+	if (auto *var_expr = subexpr->cast<VariableExpr>())
+		if (auto found = findFunction(var_expr->name, subcontext))
+			return found->returnType;
+
+	auto fnptr_type = subexpr->getType(subcontext);
+	if (!fnptr_type->isFunctionPointer())
+		throw FunctionPointerError(*fnptr_type);
+	const auto *subfn = fnptr_type->cast<FunctionPointerType>();
+	return TypePtr(subfn->returnType->copy());
+}
+
+bool CallExpr::compileAddress(VregPtr destination, Function &function, const Context &context) {
+	if (isLvalue(context)) {
+		compile(destination, function, context, 1);
+		return true;
+	}
+
+	return false;
+}
+
+bool CallExpr::isLvalue(const Context &context) const {
+	return getReturnType(context)->isReference();
 }
 
 CallExpr::operator std::string() const {
