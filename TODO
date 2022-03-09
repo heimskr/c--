@@ -2,7 +2,6 @@ To add:
 - Enums
 - Default destructors
 - Pointers to struct methods
-- Constructor declarations
 
 To investigate:
 - Preventing Expr::evaluate() with operator overloading
