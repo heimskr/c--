@@ -1457,6 +1457,7 @@ void AccessExpr::compile(VregPtr destination, Function &function, const Context 
 		else if (!array_type->is<PointerType>())
 			fail();
 		compileAddress(destination, function, context);
+		function.addComment("AccessExpr::compile: load");
 		function.add<LoadRInstruction>(destination, destination, getSize(context))->setDebug(*this);
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -1481,10 +1482,15 @@ void AccessExpr::fail() const {
 }
 
 bool AccessExpr::compileAddress(VregPtr destination, Function &function, const Context &context) {
-	if (check(context)->isPointer())
+	if (check(context)->isPointer()) {
+		function.addComment("AccessExpr::compileAddress: compiling pointer");
 		array->compile(destination, function, context);
-	else if (!array->compileAddress(destination, function, context))
-		throw LvalueError(std::string(*array->getType(context)));
+	} else {
+		function.addComment("AccessExpr::compileAddress: compiling array address");
+		if (!array->compileAddress(destination, function, context))
+			throw LvalueError(std::string(*array->getType(context)));
+	}
+	function.addComment("AccessExpr::compileAddress: compiled array address/pointer");
 	const auto element_size = getSize(context);
 	const auto subscript_value = subscript->evaluate(context);
 	if (subscript_value) {
@@ -1493,9 +1499,7 @@ bool AccessExpr::compileAddress(VregPtr destination, Function &function, const C
 				->setDebug(*this);
 	} else {
 		auto subscript_variable = function.newVar();
-		subscript->compile(subscript_variable, function, context);
-		if (element_size != 1)
-			function.add<MultIInstruction>(subscript_variable, subscript_variable, element_size)->setDebug(*this);
+		subscript->compile(subscript_variable, function, context, element_size);
 		function.add<AddRInstruction>(destination, subscript_variable, destination)->setDebug(*this);
 	}
 	return true;
@@ -1597,7 +1601,7 @@ TypePtr DotExpr::getType(const Context &context) const {
 bool DotExpr::compileAddress(VregPtr destination, Function &function, const Context &context) {
 	auto struct_type = checkType(context);
 	const size_t field_offset = struct_type->getFieldOffset(ident);
-	if (!left->compileAddress(destination, function, context))
+	if (!GetValueExpr(left).compileAddress(destination, function, context))
 		throw LvalueError(*left);
 	if (field_offset != 0)
 		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
@@ -1626,7 +1630,7 @@ void ArrowExpr::compile(VregPtr destination, Function &function, const Context &
 	const size_t field_size = struct_type->getFieldSize(ident);
 	const size_t field_offset = struct_type->getFieldOffset(ident);
 	Util::validateSize(field_size);
-	left->compile(destination, function, context, 1);
+	GetValueExpr(left).compile(destination, function, context, 1);
 	if (field_offset != 0) {
 		function.addComment("Add field offset of " + struct_type->name + "::" + ident);
 		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
@@ -1654,7 +1658,7 @@ TypePtr ArrowExpr::getType(const Context &context) const {
 bool ArrowExpr::compileAddress(VregPtr destination, Function &function, const Context &context) {
 	auto struct_type = checkType(context);
 	const size_t field_offset = struct_type->getFieldOffset(ident);
-	left->compile(destination, function, context);
+	GetValueExpr(left).compile(destination, function, context);
 	if (field_offset != 0) {
 		function.addComment("Add field offset of " + struct_type->name + "::" + ident);
 		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
