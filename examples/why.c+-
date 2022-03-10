@@ -141,6 +141,8 @@ void int_keybrd_(u64 key_full) {
 				if (split.size != 3u64) {
 					p("Exactly 3 arguments needed.\n");
 				} else {
+					p("%at(1)="); p(&split::at(1u64)); l();
+					p("%at(2)="); p(&split::at(2u64)); l();
 					%StringPtr combined = %[split::at(1u64) + split::at(2u64)];
 					(*combined)::print(); l();
 				}
@@ -377,8 +379,8 @@ void String::init(u8 const *data) {
 }
 
 +String(%String const &other) {
+	p("+String(%String const &other): &other = "); p(&other); p(", other.size = "); p(other.size); l();
 	this->data = checked_malloc(other.size + 1u64);
-	p("!!!\n");
 	memcpy(this->data, other.data, other.size);
 	this->size = other.size;
 	this->capacity = other.size + 1u64;
@@ -386,7 +388,7 @@ void String::init(u8 const *data) {
 }
 
 %String * operator+(%String &left, %String &right) {
-	p("operator+(%String *, %String *)\n");
+	p("operator+(%String & = "); p(&left); p(", %String & = "); p(&right); p(")\n");
 	%String *out = new %String(left);
 	out::append(right);
 	return out;
@@ -422,8 +424,8 @@ struct StringPtr {
 	delete this->str;
 }
 
-%String * operator*(%StringPtr *sptr) {
-	return sptr->str;
+%String * operator*(%StringPtr &sptr) {
+	return sptr.str;
 }
 
 void mkstring(u8 *data) {
@@ -577,6 +579,7 @@ struct StringVec {
 %String & StringVec::at(u64 index) {
 	if (this->size <= index)
 		panic("Invalid index in StringVec::at");
+	p(this); p("::at("); p(index); p("): &this->data[index] = "); p(&this->data[index]); l();
 	return this->data[index];
 }
 

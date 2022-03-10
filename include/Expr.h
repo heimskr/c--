@@ -46,7 +46,7 @@ struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 	/** This function both performs type checking and returns a type. */
 	virtual std::unique_ptr<Type> getType(const Context &) const = 0;
 	virtual bool compileAddress(VregPtr, Function &, const Context &) { return false; }
-	virtual bool compileReference(VregPtr destination, Function &function, const Context &context) {
+	virtual bool forward(VregPtr destination, Function &function, const Context &context) {
 		return compileAddress(destination, function, context);
 	}
 	virtual bool isLvalue(const Context &) const { return false; }
@@ -354,7 +354,7 @@ struct VariableExpr: Expr {
 	size_t getSize(const Context &) const override;
 	std::unique_ptr<Type> getType(const Context &) const override;
 	bool compileAddress(VregPtr, Function &, const Context &) override;
-	// bool compileReference(VregPtr, Function &, const Context &) override;
+	// bool forward(VregPtr, Function &, const Context &) override;
 	bool isLvalue(const Context &) const override { return true; }
 };
 
@@ -562,15 +562,6 @@ struct ShiftRightAssignExpr:
 CompoundAssignExpr<">>=", ShiftRightArithmeticRInstruction, ShR, ShiftRightLogicalRInstruction, ShRU> {
 	using CompoundAssignExpr::CompoundAssignExpr;
 };
-
-inline ExprPtr ensurePointer(const Expr &expr, const Context &context) {
-	auto type = expr.getType(context);
-	if (type->isPointer())
-		return ExprPtr(expr.copy());
-	auto out = AddressOfExpr::make(expr.copy());
-	out->setDebug(expr.debug);
-	return out;
-}
 
 template <fixstr::fixed_string O, typename R, typename Fn>
 struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {

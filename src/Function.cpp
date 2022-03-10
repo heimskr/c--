@@ -384,6 +384,8 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 					addComment("Returning reference pointer");
 					if (!expr->compileAddress(r0, *this, currentContext()))
 						throw LvalueError(*expr->getType(currentContext()), expr->getLocation());
+					// addComment("Reference return hack");
+					// add<LoadRInstruction>(r0, r0, Why::wordSize)->setDebug(*expr);
 				} else {
 					addComment("Returning value");
 					expr->compile(r0, *this, currentContext());

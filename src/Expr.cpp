@@ -408,6 +408,7 @@ std::ostream & operator<<(std::ostream &os, const Expr &expr) {
 
 void PlusExpr::compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) {
 	if (auto fnptr = getOperator(context)) {
+		info() << "left[" << *left << "], right[" << *right << "]\n";
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(),
 			multiplier);
 	} else {
@@ -914,7 +915,8 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, const
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset)
 				->setDebug(*this);
 			if (var->getType()->isReference()) {
-				auto ref = var->getType()->ptrcast<ReferenceType>();
+			// if (destination->getType() && destination->getType()->isReference()) {
+				// auto ref = var->getType()->ptrcast<ReferenceType>();
 				function.addComment("Load reference lvalue for " + name);
 				// warn() << *this << ": vartype[" << *var->getType() << "], ref->subtype[" << *ref->subtype << "]\n";
 				function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
@@ -1025,8 +1027,8 @@ std::string StringExpr::getID(Program &program) const {
 
 void DerefExpr::compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) {
 	if (auto fnptr = getOperator(context)) {
-		auto addrof = std::make_unique<AddressOfExpr>(subexpr->copy());
-		compileCall(destination, function, context, fnptr, {addrof.get()}, getLocation(), multiplier);
+		// auto addrof = std::make_unique<AddressOfExpr>(subexpr->copy());
+		compileCall(destination, function, context, fnptr, {subexpr.get()}, getLocation(), multiplier);
 	} else {
 		checkType(context);
 		subexpr->compile(destination, function, context, multiplier);
@@ -1062,8 +1064,8 @@ bool DerefExpr::compileAddress(VregPtr destination, Function &function, const Co
 }
 
 FunctionPtr DerefExpr::getOperator(const Context &context) const {
-	auto pointer = std::make_unique<PointerType>(subexpr->getType(context)->copy());
-	return context.program->getOperator({pointer.get()}, CPMTOK_TIMES, getLocation());
+	auto subexpr_type = subexpr->getType(context);
+	return context.program->getOperator({subexpr_type.get()}, CPMTOK_TIMES, getLocation());
 }
 
 Expr * CallExpr::copy() const {
@@ -1136,9 +1138,6 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 					fn.addComment("Setting \"this\" from reference.");
 					this_var->setType(*struct_expr_type);
 					structExpr->compileAddress(this_var, fn, context);
-					// structExpr->compile(this_var, fn, context);
-					// fn.addComment("Hack: loading reference again");
-					// fn.add<LoadRInstruction>(this_var, this_var, Why::wordSize)->setDebug(*this);
 					goto this_done; // Haha :)
 				}
 			}
@@ -1545,7 +1544,7 @@ void DotExpr::compile(VregPtr destination, Function &function, const Context &co
 	auto left_type = left->getType(context);
 	if (!left->compileAddress(destination, function, context))
 		throw LvalueError(*left);
-	function.add<PrintRInstruction>(destination, PrintType::Full);
+	// function.add<PrintRInstruction>(destination, PrintType::Full);
 	// if (left_type->isReference())
 	// 	function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
 	if (field_offset != 0) {
