@@ -1041,7 +1041,7 @@ void StringExpr::compile(VregPtr destination, Function &function, const Context 
 TypePtr StringExpr::getType(const Context &) const {
 	auto const_u8 = UnsignedType::make(8);
 	const_u8->setConst(true);
-	return const_u8;
+	return PointerType::make(const_u8);
 }
 
 std::string StringExpr::getID(Program &program) const {
