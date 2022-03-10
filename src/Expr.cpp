@@ -38,7 +38,7 @@ void compileCall(VregPtr destination, Function &function, const Context &context
 			// auto expr_type = expr->getType(context);
 			if (fn_arg_type.isReference()) {
 				function.addComment("compileCall: compiling address into reference argument");
-				if (!expr->forward(argument_register, function, context))
+				if (!expr->compileAddress(argument_register, function, context))
 					throw LvalueError(*argument_type, expr->getLocation());
 			} else if (argument_type->isStruct()) {
 				throw GenericError(expr->getLocation(),
@@ -412,10 +412,8 @@ void PlusExpr::compile(VregPtr destination, Function &function, const Context &c
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(),
 			multiplier);
 	} else {
-		TypePtr left_type = left->getType(context), right_type = right->getType(context);
+		auto left_type = left->getType(context), right_type = right->getType(context);
 		VregPtr left_var = function.newVar(), right_var = function.newVar();
-		left_var->setType(*ReferenceType::make(left_type));
-		right_var->setType(*ReferenceType::make(right_type));
 		if (left_type->isPointer() && right_type->isInt()) {
 			if (multiplier != 1)
 				throw GenericError(getLocation(), "Cannot multiply in pointer arithmetic PlusExpr");
@@ -461,13 +459,11 @@ std::unique_ptr<Type> PlusExpr::getType(const Context &context) const {
 }
 
 void MinusExpr::compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) {
-	TypePtr left_type = left->getType(context), right_type = right->getType(context);
+	auto left_type = left->getType(context), right_type = right->getType(context);
 	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CPMTOK_MINUS, getLocation())) {
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr left_var = function.newVar(), right_var = function.newVar();
-		left_var->setType(*ReferenceType::make(left_type));
-		right_var->setType(*ReferenceType::make(right_type));
 		if (left_type->isPointer() && right_type->isInt()) {
 			if (multiplier != 1)
 				throw GenericError(getLocation(), "Cannot multiply in pointer arithmetic MinusExpr");
@@ -507,8 +503,6 @@ void MultExpr::compile(VregPtr destination, Function &function, const Context &c
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr left_var = function.newVar(), right_var = function.newVar();
-		left_var->setType(*ReferenceType::make(left->getType(context)));
-		right_var->setType(*ReferenceType::make(right->getType(context)));
 		left->compile(left_var, function, context, 1);
 		right->compile(right_var, function, context, multiplier); // TODO: verify
 		function.add<MultRInstruction>(left_var, right_var, destination)->setDebug(*this);
@@ -920,34 +914,11 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, const
 			function.addComment("Get variable lvalue for " + name);
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset)
 				->setDebug(*this);
-			// if (var->getType()->isReference()) {
+			if (var->getType()->isReference()) {
 			// if (destination->getType() && destination->getType()->isReference()) {
 				// auto ref = var->getType()->ptrcast<ReferenceType>();
-				// function.addComment("Load reference lvalue for " + name);
-				// warn() << *this << ": vartype[" << *var->getType() << "], ref->subtype[" << *ref->subtype << "]\n";
-				// function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
-			// }
-		}
-	} else if (const auto fn = context.scope->lookupFunction(name, getLocation())) {
-		function.add<SetIInstruction>(destination, fn->mangle())->setDebug(*this);
-	} else
-		throw ResolutionError(name, context.scope, getLocation());
-	return true;
-}
-
-bool VariableExpr::forward(VregPtr destination, Function &function, const Context &context) {
-	if (VariablePtr var = context.scope->lookup(name)) {
-		if (auto global = std::dynamic_pointer_cast<Global>(var)) {
-			function.add<SetIInstruction>(destination, global->name)->setDebug(*this);
-		} else if (function.stackOffsets.count(var) == 0) {
-			throw NotOnStackError(var, getLocation());
-		} else {
-			const size_t offset = function.stackOffsets.at(var);
-			function.addComment("Get variable lvalue for " + name);
-			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset)
-				->setDebug(*this);
-			if (var->getType()->isReference()) {
 				function.addComment("Load reference lvalue for " + name);
+				// warn() << *this << ": vartype[" << *var->getType() << "], ref->subtype[" << *ref->subtype << "]\n";
 				function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
 			}
 		}
@@ -985,7 +956,7 @@ void AddressOfExpr::compile(VregPtr destination, Function &function, const Conte
 	if (!destination)
 		return;
 
-	if (!subexpr->forward(destination, function, context))
+	if (!subexpr->compileAddress(destination, function, context))
 		throw LvalueError(*subexpr);
 
 	// if (subexpr->getType(context)->isReference())
@@ -1166,14 +1137,14 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 				if (reference_type->subtype->isStruct()) {
 					fn.addComment("Setting \"this\" from reference.");
 					this_var->setType(*struct_expr_type);
-					structExpr->forward(this_var, fn, context);
+					structExpr->compileAddress(this_var, fn, context);
 					goto this_done; // Haha :)
 				}
 			}
 			throw NotStructError(TypePtr(struct_expr_type->copy()), structExpr->getLocation());
 		} else {
 			fn.addComment("Setting \"this\" from struct.");
-			this_var->setType(ReferenceType(struct_expr_type->copy()));
+			this_var->setType(PointerType(struct_expr_type->copy()));
 			if (!structExpr->compileAddress(this_var, fn, context))
 				throw LvalueError(*struct_expr_type, structExpr->getLocation());
 		}
@@ -1227,7 +1198,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 		const Type &function_argument_type = get_arg_type(i);
 		if (function_argument_type.isReference()) {
 			fn.addComment("CallExpr::compile: compiling address into reference argument");
-			if (!argument->forward(argument_register, fn, context))
+			if (!argument->compileAddress(argument_register, fn, context))
 				throw LvalueError(*argument_type, argument->getLocation());
 		} else if (argument_type->isStruct()) {
 			throw GenericError(argument->getLocation(),
@@ -1392,10 +1363,8 @@ void AssignExpr::compile(VregPtr destination, Function &function, const Context 
 		auto addr_var = function.newVar();
 		if (!destination)
 			destination = function.newVar();
-		auto ref_type = ReferenceType::make(left->getType(context));
-		destination->setType(*ref_type);
 		TypePtr right_type = right->getType(context);
-		if (!left->forward(addr_var, function, context))
+		if (!left->compileAddress(addr_var, function, context))
 			throw LvalueError(*left->getType(context));
 		if (right_type->isInitializer()) {
 			auto *initializer_expr = right->cast<InitializerExpr>();
@@ -1573,7 +1542,7 @@ void DotExpr::compile(VregPtr destination, Function &function, const Context &co
 	const size_t field_offset = struct_type->getFieldOffset(ident);
 	Util::validateSize(field_size);
 	auto left_type = left->getType(context);
-	if (!left->forward(destination, function, context))
+	if (!left->compileAddress(destination, function, context))
 		throw LvalueError(*left);
 	// function.add<PrintRInstruction>(destination, PrintType::Full);
 	// if (left_type->isReference())
@@ -1808,7 +1777,7 @@ void ConstructorExpr::compile(VregPtr destination, Function &function, const Con
 		auto argument_type = argument->getType(subcontext);
 		const Type &function_argument_type = *found->getArgumentType(i);
 		if (function_argument_type.isReference()) {
-			if (!argument->forward(argument_register, function, context))
+			if (!argument->compileAddress(argument_register, function, context))
 				throw LvalueError(*argument_type, argument->getLocation());
 		} else if (argument_type->isStruct()) {
 			throw GenericError(argument->getLocation(),
@@ -1953,7 +1922,7 @@ void NewExpr::compile(VregPtr destination, Function &function, const Context &co
 			auto argument_type = argument->getType(subcontext);
 			const Type &function_argument_type = *found->getArgumentType(i);
 			if (function_argument_type.isReference()) {
-				if (!argument->forward(argument_register, function, context))
+				if (!argument->compileAddress(argument_register, function, context))
 					throw LvalueError(*argument_type, argument->getLocation());
 			} else if (argument_type->isStruct()) {
 				throw GenericError(argument->getLocation(),

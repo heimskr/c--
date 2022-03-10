@@ -134,12 +134,6 @@ bool ReferenceType::isReferenceOf(const Type &other, bool ignore_const) const {
 	return subtype->equal(other, true) && (ignore_const || !(!isConst && other.isConst));
 }
 
-std::shared_ptr<ReferenceType> ReferenceType::make(TypePtr type) {
-	if (type->isReference())
-		return type->ptrcast<ReferenceType>();
-	return std::make_shared<ReferenceType>(type->copy());
-}
-
 bool ArrayType::similar(const Type &other, bool ignore_const) const {
 	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
