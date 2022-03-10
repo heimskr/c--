@@ -609,8 +609,8 @@ void OrExpr::compile(VregPtr destination, Function &function, const Context &con
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
-		left->compile(temp_var, function, context);
-		right->compile(destination, function, context);
+		GetValueExpr(left).compile(temp_var, function, context);
+		GetValueExpr(right).compile(destination, function, context);
 		function.add<OrRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -728,12 +728,14 @@ void DivExpr::compile(VregPtr destination, Function &function, const Context &co
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
-		GetValueExpr(left).compile(temp_var, function, context, multiplier);
+		GetValueExpr(left).compile(temp_var, function, context, 1);
 		GetValueExpr(right).compile(destination, function, context, 1);
 		if (left->getType(context)->isUnsigned())
 			function.add<DivuRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		else
 			function.add<DivRInstruction>(temp_var, destination, destination)->setDebug(*this);
+		if (multiplier != 1)
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 	}
 }
 
@@ -758,12 +760,14 @@ void ModExpr::compile(VregPtr destination, Function &function, const Context &co
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
-		GetValueExpr(left).compile(temp_var, function, context, multiplier);
+		GetValueExpr(left).compile(temp_var, function, context, 1);
 		GetValueExpr(right).compile(destination, function, context, 1);
 		if (left->getType(context)->isUnsigned())
 			function.add<ModuRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		else
 			function.add<ModRInstruction>(temp_var, destination, destination)->setDebug(*this);
+		if (multiplier != 1)
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 	}
 }
 
@@ -994,7 +998,7 @@ void NotExpr::compile(VregPtr destination, Function &function, const Context &co
 	if (auto fnptr = function.program.getOperator({type.get()}, CPMTOK_TILDE, getLocation())) {
 		compileCall(destination, function, context, fnptr, {subexpr.get()}, getLocation(), multiplier);
 	} else {
-		subexpr->compile(destination, function, context);
+		GetValueExpr(subexpr).compile(destination, function, context);
 		function.add<NotRInstruction>(destination, destination)->setDebug(*this);
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -1064,7 +1068,7 @@ TypePtr DerefExpr::getType(const Context &context) const {
 	if (auto fnptr = getOperator(context))
 		return TypePtr(fnptr->returnType->copy()->setLvalue(true));
 	auto type = checkType(context);
-	auto out = std::unique_ptr<Type>(dynamic_cast<PointerType &>(*type).subtype->copy());
+	auto out = TypePtr(dynamic_cast<PointerType &>(*type).subtype->copy());
 	out->setConst(type->isConst)->setLvalue(true);
 	return out;
 }
@@ -1072,7 +1076,7 @@ TypePtr DerefExpr::getType(const Context &context) const {
 TypePtr DerefExpr::checkType(const Context &context) const {
 	auto type = subexpr->getType(context);
 	if (!type->isPointer())
-		throw NotPointerError(TypePtr(type->copy()), getLocation());
+		throw NotPointerError(type, getLocation());
 	return type;
 }
 
@@ -1160,7 +1164,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 					goto this_done; // Haha :)
 				}
 			}
-			throw NotStructError(TypePtr(struct_expr_type->copy()), structExpr->getLocation());
+			throw NotStructError(struct_expr_type, structExpr->getLocation());
 		} else {
 			fn.addComment("Setting \"this\" from struct.");
 			this_var->setType(PointerType(struct_expr_type));
@@ -1200,7 +1204,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 		if (!fnptr_type->isFunctionPointer())
 			throw FunctionPointerError(*fnptr_type);
 		const auto *subfn = fnptr_type->cast<FunctionPointerType>();
-		found_return_type = TypePtr(subfn->returnType->copy());
+		found_return_type = subfn->returnType;
 		get_arg_type = [subfn](size_t i) -> const Type & { return *subfn->argumentTypes.at(i); };
 		add_jump = [this, &fn, &context] {
 			auto jump_destination = fn.newVar();
@@ -1262,7 +1266,7 @@ TypePtr CallExpr::getReturnType(const Context &context) const {
 	if (!fnptr_type->isFunctionPointer())
 		throw FunctionPointerError(*fnptr_type);
 	const auto *subfn = fnptr_type->cast<FunctionPointerType>();
-	return TypePtr(subfn->returnType->copy());
+	return subfn->returnType;
 }
 
 bool CallExpr::compileAddress(VregPtr destination, Function &function, const Context &context) {
@@ -1312,7 +1316,7 @@ TypePtr CallExpr::getType(const Context &context) const {
 		return fnptr->returnType;
 	if (auto *var_expr = subexpr->cast<VariableExpr>()) {
 		if (const auto fn = findFunction(var_expr->name, subcontext))
-			return TypePtr(fn->returnType->copy());
+			return fn->returnType;
 		if (auto var = subcontext.scope->lookup(var_expr->name)) {
 			if (auto *fnptr = var->getType()->cast<FunctionPointerType>())
 				return fnptr->returnType;
@@ -1464,9 +1468,9 @@ TypePtr AccessExpr::getType(const Context &context) const {
 		return fnptr->returnType;
 	auto array_type = array->getType(context);
 	if (auto *casted = array_type->cast<const ArrayType>())
-		return TypePtr(casted->subtype->copy());
+		return casted->subtype;
 	if (auto *casted = array_type->cast<const PointerType>())
-		return TypePtr(casted->subtype->copy());
+		return casted->subtype;
 	fail();
 	return nullptr;
 }
@@ -1501,7 +1505,7 @@ TypePtr AccessExpr::check(const Context &context) {
 	auto type = array->getType(context);
 	const bool is_array = type->isArray(), is_pointer = type->isPointer();
 	if (!is_array && !is_pointer)
-		throw NotArrayError(TypePtr(type->copy()));
+		throw NotArrayError(type);
 	if (!warned && is_array)
 		if (const auto evaluated = subscript->evaluate(context)) {
 			const auto array_count = type->cast<ArrayType>()->count;
@@ -1511,7 +1515,7 @@ TypePtr AccessExpr::check(const Context &context) {
 				warned = true;
 			}
 		}
-	return TypePtr(type->copy());
+	return type;
 }
 
 FunctionPtr AccessExpr::getOperator(const Context &context) const {
@@ -1582,10 +1586,12 @@ TypePtr DotExpr::getType(const Context &context) const {
 	const auto &map = struct_type->getMap();
 	if (map.count(ident) == 0)
 		throw ResolutionError(ident, context.scope, getLocation());
-	auto out = std::unique_ptr<Type>(map.at(ident)->copy());
-	if (struct_type->isConst)
+	if (struct_type->isConst) {
+		auto out = TypePtr(map.at(ident)->copy());
 		out->setConst(true);
-	return out;
+		return out;
+	}
+	return map.at(ident);
 }
 
 bool DotExpr::compileAddress(VregPtr destination, Function &function, const Context &context) {
@@ -1603,8 +1609,8 @@ std::shared_ptr<StructType> DotExpr::checkType(const Context &context) const {
 	if (!left_type->isStruct()) {
 		auto *left_reference = left_type->cast<ReferenceType>();
 		if (!left_reference || !left_reference->subtype->isStruct())
-			throw NotStructError(std::move(left_type), getLocation());
-		return std::shared_ptr<StructType>(left_reference->subtype->copy()->cast<StructType>());
+			throw NotStructError(left_type, getLocation());
+		return left_reference->subtype->ptrcast<StructType>();
 	}
 	TypePtr shared_type = std::move(left_type);
 	return shared_type->ptrcast<StructType>();
@@ -1637,10 +1643,12 @@ TypePtr ArrowExpr::getType(const Context &context) const {
 	const auto &map = struct_type->getMap();
 	if (map.count(ident) == 0)
 		throw ResolutionError(ident, context.scope, getLocation());
-	auto out = std::unique_ptr<Type>(map.at(ident)->copy());
-	if (struct_type->isConst)
+	if (struct_type->isConst) {
+		auto out = TypePtr(map.at(ident)->copy());
 		out->setConst(true);
-	return out;
+		return out;
+	}
+	return map.at(ident);
 }
 
 bool ArrowExpr::compileAddress(VregPtr destination, Function &function, const Context &context) {
@@ -2028,7 +2036,7 @@ TypePtr StaticFieldExpr::getType(const Context &context) const {
 	const auto &statics = getStruct(context)->getStatics();
 	if (statics.count(fieldName) == 0)
 		throw ResolutionError(fieldName, {*context.program, context.scope, structName}, getLocation());
-	return TypePtr(statics.at(fieldName)->copy());
+	return statics.at(fieldName);
 }
 
 std::shared_ptr<StructType> StaticFieldExpr::getStruct(const Context &context) const {
@@ -2086,6 +2094,6 @@ size_t GetValueExpr::getSize(const Context &context) const {
 TypePtr GetValueExpr::getType(const Context &context) const {
 	auto subtype = subexpr->getType(context);
 	if (subtype->isReference())
-		return TypePtr(subtype->cast<ReferenceType>()->subtype->copy());
+		return subtype->cast<ReferenceType>()->subtype;
 	return subtype;
 }

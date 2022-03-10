@@ -910,7 +910,7 @@ struct GetValueExpr: Expr {
 	ExprPtr subexpr;
 	GetValueExpr(ExprPtr subexpr_): subexpr(subexpr_) {}
 	Expr * copy() const override { return (new GetValueExpr(ExprPtr(subexpr->copy())))->setDebug(debug); }
-	void compile(VregPtr, Function &, const Context &, ssize_t) override;
+	void compile(VregPtr, Function &, const Context &, ssize_t = 1) override;
 	bool compileAddress(VregPtr, Function &, const Context &) override;
 	bool isLvalue(const Context &) const override;
 	operator std::string() const override;
