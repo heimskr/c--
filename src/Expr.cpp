@@ -412,8 +412,10 @@ void PlusExpr::compile(VregPtr destination, Function &function, const Context &c
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(),
 			multiplier);
 	} else {
-		auto left_type = left->getType(context), right_type = right->getType(context);
+		TypePtr left_type = left->getType(context), right_type = right->getType(context);
 		VregPtr left_var = function.newVar(), right_var = function.newVar();
+		left_var->setType(*ReferenceType::make(left_type));
+		right_var->setType(*ReferenceType::make(right_type));
 		if (left_type->isPointer() && right_type->isInt()) {
 			if (multiplier != 1)
 				throw GenericError(getLocation(), "Cannot multiply in pointer arithmetic PlusExpr");
@@ -459,11 +461,13 @@ std::unique_ptr<Type> PlusExpr::getType(const Context &context) const {
 }
 
 void MinusExpr::compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) {
-	auto left_type = left->getType(context), right_type = right->getType(context);
+	TypePtr left_type = left->getType(context), right_type = right->getType(context);
 	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CPMTOK_MINUS, getLocation())) {
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr left_var = function.newVar(), right_var = function.newVar();
+		left_var->setType(*ReferenceType::make(left_type));
+		right_var->setType(*ReferenceType::make(right_type));
 		if (left_type->isPointer() && right_type->isInt()) {
 			if (multiplier != 1)
 				throw GenericError(getLocation(), "Cannot multiply in pointer arithmetic MinusExpr");
@@ -503,6 +507,8 @@ void MultExpr::compile(VregPtr destination, Function &function, const Context &c
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr left_var = function.newVar(), right_var = function.newVar();
+		left_var->setType(*ReferenceType::make(left->getType(context)));
+		right_var->setType(*ReferenceType::make(right->getType(context)));
 		left->compile(left_var, function, context, 1);
 		right->compile(right_var, function, context, multiplier); // TODO: verify
 		function.add<MultRInstruction>(left_var, right_var, destination)->setDebug(*this);
@@ -1167,7 +1173,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 			throw NotStructError(TypePtr(struct_expr_type->copy()), structExpr->getLocation());
 		} else {
 			fn.addComment("Setting \"this\" from struct.");
-			this_var->setType(PointerType(struct_expr_type->copy()));
+			this_var->setType(ReferenceType(struct_expr_type->copy()));
 			if (!structExpr->compileAddress(this_var, fn, context))
 				throw LvalueError(*struct_expr_type, structExpr->getLocation());
 		}
@@ -1386,6 +1392,8 @@ void AssignExpr::compile(VregPtr destination, Function &function, const Context 
 		auto addr_var = function.newVar();
 		if (!destination)
 			destination = function.newVar();
+		auto ref_type = ReferenceType::make(left->getType(context));
+		destination->setType(*ref_type);
 		TypePtr right_type = right->getType(context);
 		if (!left->forward(addr_var, function, context))
 			throw LvalueError(*left->getType(context));

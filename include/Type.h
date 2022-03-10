@@ -148,7 +148,7 @@ struct PointerType: SuperType, Makeable<PointerType> {
 		std::string stringify() const override { return subtype? std::string(*subtype) + "*" : "???*"; }
 };
 
-struct ReferenceType: SuperType, Makeable<ReferenceType> {
+struct ReferenceType: SuperType {
 	ReferenceType(Type *subtype_): SuperType(subtype_) { isLvalue = true; }
 	Type * copy() const override { return (new ReferenceType(subtype? subtype->copy() : nullptr))->setConst(isConst); }
 	std::string mangle() const override { return "r" + subtype->mangle(); }
@@ -158,6 +158,7 @@ struct ReferenceType: SuperType, Makeable<ReferenceType> {
 	bool isReference() const override { return true; }
 	bool isReferenceOf(const Type &, bool ignore_const) const override;
 	int affinity(const Type &, bool ignore_const) const override;
+	static std::shared_ptr<ReferenceType> make(TypePtr);
 	protected:
 		std::string stringify() const override { return subtype? std::string(*subtype) + "&" : "???&"; }
 };
