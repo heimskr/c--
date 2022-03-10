@@ -38,7 +38,7 @@ void compileCall(VregPtr destination, Function &function, const Context &context
 			// auto expr_type = expr->getType(context);
 			if (fn_arg_type.isReference()) {
 				function.addComment("compileCall: compiling address into reference argument");
-				if (!expr->compileAddress(argument_register, function, context))
+				if (!expr->forward(argument_register, function, context))
 					throw LvalueError(*argument_type, expr->getLocation());
 			} else if (argument_type->isStruct()) {
 				throw GenericError(expr->getLocation(),
@@ -914,11 +914,34 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, const
 			function.addComment("Get variable lvalue for " + name);
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset)
 				->setDebug(*this);
-			if (var->getType()->isReference()) {
+			// if (var->getType()->isReference()) {
 			// if (destination->getType() && destination->getType()->isReference()) {
 				// auto ref = var->getType()->ptrcast<ReferenceType>();
-				function.addComment("Load reference lvalue for " + name);
+				// function.addComment("Load reference lvalue for " + name);
 				// warn() << *this << ": vartype[" << *var->getType() << "], ref->subtype[" << *ref->subtype << "]\n";
+				// function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
+			// }
+		}
+	} else if (const auto fn = context.scope->lookupFunction(name, getLocation())) {
+		function.add<SetIInstruction>(destination, fn->mangle())->setDebug(*this);
+	} else
+		throw ResolutionError(name, context.scope, getLocation());
+	return true;
+}
+
+bool VariableExpr::forward(VregPtr destination, Function &function, const Context &context) {
+	if (VariablePtr var = context.scope->lookup(name)) {
+		if (auto global = std::dynamic_pointer_cast<Global>(var)) {
+			function.add<SetIInstruction>(destination, global->name)->setDebug(*this);
+		} else if (function.stackOffsets.count(var) == 0) {
+			throw NotOnStackError(var, getLocation());
+		} else {
+			const size_t offset = function.stackOffsets.at(var);
+			function.addComment("Get variable lvalue for " + name);
+			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset)
+				->setDebug(*this);
+			if (var->getType()->isReference()) {
+				function.addComment("Load reference lvalue for " + name);
 				function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
 			}
 		}
@@ -956,7 +979,7 @@ void AddressOfExpr::compile(VregPtr destination, Function &function, const Conte
 	if (!destination)
 		return;
 
-	if (!subexpr->compileAddress(destination, function, context))
+	if (!subexpr->forward(destination, function, context))
 		throw LvalueError(*subexpr);
 
 	// if (subexpr->getType(context)->isReference())
@@ -1137,7 +1160,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 				if (reference_type->subtype->isStruct()) {
 					fn.addComment("Setting \"this\" from reference.");
 					this_var->setType(*struct_expr_type);
-					structExpr->compileAddress(this_var, fn, context);
+					structExpr->forward(this_var, fn, context);
 					goto this_done; // Haha :)
 				}
 			}
@@ -1198,7 +1221,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 		const Type &function_argument_type = get_arg_type(i);
 		if (function_argument_type.isReference()) {
 			fn.addComment("CallExpr::compile: compiling address into reference argument");
-			if (!argument->compileAddress(argument_register, fn, context))
+			if (!argument->forward(argument_register, fn, context))
 				throw LvalueError(*argument_type, argument->getLocation());
 		} else if (argument_type->isStruct()) {
 			throw GenericError(argument->getLocation(),
@@ -1364,7 +1387,7 @@ void AssignExpr::compile(VregPtr destination, Function &function, const Context 
 		if (!destination)
 			destination = function.newVar();
 		TypePtr right_type = right->getType(context);
-		if (!left->compileAddress(addr_var, function, context))
+		if (!left->forward(addr_var, function, context))
 			throw LvalueError(*left->getType(context));
 		if (right_type->isInitializer()) {
 			auto *initializer_expr = right->cast<InitializerExpr>();
@@ -1542,7 +1565,7 @@ void DotExpr::compile(VregPtr destination, Function &function, const Context &co
 	const size_t field_offset = struct_type->getFieldOffset(ident);
 	Util::validateSize(field_size);
 	auto left_type = left->getType(context);
-	if (!left->compileAddress(destination, function, context))
+	if (!left->forward(destination, function, context))
 		throw LvalueError(*left);
 	// function.add<PrintRInstruction>(destination, PrintType::Full);
 	// if (left_type->isReference())
@@ -1777,7 +1800,7 @@ void ConstructorExpr::compile(VregPtr destination, Function &function, const Con
 		auto argument_type = argument->getType(subcontext);
 		const Type &function_argument_type = *found->getArgumentType(i);
 		if (function_argument_type.isReference()) {
-			if (!argument->compileAddress(argument_register, function, context))
+			if (!argument->forward(argument_register, function, context))
 				throw LvalueError(*argument_type, argument->getLocation());
 		} else if (argument_type->isStruct()) {
 			throw GenericError(argument->getLocation(),
@@ -1922,7 +1945,7 @@ void NewExpr::compile(VregPtr destination, Function &function, const Context &co
 			auto argument_type = argument->getType(subcontext);
 			const Type &function_argument_type = *found->getArgumentType(i);
 			if (function_argument_type.isReference()) {
-				if (!argument->compileAddress(argument_register, function, context))
+				if (!argument->forward(argument_register, function, context))
 					throw LvalueError(*argument_type, argument->getLocation());
 			} else if (argument_type->isStruct()) {
 				throw GenericError(argument->getLocation(),
