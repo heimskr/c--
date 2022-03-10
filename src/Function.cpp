@@ -334,7 +334,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 					if (initializer->isConstructor) {
 						if (!variable->getType()->isStruct())
 							throw NotStructError(variable->getType(), node.location);
-						auto *constructor_expr = new VariableExpr("$c");
+						auto constructor_expr = VariableExpr::make("$c");
 						auto call = std::make_unique<CallExpr>(constructor_expr, initializer->children);
 						call->structExpr = std::make_unique<VariableExpr>(var_name);
 						call->structExpr->setLocation(node.at(2)->location);
@@ -585,12 +585,12 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			expr->compile(temp_var, *this, currentContext());
 			if (auto *struct_type = pointer_type->subtype->cast<StructType>())
 				if (struct_type->getDestructor()) {
-					auto call = std::make_unique<CallExpr>(new VariableExpr("$d"));
+					auto call = std::make_unique<CallExpr>(VariableExpr::make("$d"));
 					call->structExpr = std::make_unique<VregExpr>(temp_var);
 					addComment("Calling destructor for " + std::string(*struct_type) + " " + std::string(*expr));
 					call->compile(nullptr, *this, currentContext(), 1);
 				}
-			CallExpr(new VariableExpr("free"), {VregExpr::make(temp_var)}).setLocation(node.location)
+			CallExpr(VariableExpr::make("free"), {VregExpr::make(temp_var)}).setLocation(node.location)
 				->setFunction(*this)->compile(nullptr, *this, currentContext(), 1);
 			break;
 		}
@@ -1377,7 +1377,7 @@ void Function::closeScope(ScopePtr scope) {
 		auto &var = *iter;
 		if (auto struct_type = var->getType()->ptrcast<StructType>())
 			if (struct_type->getDestructor()) {
-				auto *destructor_expr = new VariableExpr("$d");
+				auto destructor_expr = VariableExpr::make("$d");
 				auto call = std::make_unique<CallExpr>(destructor_expr);
 				call->structExpr = std::make_unique<VariableExpr>(var->name);
 				addComment("Calling destructor for " + std::string(*struct_type) + " " + var->name);

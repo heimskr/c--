@@ -203,11 +203,11 @@ Type * Type::get(const ASTNode &node, Program &program, bool allow_forward) {
 			return new ArrayType(Type::get(*node.front(), program), *count);
 		}
 		case CPM_FNPTR: {
-			std::vector<Type *> argument_types;
+			std::vector<TypePtr> argument_types;
 			argument_types.reserve(node.at(1)->size());
 			for (const ASTNode *child: *node.at(1))
-				argument_types.push_back(Type::get(*child, program));
-			return new FunctionPointerType(Type::get(*node.front(), program), std::move(argument_types));
+				argument_types.push_back(TypePtr(Type::get(*child, program)));
+			return new FunctionPointerType(TypePtr(Type::get(*node.front(), program)), std::move(argument_types));
 		}
 		case CPMTOK_MOD: {
 			const std::string &struct_name = *node.front()->text;
@@ -263,13 +263,13 @@ Type * Type::get(const char * &mangled, Program &program) {
 			return new ArrayType(Type::get(mangled, program), count);
 		}
 		case 'F': {
-			Type *return_type = Type::get(++mangled, program);
-			std::vector<Type *> argument_types;
+			auto return_type = TypePtr(Type::get(++mangled, program));
+			std::vector<TypePtr> argument_types;
 			size_t argument_count = 0;
 			for (; std::isdigit(mangled[0]); ++mangled)
 				argument_count = argument_count * 10 + (mangled[0] - '0');
 			for (size_t i = 0; i < argument_count; ++i)
-				argument_types.push_back(Type::get(mangled, program));
+				argument_types.push_back(TypePtr(Type::get(mangled, program)));
 			return new FunctionPointerType(return_type, std::move(argument_types));
 		}
 		case 'S': {
@@ -289,27 +289,21 @@ Type * Type::get(const char * &mangled, Program &program) {
 	}
 }
 
-FunctionPointerType::FunctionPointerType(Type *return_type, std::vector<Type *> &&argument_types):
+FunctionPointerType::FunctionPointerType(TypePtr return_type, std::vector<TypePtr> &&argument_types):
 	returnType(return_type), argumentTypes(std::move(argument_types)) {}
 
-FunctionPointerType::~FunctionPointerType() {
-	delete returnType;
-	for (Type *type: argumentTypes)
-		delete type;
-}
-
 Type * FunctionPointerType::copy() const {
-	std::vector<Type *> arguments_copy;
+	std::vector<TypePtr> arguments_copy;
 	arguments_copy.reserve(argumentTypes.size());
-	for (const Type *type: argumentTypes)
-		arguments_copy.push_back(type->copy());
-	return (new FunctionPointerType(returnType->copy(), std::move(arguments_copy)))->steal(*this);
+	for (const TypePtr &type: argumentTypes)
+		arguments_copy.push_back(TypePtr(type->copy()));
+	return (new FunctionPointerType(TypePtr(returnType->copy()), std::move(arguments_copy)))->steal(*this);
 }
 
 std::string FunctionPointerType::mangle() const {
 	std::stringstream out;
 	out << 'F' << returnType->mangle() << argumentTypes.size();
-	for (const Type *argument_type: argumentTypes)
+	for (const TypePtr &argument_type: argumentTypes)
 		out << argument_type->mangle();
 	return out.str();
 }
@@ -318,7 +312,7 @@ std::string FunctionPointerType::stringify() const {
 	std::stringstream out;
 	out << *returnType << "(";
 	bool first = true;
-	for (const Type *type: argumentTypes) {
+	for (const TypePtr &type: argumentTypes) {
 		if (first)
 			first = false;
 		else
@@ -356,7 +350,7 @@ bool FunctionPointerType::equal(const Type &other, bool ignore_const) const {
 FunctionPointerType::FunctionPointerType(const Function &function): returnType(function.returnType->copy()) {
 	argumentTypes.reserve(function.arguments.size());
 	for (const std::string &name: function.arguments)
-		argumentTypes.push_back(function.argumentMap.at(name)->getType()->copy());
+		argumentTypes.push_back(TypePtr(function.argumentMap.at(name)->getType()->copy()));
 }
 
 StructType::StructType(const Program &program_, const std::string &name_):

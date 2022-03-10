@@ -37,14 +37,26 @@ void compileCall(VregPtr destination, Function &function, const Context &context
 			auto argument_type = expr->getType(context);
 			// auto expr_type = expr->getType(context);
 			if (fn_arg_type.isReference()) {
-				function.addComment("compileCall: compiling address into reference argument");
-				if (!expr->compileAddress(argument_register, function, context))
-					throw LvalueError(*argument_type, expr->getLocation());
+				if (argument_type->isReference()) {
+					function.addComment("compileCall: forwarding reference");
+					expr->compile(argument_register, function, context);
+				} else {
+					function.addComment("compileCall: compiling address into reference argument");
+					if (!expr->compileAddress(argument_register, function, context))
+						throw LvalueError(*argument_type, expr->getLocation());
+				}
 			} else if (argument_type->isStruct()) {
 				throw GenericError(expr->getLocation(),
 					"Structs cannot be directly passed to functions; use a pointer");
-			} else
+			} else if (argument_type->isReference()) {
+				function.addComment("compileCall: dereferencing reference");
 				expr->compile(argument_register, function, context);
+				function.add<LoadRInstruction>(argument_register, argument_register,
+					argument_type->cast<ReferenceType>()->subtype->getSize())->setDebug(debug);
+			} else {
+				function.addComment("compileCall: copying value");
+				expr->compile(argument_register, function, context);
+			}
 			try {
 				typeCheck(*argument_type, fn_arg_type, argument_register, function, expr->getLocation());
 			} catch (std::out_of_range &err) {
@@ -105,31 +117,31 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 	switch (node.symbol) {
 		case CPMTOK_PLUS:
 			out = new PlusExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_MINUS:
 			out = new MinusExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_DIV:
 			out = new DivExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_MOD:
 			out = new ModExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_TIMES:
 			if (node.size() == 1)
-				out = new DerefExpr(Expr::get(*node.front(), function));
+				out = new DerefExpr(ExprPtr(Expr::get(*node.front(), function)));
 			else
 				out = new MultExpr(
-					std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-					std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+					ExprPtr(Expr::get(*node.at(0), function)),
+					ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_NUMBER:
 			if (node.size() == 1) // Contains a "-" child indicating unary negation
@@ -148,34 +160,34 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			out = new NullExpr;
 			break;
 		case CPM_ADDROF:
-			out = new AddressOfExpr(Expr::get(*node.front(), function));
+			out = new AddressOfExpr(ExprPtr(Expr::get(*node.front(), function)));
 			break;
 		case CPMTOK_TILDE:
-			out = new NotExpr(Expr::get(*node.front(), function));
+			out = new NotExpr(ExprPtr(Expr::get(*node.front(), function)));
 			break;
 		case CPMTOK_NOT:
-			out = new LnotExpr(Expr::get(*node.front(), function));
+			out = new LnotExpr(ExprPtr(Expr::get(*node.front(), function)));
 			break;
 		case CPMTOK_HASH:
-			out = new LengthExpr(Expr::get(*node.front(), function));
+			out = new LengthExpr(ExprPtr(Expr::get(*node.front(), function)));
 			break;
 		case CPMTOK_PLUSPLUS:
-			out = new PrefixPlusExpr(Expr::get(*node.front(), function));
+			out = new PrefixPlusExpr(ExprPtr(Expr::get(*node.front(), function)));
 			break;
 		case CPMTOK_MINUSMINUS:
-			out = new PrefixMinusExpr(Expr::get(*node.front(), function));
+			out = new PrefixMinusExpr(ExprPtr(Expr::get(*node.front(), function)));
 			break;
 		case CPM_POSTPLUS:
-			out = new PostfixPlusExpr(Expr::get(*node.front(), function));
+			out = new PostfixPlusExpr(ExprPtr(Expr::get(*node.front(), function)));
 			break;
 		case CPM_POSTMINUS:
-			out = new PostfixMinusExpr(Expr::get(*node.front(), function));
+			out = new PostfixMinusExpr(ExprPtr(Expr::get(*node.front(), function)));
 			break;
 		case CPMTOK_PERIOD:
-			out = new DotExpr(Expr::get(*node.front(), function), *node.at(1)->text);
+			out = new DotExpr(ExprPtr(Expr::get(*node.front(), function)), *node.at(1)->text);
 			break;
 		case CPMTOK_ARROW:
-			out = new ArrowExpr(Expr::get(*node.front(), function), *node.at(1)->text);
+			out = new ArrowExpr(ExprPtr(Expr::get(*node.front(), function)), *node.at(1)->text);
 			break;
 		case CPMTOK_SIZEOF:
 			if (node.size() == 2)
@@ -212,7 +224,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				auto *constructor = new ConstructorExpr(stack_offset, struct_name, std::move(arguments));
 				out = constructor->addToScope({function->program, function->currentScope()});
 			} else {
-				auto front_expr = Expr::get(*node.front(), function);
+				auto front_expr = ExprPtr(Expr::get(*node.front(), function));
 				CallExpr *call = new CallExpr(front_expr, arguments);
 				call->setDebug(front_expr->debug);
 
@@ -222,7 +234,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 						call->structName = *node.at(2)->front()->text;
 					else
 						// Non-static struct method call
-						call->structExpr = std::unique_ptr<Expr>(Expr::get(*node.at(2), function));
+						call->structExpr = ExprPtr(Expr::get(*node.at(2), function));
 				}
 
 				out = call;
@@ -245,142 +257,144 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			break;
 		case CPMTOK_LT:
 			out = new LtExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_LTE:
 			out = new LteExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_GT:
 			out = new GtExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_GTE:
 			out = new GteExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_DEQ:
 			out = new EqExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_NEQ:
 			out = new NeqExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_ASSIGN:
 			out = new AssignExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPM_CAST:
-			out = new CastExpr(Type::get(*node.at(0), function->program), Expr::get(*node.at(1), function));
+			out = new CastExpr(
+				TypePtr(Type::get(*node.at(0), function->program)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_LSHIFT:
 			out = new ShiftLeftExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_RSHIFT:
 			out = new ShiftRightExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_AND:
 			out = new AndExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_OR:
 			out = new OrExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_XOR:
 			out = new XorExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_LAND:
 			out = new LandExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_LXOR:
 			out = new LxorExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_LOR:
 			out = new LorExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_LSQUARE:
 			out = new AccessExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_QUESTION:
 			out = new TernaryExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(2), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)),
+				ExprPtr(Expr::get(*node.at(2), function)));
 			break;
 		case CPMTOK_PLUSEQ:
 			out = new PlusAssignExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_MINUSEQ:
 			out = new MinusAssignExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_DIVEQ:
 			out = new DivAssignExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_TIMESEQ:
 			out = new MultAssignExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_MODEQ:
 			out = new ModAssignExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_SREQ:
 			out = new ShiftRightAssignExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_SLEQ:
 			out = new ShiftLeftAssignExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_ANDEQ:
 			out = new AndAssignExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_OREQ:
 			out = new OrAssignExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPMTOK_XOREQ:
 			out = new XorAssignExpr(
-				std::unique_ptr<Expr>(Expr::get(*node.at(0), function)),
-				std::unique_ptr<Expr>(Expr::get(*node.at(1), function)));
+				ExprPtr(Expr::get(*node.at(0), function)),
+				ExprPtr(Expr::get(*node.at(1), function)));
 			break;
 		case CPM_INITIALIZER: {
 			std::vector<ExprPtr> exprs;
@@ -408,7 +422,6 @@ std::ostream & operator<<(std::ostream &os, const Expr &expr) {
 
 void PlusExpr::compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) {
 	if (auto fnptr = getOperator(context)) {
-		info() << "left[" << *left << "], right[" << *right << "]\n";
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(),
 			multiplier);
 	} else {
@@ -429,11 +442,13 @@ void PlusExpr::compile(VregPtr destination, Function &function, const Context &c
 		} else if (!(*left_type && *right_type)) {
 			throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()), getLocation());
 		} else {
-			left->compile(left_var, function, context, multiplier);
-			right->compile(right_var, function, context, multiplier);
+			GetValueExpr(left).compile(left_var, function, context, multiplier);
+			GetValueExpr(right).compile(right_var, function, context, multiplier);
 		}
 
 		function.add<AddRInstruction>(left_var, right_var, destination)->setDebug(*this);
+		if (multiplier != 1)
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 	}
 }
 
@@ -445,9 +460,9 @@ std::optional<ssize_t> PlusExpr::evaluate(const Context &context) const {
 	return std::nullopt;
 }
 
-std::unique_ptr<Type> PlusExpr::getType(const Context &context) const {
+TypePtr PlusExpr::getType(const Context &context) const {
 	if (auto fnptr = getOperator(context))
-		return std::unique_ptr<Type>(fnptr->returnType->copy());
+		return fnptr->returnType;
 	auto left_type = left->getType(context), right_type = right->getType(context);
 	if (left_type->isPointer() && right_type->isInt())
 		return left_type;
@@ -476,17 +491,19 @@ void MinusExpr::compile(VregPtr destination, Function &function, const Context &
 		} else if (!(*left_type && *right_type) && !(left_type->isPointer() && right_type->isPointer())) {
 			throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()), getLocation());
 		} else {
-			left->compile(left_var, function, context);
-			right->compile(right_var, function, context);
+			GetValueExpr(left).compile(left_var, function, context, 1);
+			GetValueExpr(right).compile(right_var, function, context, 1);
 		}
 
 		function.add<SubRInstruction>(left_var, right_var, destination)->setDebug(*this);
+		if (multiplier != 1)
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 	}
 }
 
-std::unique_ptr<Type> MinusExpr::getType(const Context &context) const {
+TypePtr MinusExpr::getType(const Context &context) const {
 	if (auto fnptr = getOperator(context))
-		return std::unique_ptr<Type>(fnptr->returnType->copy());
+		return fnptr->returnType;
 	auto left_type = left->getType(context), right_type = right->getType(context);
 	if (left_type->isPointer() && right_type->isInt())
 		return left_type;
@@ -503,8 +520,8 @@ void MultExpr::compile(VregPtr destination, Function &function, const Context &c
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr left_var = function.newVar(), right_var = function.newVar();
-		left->compile(left_var, function, context, 1);
-		right->compile(right_var, function, context, multiplier); // TODO: verify
+		GetValueExpr(left).compile(left_var, function, context, 1);
+		GetValueExpr(right).compile(right_var, function, context, multiplier); // TODO: verify
 		function.add<MultRInstruction>(left_var, right_var, destination)->setDebug(*this);
 	}
 }
@@ -515,8 +532,8 @@ void ShiftLeftExpr::compile(VregPtr destination, Function &function, const Conte
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
-		left->compile(temp_var, function, context, multiplier);
-		right->compile(destination, function, context);
+		GetValueExpr(left).compile(temp_var, function, context, multiplier);
+		GetValueExpr(right).compile(destination, function, context, 1);
 		function.add<ShiftLeftLogicalRInstruction>(temp_var, destination, destination)->setDebug(*this);
 	}
 }
@@ -538,8 +555,8 @@ void ShiftRightExpr::compile(VregPtr destination, Function &function, const Cont
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
-		left->compile(temp_var, function, context, multiplier);
-		right->compile(destination, function, context);
+		GetValueExpr(left).compile(temp_var, function, context, multiplier);
+		GetValueExpr(right).compile(destination, function, context, 1);
 		if (left->getType(context)->isUnsigned())
 			function.add<ShiftRightLogicalRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		else
@@ -567,8 +584,8 @@ void AndExpr::compile(VregPtr destination, Function &function, const Context &co
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
-		left->compile(temp_var, function, context);
-		right->compile(destination, function, context);
+		GetValueExpr(left).compile(temp_var, function, context, 1);
+		GetValueExpr(right).compile(destination, function, context, 1);
 		function.add<AndRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -617,8 +634,8 @@ void XorExpr::compile(VregPtr destination, Function &function, const Context &co
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
-		left->compile(temp_var, function, context);
-		right->compile(destination, function, context);
+		GetValueExpr(left).compile(temp_var, function, context, 1);
+		GetValueExpr(right).compile(destination, function, context, 1);
 		function.add<XorRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -643,11 +660,11 @@ void LandExpr::compile(VregPtr destination, Function &function, const Context &c
 	} else {
 		const std::string base = "." + function.name + "." + std::to_string(function.getNextBlock());
 		const std::string success = base + "land.s", end = base + "land.e";
-		left->compile(destination, function, context);
+		GetValueExpr(left).compile(destination, function, context, 1);
 		function.add<JumpConditionalInstruction>(success, destination, false)->setDebug(*this);
 		function.add<JumpInstruction>(end)->setDebug(*this);
 		function.add<Label>(success);
-		right->compile(destination, function, context);
+		GetValueExpr(right).compile(destination, function, context, 1);
 		function.add<Label>(end);
 
 		if (multiplier != 1)
@@ -668,9 +685,9 @@ void LorExpr::compile(VregPtr destination, Function &function, const Context &co
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		const std::string success = "." + function.name + "." + std::to_string(function.getNextBlock()) + "lor.s";
-		left->compile(destination, function, context);
+		GetValueExpr(left).compile(destination, function, context, 1);
 		function.add<JumpConditionalInstruction>(success, destination, false)->setDebug(*this);
-		right->compile(destination, function, context);
+		GetValueExpr(right).compile(destination, function, context, 1);
 		function.add<Label>(success);
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -690,8 +707,8 @@ void LxorExpr::compile(VregPtr destination, Function &function, const Context &c
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		auto temp_var = function.newVar();
-		left->compile(destination, function, context);
-		right->compile(temp_var, function, context);
+		GetValueExpr(left).compile(destination, function, context, 1);
+		GetValueExpr(right).compile(temp_var, function, context, 1);
 		function.add<LxorRInstruction>(destination, temp_var, destination)->setDebug(*this);
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -711,8 +728,8 @@ void DivExpr::compile(VregPtr destination, Function &function, const Context &co
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
-		left->compile(temp_var, function, context, multiplier);
-		right->compile(destination, function, context);
+		GetValueExpr(left).compile(temp_var, function, context, multiplier);
+		GetValueExpr(right).compile(destination, function, context, 1);
 		if (left->getType(context)->isUnsigned())
 			function.add<DivuRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		else
@@ -741,8 +758,8 @@ void ModExpr::compile(VregPtr destination, Function &function, const Context &co
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
-		left->compile(temp_var, function, context, multiplier);
-		right->compile(destination, function, context);
+		GetValueExpr(left).compile(temp_var, function, context, multiplier);
+		GetValueExpr(right).compile(destination, function, context, 1);
 		if (left->getType(context)->isUnsigned())
 			function.add<ModuRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		else
@@ -841,7 +858,7 @@ size_t NumberExpr::getSize() const {
 	return size;
 }
 
-std::unique_ptr<Type> NumberExpr::getType(const Context &context) const {
+TypePtr NumberExpr::getType(const Context &context) const {
 	const size_t bits = getSize(context) * 8;
 	if (literal.find('u') != std::string::npos)
 		return std::make_unique<UnsignedType>(bits);
@@ -873,9 +890,9 @@ size_t VregExpr::getSize(const Context &) const {
 	return 8;
 }
 
-std::unique_ptr<Type> VregExpr::getType(const Context &) const {
+TypePtr VregExpr::getType(const Context &) const {
 	if (auto vreg_type = virtualRegister->getType())
-		return std::unique_ptr<Type>(vreg_type->copy());
+		return TypePtr(vreg_type->copy());
 	return nullptr;
 }
 
@@ -891,12 +908,11 @@ void VariableExpr::compile(VregPtr destination, Function &function, const Contex
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset)
 				->setDebug(*this);
 			auto destination_type = destination->getType();
-			if (!destination_type || !destination_type->isReference())
-				function.add<LoadRInstruction>(destination, destination, var->getSize())->setDebug(*this);
+			// if (!destination_type || !destination_type->isReference())
+			function.add<LoadRInstruction>(destination, destination, var->getSize())->setDebug(*this);
 		}
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
-		return;
 	} else if (const auto fn = context.scope->lookupFunction(name, getLocation())) {
 		function.add<SetIInstruction>(destination, fn->mangle())->setDebug(*this);
 	} else
@@ -914,13 +930,13 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, const
 			function.addComment("Get variable lvalue for " + name);
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset)
 				->setDebug(*this);
-			if (var->getType()->isReference()) {
+			// if (var->getType()->isReference()) {
 			// if (destination->getType() && destination->getType()->isReference()) {
 				// auto ref = var->getType()->ptrcast<ReferenceType>();
-				function.addComment("Load reference lvalue for " + name);
+				// function.addComment("Load reference lvalue for " + name);
 				// warn() << *this << ": vartype[" << *var->getType() << "], ref->subtype[" << *ref->subtype << "]\n";
-				function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
-			}
+				// function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
+			// }
 		}
 	} else if (const auto fn = context.scope->lookupFunction(name, getLocation())) {
 		function.add<SetIInstruction>(destination, fn->mangle())->setDebug(*this);
@@ -933,15 +949,16 @@ size_t VariableExpr::getSize(const Context &context) const {
 	if (VariablePtr var = context.scope->lookup(name)) {
 		// if (var->getType()->isReference())
 		// 	return Why::wordSize;
+		// TODO!: how should references be handled here?
 		return var->getSize();
 	} else if (context.scope->lookupFunction(name, nullptr, {}, getLocation()))
 		return Why::wordSize;
 	throw ResolutionError(name, context, getLocation());
 }
 
-std::unique_ptr<Type> VariableExpr::getType(const Context &context) const {
+TypePtr VariableExpr::getType(const Context &context) const {
 	if (VariablePtr var = context.scope->lookup(name))
-		return std::unique_ptr<Type>(var->getType()->copy()->setLvalue(true));
+		return TypePtr(var->getType()->copy()->setLvalue(true));
 	try {
 		if (const auto fn = context.scope->lookupFunction(name, nullptr, {}, context.structName, getLocation()))
 			return std::make_unique<FunctionPointerType>(*fn);
@@ -959,11 +976,11 @@ void AddressOfExpr::compile(VregPtr destination, Function &function, const Conte
 	if (!subexpr->compileAddress(destination, function, context))
 		throw LvalueError(*subexpr);
 
-	// if (subexpr->getType(context)->isReference())
-	// 	function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
+	if (subexpr->getType(context)->isReference())
+		function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
 }
 
-std::unique_ptr<Type> AddressOfExpr::getType(const Context &context) const {
+TypePtr AddressOfExpr::getType(const Context &context) const {
 	if (!subexpr->isLvalue(context))
 		throw LvalueError(*subexpr);
 	auto subexpr_type = subexpr->getType(context);
@@ -984,10 +1001,10 @@ void NotExpr::compile(VregPtr destination, Function &function, const Context &co
 	}
 }
 
-std::unique_ptr<Type> NotExpr::getType(const Context &context) const {
+TypePtr NotExpr::getType(const Context &context) const {
 	auto type = subexpr->getType(context);
 	if (auto fnptr = context.program->getOperator({type.get()}, CPMTOK_TILDE, getLocation()))
-		return std::unique_ptr<Type>(fnptr->returnType->copy());
+		return fnptr->returnType;
 	return type;
 }
 
@@ -1003,10 +1020,10 @@ void LnotExpr::compile(VregPtr destination, Function &function, const Context &c
 	}
 }
 
-std::unique_ptr<Type> LnotExpr::getType(const Context &context) const {
+TypePtr LnotExpr::getType(const Context &context) const {
 	auto type = subexpr->getType(context);
 	if (auto fnptr = context.program->getOperator({type.get()}, CPMTOK_NOT, getLocation()))
-		return std::unique_ptr<Type>(fnptr->returnType->copy());
+		return fnptr->returnType;
 	return std::make_unique<BoolType>();
 }
 
@@ -1017,7 +1034,7 @@ void StringExpr::compile(VregPtr destination, Function &function, const Context 
 		function.add<SetIInstruction>(destination, getID(function.program))->setDebug(*this);
 }
 
-std::unique_ptr<Type> StringExpr::getType(const Context &) const {
+TypePtr StringExpr::getType(const Context &) const {
 	return std::make_unique<PointerType>((new UnsignedType(8))->setConst(true));
 }
 
@@ -1041,16 +1058,16 @@ size_t DerefExpr::getSize(const Context &context) const {
 	return dynamic_cast<PointerType &>(*type).subtype->getSize();
 }
 
-std::unique_ptr<Type> DerefExpr::getType(const Context &context) const {
+TypePtr DerefExpr::getType(const Context &context) const {
 	if (auto fnptr = getOperator(context))
-		return std::unique_ptr<Type>(fnptr->returnType->copy()->setLvalue(true));
+		return TypePtr(fnptr->returnType->copy()->setLvalue(true));
 	auto type = checkType(context);
 	auto out = std::unique_ptr<Type>(dynamic_cast<PointerType &>(*type).subtype->copy());
 	out->setConst(type->isConst)->setLvalue(true);
 	return out;
 }
 
-std::unique_ptr<Type> DerefExpr::checkType(const Context &context) const {
+TypePtr DerefExpr::checkType(const Context &context) const {
 	auto type = subexpr->getType(context);
 	if (!type->isPointer())
 		throw NotPointerError(TypePtr(type->copy()), getLocation());
@@ -1072,11 +1089,11 @@ Expr * CallExpr::copy() const {
 	std::vector<ExprPtr> arguments_copy;
 	for (const ExprPtr &argument: arguments)
 		arguments_copy.emplace_back(argument->copy());
-	auto *out = new CallExpr(subexpr->copy(), std::move(arguments_copy));
+	auto *out = new CallExpr(ExprPtr(subexpr->copy()), std::move(arguments_copy));
 	out->setDebug(debug);
 	out->structName = structName;
 	if (structExpr)
-		out->structExpr = std::unique_ptr<Expr>(structExpr->copy());
+		out->structExpr = ExprPtr(structExpr->copy());
 	return out;
 }
 
@@ -1113,7 +1130,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 	bool function_found = false;
 	int argument_offset = Why::argumentOffset;
 
-	std::unique_ptr<Type> struct_expr_type;
+	TypePtr struct_expr_type;
 
 	const size_t registers_used = (structExpr? 1 : 0) + arguments.size();
 	if (Why::argumentCount < registers_used)
@@ -1174,7 +1191,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 		add_jump = [this, found, &fn] { fn.add<JumpInstruction>(found->mangle(), true)->setDebug(*this); };
 	}
 
-	std::unique_ptr<Type> fnptr_type;
+	TypePtr fnptr_type;
 
 	if (!function_found) {
 		fnptr_type = subexpr->getType(subcontext);
@@ -1286,24 +1303,24 @@ size_t CallExpr::getSize(const Context &context) const {
 	return getType(context)->getSize();
 }
 
-std::unique_ptr<Type> CallExpr::getType(const Context &context) const {
+TypePtr CallExpr::getType(const Context &context) const {
 	Context subcontext(context);
 	subcontext.structName = getStructName(context);
 	if (auto fnptr = getOperator(subcontext))
-		return std::unique_ptr<Type>(fnptr->returnType->copy());
+		return fnptr->returnType;
 	if (auto *var_expr = subexpr->cast<VariableExpr>()) {
 		if (const auto fn = findFunction(var_expr->name, subcontext))
-			return std::unique_ptr<Type>(fn->returnType->copy());
+			return TypePtr(fn->returnType->copy());
 		if (auto var = subcontext.scope->lookup(var_expr->name)) {
 			if (auto *fnptr = var->getType()->cast<FunctionPointerType>())
-				return std::unique_ptr<Type>(fnptr->returnType->copy());
+				return fnptr->returnType;
 			throw FunctionPointerError(*var->getType());
 		}
 		throw ResolutionError(var_expr->name, subcontext, getLocation());
 	}
 	auto type = subexpr->getType(subcontext);
 	if (const auto *fnptr = type->cast<FunctionPointerType>())
-		return std::unique_ptr<Type>(fnptr->returnType->copy());
+		return fnptr->returnType;
 	throw FunctionPointerError(*type);
 }
 
@@ -1338,13 +1355,13 @@ std::string CallExpr::getStructName(const Context &context) const {
 
 FunctionPtr CallExpr::getOperator(const Context &context) const {
 	try {
-		std::vector<std::unique_ptr<Type>> unique_types;
-		unique_types.push_back(subexpr->getType(context));
+		std::vector<TypePtr> shared_types;
+		shared_types.push_back(subexpr->getType(context));
 		for (const auto &argument: arguments)
-			unique_types.push_back(argument->getType(context));
+			shared_types.push_back(argument->getType(context));
 		std::vector<Type *> types;
-		for (auto &unique_type: unique_types)
-			types.push_back(unique_type.get());
+		for (auto &shared_type: shared_types)
+			types.push_back(shared_type.get());
 		return context.program->getOperator(types, CPMTOK_LPAREN, getLocation());
 	} catch (ResolutionError &) {
 		return nullptr;
@@ -1372,7 +1389,7 @@ void AssignExpr::compile(VregPtr destination, Function &function, const Context 
 				if (!left_type->isStruct())
 					throw NotStructError(left_type, left->getLocation());
 				auto struct_type = left_type->ptrcast<StructType>();
-				auto *constructor_expr = new VariableExpr("$c");
+				auto constructor_expr = VariableExpr::make("$c");
 				auto call = std::make_unique<CallExpr>(constructor_expr, initializer_expr->children);
 				call->debug = debug;
 				call->structExpr = std::unique_ptr<Expr>(left->copy());
@@ -1395,9 +1412,9 @@ void AssignExpr::compile(VregPtr destination, Function &function, const Context 
 	}
 }
 
-std::unique_ptr<Type> AssignExpr::getType(const Context &context) const {
+TypePtr AssignExpr::getType(const Context &context) const {
 	if (auto fnptr = getOperator(context))
-		return std::unique_ptr<Type>(fnptr->returnType->copy());
+		return fnptr->returnType;
 	auto left_type = left->getType(context), right_type = right->getType(context);
 	if (!(*right_type && *left_type))
 			throw ImplicitConversionError(*right_type, *left_type, getLocation());
@@ -1418,8 +1435,8 @@ void CastExpr::compile(VregPtr destination, Function &function, const Context &c
 	tryCast(*subexpr->getType(context), *targetType, destination, function, getLocation());
 }
 
-std::unique_ptr<Type> CastExpr::getType(const Context &) const {
-	return std::unique_ptr<Type>(targetType->copy());
+TypePtr CastExpr::getType(const Context &) const {
+	return TypePtr(targetType->copy());
 }
 
 void AccessExpr::compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) {
@@ -1440,14 +1457,14 @@ void AccessExpr::compile(VregPtr destination, Function &function, const Context 
 	}
 }
 
-std::unique_ptr<Type> AccessExpr::getType(const Context &context) const {
+TypePtr AccessExpr::getType(const Context &context) const {
 	if (auto fnptr = getOperator(context))
-		return std::unique_ptr<Type>(fnptr->returnType->copy());
+		return fnptr->returnType;
 	auto array_type = array->getType(context);
 	if (auto *casted = array_type->cast<const ArrayType>())
-		return std::unique_ptr<Type>(casted->subtype->copy());
+		return TypePtr(casted->subtype->copy());
 	if (auto *casted = array_type->cast<const PointerType>())
-		return std::unique_ptr<Type>(casted->subtype->copy());
+		return TypePtr(casted->subtype->copy());
 	fail();
 	return nullptr;
 }
@@ -1478,7 +1495,7 @@ bool AccessExpr::compileAddress(VregPtr destination, Function &function, const C
 	return true;
 }
 
-std::unique_ptr<Type> AccessExpr::check(const Context &context) {
+TypePtr AccessExpr::check(const Context &context) {
 	auto type = array->getType(context);
 	const bool is_array = type->isArray(), is_pointer = type->isPointer();
 	if (!is_array && !is_pointer)
@@ -1492,7 +1509,7 @@ std::unique_ptr<Type> AccessExpr::check(const Context &context) {
 				warned = true;
 			}
 		}
-	return std::unique_ptr<Type>(type->copy());
+	return TypePtr(type->copy());
 }
 
 FunctionPtr AccessExpr::getOperator(const Context &context) const {
@@ -1522,7 +1539,7 @@ void TernaryExpr::compile(VregPtr destination, Function &function, const Context
 	function.add<Label>(end);
 }
 
-std::unique_ptr<Type> TernaryExpr::getType(const Context &context) const {
+TypePtr TernaryExpr::getType(const Context &context) const {
 	auto condition_type = condition->getType(context);
 	if (!(*condition_type && BoolType()))
 		throw ImplicitConversionError(*condition_type, BoolType(), getLocation());
@@ -1558,7 +1575,7 @@ void DotExpr::compile(VregPtr destination, Function &function, const Context &co
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 }
 
-std::unique_ptr<Type> DotExpr::getType(const Context &context) const {
+TypePtr DotExpr::getType(const Context &context) const {
 	auto struct_type = checkType(context);
 	const auto &map = struct_type->getMap();
 	if (map.count(ident) == 0)
@@ -1613,7 +1630,7 @@ void ArrowExpr::compile(VregPtr destination, Function &function, const Context &
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
 }
 
-std::unique_ptr<Type> ArrowExpr::getType(const Context &context) const {
+TypePtr ArrowExpr::getType(const Context &context) const {
 	auto struct_type = checkType(context);
 	const auto &map = struct_type->getMap();
 	if (map.count(ident) == 0)
@@ -1701,7 +1718,7 @@ Expr * InitializerExpr::copy() const {
 	return (new InitializerExpr(children_copy, isConstructor))->setDebug(debug);
 }
 
-std::unique_ptr<Type> InitializerExpr::getType(const Context &context) const {
+TypePtr InitializerExpr::getType(const Context &context) const {
 	return std::make_unique<InitializerType>(children, context);
 }
 
@@ -1821,7 +1838,7 @@ size_t ConstructorExpr::getSize(const Context &context) const {
 	return getType(context)->getSize();
 }
 
-std::unique_ptr<Type> ConstructorExpr::getType(const Context &context) const {
+TypePtr ConstructorExpr::getType(const Context &context) const {
 	return std::make_unique<PointerType>(context.scope->lookupType(structName)->copy());
 }
 
@@ -1879,7 +1896,7 @@ void NewExpr::compile(VregPtr destination, Function &function, const Context &co
 	if (!destination)
 		destination = function.newVar(getType(subcontext));
 
-	auto call_expr = std::make_unique<CallExpr>(new VariableExpr("checked_malloc"),
+	auto call_expr = std::make_unique<CallExpr>(VariableExpr::make("checked_malloc"),
 		std::vector<ExprPtr> {SizeofExpr::make(type)});
 
 	call_expr->debug = debug;
@@ -1967,7 +1984,7 @@ size_t NewExpr::getSize(const Context &) const {
 	return type->getSize();
 }
 
-std::unique_ptr<Type> NewExpr::getType(const Context &) const {
+TypePtr NewExpr::getType(const Context &) const {
 	return std::make_unique<PointerType>(type->copy());
 }
 
@@ -2005,11 +2022,11 @@ size_t StaticFieldExpr::getSize(const Context &context) const {
 	return getType(context)->getSize();
 }
 
-std::unique_ptr<Type> StaticFieldExpr::getType(const Context &context) const {
+TypePtr StaticFieldExpr::getType(const Context &context) const {
 	const auto &statics = getStruct(context)->getStatics();
 	if (statics.count(fieldName) == 0)
 		throw ResolutionError(fieldName, {*context.program, context.scope, structName}, getLocation());
-	return std::unique_ptr<Type>(statics.at(fieldName)->copy());
+	return TypePtr(statics.at(fieldName)->copy());
 }
 
 std::shared_ptr<StructType> StaticFieldExpr::getStruct(const Context &context) const {
@@ -2026,4 +2043,47 @@ std::string StaticFieldExpr::mangle(const Context &context) const {
 	if (statics.count(fieldName) == 0)
 		throw ResolutionError(fieldName, {*context.program, context.scope, structName}, getLocation());
 	return Util::mangleStaticField(structName, statics.at(fieldName), fieldName);
+}
+
+void GetValueExpr::compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) {
+	auto subtype = subexpr->getType(context);
+	if (subtype->isReference()) {
+		subexpr->compile(destination, function, context, 1);
+		function.add<LoadRInstruction>(destination, destination, subtype->getSize())->setDebug(debug);
+		if (multiplier != 1)
+			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(debug);
+	} else
+		subexpr->compile(destination, function, context, multiplier);
+}
+
+bool GetValueExpr::compileAddress(VregPtr destination, Function &function, const Context &context) {
+	auto subtype = subexpr->getType(context);
+	if (subtype->isReference()) {
+		subexpr->compile(destination, function, context, 1);
+		return true;
+	}
+
+	return subexpr->compileAddress(destination, function, context);
+}
+
+bool GetValueExpr::isLvalue(const Context &context) const {
+	return subexpr->getType(context)->isReference();
+}
+
+GetValueExpr::operator std::string() const {
+	return std::string(*subexpr);
+}
+
+size_t GetValueExpr::getSize(const Context &context) const {
+	auto subtype = subexpr->getType(context);
+	if (subtype->isReference())
+		return subtype->cast<ReferenceType>()->subtype->getSize();
+	return subtype->getSize();
+}
+
+TypePtr GetValueExpr::getType(const Context &context) const {
+	auto subtype = subexpr->getType(context);
+	if (subtype->isReference())
+		return TypePtr(subtype->cast<ReferenceType>()->subtype->copy());
+	return subtype;
 }

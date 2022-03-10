@@ -179,15 +179,13 @@ struct ArrayType: SuperType {
 		}
 };
 
-/** Owns all its subtypes. */
 struct FunctionPointerType: Type {
-	Type *returnType;
-	std::vector<Type *> argumentTypes;
-	FunctionPointerType(Type *return_type, std::vector<Type *> &&argument_types);
+	TypePtr returnType;
+	std::vector<TypePtr> argumentTypes;
+	FunctionPointerType(TypePtr return_type, std::vector<TypePtr> &&argument_types);
 	FunctionPointerType(const Function &);
 	FunctionPointerType(const FunctionPointerType &) = delete;
 	FunctionPointerType & operator=(const FunctionPointerType &) = delete;
-	~FunctionPointerType();
 	Type * copy() const override;
 	std::string mangle() const override;
 	size_t getSize() const override { return 8; }

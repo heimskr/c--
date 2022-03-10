@@ -30,6 +30,7 @@ struct Type;
 struct WhyInstruction;
 
 using ScopePtr = std::shared_ptr<Scope>;
+using TypePtr = std::shared_ptr<Type>;
 
 struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 	DebugData debug;
@@ -44,7 +45,7 @@ struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 	/** Attempts to evaluate the expression at compile time. */
 	virtual std::optional<ssize_t> evaluate(const Context &) const { return std::nullopt; }
 	/** This function both performs type checking and returns a type. */
-	virtual std::unique_ptr<Type> getType(const Context &) const = 0;
+	virtual TypePtr getType(const Context &) const = 0;
 	virtual bool compileAddress(VregPtr, Function &, const Context &) { return false; }
 	virtual bool forward(VregPtr destination, Function &function, const Context &context) {
 		return compileAddress(destination, function, context);
@@ -85,14 +86,13 @@ struct AtomicExpr: Expr {
 
 template <fixstr::fixed_string O>
 struct BinaryExpr: Expr {
-	std::unique_ptr<Expr> left, right;
+	ExprPtr left, right;
 
-	BinaryExpr(std::unique_ptr<Expr> &&left_, std::unique_ptr<Expr> &&right_):
-		left(std::move(left_)), right(std::move(right_)) {}
+	BinaryExpr(ExprPtr left_, ExprPtr right_): left(left_), right(right_) {}
 
-	BinaryExpr(Expr *left_, Expr *right_): left(left_), right(right_) {}
-
-	Expr * copy() const override { return (new BinaryExpr<O>(left->copy(), right->copy()))->setDebug(debug); }
+	Expr * copy() const override {
+		return (new BinaryExpr<O>(ExprPtr(left->copy()), ExprPtr(right->copy())))->setDebug(debug);
+	}
 
 	operator std::string() const override {
 		return stringify(left.get()) + " " + std::string(O) + " " + stringify(right.get());
@@ -100,9 +100,9 @@ struct BinaryExpr: Expr {
 
 	bool shouldParenthesize() const override { return true; }
 
-	std::unique_ptr<Type> getType(const Context &context) const override {
+	TypePtr getType(const Context &context) const override {
 		if (auto fnptr = getOperator(context))
-			return std::unique_ptr<Type>(fnptr->returnType->copy());
+			return fnptr->returnType;
 		auto left_type = left->getType(context), right_type = right->getType(context);
 		if (!(*left_type && *right_type) || !(*right_type && *left_type))
 			throw ImplicitConversionError(*left_type, *right_type, getLocation());
@@ -122,7 +122,7 @@ struct LogicExpr: BinaryExpr<O> {
 
 	size_t getSize(const Context &context) const override { return this->left->getSize(context); }
 
-	std::unique_ptr<Type> getType(const Context &context) const override {
+	TypePtr getType(const Context &context) const override {
 		if (auto fnptr = this->getOperator(context))
 			return std::unique_ptr<Type>(fnptr->returnType->copy());
 		auto left_type = this->left->getType(context), right_type = this->right->getType(context);
@@ -167,7 +167,7 @@ struct CompExpr: BinaryExpr<O> {
 		return std::nullopt;
 	}
 
-	std::unique_ptr<Type> getType(const Context &context) const override {
+	TypePtr getType(const Context &context) const override {
 		if (auto fnptr = this->getOperator(context))
 			return std::unique_ptr<Type>(fnptr->returnType->copy());
 		auto left_type = this->left->getType(context), right_type = this->right->getType(context);
@@ -197,7 +197,7 @@ struct PlusExpr: BinaryExpr<"+"> {
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	size_t getSize(const Context &) const override { return 8; }
 	std::optional<ssize_t> evaluate(const Context &) const override;
-	std::unique_ptr<Type> getType(const Context &context) const override;
+	TypePtr getType(const Context &context) const override;
 };
 
 struct MinusExpr: BinaryExpr<"-"> {
@@ -214,7 +214,7 @@ struct MinusExpr: BinaryExpr<"-"> {
 		return std::nullopt;
 	}
 
-	std::unique_ptr<Type> getType(const Context &context) const override;
+	TypePtr getType(const Context &context) const override;
 };
 
 struct MultExpr: BinaryExpr<"*"> {
@@ -308,7 +308,7 @@ struct NumberExpr: AtomicExpr {
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	size_t getSize(const Context &) const override;
 	size_t getSize() const;
-	std::unique_ptr<Type> getType(const Context &) const override;
+	TypePtr getType(const Context &) const override;
 };
 
 struct BoolExpr: AtomicExpr {
@@ -319,7 +319,7 @@ struct BoolExpr: AtomicExpr {
 	ssize_t getValue() const override { return value? 1 : 0; }
 	std::optional<ssize_t> evaluate(const Context &) const override { return getValue(); }
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
-	std::unique_ptr<Type> getType(const Context &) const override { return std::make_unique<BoolType>(); }
+	TypePtr getType(const Context &) const override { return std::make_unique<BoolType>(); }
 };
 
 struct NullExpr: AtomicExpr {
@@ -330,7 +330,7 @@ struct NullExpr: AtomicExpr {
 	size_t getSize(const Context &) const override { return 8; }
 	std::optional<ssize_t> evaluate(const Context &) const override { return getValue(); }
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
-	std::unique_ptr<Type> getType(const Context &) const override {
+	TypePtr getType(const Context &) const override {
 		return std::make_unique<PointerType>(new VoidType);
 	}
 };
@@ -342,53 +342,50 @@ struct VregExpr: Expr, Makeable<VregExpr> {
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	operator std::string() const override { return virtualRegister->regOrID(); }
 	size_t getSize(const Context &) const override;
-	std::unique_ptr<Type> getType(const Context &) const override;
+	TypePtr getType(const Context &) const override;
 };
 
-struct VariableExpr: Expr {
+struct VariableExpr: Expr, Makeable<VariableExpr> {
 	std::string name;
 	VariableExpr(const std::string &name_): name(name_) {}
 	Expr * copy() const override { return (new VariableExpr(name))->setDebug(debug); }
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	operator std::string() const override { return name; }
 	size_t getSize(const Context &) const override;
-	std::unique_ptr<Type> getType(const Context &) const override;
+	TypePtr getType(const Context &) const override;
 	bool compileAddress(VregPtr, Function &, const Context &) override;
 	// bool forward(VregPtr, Function &, const Context &) override;
 	bool isLvalue(const Context &) const override { return true; }
 };
 
 struct AddressOfExpr: Expr, Makeable<AddressOfExpr> {
-	std::unique_ptr<Expr> subexpr;
-	AddressOfExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
-	AddressOfExpr(Expr *subexpr_): subexpr(subexpr_) {}
-	Expr * copy() const override { return (new AddressOfExpr(subexpr->copy()))->setDebug(debug); }
+	ExprPtr subexpr;
+	AddressOfExpr(ExprPtr subexpr_): subexpr(subexpr_) {}
+	Expr * copy() const override { return (new AddressOfExpr(ExprPtr(subexpr->copy())))->setDebug(debug); }
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	operator std::string() const override { return "&" + std::string(*subexpr); }
 	size_t getSize(const Context &) const override { return 8; }
-	std::unique_ptr<Type> getType(const Context &) const override;
+	TypePtr getType(const Context &) const override;
 };
 
 struct NotExpr: Expr {
-	std::unique_ptr<Expr> subexpr;
-	NotExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
-	NotExpr(Expr *subexpr_): subexpr(subexpr_) {}
-	Expr * copy() const override { return (new NotExpr(subexpr->copy()))->setDebug(debug); }
+	ExprPtr subexpr;
+	NotExpr(ExprPtr subexpr_): subexpr(subexpr_) {}
+	Expr * copy() const override { return (new NotExpr(ExprPtr(subexpr->copy())))->setDebug(debug); }
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	operator std::string() const override { return "~" + std::string(*subexpr); }
 	size_t getSize(const Context &context) const override { return subexpr->getSize(context); }
-	std::unique_ptr<Type> getType(const Context &context) const override;
+	TypePtr getType(const Context &context) const override;
 };
 
 struct LnotExpr: Expr {
-	std::unique_ptr<Expr> subexpr;
-	LnotExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
-	LnotExpr(Expr *subexpr_): subexpr(subexpr_) {}
-	Expr * copy() const override { return (new LnotExpr(subexpr->copy()))->setDebug(debug); }
+	ExprPtr subexpr;
+	LnotExpr(ExprPtr subexpr_): subexpr(subexpr_) {}
+	Expr * copy() const override { return (new LnotExpr(ExprPtr(subexpr->copy())))->setDebug(debug); }
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	operator std::string() const override { return "!" + std::string(*subexpr); }
 	size_t getSize(const Context &context) const override { return subexpr->getSize(context); }
-	std::unique_ptr<Type> getType(const Context &context) const override;
+	TypePtr getType(const Context &context) const override;
 };
 
 struct StringExpr: Expr {
@@ -398,22 +395,21 @@ struct StringExpr: Expr {
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	operator std::string() const override { return "\"" + Util::escape(contents) + "\""; }
 	size_t getSize(const Context &) const override { return 8; }
-	std::unique_ptr<Type> getType(const Context &) const override;
+	TypePtr getType(const Context &) const override;
 
 	private:
 		std::string getID(Program &) const;
 };
 
 struct DerefExpr: Expr {
-	std::unique_ptr<Expr> subexpr;
-	DerefExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
-	DerefExpr(Expr *subexpr_): subexpr(subexpr_) {}
-	Expr * copy() const override { return (new DerefExpr(subexpr->copy()))->setDebug(debug); }
+	ExprPtr subexpr;
+	DerefExpr(ExprPtr subexpr_): subexpr(subexpr_) {}
+	Expr * copy() const override { return (new DerefExpr(ExprPtr(subexpr->copy())))->setDebug(debug); }
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	operator std::string() const override { return "*" + std::string(*subexpr); }
 	size_t getSize(const Context &) const override;
-	std::unique_ptr<Type> getType(const Context &) const override;
-	std::unique_ptr<Type> checkType(const Context &) const;
+	TypePtr getType(const Context &) const override;
+	TypePtr checkType(const Context &) const;
 	bool compileAddress(VregPtr, Function &, const Context &) override;
 	bool isLvalue(const Context &) const override { return true; }
 	FunctionPtr getOperator(const Context &) const;
@@ -433,10 +429,10 @@ struct CallExpr: HasArguments {
 	/** This will be empty unless the call is for a static struct method. */
 	std::string structName;
 	/** Takes ownership of the subexpr argument. */
-	CallExpr(Expr *subexpr_, const std::vector<ExprPtr> &arguments_ = {}):
+	CallExpr(ExprPtr subexpr_, const std::vector<ExprPtr> &arguments_ = {}):
 		HasArguments(arguments_), subexpr(subexpr_) {}
 	/** Takes ownership of the subexpr argument. */
-	CallExpr(Expr *subexpr_, std::vector<ExprPtr> &&arguments_):
+	CallExpr(ExprPtr subexpr_, std::vector<ExprPtr> &&arguments_):
 		HasArguments(std::move(arguments_)), subexpr(subexpr_) {}
 	Expr * copy() const override;
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
@@ -445,7 +441,7 @@ struct CallExpr: HasArguments {
 	bool isLvalue(const Context &) const override;
 	operator std::string() const override;
 	size_t getSize(const Context &) const override;
-	std::unique_ptr<Type> getType(const Context &) const override;
+	TypePtr getType(const Context &) const override;
 	std::string getStructName(const Context &) const;
 	FunctionPtr getOperator(const Context &) const;
 };
@@ -453,7 +449,7 @@ struct CallExpr: HasArguments {
 struct AssignExpr: BinaryExpr<"="> {
 	using BinaryExpr::BinaryExpr;
 	bool shouldParenthesize() const override { return false; }
-	std::unique_ptr<Type> getType(const Context &context) const override;
+	TypePtr getType(const Context &context) const override;
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	size_t getSize(const Context &context) const override { return left->getSize(context); }
 	std::optional<ssize_t> evaluate(const Context &) const override;
@@ -465,15 +461,15 @@ template <fixstr::fixed_string O, typename RS, typename FnS, typename RU = RS, t
 struct CompoundAssignExpr: BinaryExpr<O> {
 	using BinaryExpr<O>::BinaryExpr;
 	Expr * copy() const override {
-		return (new CompoundAssignExpr<O, RS, FnS, RU, FnU>(this->left->copy(), this->right->copy()))
+		return (new CompoundAssignExpr<O, RS, FnS, RU, FnU>(ExprPtr(this->left->copy()), ExprPtr(this->right->copy())))
 			->setDebug(this->debug);
 	}
-	std::unique_ptr<Type> getType(const Context &context) const override {
+	TypePtr getType(const Context &context) const override {
 		if (auto fnptr = this->getOperator(context))
-			return std::unique_ptr<Type>(fnptr->returnType->copy());
+			return fnptr->returnType;
 		auto left_type = this->left->getType(context), right_type = this->right->getType(context);
 		if (!(*right_type && *left_type))
-				throw ImplicitConversionError(*right_type, *left_type, this->getLocation());
+			throw ImplicitConversionError(*right_type, *left_type, this->getLocation());
 		return left_type;
 	}
 	void compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) override {
@@ -567,7 +563,7 @@ template <fixstr::fixed_string O, typename R, typename Fn>
 struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {
 	using CompoundAssignExpr<O, R, Fn>::CompoundAssignExpr;
 	Expr * copy() const override {
-		return (new PointerArithmeticAssignExpr<O, R, Fn>(this->left->copy(), this->right->copy()))
+		return (new PointerArithmeticAssignExpr<O, R, Fn>(ExprPtr(this->left->copy()), ExprPtr(this->right->copy())))
 			->setDebug(this->debug);
 	}
 	void compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) override {
@@ -603,31 +599,31 @@ struct MinusAssignExpr: PointerArithmeticAssignExpr<"-=", SubRInstruction, Sub> 
 };
 
 struct CastExpr: Expr {
-	std::unique_ptr<Type> targetType;
-	std::unique_ptr<Expr> subexpr;
-	CastExpr(std::unique_ptr<Type> &&target_type, std::unique_ptr<Expr> &&subexpr_):
-		targetType(std::move(target_type)), subexpr(std::move(subexpr_)) {}
-	CastExpr(Type *target_type, Expr *subexpr_): targetType(target_type), subexpr(subexpr_) {}
-	Expr * copy() const override { return (new CastExpr(targetType->copy(), subexpr->copy()))->setDebug(debug); }
+	TypePtr targetType;
+	ExprPtr subexpr;
+	CastExpr(TypePtr target_type, ExprPtr subexpr_): targetType(target_type), subexpr(subexpr_) {}
+	Expr * copy() const override {
+		return (new CastExpr(TypePtr(targetType->copy()), ExprPtr(subexpr->copy())))->setDebug(debug);
+	}
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	operator std::string() const override { return "(" + std::string(*targetType) + ") " + std::string(*subexpr); }
 	size_t getSize(const Context &) const override { return targetType->getSize(); }
-	std::unique_ptr<Type> getType(const Context &) const override;
+	TypePtr getType(const Context &) const override;
 };
 
 struct AccessExpr: Expr {
-	std::unique_ptr<Expr> array, subscript;
-	AccessExpr(std::unique_ptr<Expr> &&array_, std::unique_ptr<Expr> &&subscript_):
-		array(std::move(array_)), subscript(std::move(subscript_)) {}
-	AccessExpr(Expr *array_, Expr *subscript_): array(array_), subscript(subscript_) {}
-	Expr * copy() const override { return (new AccessExpr(array->copy(), subscript->copy()))->setDebug(debug); }
+	ExprPtr array, subscript;
+	AccessExpr(ExprPtr array_, ExprPtr subscript_): array(array_), subscript(subscript_) {}
+	Expr * copy() const override {
+		return (new AccessExpr(ExprPtr(array->copy()), ExprPtr(subscript->copy())))->setDebug(debug);
+	}
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	operator std::string() const override { return std::string(*array) + "[" + std::string(*subscript) + "]"; }
 	size_t getSize(const Context &context) const override { return getType(context)->getSize(); }
-	std::unique_ptr<Type> getType(const Context &) const override;
+	TypePtr getType(const Context &) const override;
 	bool compileAddress(VregPtr, Function &, const Context &) override;
 	bool isLvalue(const Context &) const override { return true; } // TODO: verify
-	std::unique_ptr<Type> check(const Context &);
+	TypePtr check(const Context &);
 	FunctionPtr getOperator(const Context &) const;
 
 	private:
@@ -636,27 +632,25 @@ struct AccessExpr: Expr {
 };
 
 struct LengthExpr: Expr {
-	std::unique_ptr<Expr> subexpr;
-	LengthExpr(std::unique_ptr<Expr> &&subexpr_): Expr(subexpr_->debug), subexpr(std::move(subexpr_)) {}
-	LengthExpr(Expr *subexpr_): Expr(subexpr_->debug), subexpr(subexpr_) {}
-	Expr * copy() const override { return (new LengthExpr(subexpr->copy()))->setDebug(debug); }
+	ExprPtr subexpr;
+	LengthExpr(ExprPtr subexpr_): Expr(subexpr_->debug), subexpr(subexpr_) {}
+	Expr * copy() const override { return (new LengthExpr(ExprPtr(subexpr->copy())))->setDebug(debug); }
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	operator std::string() const override { return "#" + std::string(*subexpr); }
 	size_t getSize(const Context &context) const override { return subexpr->getSize(context); }
-	std::unique_ptr<Type> getType(const Context &context) const override {
+	TypePtr getType(const Context &context) const override {
 		auto type = subexpr->getType(context);
 		if (auto fnptr = context.program->getOperator({type.get()}, CPMTOK_HASH, getLocation()))
-			return std::unique_ptr<Type>(fnptr->returnType->copy());
-		return std::make_unique<UnsignedType>(64);
+			return fnptr->returnType;
+		return UnsignedType::make(64);
 	}
 };
 
 template <fixstr::fixed_string O, typename I>
 struct PrefixExpr: Expr {
-	std::unique_ptr<Expr> subexpr;
-	PrefixExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
-	PrefixExpr(Expr *subexpr_): subexpr(subexpr_) {}
-	Expr * copy() const override { return (new PrefixExpr<O, I>(subexpr->copy()))->setDebug(debug); }
+	ExprPtr subexpr;
+	PrefixExpr(ExprPtr subexpr_): subexpr(subexpr_) {}
+	Expr * copy() const override { return (new PrefixExpr<O, I>(ExprPtr(subexpr->copy())))->setDebug(debug); }
 	void compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) override {
 		if (auto fnptr = getOperator(context)) {
 			compileCall(destination, function, context, fnptr, {this->subexpr.get()}, getLocation(), multiplier);
@@ -698,7 +692,7 @@ struct PrefixExpr: Expr {
 	bool isLvalue(const Context &) const override { return true; }
 	operator std::string() const override { return std::string(O) + std::string(*subexpr); }
 	size_t getSize(const Context &context) const override { return subexpr->getSize(context); }
-	std::unique_ptr<Type> getType(const Context &context) const override {
+	TypePtr getType(const Context &context) const override {
 		if (auto fnptr = getOperator(context))
 			return std::unique_ptr<Type>(fnptr->returnType->copy());
 		return subexpr->getType(context);
@@ -710,10 +704,11 @@ struct PrefixMinusExpr: PrefixExpr<"--", SubIInstruction> { using PrefixExpr::Pr
 
 template <fixstr::fixed_string O, typename I>
 struct PostfixExpr: Expr {
-	std::unique_ptr<Expr> subexpr;
-	PostfixExpr(std::unique_ptr<Expr> &&subexpr_): subexpr(std::move(subexpr_)) {}
-	PostfixExpr(Expr *subexpr_): subexpr(subexpr_) {}
-	Expr * copy() const override { return (new PostfixExpr<O, I>(subexpr->copy()))->setDebug(debug); }
+	ExprPtr subexpr;
+	PostfixExpr(ExprPtr subexpr_): subexpr(subexpr_) {}
+	Expr * copy() const override {
+		return (new PostfixExpr<O, I>(ExprPtr(subexpr->copy())))->setDebug(debug);
+	}
 	void compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) override {
 		if (auto fnptr = getOperator(context)) {
 			compileCall(destination, function, context, fnptr, {this->subexpr.get()}, getLocation(), multiplier);
@@ -751,7 +746,7 @@ struct PostfixExpr: Expr {
 	}
 	operator std::string() const override { return std::string(*subexpr) + std::string(O); }
 	size_t getSize(const Context &context) const override { return subexpr->getSize(context); }
-	std::unique_ptr<Type> getType(const Context &context) const override {
+	TypePtr getType(const Context &context) const override {
 		if (auto fnptr = getOperator(context))
 			return std::unique_ptr<Type>(fnptr->returnType->copy());
 		return subexpr->getType(context);
@@ -762,18 +757,16 @@ struct PostfixPlusExpr:  PostfixExpr<"++", AddIInstruction> { using PostfixExpr:
 struct PostfixMinusExpr: PostfixExpr<"--", SubIInstruction> { using PostfixExpr::PostfixExpr; };
 
 struct TernaryExpr: Expr {
-	std::unique_ptr<Expr> condition, ifTrue, ifFalse;
+	ExprPtr condition, ifTrue, ifFalse;
 
-	TernaryExpr(std::unique_ptr<Expr> &&condition_, std::unique_ptr<Expr> &&if_true, std::unique_ptr<Expr> &&if_false):
-		condition(std::move(condition_)), ifTrue(std::move(if_true)), ifFalse(std::move(if_false)) {}
-
-	TernaryExpr(Expr *condition_, Expr *if_true, Expr *if_false):
+	TernaryExpr(ExprPtr condition_, ExprPtr if_true, ExprPtr if_false):
 		condition(condition_), ifTrue(if_true), ifFalse(if_false) {}
 
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 
 	Expr * copy() const override {
-		return (new TernaryExpr(condition->copy(), ifTrue->copy(), ifFalse->copy()))->setDebug(debug);
+		return (new TernaryExpr(ExprPtr(condition->copy()), ExprPtr(ifTrue->copy()), ExprPtr(ifFalse->copy())))
+			->setDebug(debug);
 	}
 
 	operator std::string() const override {
@@ -782,21 +775,20 @@ struct TernaryExpr: Expr {
 
 	bool shouldParenthesize() const override { return true; }
 
-	std::unique_ptr<Type> getType(const Context &context) const override;
+	TypePtr getType(const Context &context) const override;
 	size_t getSize(const Context &) const override;
 };
 
 struct DotExpr: Expr {
-	std::unique_ptr<Expr> left;
+	ExprPtr left;
 	std::string ident;
 
-	DotExpr(std::unique_ptr<Expr> &&left_, const std::string &ident_): left(std::move(left_)), ident(ident_) {}
-	DotExpr(Expr *left_, const std::string &ident_): left(left_), ident(ident_) {}
+	DotExpr(ExprPtr left_, const std::string &ident_): left(left_), ident(ident_) {}
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
-	Expr * copy() const override { return (new DotExpr(left->copy(), ident))->setDebug(debug); }
+	Expr * copy() const override { return (new DotExpr(ExprPtr(left->copy()), ident))->setDebug(debug); }
 	operator std::string() const override { return stringify(left.get()) + "." + ident; }
 	bool shouldParenthesize() const override { return true; }
-	std::unique_ptr<Type> getType(const Context &) const override;
+	TypePtr getType(const Context &) const override;
 	bool compileAddress(VregPtr, Function &, const Context &) override;
 	bool isLvalue(const Context &) const override { return true; }
 	std::shared_ptr<StructType> checkType(const Context &) const;
@@ -804,16 +796,15 @@ struct DotExpr: Expr {
 };
 
 struct ArrowExpr: Expr {
-	std::unique_ptr<Expr> left;
+	ExprPtr left;
 	std::string ident;
 
-	ArrowExpr(std::unique_ptr<Expr> &&left_, const std::string &ident_): left(std::move(left_)), ident(ident_) {}
-	ArrowExpr(Expr *left_, const std::string &ident_): left(left_), ident(ident_) {}
+	ArrowExpr(ExprPtr left_, const std::string &ident_): left(left_), ident(ident_) {}
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
-	Expr * copy() const override { return (new ArrowExpr(left->copy(), ident))->setDebug(debug); }
+	Expr * copy() const override { return (new ArrowExpr(ExprPtr(left->copy()), ident))->setDebug(debug); }
 	operator std::string() const override { return stringify(left.get()) + "->" + ident; }
 	bool shouldParenthesize() const override { return true; }
-	std::unique_ptr<Type> getType(const Context &) const override;
+	TypePtr getType(const Context &) const override;
 	bool compileAddress(VregPtr, Function &, const Context &) override;
 	bool isLvalue(const Context &) const override { return true; }
 	std::shared_ptr<StructType> checkType(const Context &) const;
@@ -828,7 +819,7 @@ struct SizeofExpr: Expr, Makeable<SizeofExpr> {
 	std::optional<ssize_t> evaluate(const Context &) const override { return argument->getSize(); }
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	size_t getSize(const Context &) const override { return 8; }
-	std::unique_ptr<Type> getType(const Context &) const override { return std::make_unique<UnsignedType>(64); }
+	TypePtr getType(const Context &) const override { return std::make_unique<UnsignedType>(64); }
 };
 
 struct OffsetofExpr: Expr {
@@ -840,7 +831,7 @@ struct OffsetofExpr: Expr {
 	std::optional<ssize_t> evaluate(const Context &) const override;
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	size_t getSize(const Context &) const override { return 8; }
-	std::unique_ptr<Type> getType(const Context &) const override { return std::make_unique<UnsignedType>(64); }
+	TypePtr getType(const Context &) const override { return std::make_unique<UnsignedType>(64); }
 };
 
 struct SizeofMemberExpr: Expr {
@@ -852,7 +843,7 @@ struct SizeofMemberExpr: Expr {
 	std::optional<ssize_t> evaluate(const Context &) const override;
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	size_t getSize(const Context &) const override { return 8; }
-	std::unique_ptr<Type> getType(const Context &) const override { return std::make_unique<UnsignedType>(64); }
+	TypePtr getType(const Context &) const override { return std::make_unique<UnsignedType>(64); }
 };
 
 struct InitializerExpr: Expr {
@@ -863,7 +854,7 @@ struct InitializerExpr: Expr {
 	InitializerExpr(const std::vector<ExprPtr> &children_, bool is_constructor):
 		children(children_), isConstructor(is_constructor) {}
 	Expr * copy() const override;
-	std::unique_ptr<Type> getType(const Context &) const override;
+	TypePtr getType(const Context &) const override;
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	void fullCompile(VregPtr start, Function &function, const Context &context);
 };
@@ -880,7 +871,7 @@ struct ConstructorExpr: HasArguments {
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	operator std::string() const override;
 	size_t getSize(const Context &) const override;
-	std::unique_ptr<Type> getType(const Context &) const override;
+	TypePtr getType(const Context &) const override;
 	FunctionPtr findFunction(const Context &) const;
 	ConstructorExpr * addToScope(const Context &);
 };
@@ -896,7 +887,7 @@ struct NewExpr: Expr {
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	operator std::string() const override;
 	size_t getSize(const Context &) const override;
-	std::unique_ptr<Type> getType(const Context &) const override;
+	TypePtr getType(const Context &) const override;
 	FunctionPtr findFunction(const Context &) const;
 };
 
@@ -909,7 +900,20 @@ struct StaticFieldExpr: Expr {
 	bool isLvalue(const Context &) const override { return true; }
 	operator std::string() const override;
 	size_t getSize(const Context &) const override;
-	std::unique_ptr<Type> getType(const Context &) const override;
+	TypePtr getType(const Context &) const override;
 	std::shared_ptr<StructType> getStruct(const Context &) const;
 	std::string mangle(const Context &) const;
+};
+
+/** Dereferences references, acts as a simple wrapper around non-references. */
+struct GetValueExpr: Expr {
+	ExprPtr subexpr;
+	GetValueExpr(ExprPtr subexpr_): subexpr(subexpr_) {}
+	Expr * copy() const override { return (new GetValueExpr(ExprPtr(subexpr->copy())))->setDebug(debug); }
+	void compile(VregPtr, Function &, const Context &, ssize_t) override;
+	bool compileAddress(VregPtr, Function &, const Context &) override;
+	bool isLvalue(const Context &) const override;
+	operator std::string() const override;
+	size_t getSize(const Context &) const override;
+	TypePtr getType(const Context &) const override;
 };
