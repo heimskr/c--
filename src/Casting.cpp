@@ -10,11 +10,11 @@ bool tryCast(const Type &right_type, const Type &left_type, VregPtr vreg, Functi
              const ASTLocation &location) {
 	const Type *left_subtype = &left_type;
 	if (left_type.isReference())
-		left_subtype = left_type.cast<ReferenceType>()->subtype;
+		left_subtype = left_type.cast<ReferenceType>()->subtype.get();
 
 	const Type *right_subtype = &right_type;
 	if (right_type.isReference())
-		right_subtype = right_type.cast<ReferenceType>()->subtype;
+		right_subtype = right_type.cast<ReferenceType>()->subtype.get();
 
 	if (!(*right_subtype && *left_subtype)) {
 		if (right_subtype->isInt() && left_subtype->isInt()) {

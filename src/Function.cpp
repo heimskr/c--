@@ -1224,11 +1224,11 @@ void Function::checkNaked(const ASTNode &node) const {
 void Function::doPointerArithmetic(TypePtr left_type, TypePtr right_type, Expr &left, Expr &right, VregPtr left_var,
                                    VregPtr right_var, const Context &context, const ASTLocation &location) {
 	if (left_type->isPointer() && right_type->isInt()) {
-		auto *left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
+		auto left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
 		left.compile(left_var, *this, context, 1);
 		right.compile(right_var, *this, context, left_subtype->getSize());
 	} else if (left_type->isInt() && right_type->isPointer()) {
-		auto *right_subtype = dynamic_cast<PointerType &>(*right_type).subtype;
+		auto right_subtype = dynamic_cast<PointerType &>(*right_type).subtype;
 		left.compile(left_var, *this, context, right_subtype->getSize());
 		right.compile(right_var, *this, context, 1);
 	} else if (!(*left_type && *right_type)) {
@@ -1440,7 +1440,7 @@ void Function::setStructParent(std::shared_ptr<StructType> new_struct_parent, bo
 		std::vector<std::string> new_arguments {"this"};
 		new_arguments.insert(new_arguments.end(), arguments.cbegin(), arguments.cend());
 		arguments = std::move(new_arguments);
-		auto this_var = Variable::make("this", PointerType::make(structParent->copy()), *this);
+		auto this_var = Variable::make("this", PointerType::make(structParent), *this);
 		this_var->init();
 		this_var->getType()->setConst(attributes.count(Attribute::Const) != 0);
 		argumentMap.emplace("this", this_var);

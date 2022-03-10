@@ -430,13 +430,13 @@ void PlusExpr::compile(VregPtr destination, Function &function, const Context &c
 		if (left_type->isPointer() && right_type->isInt()) {
 			if (multiplier != 1)
 				throw GenericError(getLocation(), "Cannot multiply in pointer arithmetic PlusExpr");
-			auto *left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
+			auto left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
 			left->compile(left_var, function, context, 1);
 			right->compile(right_var, function, context, left_subtype->getSize());
 		} else if (left_type->isInt() && right_type->isPointer()) {
 			if (multiplier != 1)
 				throw GenericError(getLocation(), "Cannot multiply in pointer arithmetic PlusExpr");
-			auto *right_subtype = dynamic_cast<PointerType &>(*right_type).subtype;
+			auto right_subtype = dynamic_cast<PointerType &>(*right_type).subtype;
 			left->compile(left_var, function, context, right_subtype->getSize());
 			right->compile(right_var, function, context, 1);
 		} else if (!(*left_type && *right_type)) {
@@ -482,7 +482,7 @@ void MinusExpr::compile(VregPtr destination, Function &function, const Context &
 		if (left_type->isPointer() && right_type->isInt()) {
 			if (multiplier != 1)
 				throw GenericError(getLocation(), "Cannot multiply in pointer arithmetic MinusExpr");
-			auto *left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
+			auto left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
 			left->compile(left_var, function, context, 1);
 			right->compile(right_var, function, context, left_subtype->getSize());
 		} else if (left_type->isInt() && right_type->isPointer()) {
@@ -984,7 +984,7 @@ TypePtr AddressOfExpr::getType(const Context &context) const {
 	if (!subexpr->isLvalue(context))
 		throw LvalueError(*subexpr);
 	auto subexpr_type = subexpr->getType(context);
-	auto out = std::make_unique<PointerType>(subexpr_type->copy());
+	auto out = PointerType::make(subexpr_type);
 	out->subtype->setConst(subexpr_type->isConst);
 	return out;
 }
@@ -1035,7 +1035,9 @@ void StringExpr::compile(VregPtr destination, Function &function, const Context 
 }
 
 TypePtr StringExpr::getType(const Context &) const {
-	return std::make_unique<PointerType>((new UnsignedType(8))->setConst(true));
+	auto const_u8 = UnsignedType::make(8);
+	const_u8->setConst(true);
+	return const_u8;
 }
 
 std::string StringExpr::getID(Program &program) const {
@@ -1161,7 +1163,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 			throw NotStructError(TypePtr(struct_expr_type->copy()), structExpr->getLocation());
 		} else {
 			fn.addComment("Setting \"this\" from struct.");
-			this_var->setType(PointerType(struct_expr_type->copy()));
+			this_var->setType(PointerType(struct_expr_type));
 			if (!structExpr->compileAddress(this_var, fn, context))
 				throw LvalueError(*struct_expr_type, structExpr->getLocation());
 		}
@@ -1392,7 +1394,7 @@ void AssignExpr::compile(VregPtr destination, Function &function, const Context 
 				auto constructor_expr = VariableExpr::make("$c");
 				auto call = std::make_unique<CallExpr>(constructor_expr, initializer_expr->children);
 				call->debug = debug;
-				call->structExpr = std::unique_ptr<Expr>(left->copy());
+				call->structExpr = left;
 				call->structExpr->debug = debug;
 				function.addComment("Calling constructor for " + std::string(*struct_type));
 				call->compile(nullptr, function, context, 1);
@@ -1436,7 +1438,7 @@ void CastExpr::compile(VregPtr destination, Function &function, const Context &c
 }
 
 TypePtr CastExpr::getType(const Context &) const {
-	return TypePtr(targetType->copy());
+	return targetType;
 }
 
 void AccessExpr::compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) {
@@ -1447,7 +1449,7 @@ void AccessExpr::compile(VregPtr destination, Function &function, const Context 
 	} else {
 		TypePtr array_type = array->getType(context);
 		if (auto casted = array_type->ptrcast<ArrayType>())
-			array_type = PointerType::make(casted->subtype->copy());
+			array_type = PointerType::make(casted->subtype);
 		else if (!array_type->is<PointerType>())
 			fail();
 		compileAddress(destination, function, context);
@@ -1839,7 +1841,7 @@ size_t ConstructorExpr::getSize(const Context &context) const {
 }
 
 TypePtr ConstructorExpr::getType(const Context &context) const {
-	return std::make_unique<PointerType>(context.scope->lookupType(structName)->copy());
+	return PointerType::make(context.scope->lookupType(structName));
 }
 
 FunctionPtr ConstructorExpr::findFunction(const Context &context) const {
@@ -1985,7 +1987,7 @@ size_t NewExpr::getSize(const Context &) const {
 }
 
 TypePtr NewExpr::getType(const Context &) const {
-	return std::make_unique<PointerType>(type->copy());
+	return PointerType::make(type);
 }
 
 FunctionPtr NewExpr::findFunction(const Context &context) const {

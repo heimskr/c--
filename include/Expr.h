@@ -124,9 +124,9 @@ struct LogicExpr: BinaryExpr<O> {
 
 	TypePtr getType(const Context &context) const override {
 		if (auto fnptr = this->getOperator(context))
-			return std::unique_ptr<Type>(fnptr->returnType->copy());
+			return fnptr->returnType;
 		auto left_type = this->left->getType(context), right_type = this->right->getType(context);
-		auto bool_type = std::make_unique<BoolType>();
+		auto bool_type = BoolType::make();
 		if (!(*left_type && *bool_type))
 			throw ImplicitConversionError(*left_type, *bool_type, this->getLocation());
 		if (!(*right_type && *bool_type))
@@ -169,11 +169,11 @@ struct CompExpr: BinaryExpr<O> {
 
 	TypePtr getType(const Context &context) const override {
 		if (auto fnptr = this->getOperator(context))
-			return std::unique_ptr<Type>(fnptr->returnType->copy());
+			return fnptr->returnType;
 		auto left_type = this->left->getType(context), right_type = this->right->getType(context);
 		if (!(*left_type && *right_type) || !(*right_type && *left_type))
 			throw ImplicitConversionError(*left_type, *right_type, this->getLocation());
-		return std::make_unique<BoolType>();
+		return BoolType::make();
 	}
 };
 
@@ -319,7 +319,7 @@ struct BoolExpr: AtomicExpr {
 	ssize_t getValue() const override { return value? 1 : 0; }
 	std::optional<ssize_t> evaluate(const Context &) const override { return getValue(); }
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
-	TypePtr getType(const Context &) const override { return std::make_unique<BoolType>(); }
+	TypePtr getType(const Context &) const override { return BoolType::make(); }
 };
 
 struct NullExpr: AtomicExpr {
@@ -331,7 +331,7 @@ struct NullExpr: AtomicExpr {
 	std::optional<ssize_t> evaluate(const Context &) const override { return getValue(); }
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	TypePtr getType(const Context &) const override {
-		return std::make_unique<PointerType>(new VoidType);
+		return PointerType::make(VoidType::make());
 	}
 };
 
@@ -683,7 +683,7 @@ struct PrefixExpr: Expr {
 	FunctionPtr getOperator(const Context &context) const {
 		TypePtr sub_type = this->subexpr->getType(context);
 		if (sub_type->isStruct())
-			sub_type = PointerType::make(sub_type->copy());
+			sub_type = PointerType::make(sub_type);
 		return context.program->getOperator({sub_type.get()}, operator_str_map.at(std::string(O) + "."), getLocation());
 	}
 	bool compileAddress(VregPtr destination, Function &function, const Context &context) override {
@@ -694,7 +694,7 @@ struct PrefixExpr: Expr {
 	size_t getSize(const Context &context) const override { return subexpr->getSize(context); }
 	TypePtr getType(const Context &context) const override {
 		if (auto fnptr = getOperator(context))
-			return std::unique_ptr<Type>(fnptr->returnType->copy());
+			return fnptr->returnType;
 		return subexpr->getType(context);
 	}
 };
@@ -741,14 +741,14 @@ struct PostfixExpr: Expr {
 	FunctionPtr getOperator(const Context &context) const {
 		TypePtr sub_type = this->subexpr->getType(context);
 		if (sub_type->isStruct())
-			sub_type = PointerType::make(sub_type->copy());
+			sub_type = PointerType::make(sub_type);
 		return context.program->getOperator({sub_type.get()}, operator_str_map.at("." + std::string(O)), getLocation());
 	}
 	operator std::string() const override { return std::string(*subexpr) + std::string(O); }
 	size_t getSize(const Context &context) const override { return subexpr->getSize(context); }
 	TypePtr getType(const Context &context) const override {
 		if (auto fnptr = getOperator(context))
-			return std::unique_ptr<Type>(fnptr->returnType->copy());
+			return fnptr->returnType;
 		return subexpr->getType(context);
 	}
 };
@@ -819,7 +819,7 @@ struct SizeofExpr: Expr, Makeable<SizeofExpr> {
 	std::optional<ssize_t> evaluate(const Context &) const override { return argument->getSize(); }
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	size_t getSize(const Context &) const override { return 8; }
-	TypePtr getType(const Context &) const override { return std::make_unique<UnsignedType>(64); }
+	TypePtr getType(const Context &) const override { return UnsignedType::make(64); }
 };
 
 struct OffsetofExpr: Expr {
@@ -831,7 +831,7 @@ struct OffsetofExpr: Expr {
 	std::optional<ssize_t> evaluate(const Context &) const override;
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	size_t getSize(const Context &) const override { return 8; }
-	TypePtr getType(const Context &) const override { return std::make_unique<UnsignedType>(64); }
+	TypePtr getType(const Context &) const override { return UnsignedType::make(64); }
 };
 
 struct SizeofMemberExpr: Expr {
@@ -843,7 +843,7 @@ struct SizeofMemberExpr: Expr {
 	std::optional<ssize_t> evaluate(const Context &) const override;
 	void compile(VregPtr, Function &, const Context &, ssize_t) override;
 	size_t getSize(const Context &) const override { return 8; }
-	TypePtr getType(const Context &) const override { return std::make_unique<UnsignedType>(64); }
+	TypePtr getType(const Context &) const override { return UnsignedType::make(64); }
 };
 
 struct InitializerExpr: Expr {

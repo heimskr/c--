@@ -129,15 +129,15 @@ struct BoolType: Type, Makeable<BoolType> {
 };
 
 struct SuperType: Type {
-	Type *subtype;
-	/** Takes ownership of the subtype pointer! */
-	SuperType(Type *subtype_): subtype(subtype_) {}
-	~SuperType() { if (subtype) delete subtype; }
+	TypePtr subtype;
+	SuperType(TypePtr subtype_): subtype(subtype_) {}
 };
 
 struct PointerType: SuperType, Makeable<PointerType> {
 	using SuperType::SuperType;
-	Type * copy() const override { return (new PointerType(subtype? subtype->copy() : nullptr))->steal(*this); }
+	Type * copy() const override {
+		return (new PointerType(TypePtr(subtype? subtype->copy() : nullptr)))->steal(*this);
+	}
 	std::string mangle() const override { return "p" + subtype->mangle(); }
 	size_t getSize() const override { return 8; }
 	bool similar(const Type &, bool) const override;
@@ -149,8 +149,10 @@ struct PointerType: SuperType, Makeable<PointerType> {
 };
 
 struct ReferenceType: SuperType, Makeable<ReferenceType> {
-	ReferenceType(Type *subtype_): SuperType(subtype_) { isLvalue = true; }
-	Type * copy() const override { return (new ReferenceType(subtype? subtype->copy() : nullptr))->setConst(isConst); }
+	ReferenceType(TypePtr subtype_): SuperType(subtype_) { isLvalue = true; }
+	Type * copy() const override {
+		return (new ReferenceType(TypePtr(subtype? subtype->copy() : nullptr)))->steal(*this);
+	}
 	std::string mangle() const override { return "r" + subtype->mangle(); }
 	size_t getSize() const override { return subtype->getSize(); }
 	bool similar(const Type &, bool) const override;
@@ -164,9 +166,9 @@ struct ReferenceType: SuperType, Makeable<ReferenceType> {
 
 struct ArrayType: SuperType {
 	size_t count;
-	ArrayType(Type *subtype_, size_t count_): SuperType(subtype_), count(count_) {}
+	ArrayType(TypePtr subtype_, size_t count_): SuperType(subtype_), count(count_) {}
 	Type * copy() const override {
-		return (new ArrayType(subtype? subtype->copy() : nullptr, count))->steal(*this);
+		return (new ArrayType(TypePtr(subtype? subtype->copy() : nullptr), count))->steal(*this);
 	}
 	std::string mangle() const override { return "a" + std::to_string(count) + subtype->mangle(); }
 	size_t getSize() const override { return subtype? subtype->getSize() * count : 0; }

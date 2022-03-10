@@ -244,13 +244,18 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 		fn->name = "`" + function_name;
 		return *fn;
 	};
-	add_dummy("s").setArguments({{"`string", std::make_shared<PointerType>((new UnsignedType(8))->setConst(true))}});
-	add_dummy("c").setArguments({{"`char", std::make_shared<UnsignedType>(8)}});
-	add_dummy("ptr").setArguments({{"`pointer", std::make_shared<PointerType>((new VoidType)->setConst(true))}});
-	add_dummy("bool").setArguments({{"`boolean", std::make_shared<BoolType>()}});
+
+	auto const_u8 = UnsignedType::make(8);
+	const_u8->setConst(true);
+	auto const_void = VoidType::make();
+	const_void->setConst(true);
+	add_dummy("s").setArguments({{"`string", PointerType::make(const_u8)}});
+	add_dummy("c").setArguments({{"`char", UnsignedType::make(8)}});
+	add_dummy("ptr").setArguments({{"`pointer", PointerType::make(const_void)}});
+	add_dummy("bool").setArguments({{"`boolean", BoolType::make()}});
 	for (size_t i = 8; i <= 64; i *= 2) {
-		add_dummy("s" + std::to_string(i)).setArguments({{"`int", std::make_shared<SignedType>(i)}});
-		add_dummy("u" + std::to_string(i)).setArguments({{"`int", std::make_shared<UnsignedType>(i)}});
+		add_dummy("s" + std::to_string(i)).setArguments({{"`int", SignedType::make(i)}});
+		add_dummy("u" + std::to_string(i)).setArguments({{"`int", UnsignedType::make(i)}});
 	}
 
 	return out;

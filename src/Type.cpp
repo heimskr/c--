@@ -181,26 +181,26 @@ Type * Type::get(const ASTNode &node, Program &program, bool allow_forward) {
 		case CPMTOK_U64:
 			return new UnsignedType(64);
 		case CPMTOK_TIMES: {
-			Type *subtype = Type::get(*node.front(), program, true);
+			auto subtype = TypePtr(Type::get(*node.front(), program, true));
 			if (subtype->isReference())
 				throw GenericError(node.location, "Cannot take a pointer to a reference");
 			return new PointerType(subtype);
 		}
 		case CPMTOK_AND: {
-			Type *subtype = Type::get(*node.front(), program, true);
+			auto subtype = TypePtr(Type::get(*node.front(), program, true));
 			if (subtype->isReference())
 				throw GenericError(node.location, "Cannot take a reference to a reference");
 			return new ReferenceType(subtype);
 		}
 		case CPMTOK_STRING:
-			return new PointerType(new UnsignedType(8));
+			return new PointerType(UnsignedType::make(8));
 		case CPMTOK_LSQUARE: {
 			auto expr = std::unique_ptr<Expr>(Expr::get(*node.at(1)));
 			auto count = expr->evaluate({program, nullptr});
 			if (!count)
 				throw GenericError(node.location, "Array size expression must be a compile-time constant: " +
 					std::string(*expr) + " (at " + std::string(expr->getLocation()) + ")");
-			return new ArrayType(Type::get(*node.front(), program), *count);
+			return new ArrayType(TypePtr(Type::get(*node.front(), program)), *count);
 		}
 		case CPM_FNPTR: {
 			std::vector<TypePtr> argument_types;
@@ -255,12 +255,12 @@ Type * Type::get(const char * &mangled, Program &program) {
 			return new UnsignedType(width);
 		}
 		case 'p':
-			return new PointerType(get(++mangled, program));
+			return new PointerType(TypePtr(get(++mangled, program)));
 		case 'a': {
 			size_t count = 0;
 			for (++mangled; std::isdigit(mangled[0]); ++mangled)
 				count = count * 10 + (mangled[0] - '0');
-			return new ArrayType(Type::get(mangled, program), count);
+			return new ArrayType(TypePtr(Type::get(mangled, program)), count);
 		}
 		case 'F': {
 			auto return_type = TypePtr(Type::get(++mangled, program));
