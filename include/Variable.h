@@ -61,4 +61,16 @@ struct Variable: VirtualRegister, Makeable<Variable> {
 using VregPtr = std::shared_ptr<VirtualRegister>;
 using VariablePtr = std::shared_ptr<Variable>;
 
+struct VregLess {
+	bool operator()(const VregPtr &left, const VregPtr &right) const {
+		if (left && !right)
+			return true;
+		if (!left)
+			return false;
+		return left->id < right->id;
+	}
+};
+
+using VregSet = std::set<VregPtr, VregLess>;
+
 std::ostream & operator<<(std::ostream &, const VirtualRegister &);

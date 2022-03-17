@@ -215,6 +215,7 @@ void Function::compile() {
 		do
 			result = allocator.attempt();
 		while (result != Allocator::Result::Success);
+		replacePlaceholders();
 
 		auto rt = precolored(Why::returnAddressOffset);
 
@@ -224,8 +225,9 @@ void Function::compile() {
 			if (stackUsage != 0)
 				addFront<SubIInstruction>(sp, sp, stackUsage)->setDebug(default_debug);
 			addFront<MoveInstruction>(sp, fp)->setDebug(default_debug);
-			for (int reg: gp_regs)
-				addFront<StackPushInstruction>(precolored(reg))->setDebug(default_debug);
+			if (isSaved())
+				for (int reg: gp_regs)
+					addFront<StackPushInstruction>(precolored(reg))->setDebug(default_debug);
 			addFront<MoveInstruction>(sp, m5)->setDebug(default_debug);
 			addFront<StackPushInstruction>(m5)->setDebug(default_debug);
 			addFront<StackPushInstruction>(fp)->setDebug(default_debug);
@@ -236,8 +238,9 @@ void Function::compile() {
 					->setDebug(default_debug);
 			}
 			add<MoveInstruction>(fp, sp)->setDebug(default_debug);
-			for (int reg: gp_regs)
-				add<StackPopInstruction>(precolored(reg))->setDebug(default_debug);
+			if (isSaved())
+				for (int reg: gp_regs)
+					add<StackPopInstruction>(precolored(reg))->setDebug(default_debug);
 			add<StackPopInstruction>(m5)->setDebug(default_debug);
 			add<StackPopInstruction>(fp)->setDebug(default_debug);
 			add<StackPopInstruction>(rt)->setDebug(default_debug);
@@ -1184,6 +1187,10 @@ bool Function::isNaked() const {
 	return attributes.count(Attribute::Naked) != 0;
 }
 
+bool Function::isSaved() const {
+	return attributes.count(Attribute::Saved) != 0;
+}
+
 void Function::checkNaked(const ASTNode &node) const {
 	if (isNaked()) {
 		node.debug();
@@ -1425,6 +1432,9 @@ void Function::extractAttributes(const ASTNode &node) {
 			case CPMTOK_NAKED:
 				attributes.insert(Attribute::Naked);
 				break;
+			case CPMTOK_SAVED:
+				attributes.insert(Attribute::Saved);
+				break;
 			case CPMTOK_CONSTATTR:
 				attributes.insert(Attribute::Const);
 				break;
@@ -1443,4 +1453,59 @@ bool Function::isOperator() const {
 
 bool Function::isConstructorDeclaration() const {
 	return source && source->symbol == CPM_CONSTRUCTORDECL;
+}
+
+void Function::replacePlaceholders() {
+	bool changed = false;
+
+	for (const auto &block: blocks) {
+		for (auto iter = block->instructions.begin(); iter != block->instructions.end();) {
+			WhyPtr push_placeholder = (*iter)->ptrcast<CallPushPlaceholder>();
+			WhyPtr pop_placeholder = push_placeholder? nullptr : (*iter)->ptrcast<CallPopPlaceholder>();
+			if (push_placeholder || pop_placeholder) {
+				// Accumulate variables that are used later, either in this block or later on.
+				std::set<int> regs;
+				for (const auto &vreg: block->liveOut) {
+					const int reg = vreg->getReg();
+					if (Why::isGeneralPurpose(reg))
+						regs.insert(reg);
+				}
+
+				auto subiter = iter;
+				for (++subiter; subiter != block->instructions.end(); ++subiter) {
+					for (const auto &vreg: (*subiter)->getRead()) {
+						const int reg = vreg->getReg();
+						if (Why::isGeneralPurpose(reg))
+							regs.insert(reg);
+					}
+					for (const auto &vreg: (*subiter)->getWritten()) {
+						const int reg = vreg->getReg();
+						if (Why::isGeneralPurpose(reg))
+							regs.insert(reg);
+					}
+				}
+
+				if (push_placeholder) {
+					for (const int reg: regs) {
+						auto push = std::make_shared<StackPushInstruction>(precolored(reg));
+						push->setDebug(push_placeholder->debug);
+						block->instructions.insert(iter, push);
+					}
+				} else {
+					for (auto riter = regs.rbegin(), rend = regs.rend(); riter != rend; ++riter) {
+						auto pop = std::make_shared<StackPopInstruction>(precolored(*riter));
+						pop->setDebug(pop_placeholder->debug);
+						block->instructions.insert(iter, pop);
+					}
+				}
+
+				block->instructions.erase(iter++);
+				changed = true;
+			} else
+				++iter;
+		}
+	}
+
+	if (changed)
+		relinearize();
 }

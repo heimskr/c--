@@ -38,7 +38,7 @@ class Function: public Makeable<Function> {
 		void extractArguments();
 
 	public:
-		enum class Attribute {Naked, Constructor, Destructor, Const};
+		enum class Attribute {Naked, Constructor, Destructor, Const, Saved};
 		Program &program;
 		std::string name = "???";
 		std::list<WhyPtr> instructions;
@@ -171,6 +171,7 @@ class Function: public Makeable<Function> {
 		Graph & makeCFG();
 
 		bool isNaked() const;
+		bool isSaved() const;
 
 		void checkNaked(const ASTNode &) const;	
 
@@ -206,6 +207,9 @@ class Function: public Makeable<Function> {
 		bool isConst() const;
 		bool isOperator() const;
 		bool isConstructorDeclaration() const;
+
+		/** Replaces CallPushPlaceholder and CallPopPlaceholder. Must not be called before register allocation. */
+		void replacePlaceholders();
 };
 
 using FunctionPtr = std::shared_ptr<Function>;

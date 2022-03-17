@@ -86,6 +86,7 @@ CPM_SLCOMMENT	("//"[^\n]*)
 "#version"		{RTOKEN(META_VERSION)}
 "#orcid"		{RTOKEN(META_ORCID)}
 "#naked"		{RTOKEN(NAKED)}
+"#saved"		{RTOKEN(SAVED)}
 "#"				{RTOKEN(HASH)}
 "return"		{RTOKEN(RETURN)}
 "."				{RTOKEN(PERIOD)}

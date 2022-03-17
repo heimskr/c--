@@ -100,6 +100,7 @@ using AN = ASTNode;
 %token CPMTOK_MINUSMINUS "--"
 %token CPMTOK_ASM "asm"
 %token CPMTOK_NAKED "#naked"
+%token CPMTOK_SAVED "#saved"
 %token CPMTOK_STRUCT "struct"
 %token CPMTOK_ARROW "->"
 %token CPMTOK_SIZEOF "sizeof"
@@ -219,7 +220,7 @@ function_decl: type ident "(" _arglist ")" fnattrs ";" { $$ = $2->adopt({$1, $4,
 fnattrs: fnattrs fnattr { $$ = $1->adopt($2); }
        | { $$ = new ASTNode(cpmParser, CPM_LIST); };
 
-fnattr: "#naked" | "#const";
+fnattr: "#naked" | "#const" | "#saved";
 
 block: "{" statements "}" { $$ = $2; D($1, $3); };
 

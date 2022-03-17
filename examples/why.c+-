@@ -48,7 +48,7 @@ s64(s64) * swap(s64(s64) *f) {
 	return double;
 }
 
-void int_keybrd_(u64 key_full) {
+void int_keybrd_(u64 key_full) #saved {
 	u8 key = (u8) key_full;
 	bool ctrl = (bool) ((key_full >> 34u64) & 1u64);
 	if (key_full == 0u64) { // Ctrl-Space, for some reason.
