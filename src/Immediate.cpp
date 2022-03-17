@@ -11,13 +11,13 @@ std::string stringify(const Immediate &imm, bool colored, bool ampersand) {
 	}
 	if (std::holds_alternative<VariablePtr>(imm)) {
 		const auto &var = std::get<VariablePtr>(imm);
-		if (!var->function)
+		if (var->function == nullptr)
 			throw std::runtime_error("Variable " + var->name + " has no function");
 		if (var->function->stackOffsets.count(var) == 0)
 			throw NotOnStackError(var);
 		return std::to_string(var->function->stackOffsets.at(var));
 	}
-	const std::string &str = std::get<std::string>(imm);
+	const auto &str = std::get<std::string>(imm);
 	return colored? "\e[38;5;202m" + (ampersand? "&" + str : str) + "\e[39m" : (ampersand? "&" + str : str);
 }
 

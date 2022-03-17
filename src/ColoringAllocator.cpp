@@ -5,12 +5,12 @@
 #include <optional>
 
 #include "ColoringAllocator.h"
-#include "Function.h"
-#include "WhyInstructions.h"
-#include "Variable.h"
 #include "Errors.h"
+#include "Function.h"
 #include "Util.h"
+#include "Variable.h"
 #include "Why.h"
+#include "WhyInstructions.h"
 
 ColoringAllocator::Result ColoringAllocator::attempt() {
 	++attempts;
@@ -43,7 +43,7 @@ ColoringAllocator::Result ColoringAllocator::attempt() {
 	}
 
 	for (const std::pair<const std::string, Node *> &pair: interference) {
-		VregPtr ptr = pair.second->get<VregPtr>();
+		auto ptr = pair.second->get<VregPtr>();
 		if (ptr->getReg() == -1)
 			ptr->setReg(*pair.second->colors.begin());
 	}
@@ -58,7 +58,7 @@ VregPtr ColoringAllocator::selectMostLive(int *liveness_out) const {
 		if (Why::isSpecialPurpose(var->getReg()) || !function.canSpill(var))
 			continue;
 
-		const int sum = function.getLiveIn(var).size() + function.getLiveOut(var).size();
+		const int sum = int(function.getLiveIn(var).size() + function.getLiveOut(var).size());
 		if (highest < sum && triedIDs.count(var->id) == 0) {
 			highest = sum;
 			ptr = var;
@@ -70,7 +70,7 @@ VregPtr ColoringAllocator::selectMostLive(int *liveness_out) const {
 		throw std::runtime_error("Couldn't select variable with highest liveness");
 	}
 
-	if (liveness_out)
+	if (liveness_out != nullptr)
 		*liveness_out = highest;
 
 	if (!function.canSpill(ptr))

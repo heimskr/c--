@@ -11,11 +11,11 @@ DFSResult::DFSResult(const Graph &graph_,
                      const std::vector<Node *> &parents_,
                      const std::vector<int> &discovered_,
                      const std::vector<int> &finished_): graph(&graph_) {
-	for (int i = 0, len = parents_.size(); i < len; ++i)
+	for (size_t i = 0, len = parents_.size(); i < len; ++i)
 		parents[&(*graph)[i]] = parents_[i];
-	for (int i = 0, len = discovered_.size(); i < len; ++i)
+	for (size_t i = 0, len = discovered_.size(); i < len; ++i)
 		discovered[&(*graph)[i]] = discovered_[i];
-	for (int i = 0, len = finished_.size(); i < len; ++i)
+	for (size_t i = 0, len = finished_.size(); i < len; ++i)
 		finished[&(*graph)[i]] = finished_[i];
 }
 
