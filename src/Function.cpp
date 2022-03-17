@@ -220,12 +220,13 @@ void Function::compile() {
 		auto rt = precolored(Why::returnAddressOffset);
 
 		if (!is_init) {
-			auto gp_regs = usedGPRegisters();
+			const bool is_saved = isSaved();
+			std::set<int> gp_regs = is_saved? usedGPRegisters() : std::set<int>();
 			auto fp = precolored(Why::framePointerOffset), sp = precolored(Why::stackPointerOffset), m5 = mx(5);
 			if (stackUsage != 0)
 				addFront<SubIInstruction>(sp, sp, stackUsage)->setDebug(default_debug);
 			addFront<MoveInstruction>(sp, fp)->setDebug(default_debug);
-			if (isSaved())
+			if (is_saved)
 				for (int reg: gp_regs)
 					addFront<StackPushInstruction>(precolored(reg))->setDebug(default_debug);
 			addFront<MoveInstruction>(sp, m5)->setDebug(default_debug);
@@ -238,7 +239,7 @@ void Function::compile() {
 					->setDebug(default_debug);
 			}
 			add<MoveInstruction>(fp, sp)->setDebug(default_debug);
-			if (isSaved())
+			if (is_saved)
 				for (int reg: gp_regs)
 					add<StackPopInstruction>(precolored(reg))->setDebug(default_debug);
 			add<StackPopInstruction>(m5)->setDebug(default_debug);
