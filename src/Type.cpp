@@ -129,7 +129,6 @@ int ReferenceType::affinity(const Type &other, bool ignore_const) const {
 		if (auto *subtype_array = subtype->cast<ArrayType>())
 			return subtype->affinity(*subtype_array->subtype, ignore_const) + 1;
 	}
-	info() << "subtype[" << *subtype << "], other[" << other << "]\n";
 	return subtype->affinity(other, ignore_const);
 }
 

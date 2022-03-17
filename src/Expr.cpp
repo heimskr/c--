@@ -408,9 +408,7 @@ std::ostream & operator<<(std::ostream &os, const Expr &expr) {
 
 void PlusExpr::compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) {
 	if (auto fnptr = getOperator(context)) {
-		info() << "left[" << *left << "], right[" << *right << "]\n";
-		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(),
-			multiplier);
+		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		auto left_type = left->getType(context), right_type = right->getType(context);
 		VregPtr left_var = function.newVar(), right_var = function.newVar();
@@ -890,11 +888,7 @@ void VariableExpr::compile(VregPtr destination, Function &function, const Contex
 			function.addComment("Load variable " + name);
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset)
 				->setDebug(*this);
-			// auto destination_type = destination->getType();
-			// if (!destination_type || !destination_type->isReference())
-				function.add<LoadRInstruction>(destination, destination, var->getSize())->setDebug(*this);
-			// else
-				// warn() << "{" << *this << "}: destination type: " << *destination_type << "\n";
+			function.add<LoadRInstruction>(destination, destination, var->getSize())->setDebug(*this);
 		}
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -917,10 +911,7 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, const
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset)
 				->setDebug(*this);
 			if (var->getType()->isReference()) {
-			// if (destination->getType() && destination->getType()->isReference()) {
-				// auto ref = var->getType()->ptrcast<ReferenceType>();
 				function.addComment("Load reference lvalue for " + name);
-				// warn() << *this << ": vartype[" << *var->getType() << "], ref->subtype[" << *ref->subtype << "]\n";
 				function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
 			}
 		}
@@ -933,8 +924,6 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, const
 
 size_t VariableExpr::getSize(const Context &context) const {
 	if (VariablePtr var = context.scope->lookup(name)) {
-		// if (var->getType()->isReference())
-		// 	return Why::wordSize;
 		return var->getSize();
 	} else if (context.scope->lookupFunction(name, nullptr, {}, getLocation()))
 		return Why::wordSize;
@@ -1613,7 +1602,6 @@ void ArrowExpr::compile(VregPtr destination, Function &function, const Context &
 	const size_t field_size = struct_type->getFieldSize(ident);
 	const size_t field_offset = struct_type->getFieldOffset(ident);
 	Util::validateSize(field_size);
-	info() << "{" << *this << "}: left = {" << *left << "}\n";
 	left->compile(destination, function, context, 1);
 	if (field_offset != 0) {
 		function.addComment("Add arrow field offset of " + struct_type->name + "::" + ident);

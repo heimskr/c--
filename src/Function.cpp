@@ -384,8 +384,6 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 					addComment("Returning reference pointer");
 					if (!expr->compileAddress(r0, *this, currentContext()))
 						throw LvalueError(*expr->getType(currentContext()), expr->getLocation());
-					// addComment("Reference return hack");
-					// add<LoadRInstruction>(r0, r0, Why::wordSize)->setDebug(*expr);
 				} else {
 					addComment("Returning value");
 					expr->compile(r0, *this, currentContext());
@@ -1330,10 +1328,8 @@ const {
 
 		const size_t offset = count == arguments.size()? 0 : 1;
 		for (size_t i = offset; i < arguments.size(); ++i)
-			if (!(*argument_types.at(i - offset) && *argumentMap.at(arguments.at(i))->getType())) {
-				info() << "structParent[" << structParent->name << "], argument_type[" << *argument_types.at(i - offset) << "], argumentMap[" << *argumentMap.at(arguments.at(i))->getType() << "]\n";
+			if (!(*argument_types.at(i - offset) && *argumentMap.at(arguments.at(i))->getType()))
 				return false;
-			}
 
 		return true;
 	}
@@ -1342,10 +1338,8 @@ const {
 		return false;
 
 	for (size_t i = 0, max = arguments.size(); i < max; ++i)
-		if (!(*argument_types.at(i) && *argumentMap.at(arguments.at(i))->getType())) {
-			info() << "argument_type[" << *argument_types.at(i) << "], argumentMap[" << *argumentMap.at(arguments.at(i))->getType() << "]\n";
+		if (!(*argument_types.at(i) && *argumentMap.at(arguments.at(i))->getType()))
 			return false;
-		}
 
 	return struct_name.empty();
 }
