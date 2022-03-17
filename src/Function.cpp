@@ -620,51 +620,23 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 
 std::list<BasicBlockPtr> & Function::extractBlocks(std::map<std::string, BasicBlockPtr> *map_out) {
 	std::map<std::string, BasicBlockPtr> map;
+	std::unordered_set<std::string> found_labels;
 	blocks.clear();
 	anons = 0;
 
-	BasicBlockPtr current = BasicBlock::make(*this, name);
-	bool waiting = false;
-	bool at_first = true;
-	bool label_found = false;
-
-	std::vector<std::pair<std::string, std::string>> extra_connections;
+	BasicBlockPtr current = BasicBlock::make(*this, mangle());
 
 	for (const auto &instruction: instructions) {
-		if (waiting) {
-			if (auto label = instruction->ptrcast<Label>())
-				current = BasicBlock::make(*this, label->name);
-			else
-				current = BasicBlock::make(*this, "." + mangle() + ".anon." + std::to_string(anons++));
-			waiting = false;
-		}
-
 		const bool is_label = instruction->is<Label>();
 
 		if (is_label) {
-			const auto &label = instruction->ptrcast<Label>();
-			if (label_found) {
-				extra_connections.emplace_back(current->label, label->name);
-				blocks.push_back(current);
-				map.emplace(current->label, current);
-				current = BasicBlock::make(*this, label->name);
-				*current += label;
-				at_first = true;
-				label_found = false;
-				continue;
-			}
-			label_found = true;
+			const auto label = instruction->ptrcast<Label>();
+			blocks.push_back(current);
+			map.emplace(current->label, current);
+			current = BasicBlock::make(*this, label->name);
 		}
 
 		*current += instruction;
-
-		if (instruction->isTerminal()) {
-			blocks.push_back(current);
-			map.emplace(current->label, current);
-			at_first = waiting = true;
-			label_found = false;
-		} else
-			at_first = false;
 	}
 
 	if (*current && map.count(current->label) == 0) {
