@@ -22,7 +22,7 @@ std::ostream & operator<<(std::ostream &os, const Type &type) {
 
 bool SignedType::similar(const Type &other, bool ignore_const) const {
 	if (other.isReferenceOf(*this, ignore_const))
-		return isLvalue;
+		return true;
 	if (other.isBool())
 		return true;
 	if (auto *other_signed = other.cast<SignedType>())
@@ -40,7 +40,7 @@ bool SignedType::equal(const Type &other, bool ignore_const) const {
 
 bool UnsignedType::similar(const Type &other, bool ignore_const) const {
 	if (other.isReferenceOf(*this, ignore_const))
-		return isLvalue;
+		return true;
 	if (other.cast<BoolType>())
 		return true;
 	if (auto *other_unsigned = other.cast<UnsignedType>())
@@ -97,15 +97,17 @@ int PointerType::affinity(const Type &other, bool ignore_const) const {
 }
 
 bool ReferenceType::similar(const Type &other, bool ignore_const) const {
-	if (other.isReferenceOf(*this, ignore_const))
+	if (other.isReferenceOf(*this, ignore_const)) {
+		info() << "this[" << *this << "], other[" << other << "], isLvalue[" << isLvalue << "]\n";
 		return isLvalue;
+	}
 	if (auto *other_reference = other.cast<ReferenceType>()) {
 		if (subtype->isVoid() || other_reference->subtype->isVoid() || (*subtype && *other_reference->subtype))
 			return true;
 		if (auto *subtype_array = subtype->cast<ArrayType>())
 			return *subtype_array->subtype && *other_reference->subtype;
 	}
-	return false;
+	return isReferenceOf(other, ignore_const);
 }
 
 bool ReferenceType::equal(const Type &other, bool ignore_const) const {
@@ -127,7 +129,8 @@ int ReferenceType::affinity(const Type &other, bool ignore_const) const {
 		if (auto *subtype_array = subtype->cast<ArrayType>())
 			return subtype->affinity(*subtype_array->subtype, ignore_const) + 1;
 	}
-	return 0;
+	info() << "subtype[" << *subtype << "], other[" << other << "]\n";
+	return subtype->affinity(other, ignore_const);
 }
 
 bool ReferenceType::isReferenceOf(const Type &other, bool ignore_const) const {

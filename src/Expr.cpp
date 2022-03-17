@@ -1045,8 +1045,10 @@ std::unique_ptr<Type> DerefExpr::getType(const Context &context) const {
 	if (auto fnptr = getOperator(context))
 		return std::unique_ptr<Type>(fnptr->returnType->copy()->setLvalue(true));
 	auto type = checkType(context);
-	auto out = std::unique_ptr<Type>(dynamic_cast<PointerType &>(*type).subtype->copy());
-	out->setConst(type->isConst)->setLvalue(true);
+	// auto out = std::unique_ptr<Type>(dynamic_cast<PointerType &>(*type).subtype->copy());
+	auto out = std::make_unique<ReferenceType>(dynamic_cast<PointerType &>(*type).subtype->copy());
+	out->subtype->setConst(type->isConst);
+	out->setLvalue(true);
 	return out;
 }
 
@@ -1143,7 +1145,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 			}
 			throw NotStructError(TypePtr(struct_expr_type->copy()), structExpr->getLocation());
 		} else {
-			fn.addComment("Setting \"this\" from struct.");
+			fn.addComment("Setting \"this\" from struct of type " + std::string(*struct_expr_type) + ".");
 			this_var->setType(PointerType(struct_expr_type->copy()));
 			if (!structExpr->compileAddress(this_var, fn, context))
 				throw LvalueError(*struct_expr_type, structExpr->getLocation());
@@ -1369,9 +1371,17 @@ void AssignExpr::compile(VregPtr destination, Function &function, const Context 
 		if (right_type->isInitializer()) {
 			auto *initializer_expr = right->cast<InitializerExpr>();
 			if (initializer_expr->isConstructor) {
-				if (!left_type->isStruct())
+				StructType *struct_type;
+				if (left_type->isStruct()) {
+					struct_type = left_type->cast<StructType>();
+				} else if (left_type->isReference()) {
+					auto left_reference = left_type->ptrcast<ReferenceType>();
+					if (left_reference->subtype->isStruct())
+						struct_type = left_reference->subtype->cast<StructType>();
+					else
+						throw NotStructError(left_type, left->getLocation());
+				} else
 					throw NotStructError(left_type, left->getLocation());
-				auto struct_type = left_type->ptrcast<StructType>();
 				auto *constructor_expr = new VariableExpr("$c");
 				auto call = std::make_unique<CallExpr>(constructor_expr, initializer_expr->children);
 				call->debug = debug;

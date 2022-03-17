@@ -1330,8 +1330,10 @@ const {
 
 		const size_t offset = count == arguments.size()? 0 : 1;
 		for (size_t i = offset; i < arguments.size(); ++i)
-			if (!(*argument_types.at(i - offset) && *argumentMap.at(arguments.at(i))->getType()))
+			if (!(*argument_types.at(i - offset) && *argumentMap.at(arguments.at(i))->getType())) {
+				info() << "structParent[" << structParent->name << "], argument_type[" << *argument_types.at(i - offset) << "], argumentMap[" << *argumentMap.at(arguments.at(i))->getType() << "]\n";
 				return false;
+			}
 
 		return true;
 	}
@@ -1340,8 +1342,10 @@ const {
 		return false;
 
 	for (size_t i = 0, max = arguments.size(); i < max; ++i)
-		if (!(*argument_types.at(i) && *argumentMap.at(arguments.at(i))->getType()))
+		if (!(*argument_types.at(i) && *argumentMap.at(arguments.at(i))->getType())) {
+			info() << "argument_type[" << *argument_types.at(i) << "], argumentMap[" << *argumentMap.at(arguments.at(i))->getType() << "]\n";
 			return false;
+		}
 
 	return struct_name.empty();
 }
