@@ -213,7 +213,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				const size_t stack_offset = function->stackUsage += struct_type->getSize();
 
 				auto *constructor = new ConstructorExpr(stack_offset, struct_name, std::move(arguments));
-				out = constructor->addToScope({function->program, function->currentScope()});
+				out = constructor->addToScope(Context(function->program, function->currentScope()));
 			} else {
 				auto front_expr = Expr::get(*node.front(), function);
 				CallExpr *call = new CallExpr(front_expr, arguments);
@@ -928,7 +928,7 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, const
 size_t VariableExpr::getSize(const Context &context) const {
 	if (VariablePtr var = context.scope->lookup(name)) {
 		return var->getSize();
-	} else if (context.scope->lookupFunction(name, nullptr, {}, getLocation()))
+	} else if (context.scope->lookupFunction(name, nullptr, {}, "", getLocation()))
 		return Why::wordSize;
 	throw ResolutionError(name, context, getLocation());
 }
@@ -1847,7 +1847,7 @@ static std::string newVariableName(const std::map<std::string, VariablePtr> &map
 ConstructorExpr * ConstructorExpr::addToScope(const Context &context) {
 	auto type = context.scope->lookupType(structName);
 	if (!type)
-		throw ResolutionError(structName, {*context.program, context.scope, structName}, getLocation());
+		throw ResolutionError(structName, Context(*context.program, context.scope, structName), getLocation());
 
 	if (auto *function_scope = context.scope->cast<FunctionScope>()) {
 		Function &function = function_scope->function;
@@ -2019,7 +2019,7 @@ size_t StaticFieldExpr::getSize(const Context &context) const {
 std::unique_ptr<Type> StaticFieldExpr::getType(const Context &context) const {
 	const auto &statics = getStruct(context)->getStatics();
 	if (statics.count(fieldName) == 0)
-		throw ResolutionError(fieldName, {*context.program, context.scope, structName}, getLocation());
+		throw ResolutionError(fieldName, Context(*context.program, context.scope, structName), getLocation());
 	return std::unique_ptr<Type>(statics.at(fieldName)->copy());
 }
 
@@ -2035,6 +2035,6 @@ std::shared_ptr<StructType> StaticFieldExpr::getStruct(const Context &context) c
 std::string StaticFieldExpr::mangle(const Context &context) const {
 	const auto &statics = getStruct(context)->getStatics();
 	if (statics.count(fieldName) == 0)
-		throw ResolutionError(fieldName, {*context.program, context.scope, structName}, getLocation());
+		throw ResolutionError(fieldName, Context(*context.program, context.scope, structName), getLocation());
 	return Util::mangleStaticField(structName, statics.at(fieldName), fieldName);
 }

@@ -48,7 +48,7 @@ s64(s64) * swap(s64(s64) *f) {
 	return double;
 }
 
-void int_keybrd_(u64 key_full) #saved {
+void int_keybrd_(u64 key_full) {
 	u8 key = (u8) key_full;
 	bool ctrl = (bool) ((key_full >> 34u64) & 1u64);
 	if (key_full == 0u64) { // Ctrl-Space, for some reason.
@@ -154,7 +154,9 @@ void int_keybrd_(u64 key_full) #saved {
 
 void int_keybrd() #naked {
 	asm("[ $rt; [ $a0");
+	asm("[ $t0; [ $t1; [ $t2; [ $t3; [ $t4; [ $t5; [ $t6; [ $t7; [ $t8; [ $t9; [ $t10; [ $t11; [ $t12; [ $t13; [ $t14; [ $t15; [ $t16; [ $s0; [ $s1; [ $s2; [ $s3; [ $s4; [ $s5; [ $s6; [ $s7; [ $s8; [ $s9; [ $s10; [ $s11; [ $s12; [ $s13; [ $s14; [ $s15; [ $s16");
 	asm("$e2 -> $a0; :: _11int_keybrd_v1u8");
+	asm("] $s16; ] $s15; ] $s14; ] $s13; ] $s12; ] $s11; ] $s10; ] $s9; ] $s8; ] $s7; ] $s6; ] $s5; ] $s4; ] $s3; ] $s2; ] $s1; ] $s0; ] $t16; ] $t15; ] $t14; ] $t13; ] $t12; ] $t11; ] $t10; ] $t9; ] $t8; ] $t7; ] $t6; ] $t5; ] $t4; ] $t3; ] $t2; ] $t1; ] $t0");
 	asm("] $a0; ] $rt");
 	asm(": ] %page $e0");
 }
@@ -225,10 +227,23 @@ void memcpy(void *destination, void const *source, u64 count) {
 }
 
 u8 * String::copyData(u64* new_capacity) #const {
+	asm("<print $0>");
+	asm("<print $1>":*new_capacity);
 	*new_capacity = roundUp(this->size + 1u64);
+	asm("<print $1>":*new_capacity);
+	asm("<print $1>":this->size);
+	asm("<print $1>":this);
 	u8 *out = checked_malloc(*new_capacity);
-	if (this->data)
+	asm("<print $1>":this);
+	asm("<print $1>":this->size);
+	asm("<print $k0>");
+	if (this->data) {
+		asm("<print $1>":this->size);
 		memcpy(out, this->data, this->size);
+	}
+	asm("<print $k1>");
+	asm("<print $1>":this->size);
+	asm("<print $1>":out);
 	out[this->size] = '\0';
 	return out;
 }

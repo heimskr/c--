@@ -22,23 +22,23 @@ struct BasicBlock: Makeable<BasicBlock> {
 	Node *node = nullptr;
 	int index = -1;
 
-	BasicBlock(Function &function_, const std::string &label_): function(function_), label(label_) {}
+	BasicBlock(Function &function_, std::string label_): function(function_), label(std::move(label_)) {}
 
-	BasicBlock & operator+=(std::shared_ptr<WhyInstruction> instruction) {
+	BasicBlock & operator+=(const std::shared_ptr<WhyInstruction> &instruction) {
 		instructions.push_back(instruction);
 		return *this;
 	}
 
-	operator bool() const { return !instructions.empty(); }
+	explicit operator bool() const { return !instructions.empty(); }
 
 	/** Returns a set of all variables (excluding globals and register-allocated/precolored) referenced in the block. */
-	std::set<std::shared_ptr<VirtualRegister>> gatherVariables() const;
+	[[nodiscard]] std::set<std::shared_ptr<VirtualRegister>> gatherVariables() const;
 
 	/** Returns the number of unique variables (excluding globals and register-allocated/precolored) referenced in the
 	 *  block. */
-	size_t countVariables() const;
+	[[nodiscard]] size_t countVariables() const;
 
 	void cacheReadWritten();
-};
+} __attribute__((packed, aligned(128)));
 
 using BasicBlockPtr = std::shared_ptr<BasicBlock>;

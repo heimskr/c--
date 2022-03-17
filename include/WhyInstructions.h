@@ -32,41 +32,41 @@ struct WhyInstruction: Instruction, Checkable, std::enable_shared_from_this<WhyI
 
 	/** Attempts to replace a variable read by the instruction with another variable. Should be overridden by any
 	 *  instruction that reads from a variable. */
-	virtual bool replaceRead(VregPtr, VregPtr) {
+	virtual bool replaceRead(const VregPtr &, const VregPtr &) {
 		return false;
 	}
 
-	virtual bool canReplaceRead(VregPtr) const {
+	virtual bool canReplaceRead(const VregPtr &) const {
 		return false;
 	}
 
 	/** Attempts to replace a variable written by the instruction with another variable. Should be overridden by any
 	 *  instruction that writes to a variable. */
-	virtual bool replaceWritten(VregPtr, VregPtr) {
+	virtual bool replaceWritten(const VregPtr &, const VregPtr &) {
 		return false;
 	}
 
-	virtual bool canReplaceWritten(VregPtr) const {
+	virtual bool canReplaceWritten(const VregPtr &) const {
 		return false;
 	}
 
-	virtual bool doesRead(VregPtr) const {
+	virtual bool doesRead(const VregPtr &) const {
 		return false;
 	}
 
-	virtual bool doesWrite(VregPtr) const {
+	virtual bool doesWrite(const VregPtr &) const {
 		return false;
 	}
 };
 
 struct HasDestination {
 	VregPtr destination;
-	HasDestination(VregPtr destination_): destination(destination_) {}
+	explicit HasDestination(VregPtr destination_): destination(std::move(destination_)) {}
 };
 
 struct HasSource {
 	VregPtr source;
-	HasSource(VregPtr source_): source(source_) {}
+	explicit HasSource(VregPtr source_): source(std::move(source_)) {}
 };
 
 struct HasTwoSources {
@@ -82,33 +82,33 @@ struct HasImmediate {
 struct TwoRegs: WhyInstruction, HasSource, HasDestination {
 	TwoRegs(VregPtr source_, VregPtr destination_): HasSource(source_), HasDestination(destination_) {}
 
-	bool replaceRead(VregPtr from, VregPtr to) override {
+	bool replaceRead(const VregPtr &from, const VregPtr &to) override {
 		if (source != from)
 			return false;
 		source = to;
 		return true;
 	}
 
-	bool canReplaceRead(VregPtr var) const override {
+	bool canReplaceRead(const VregPtr &var) const override {
 		return var == source;
 	}
 
-	bool replaceWritten(VregPtr from, VregPtr to) override {
+	bool replaceWritten(const VregPtr &from, const VregPtr &to) override {
 		if (destination != from)
 			return false;
 		destination = to;
 		return true;
 	}
 
-	bool canReplaceWritten(VregPtr var) const override {
+	bool canReplaceWritten(const VregPtr &var) const override {
 		return destination == var;
 	}
 
-	bool doesRead(VregPtr var) const override {
+	bool doesRead(const VregPtr &var) const override {
 		return source == var;
 	}
 
-	bool doesWrite(VregPtr var) const override {
+	bool doesWrite(const VregPtr &var) const override {
 		return destination == var;
 	}
 };
@@ -117,7 +117,7 @@ struct ThreeRegs: WhyInstruction, HasTwoSources, HasDestination {
 	ThreeRegs(VregPtr left_source, VregPtr right_source, VregPtr destination_):
 		HasTwoSources(left_source, right_source), HasDestination(destination_) {}
 
-	bool replaceRead(VregPtr from, VregPtr to) override {
+	bool replaceRead(const VregPtr &from, const VregPtr &to) override {
 		if (leftSource != from && rightSource != from)
 			return false;
 		if (leftSource == from)
@@ -127,26 +127,26 @@ struct ThreeRegs: WhyInstruction, HasTwoSources, HasDestination {
 		return true;
 	}
 
-	bool canReplaceRead(VregPtr var) const override {
+	bool canReplaceRead(const VregPtr &var) const override {
 		return var == leftSource || var == rightSource;
 	}
 
-	bool replaceWritten(VregPtr from, VregPtr to) override {
+	bool replaceWritten(const VregPtr &from, const VregPtr &to) override {
 		if (destination != from)
 			return false;
 		destination = to;
 		return true;
 	}
 
-	bool canReplaceWritten(VregPtr var) const override {
+	bool canReplaceWritten(const VregPtr &var) const override {
 		return destination == var;
 	}
 
-	bool doesRead(VregPtr var) const override {
+	bool doesRead(const VregPtr &var) const override {
 		return leftSource == var || rightSource == var;
 	}
 
-	bool doesWrite(VregPtr var) const override {
+	bool doesWrite(const VregPtr &var) const override {
 		return destination == var;
 	}
 };
@@ -872,7 +872,7 @@ struct MemsetInstruction: RType {
 	std::vector<VregPtr> getRead() override { return {leftSource, rightSource, destination}; }
 	std::vector<VregPtr> getWritten() override { return {}; }
 
-	virtual bool replaceRead(VregPtr from, VregPtr to) override {
+	virtual bool replaceRead(const VregPtr &from, const VregPtr &to) override {
 		bool changed = false;
 		if (leftSource == from) {
 			leftSource = to;
@@ -889,23 +889,23 @@ struct MemsetInstruction: RType {
 		return changed;
 	}
 
-	virtual bool canReplaceRead(VregPtr vreg) const override {
+	virtual bool canReplaceRead(const VregPtr &vreg) const override {
 		return doesRead(vreg);
 	}
 
-	virtual bool replaceWritten(VregPtr, VregPtr) override {
+	virtual bool replaceWritten(const VregPtr &, const VregPtr &) override {
 		return false;
 	}
 
-	virtual bool canReplaceWritten(VregPtr) const override {
+	virtual bool canReplaceWritten(const VregPtr &) const override {
 		return false;
 	}
 
-	virtual bool doesRead(VregPtr vreg) const override {
+	virtual bool doesRead(const VregPtr &vreg) const override {
 		return vreg == leftSource || vreg == rightSource || vreg == destination;
 	}
 
-	virtual bool doesWrite(VregPtr) const override {
+	virtual bool doesWrite(const VregPtr &) const override {
 		return false;
 	}
 };

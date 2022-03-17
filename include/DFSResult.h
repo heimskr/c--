@@ -21,6 +21,6 @@ struct DFSResult {
 	          const std::vector<Node *> &parents_,
 	          const std::vector<int> &discovered_,
 	          const std::vector<int> &finished_);
-};
+} __attribute__((aligned(128)));
 
 std::ostream & operator<<(std::ostream &, const DFSResult &);

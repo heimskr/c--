@@ -1,20 +1,20 @@
 #pragma once
 
 struct Checkable {
-	virtual ~Checkable() {}
+	virtual ~Checkable() = default;
 
 	template <typename T>
-	bool is() const {
+	[[nodiscard]] bool is() const {
 		return bool(dynamic_cast<const T *>(this));
 	}
 
 	template <typename T>
-	T * cast() {
+	[[nodiscard]] T * cast() {
 		return dynamic_cast<T *>(this);
 	}
 
 	template <typename T>
-	const T * cast() const {
+	[[nodiscard]] const T * cast() const {
 		return dynamic_cast<const T *>(this);
 	}
 };

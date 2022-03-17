@@ -10,12 +10,13 @@ class Function;
 struct DebugData {
 	std::string mangledFunction;
 	ASTLocation location;
-	DebugData(const ASTLocation &location_ = {}, const std::string &mangled_function = {}):
-		mangledFunction(mangled_function), location(location_) {}
+	DebugData() = default;
+	explicit DebugData(ASTLocation location_, std::string mangled_function = {}):
+		mangledFunction(std::move(mangled_function)), location(location_) {}
 	DebugData(const ASTLocation &, const Function &);
 	bool operator<(const DebugData &) const;
-	operator bool() const;
-};
+	explicit operator bool() const;
+} __attribute__((aligned(64)));
 
 namespace std {
 	template <>

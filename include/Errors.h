@@ -16,9 +16,9 @@ struct GenericError: std::runtime_error {
 	ASTLocation location;
 	using std::runtime_error::runtime_error;
 	template <typename... Args>
-	GenericError(const ASTLocation &location_, Args &&...args):
+	explicit GenericError(const ASTLocation &location_, Args &&...args):
 		std::runtime_error(std::forward<Args>(args)...), location(location_) {}
-};
+} __attribute__((packed, aligned(16)));
 
 struct ResolutionError: GenericError {
 	std::shared_ptr<Scope> scope;

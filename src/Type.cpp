@@ -198,7 +198,7 @@ Type * Type::get(const ASTNode &node, Program &program, bool allow_forward) {
 			return new PointerType(new UnsignedType(8));
 		case CPMTOK_LSQUARE: {
 			auto expr = std::unique_ptr<Expr>(Expr::get(*node.at(1)));
-			auto count = expr->evaluate({program, nullptr});
+			auto count = expr->evaluate(Context(program, nullptr));
 			if (!count)
 				throw GenericError(node.location, "Array size expression must be a compile-time constant: " +
 					std::string(*expr) + " (at " + std::string(expr->getLocation()) + ")");

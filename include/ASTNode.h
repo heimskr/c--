@@ -11,9 +11,12 @@ struct ASTLocation {
 	size_t line = 0;
 	size_t column = 0;
 
-	operator std::string() const;
-	operator bool() const;
-};
+	ASTLocation() = default;
+	explicit ASTLocation(size_t line_, size_t column_): line(line_), column(column_) {}
+
+	explicit operator std::string() const;
+	explicit operator bool() const;
+} __attribute__((aligned(16)));
 
 std::ostream & operator<<(std::ostream &, const ASTLocation &);
 
@@ -21,13 +24,13 @@ class Parser;
 
 class ASTNode {
 	private:
-		ASTNode() {}
+		ASTNode() = default;
 
 	public:
-		Parser *parser;
-		int symbol;
+		Parser *parser = nullptr;
+		int symbol = 0;
 		ASTLocation location;
-		const std::string *text;
+		const std::string *text = nullptr;
 		ASTNode *parent = nullptr;
 		std::list<ASTNode *> children;
 		std::set<std::string> attributes;
@@ -42,6 +45,10 @@ class ASTNode {
 		/** Constructs an ASTNode that adopts another node and copies its location. */
 		ASTNode(Parser &, int sym, ASTNode *, const char *info = "");
 		ASTNode(Parser &, int sym, ASTNode *, const std::string *info);
+		ASTNode(const ASTNode &) = delete;
+		ASTNode(ASTNode &&) = delete;
+		ASTNode & operator=(const ASTNode &) = delete;
+		ASTNode & operator=(ASTNode &&) = delete;
 		virtual ~ASTNode();
 
 		ASTNode * operator[](size_t) const;
@@ -58,8 +65,8 @@ class ASTNode {
 		/** Copies the location from the first node in the list that isn't null. */
 		ASTNode * locate(std::initializer_list<const ASTNode *>);
 		ASTNode * locate(const ASTLocation &);
-		long atoi() const;
-		long atoi(int offset) const;
+		int64_t atoi() const;
+		int64_t atoi(int offset) const;
 		std::string unquote(bool unescape = true) const;
 		char getChar() const;
 		const char * getName() const;

@@ -19,16 +19,15 @@ typedef ASTNode * WASMSTYPE;
 #endif
 
 #ifdef __APPLE__
-typedef size_t yysize;
+using yysize = size_t;
 #else
-typedef int yysize;
+using yysize = int;
 #endif
 
 extern FILE *cpmin, *wasmin;
 extern char *cpmtext, *wasmtext;
 extern yysize cpmleng, wasmleng;
 extern int cpm_flex_debug, wasm_flex_debug;
-extern int cpmdebug, wasmdebug;
 
 class Parser;
 
@@ -39,7 +38,7 @@ class Lexer {
 		ASTNode **lval;
 
 	public:
-		ASTLocation location = {0, 1};
+		ASTLocation location {0, 1};
 		std::string line;
 		yysize lastYylength = 0;
 		std::unordered_map<int, std::string> lines;
@@ -58,13 +57,11 @@ extern Lexer cpmLexer, wasmLexer;
 
 int cpmlex();
 int cpmlex_destroy();
-int cpmparse();
 void cpmerror(const std::string &);
 void cpmerror(const std::string &, const ASTLocation &);
 
 int wasmlex();
 int wasmlex_destroy();
-int wasmparse();
 void wasmerror(const char *);
 void wasmerror(const std::string &);
 void wasmerror(const std::string &, const ASTLocation &);

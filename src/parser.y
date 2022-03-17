@@ -30,7 +30,7 @@ using AN = ASTNode;
 %define api.prefix {cpm}
 
 %initial-action {
-    cpmParser.root = new ASTNode(cpmParser, CPMTOK_ROOT, {0, 0}, "");
+    cpmParser.root = new ASTNode(cpmParser, CPMTOK_ROOT, ASTLocation(), "");
 }
 
 %token CPMTOK_ROOT CPMTOK_NUMBER CPMTOK_IDENT CPMTOK_STRING CPMTOK_CHAR

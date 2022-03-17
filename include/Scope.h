@@ -44,7 +44,7 @@ struct Scope: Checkable, std::enable_shared_from_this<Scope> {
 	virtual bool insert(VariablePtr) = 0;
 	Scope & setProgram(Program &program_) { program = &program_; return *this; }
 	virtual Program & getProgram() const {
-		if (!program)
+		if (program == nullptr)
 			throw std::runtime_error(std::string(typeid(*this).name()) +
 				" instance isn't connected to a program instance");
 		return *program;
@@ -55,7 +55,7 @@ struct Scope: Checkable, std::enable_shared_from_this<Scope> {
 	virtual std::string getName() const { return ""; }
 
 	virtual std::string partialStringify() const = 0;
-	virtual operator std::string() const { return partialStringify(); }
+	virtual explicit operator std::string() const { return partialStringify(); }
 
 	template <typename T>
 	std::shared_ptr<T> ptrcast() {
@@ -66,13 +66,13 @@ struct Scope: Checkable, std::enable_shared_from_this<Scope> {
 	std::shared_ptr<const T> ptrcast() const {
 		return std::dynamic_pointer_cast<const T>(shared_from_this());
 	}
-};
+} __attribute__((packed));
 
 using ScopePtr = std::shared_ptr<Scope>;
 
 struct GlobalScope: Scope, Makeable<GlobalScope> {
 	Program &program;
-	GlobalScope(Program &program_): program(program_) {}
+	explicit GlobalScope(Program &program_): program(program_) {}
 	VariablePtr lookup(const std::string &) const override;
 	Functions lookupFunctions(const std::string &, TypePtr, const Types &, const std::string &) const override;
 	Functions lookupFunctions(const std::string &, const Types &, const std::string &) const override;
@@ -81,7 +81,7 @@ struct GlobalScope: Scope, Makeable<GlobalScope> {
 	bool doesConflict(const std::string &) const override;
 	bool insert(VariablePtr) override;
 	std::string partialStringify() const override { return "global"; }
-};
+} __attribute__((packed));
 
 struct FunctionScope: Scope, Makeable<FunctionScope> {
 	Function &function;

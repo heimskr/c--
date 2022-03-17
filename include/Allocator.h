@@ -17,12 +17,16 @@ class Allocator {
 
 		std::shared_ptr<VirtualRegister> lastSpill, lastSpillAttempt;
 
-		Allocator(Function &function_): function(function_) {}
-		virtual ~Allocator() {}
+		explicit Allocator(Function &function_): function(function_) {}
+		Allocator(const Allocator &) = delete;
+		Allocator(Allocator &&) = delete;
+		Allocator & operator=(const Allocator &) = delete;
+		Allocator & operator=(Allocator &&) = delete;
+		virtual ~Allocator() = default;
 
 		virtual Result attempt() = 0;
-		int getAttempts() const { return attempts; }
-		int getSpillCount() const { return spillCount; }
+		[[nodiscard]] int getAttempts() const { return attempts; }
+		[[nodiscard]] int getSpillCount() const { return spillCount; }
 
 		static std::string stringify(Result result) {
 			return result == Result::Spilled? "Spilled" : (result == Result::NotSpilled? "NotSpilled" :

@@ -46,7 +46,7 @@ using AN = ASTNode;
 %define api.prefix {wasm}
 
 %initial-action {
-    wasmParser.root = new ASTNode(wasmParser, WASMTOK_ROOT, {0, 0}, "");
+    wasmParser.root = new ASTNode(wasmParser, WASMTOK_ROOT, ASTLocation(), "");
 }
 
 %token WASMTOK_ROOT WASMTOK_IDENT

@@ -1,0 +1,18 @@
+#name "More Efficient Register Saving Test"
+#author "Kai Tamkun"
+#orcid "0000-0001-7405-6654"
+#version "0.1"
+
+s64 mult2(s64 in) {
+	return in * 2;
+}
+
+s64 foo(s64 in) {
+	return 300 + mult2(in) + 400;
+}
+
+void main() {
+	s64 x = 100 + foo(6606) + 200;
+	`s64(x); // Should print 14212
+	`c('\n');
+}

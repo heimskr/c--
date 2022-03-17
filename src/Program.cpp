@@ -259,17 +259,17 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 void Program::compile() {
 	lines = {"#meta"};
 	if (!name.empty())
-		lines.push_back("name: " + name);
+		lines.emplace_back("name: " + name);
 	if (!author.empty())
-		lines.push_back("author: " + author);
+		lines.emplace_back("author: " + author);
 	if (!orcid.empty())
-		lines.push_back("orcid: " + orcid);
+		lines.emplace_back("orcid: " + orcid);
 	if (!version.empty())
-		lines.push_back("version: " + version);
-	lines.push_back("");
-	lines.push_back("#text");
-	lines.push_back("");
-	lines.push_back("%data");
+		lines.emplace_back("version: " + version);
+	lines.emplace_back("");
+	lines.emplace_back("#text");
+	lines.emplace_back("");
+	lines.emplace_back("%data");
 	auto init_scope = std::make_shared<GlobalScope>(*this);
 
 	auto &init = functions.at(".init");
@@ -277,12 +277,12 @@ void Program::compile() {
 	for (const auto &iter: globalOrder) {
 		const auto &global_name = iter->first;
 		const auto &expr = iter->second->value;
-		lines.push_back("");
-		lines.push_back("@" + global_name);
+		lines.emplace_back("");
+		lines.emplace_back("@" + global_name);
 		auto type = iter->second->getType();
 		auto size = type->getSize();
 		if (expr) {
-			auto value = expr->evaluate({*this, init->selfScope});
+			auto value = expr->evaluate(Context(*this, init->selfScope));
 			if (value && size == 1) {
 				lines.push_back("\t%1b " + std::to_string(*value));
 			} else if (value && size == 2) {
@@ -293,13 +293,13 @@ void Program::compile() {
 				lines.push_back("\t%8b " + std::to_string(*value));
 			} else {
 				lines.push_back("\t%fill " + std::to_string(size) + " 0");
-				TypePtr expr_type = expr->getType({*this, init->selfScope});
+				TypePtr expr_type = expr->getType(Context(*this, init->selfScope));
 				VregPtr vreg = init->newVar();
 				if (auto *initializer = expr->cast<InitializerExpr>()) {
 					init->add<SetIInstruction>(vreg, global_name);
-					initializer->fullCompile(vreg, *init, {*this, init_scope});
+					initializer->fullCompile(vreg, *init, Context(*this, init_scope));
 				} else {
-					expr->compile(vreg, *init, {*this, init_scope});
+					expr->compile(vreg, *init, Context(*this, init_scope));
 					if (!tryCast(*expr_type, *type, vreg, *init, expr->getLocation()))
 						throw ImplicitConversionError(expr_type, type, expr->getLocation());
 					init->add<StoreIInstruction>(vreg, iter->first, size)->setDebug(*expr);

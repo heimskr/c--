@@ -159,7 +159,8 @@ size_t Function::argumentCount() const {
 void Function::compile() {
 	const bool is_init = name == ".init";
 
-	DebugData default_debug = source? DebugData(source->location, *this) : DebugData({0, 0}, *this);
+	DebugData default_debug = source != nullptr?
+		DebugData(source->location, *this) : DebugData(ASTLocation(0, 0), *this);
 
 	if (!is_init) {
 		if (isBuiltin())
@@ -222,7 +223,9 @@ void Function::compile() {
 		if (!is_init) {
 			const bool is_saved = isSaved();
 			std::set<int> gp_regs = is_saved? usedGPRegisters() : std::set<int>();
-			auto fp = precolored(Why::framePointerOffset), sp = precolored(Why::stackPointerOffset), m5 = mx(5);
+			auto fp = precolored(Why::framePointerOffset),
+			     sp = precolored(Why::stackPointerOffset),
+			     m5 = mx(5);
 			if (stackUsage != 0)
 				addFront<SubIInstruction>(sp, sp, stackUsage)->setDebug(default_debug);
 			addFront<MoveInstruction>(sp, fp)->setDebug(default_debug);
@@ -235,7 +238,7 @@ void Function::compile() {
 			addFront<StackPushInstruction>(rt)->setDebug(default_debug);
 			if (attributes.count(Attribute::Constructor) != 0) {
 				addComment("Automatically return \"this\"");
-				add<MoveInstruction>(argumentMap.at("this"), precolored(Why::returnValueOffset))
+				add<MoveInstruction>(argumentMap.at("this"), rt)
 					->setDebug(default_debug);
 			}
 			add<MoveInstruction>(fp, sp)->setDebug(default_debug);
@@ -420,7 +423,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			const std::string start = label + "w.s", end = label + "w.e";
 			add<Label>(start);
 			auto temp_var = newVar();
-			const TypePtr condition_type = condition->getType({program, currentScope()});
+			const TypePtr condition_type = condition->getType(Context(program, currentScope()));
 			if (!(*condition_type && BoolType()))
 				throw ImplicitConversionError(condition_type, BoolType::make(), condition->getLocation());
 			condition->compile(temp_var, *this, currentContext());
@@ -487,7 +490,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			const std::string base = "." + mangle() + "." + std::to_string(++nextBlock), end_label = base + "if.end";
 			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
 			auto temp_var = newVar();
-			const TypePtr condition_type = condition->getType({program, currentScope()});
+			const TypePtr condition_type = condition->getType(Context(program, currentScope()));
 			if (!(*condition_type && BoolType()))
 				throw ImplicitConversionError(condition_type, BoolType::make(), condition->getLocation());
 			condition->compile(temp_var, *this, currentContext());
@@ -515,7 +518,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 		case CPMTOK_ASM: {
 			wasmParser.errorCount = 0;
 			const std::string wasm_source = node.front()->unquote();
-			wasmLexer.location = {0, 0};
+			wasmLexer.location = ASTLocation();
 			wasmParser.in(wasm_source);
 			wasmParser.debug(false, false);
 			wasmParser.parse();
@@ -579,7 +582,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 		}
 		case CPMTOK_DELETE: {
 			auto expr = ExprPtr(Expr::get(*node.front(), this));
-			auto type = TypePtr(expr->getType({program, currentScope()}));
+			auto type = TypePtr(expr->getType(Context(program, currentScope())));
 			if (!type->isPointer())
 				throw GenericError(node.front()->location, "Only pointers can be deleted");
 			auto pointer_type = type->ptrcast<PointerType>();
@@ -1359,7 +1362,7 @@ void Function::closeScope(ScopePtr scope) {
 				auto call = std::make_unique<CallExpr>(destructor_expr);
 				call->structExpr = std::make_unique<VariableExpr>(var->name);
 				addComment("Calling destructor for " + std::string(*struct_type) + " " + var->name);
-				call->compile(nullptr, *this, {program, scope, currentContext().structName}, 1);
+				call->compile(nullptr, *this, Context(program, scope, currentContext().structName), 1);
 			}
 	}
 }
