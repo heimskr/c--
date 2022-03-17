@@ -358,7 +358,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 						initializer->fullCompile(addr_var, *this, currentContext());
 					}
 				} else {
-					expr->compile(variable, *this, currentContext());
+					expr->compile(variable, *this, currentContext(), 1);
 					typeCheck(*expr->getType(currentContext()), *variable->getType(), variable, *this,
 						expr->getLocation());
 					store_back = true;
@@ -393,7 +393,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 						throw LvalueError(*expr->getType(currentContext()), expr->getLocation());
 				} else {
 					addComment("Returning value");
-					expr->compile(r0, *this, currentContext());
+					expr->compile(r0, *this, currentContext(), 1);
 				}
 				typeCheck(*expr->getType(currentContext()), *returnType, r0, *this, node.location);
 			}
@@ -413,7 +413,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 		}
 		case CPMTOK_LPAREN:
 			checkNaked(node);
-			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, currentContext());
+			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, currentContext(), 1);
 			break;
 		case CPMTOK_WHILE: {
 			checkNaked(node);
@@ -426,7 +426,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			const TypePtr condition_type = condition->getType(Context(program, currentScope()));
 			if (!(*condition_type && BoolType()))
 				throw ImplicitConversionError(condition_type, BoolType::make(), condition->getLocation());
-			condition->compile(temp_var, *this, currentContext());
+			condition->compile(temp_var, *this, currentContext(), 1);
 			add<LnotRInstruction>(temp_var, temp_var)->setDebug({node.location, *this});
 			add<JumpConditionalInstruction>(end, temp_var)->setDebug({node.location, *this});
 			openScope(start);
@@ -451,7 +451,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			const TypePtr condition_type = condition->getType(currentContext());
 			if (!(*condition_type && BoolType()))
 				throw ImplicitConversionError(condition_type, BoolType::make(), condition->getLocation());
-			condition->compile(temp_var, *this, currentContext());
+			condition->compile(temp_var, *this, currentContext(), 1);
 			add<LnotRInstruction>(temp_var, temp_var)->setDebug({node.location, *this});
 			add<JumpConditionalInstruction>(end, temp_var)->setDebug({node.location, *this});
 			compile(*node.at(3), end, next, current_scope);
@@ -493,7 +493,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			const TypePtr condition_type = condition->getType(Context(program, currentScope()));
 			if (!(*condition_type && BoolType()))
 				throw ImplicitConversionError(condition_type, BoolType::make(), condition->getLocation());
-			condition->compile(temp_var, *this, currentContext());
+			condition->compile(temp_var, *this, currentContext(), 1);
 			add<LnotRInstruction>(temp_var, temp_var)->setDebug({node.location, *this});
 			if (node.size() == 3) {
 				const std::string else_label = base + "if.else";
@@ -554,7 +554,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 						auto expr = ExprPtr(Expr::get(*child, this));
 						const std::string wasm_vreg = "$" + std::to_string(1 + input_counter++);
 						VregPtr temp_var = newVar();
-						expr->compile(temp_var, *this, currentContext());
+						expr->compile(temp_var, *this, currentContext(), 1);
 						map.emplace(wasm_vreg, temp_var);
 					}
 				}
@@ -587,7 +587,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				throw GenericError(node.front()->location, "Only pointers can be deleted");
 			auto pointer_type = type->ptrcast<PointerType>();
 			auto temp_var = newVar(type);
-			expr->compile(temp_var, *this, currentContext());
+			expr->compile(temp_var, *this, currentContext(), 1);
 			if (auto *struct_type = pointer_type->subtype->cast<StructType>())
 				if (struct_type->getDestructor()) {
 					auto call = std::make_unique<CallExpr>(new VariableExpr("$d"));
@@ -615,7 +615,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 		case CPMTOK_ANDEQ:
 		case CPMTOK_OREQ:
 		case CPMTOK_XOREQ: {
-			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, currentContext());
+			ExprPtr(Expr::get(node, this))->compile(nullptr, *this, currentContext(), 1);
 			break;
 		}
 		default:
@@ -1215,8 +1215,8 @@ void Function::doPointerArithmetic(TypePtr left_type, TypePtr right_type, Expr &
 	} else if (!(*left_type && *right_type)) {
 		throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()), location);
 	} else {
-		left.compile(left_var, *this, context);
-		right.compile(right_var, *this, context);
+		left.compile(left_var, *this, context, 1);
+		right.compile(right_var, *this, context, 1);
 	}
 }
 

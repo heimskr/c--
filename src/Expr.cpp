@@ -45,7 +45,7 @@ void compileCall(VregPtr destination, Function &function, const Context &context
 				throw GenericError(expr->getLocation(),
 					"Structs cannot be directly passed to functions; use a pointer");
 			} else
-				expr->compile(argument_register, function, context);
+				expr->compile(argument_register, function, context, 1);
 			try {
 				typeCheck(*argument_type, fn_arg_type, argument_register, function, expr->getLocation());
 			} catch (std::out_of_range &err) {
@@ -477,8 +477,8 @@ void MinusExpr::compile(VregPtr destination, Function &function, const Context &
 		} else if (!(*left_type && *right_type) && !(left_type->isPointer() && right_type->isPointer())) {
 			throw ImplicitConversionError(TypePtr(left_type->copy()), TypePtr(right_type->copy()), getLocation());
 		} else {
-			left->compile(left_var, function, context);
-			right->compile(right_var, function, context);
+			left->compile(left_var, function, context, 1);
+			right->compile(right_var, function, context, 1);
 		}
 
 		function.add<SubRInstruction>(left_var, right_var, destination)->setDebug(*this);
@@ -517,7 +517,7 @@ void ShiftLeftExpr::compile(VregPtr destination, Function &function, const Conte
 	} else {
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, context, multiplier);
-		right->compile(destination, function, context);
+		right->compile(destination, function, context, 1);
 		function.add<ShiftLeftLogicalRInstruction>(temp_var, destination, destination)->setDebug(*this);
 	}
 }
@@ -540,7 +540,7 @@ void ShiftRightExpr::compile(VregPtr destination, Function &function, const Cont
 	} else {
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, context, multiplier);
-		right->compile(destination, function, context);
+		right->compile(destination, function, context, 1);
 		if (left->getType(context)->isUnsigned())
 			function.add<ShiftRightLogicalRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		else
@@ -568,8 +568,8 @@ void AndExpr::compile(VregPtr destination, Function &function, const Context &co
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
-		left->compile(temp_var, function, context);
-		right->compile(destination, function, context);
+		left->compile(temp_var, function, context, 1);
+		right->compile(destination, function, context, 1);
 		function.add<AndRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -593,8 +593,8 @@ void OrExpr::compile(VregPtr destination, Function &function, const Context &con
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
-		left->compile(temp_var, function, context);
-		right->compile(destination, function, context);
+		left->compile(temp_var, function, context, 1);
+		right->compile(destination, function, context, 1);
 		function.add<OrRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -618,8 +618,8 @@ void XorExpr::compile(VregPtr destination, Function &function, const Context &co
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		VregPtr temp_var = function.newVar();
-		left->compile(temp_var, function, context);
-		right->compile(destination, function, context);
+		left->compile(temp_var, function, context, 1);
+		right->compile(destination, function, context, 1);
 		function.add<XorRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -644,11 +644,11 @@ void LandExpr::compile(VregPtr destination, Function &function, const Context &c
 	} else {
 		const std::string base = "." + function.mangle() + "." + std::to_string(function.getNextBlock());
 		const std::string success = base + "land.s", end = base + "land.e";
-		left->compile(destination, function, context);
+		left->compile(destination, function, context, 1);
 		function.add<JumpConditionalInstruction>(success, destination, false)->setDebug(*this);
 		function.add<JumpInstruction>(end)->setDebug(*this);
 		function.add<Label>(success);
-		right->compile(destination, function, context);
+		right->compile(destination, function, context, 1);
 		function.add<Label>(end);
 
 		if (multiplier != 1)
@@ -669,9 +669,9 @@ void LorExpr::compile(VregPtr destination, Function &function, const Context &co
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		const std::string success = "." + function.mangle() + "." + std::to_string(function.getNextBlock()) + "lor.s";
-		left->compile(destination, function, context);
+		left->compile(destination, function, context, 1);
 		function.add<JumpConditionalInstruction>(success, destination, false)->setDebug(*this);
-		right->compile(destination, function, context);
+		right->compile(destination, function, context, 1);
 		function.add<Label>(success);
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -691,8 +691,8 @@ void LxorExpr::compile(VregPtr destination, Function &function, const Context &c
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
 		auto temp_var = function.newVar();
-		left->compile(destination, function, context);
-		right->compile(temp_var, function, context);
+		left->compile(destination, function, context, 1);
+		right->compile(temp_var, function, context, 1);
 		function.add<LxorRInstruction>(destination, temp_var, destination)->setDebug(*this);
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -713,7 +713,7 @@ void DivExpr::compile(VregPtr destination, Function &function, const Context &co
 	} else {
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, context, multiplier);
-		right->compile(destination, function, context);
+		right->compile(destination, function, context, 1);
 		if (left->getType(context)->isUnsigned())
 			function.add<DivuRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		else
@@ -743,7 +743,7 @@ void ModExpr::compile(VregPtr destination, Function &function, const Context &co
 	} else {
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, context, multiplier);
-		right->compile(destination, function, context);
+		right->compile(destination, function, context, 1);
 		if (left->getType(context)->isUnsigned())
 			function.add<ModuRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		else
@@ -895,14 +895,13 @@ void VariableExpr::compile(VregPtr destination, Function &function, const Contex
 		}
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
-		return;
 	} else if (const auto fn = context.scope->lookupFunction(name, getLocation())) {
 		function.add<SetIInstruction>(destination, fn->mangle())->setDebug(*this);
 	} else
 		throw ResolutionError(name, context.scope, getLocation());
 }
 
-bool VariableExpr::compileAddress(VregPtr destination, Function &function, const Context &context) {
+bool VariableExpr::compileAddress(const VregPtr &destination, Function &function, const Context &context) {
 	if (VariablePtr var = context.scope->lookup(name)) {
 		if (auto global = std::dynamic_pointer_cast<Global>(var)) {
 			function.add<SetIInstruction>(destination, global->name)->setDebug(*this);
@@ -926,9 +925,9 @@ bool VariableExpr::compileAddress(VregPtr destination, Function &function, const
 }
 
 size_t VariableExpr::getSize(const Context &context) const {
-	if (VariablePtr var = context.scope->lookup(name)) {
+	if (VariablePtr var = context.scope->lookup(name))
 		return var->getSize();
-	} else if (context.scope->lookupFunction(name, nullptr, {}, "", getLocation()))
+	if (context.scope->lookupFunction(name, nullptr, {}, "", getLocation()))
 		return Why::wordSize;
 	throw ResolutionError(name, context, getLocation());
 }
@@ -951,12 +950,12 @@ void AddressOfExpr::compile(VregPtr destination, Function &function, const Conte
 		return;
 
 	if (!subexpr->compileAddress(destination, function, context))
-		throw LvalueError(*subexpr);
+		throw LvalueError(std::string(*subexpr));
 }
 
 std::unique_ptr<Type> AddressOfExpr::getType(const Context &context) const {
 	if (!subexpr->isLvalue(context))
-		throw LvalueError(*subexpr);
+		throw LvalueError(std::string(*subexpr));
 	auto subexpr_type = subexpr->getType(context);
 	auto out = std::make_unique<PointerType>(subexpr_type->copy());
 	out->subtype->setConst(subexpr_type->isConst);
@@ -968,7 +967,7 @@ void NotExpr::compile(VregPtr destination, Function &function, const Context &co
 	if (auto fnptr = function.program.getOperator({type.get()}, CPMTOK_TILDE, getLocation())) {
 		compileCall(destination, function, context, fnptr, {subexpr.get()}, getLocation(), multiplier);
 	} else {
-		subexpr->compile(destination, function, context);
+		subexpr->compile(destination, function, context, 1);
 		function.add<NotRInstruction>(destination, destination)->setDebug(*this);
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -987,7 +986,7 @@ void LnotExpr::compile(VregPtr destination, Function &function, const Context &c
 	if (auto fnptr = function.program.getOperator({type.get()}, CPMTOK_NOT, getLocation())) {
 		compileCall(destination, function, context, fnptr, {subexpr.get()}, getLocation(), multiplier);
 	} else {
-		subexpr->compile(destination, function, context);
+		subexpr->compile(destination, function, context, 1);
 		function.add<LnotRInstruction>(destination, destination)->setDebug(*this);
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -1052,7 +1051,7 @@ std::unique_ptr<Type> DerefExpr::checkType(const Context &context) const {
 	return type;
 }
 
-bool DerefExpr::compileAddress(VregPtr destination, Function &function, const Context &context) {
+bool DerefExpr::compileAddress(const VregPtr &destination, Function &function, const Context &context) {
 	checkType(context);
 	subexpr->compile(destination, function, context, 1);
 	return true;
@@ -1126,7 +1125,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 				if (pointer_type->subtype->isStruct()) {
 					fn.addComment("Setting \"this\" from pointer.");
 					this_var->setType(*struct_expr_type);
-					structExpr->compile(this_var, fn, context);
+					structExpr->compile(this_var, fn, context, 1);
 					goto this_done; // Hehe :)
 				}
 			} else if (const auto *reference_type = struct_expr_type->cast<ReferenceType>()) {
@@ -1181,7 +1180,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 		get_arg_type = [subfn](size_t i) -> const Type & { return *subfn->argumentTypes.at(i); };
 		add_jump = [this, &fn, &context] {
 			auto jump_destination = fn.newVar();
-			subexpr->compile(jump_destination, fn, context);
+			subexpr->compile(jump_destination, fn, context, 1);
 			fn.add<JumpRegisterInstruction>(jump_destination, true)->setDebug(*this);;
 		};
 	}
@@ -1200,7 +1199,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 			throw GenericError(argument->getLocation(),
 				"Structs cannot be directly passed to functions; use a pointer");
 		} else
-			argument->compile(argument_register, fn, context);
+			argument->compile(argument_register, fn, context, 1);
 		try {
 			typeCheck(*argument_type, function_argument_type, argument_register, fn, argument->getLocation());
 		} catch (ImplicitConversionError &) {
@@ -1244,7 +1243,7 @@ TypePtr CallExpr::getReturnType(const Context &context) const {
 	return TypePtr(subfn->returnType->copy());
 }
 
-bool CallExpr::compileAddress(VregPtr destination, Function &function, const Context &context) {
+bool CallExpr::compileAddress(const VregPtr &destination, Function &function, const Context &context) {
 	if (isLvalue(context)) {
 		function.addComment("Starting Call::compileAddress");
 		compile(destination, function, context, 1);
@@ -1390,7 +1389,7 @@ void AssignExpr::compile(VregPtr destination, Function &function, const Context 
 				initializer_expr->fullCompile(addr_var, function, context);
 			}
 		} else {
-			right->compile(destination, function, context);
+			right->compile(destination, function, context, 1);
 			if (!tryCast(*right_type, *left_type, destination, function, getLocation()))
 				throw ImplicitConversionError(right_type, left_type, getLocation());
 			function.add<StoreRInstruction>(destination, addr_var, getSize(context))->setDebug(*this);
@@ -1413,7 +1412,7 @@ std::optional<ssize_t> AssignExpr::evaluate(const Context &context) const {
 	return right? right->evaluate(context) : std::nullopt;
 }
 
-bool AssignExpr::compileAddress(VregPtr destination, Function &function, const Context &context) {
+bool AssignExpr::compileAddress(const VregPtr &destination, Function &function, const Context &context) {
 	return left? left->compileAddress(destination, function, context) : false;
 }
 
@@ -1461,9 +1460,9 @@ void AccessExpr::fail() const {
 		"type");
 }
 
-bool AccessExpr::compileAddress(VregPtr destination, Function &function, const Context &context) {
+bool AccessExpr::compileAddress(const VregPtr &destination, Function &function, const Context &context) {
 	if (check(context)->isPointer())
-		array->compile(destination, function, context);
+		array->compile(destination, function, context, 1);
 	else if (!array->compileAddress(destination, function, context))
 		throw LvalueError(std::string(*array->getType(context)));
 	const auto element_size = getSize(context);
@@ -1474,7 +1473,7 @@ bool AccessExpr::compileAddress(VregPtr destination, Function &function, const C
 				->setDebug(*this);
 	} else {
 		auto subscript_variable = function.newVar();
-		subscript->compile(subscript_variable, function, context);
+		subscript->compile(subscript_variable, function, context, 1);
 		if (element_size != 1)
 			function.add<MultIInstruction>(subscript_variable, subscript_variable, element_size)->setDebug(*this);
 		function.add<AddRInstruction>(destination, subscript_variable, destination)->setDebug(*this);
@@ -1517,7 +1516,7 @@ void LengthExpr::compile(VregPtr destination, Function &function, const Context 
 void TernaryExpr::compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) {
 	const std::string base = "." + function.mangle() + "." + std::to_string(function.getNextBlock());
 	const std::string true_label = base + "t.t", end = base + "t.e";
-	condition->compile(destination, function, context);
+	condition->compile(destination, function, context, 1);
 	function.add<JumpConditionalInstruction>(true_label, destination, false)->setDebug(*this);
 	ifFalse->compile(destination, function, context, multiplier);
 	function.add<JumpInstruction>(end)->setDebug(*this);
@@ -1547,7 +1546,7 @@ void DotExpr::compile(VregPtr destination, Function &function, const Context &co
 	Util::validateSize(field_size);
 	auto left_type = left->getType(context);
 	if (!left->compileAddress(destination, function, context))
-		throw LvalueError(*left);
+		throw LvalueError(std::string(*left));
 	if (field_offset != 0) {
 		function.addComment("Add dot field offset of " + struct_type->name + "::" + ident);
 		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
@@ -1570,11 +1569,11 @@ std::unique_ptr<Type> DotExpr::getType(const Context &context) const {
 	return out;
 }
 
-bool DotExpr::compileAddress(VregPtr destination, Function &function, const Context &context) {
+bool DotExpr::compileAddress(const VregPtr &destination, Function &function, const Context &context) {
 	auto struct_type = checkType(context);
 	const size_t field_offset = struct_type->getFieldOffset(ident);
 	if (!left->compileAddress(destination, function, context))
-		throw LvalueError(*left);
+		throw LvalueError(std::string(*left));
 	if (field_offset != 0)
 		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
 	return true;
@@ -1625,10 +1624,10 @@ std::unique_ptr<Type> ArrowExpr::getType(const Context &context) const {
 	return out;
 }
 
-bool ArrowExpr::compileAddress(VregPtr destination, Function &function, const Context &context) {
+bool ArrowExpr::compileAddress(const VregPtr &destination, Function &function, const Context &context) {
 	auto struct_type = checkType(context);
 	const size_t field_offset = struct_type->getFieldOffset(ident);
-	left->compile(destination, function, context);
+	left->compile(destination, function, context, 1);
 	if (field_offset != 0) {
 		function.addComment("Add field offset of " + struct_type->name + "::" + ident);
 		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
@@ -1723,7 +1722,7 @@ void InitializerExpr::fullCompile(VregPtr address, Function &function, const Con
 		if (child_type->isInitializer()) {
 			child->cast<InitializerExpr>()->fullCompile(address, function, context);
 		} else {
-			child->compile(temp_var, function, context);
+			child->compile(temp_var, function, context, 1);
 			const size_t size = child->getSize(context);
 			function.addComment("InitializerExpr: store and increment");
 			function.add<StoreRInstruction>(temp_var, address, size)->setDebug(*this);
@@ -1788,7 +1787,7 @@ void ConstructorExpr::compile(VregPtr destination, Function &function, const Con
 			throw GenericError(argument->getLocation(),
 				"Structs cannot be directly passed to functions; use a pointer");
 		} else
-			argument->compile(argument_register, function, context);
+			argument->compile(argument_register, function, context, 1);
 		try {
 			typeCheck(*argument_type, *found->getArgumentType(i), argument_register, function, argument->getLocation());
 		} catch (std::out_of_range &err) {
@@ -1937,7 +1936,7 @@ void NewExpr::compile(VregPtr destination, Function &function, const Context &co
 				throw GenericError(argument->getLocation(),
 					"Structs cannot be directly passed to functions; use a pointer");
 			} else
-				argument->compile(argument_register, function, context);
+				argument->compile(argument_register, function, context, 1);
 			try {
 				typeCheck(*argument_type, *found->getArgumentType(i), argument_register, function,
 					argument->getLocation());
@@ -2003,7 +2002,7 @@ void StaticFieldExpr::compile(VregPtr destination, Function &function, const Con
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
 }
 
-bool StaticFieldExpr::compileAddress(VregPtr destination, Function &function, const Context &context) {
+bool StaticFieldExpr::compileAddress(const VregPtr &destination, Function &function, const Context &context) {
 	function.add<SetIInstruction>(destination, mangle(context));
 	return true;
 }
