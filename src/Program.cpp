@@ -40,9 +40,14 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 					// 4: struct name
 					// 5: static
 					const std::string &struct_name = *node->at(4)->text;
-					if (out.structs.count(struct_name) == 0)
-						throw GenericError(node->at(4)->location, "Can't define function " + struct_name + "::" + name
-							+ ": struct not defined");
+					if (out.structs.count(struct_name) == 0) {
+						std::string message = "Can't define function ";
+						message += struct_name;
+						message += "::";
+						message += name;
+						message += ": struct not defined";
+						throw GenericError(node->at(4)->location, message);
+					}
 					function->setStructParent(out.structs.at(struct_name), size == 6);
 					if (function->name == "$d") {
 						if (auto destructor = function->structParent->destructor.lock())

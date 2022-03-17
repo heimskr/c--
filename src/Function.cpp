@@ -1285,11 +1285,11 @@ Function * Function::demangle(const std::string &mangled, Program &program) {
 }
 
 bool Function::isDeclaredOnly() const {
-	return !source && !isBuiltin();
+	return source == nullptr && !isBuiltin();
 }
 
-bool Function::isMatch(TypePtr return_type, const std::vector<TypePtr> &argument_types, const std::string &struct_name)
-const {
+bool Function::isMatch(const TypePtr &return_type, const std::vector<TypePtr> &argument_types,
+                       const std::string &struct_name) const {
 	std::vector<Type *> raw_pointers;
 	raw_pointers.reserve(argument_types.size());
 	for (const auto &type: argument_types)
@@ -1298,8 +1298,8 @@ const {
 	return isMatch(return_type, raw_pointers, struct_name);
 }
 
-bool Function::isMatch(TypePtr return_type, const std::vector<Type *> &argument_types, const std::string &struct_name)
-const {
+bool Function::isMatch(const TypePtr &return_type, const std::vector<Type *> &argument_types,
+                       const std::string &struct_name) const {
 	if (return_type && *returnType != *return_type)
 		return false;
 
@@ -1452,11 +1452,11 @@ bool Function::isConst() const {
 }
 
 bool Function::isOperator() const {
-	return source && source->symbol == CPMTOK_OPERATOR;
+	return source != nullptr && source->symbol == CPMTOK_OPERATOR;
 }
 
 bool Function::isConstructorDeclaration() const {
-	return source && source->symbol == CPM_CONSTRUCTORDECL;
+	return source != nullptr && source->symbol == CPM_CONSTRUCTORDECL;
 }
 
 void Function::replacePlaceholders() {

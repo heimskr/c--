@@ -184,11 +184,11 @@ class Function: public Makeable<Function> {
 
 		bool isDeclaredOnly() const;
 
-		bool isMatch(TypePtr return_type, const std::vector<TypePtr> &argument_types, const std::string &struct_name)
-			const;
+		bool isMatch(const TypePtr &return_type, const std::vector<TypePtr> &argument_types,
+		             const std::string &struct_name) const;
 
-		bool isMatch(TypePtr return_type, const std::vector<Type *> &argument_types, const std::string &struct_name)
-			const;
+		bool isMatch(const TypePtr &return_type, const std::vector<Type *> &argument_types,
+		             const std::string &struct_name) const;
 
 		TypePtr getArgumentType(size_t) const;
 

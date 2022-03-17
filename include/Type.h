@@ -184,10 +184,12 @@ struct FunctionPointerType: Type {
 	Type *returnType;
 	std::vector<Type *> argumentTypes;
 	FunctionPointerType(Type *return_type, std::vector<Type *> &&argument_types);
-	FunctionPointerType(const Function &);
+	explicit FunctionPointerType(const Function &);
 	FunctionPointerType(const FunctionPointerType &) = delete;
+	FunctionPointerType(FunctionPointerType &&) = delete;
 	FunctionPointerType & operator=(const FunctionPointerType &) = delete;
-	~FunctionPointerType();
+	FunctionPointerType & operator=(FunctionPointerType &&) = delete;
+	~FunctionPointerType() override;
 	Type * copy() const override;
 	std::string mangle() const override;
 	size_t getSize() const override { return 8; }
@@ -234,9 +236,9 @@ class StructType: public Type, public Makeable<StructType> {
 
 struct InitializerType: Type, Makeable<InitializerType> {
 	std::vector<TypePtr> children;
-	InitializerType(const std::vector<std::shared_ptr<Expr>> &, const Context &);
-	InitializerType(const std::vector<TypePtr> &children_): children(children_) {}
-	InitializerType(std::vector<TypePtr> &&children_): children(std::move(children_)) {}
+	explicit InitializerType(const std::vector<std::shared_ptr<Expr>> &, const Context &);
+	explicit InitializerType(const std::vector<TypePtr> &children_): children(children_) {}
+	explicit InitializerType(std::vector<TypePtr> &&children_): children(std::move(children_)) {}
 	Type * copy() const override;
 	std::string mangle() const override { throw std::runtime_error("Cannot mangle InitializerType"); }
 	bool isInitializer() const override { return true; }

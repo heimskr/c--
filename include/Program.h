@@ -34,17 +34,17 @@ struct Program {
 
 	Program() = delete;
 
-	Program(const std::string &filename_): filename(filename_) {}
+	explicit Program(std::string filename_): filename(std::move(filename_)) {}
 
 	Program(decltype(globals) &&globals_, decltype(globalOrder) &&global_order, decltype(signatures) &&signatures_,
-	decltype(functions) &&functions_, const std::string &filename_):
+	decltype(functions) &&functions_, std::string filename_):
 		globals(std::move(globals_)), globalOrder(std::move(global_order)), signatures(std::move(signatures_)),
-		functions(std::move(functions_)), filename(filename_) {}
+		functions(std::move(functions_)), filename(std::move(filename_)) {}
 
 	void compile();
 	size_t getStringID(const std::string &);
 
-	FunctionPtr getOperator(const std::vector<Type *> &, int, const ASTLocation & = {}) const;
+	[[nodiscard]] FunctionPtr getOperator(const std::vector<Type *> &, int, const ASTLocation & = {}) const;
 };
 
 Program compileRoot(const ASTNode &, const std::string &filename);
