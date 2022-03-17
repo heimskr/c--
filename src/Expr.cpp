@@ -638,7 +638,7 @@ void LandExpr::compile(VregPtr destination, Function &function, const Context &c
 	if (auto fnptr = getOperator(context)) {
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
-		const std::string base = "." + function.name + "." + std::to_string(function.getNextBlock());
+		const std::string base = "." + function.mangle() + "." + std::to_string(function.getNextBlock());
 		const std::string success = base + "land.s", end = base + "land.e";
 		left->compile(destination, function, context);
 		function.add<JumpConditionalInstruction>(success, destination, false)->setDebug(*this);
@@ -664,7 +664,7 @@ void LorExpr::compile(VregPtr destination, Function &function, const Context &co
 	if (auto fnptr = getOperator(context)) {
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
-		const std::string success = "." + function.name + "." + std::to_string(function.getNextBlock()) + "lor.s";
+		const std::string success = "." + function.mangle() + "." + std::to_string(function.getNextBlock()) + "lor.s";
 		left->compile(destination, function, context);
 		function.add<JumpConditionalInstruction>(success, destination, false)->setDebug(*this);
 		right->compile(destination, function, context);
@@ -1508,7 +1508,7 @@ void LengthExpr::compile(VregPtr destination, Function &function, const Context 
 }
 
 void TernaryExpr::compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) {
-	const std::string base = "." + function.name + "." + std::to_string(function.getNextBlock());
+	const std::string base = "." + function.mangle() + "." + std::to_string(function.getNextBlock());
 	const std::string true_label = base + "t.t", end = base + "t.e";
 	condition->compile(destination, function, context);
 	function.add<JumpConditionalInstruction>(true_label, destination, false)->setDebug(*this);
