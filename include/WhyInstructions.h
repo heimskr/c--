@@ -1170,7 +1170,7 @@ struct TranslateAddressRInstruction: RType {
 
 struct PageStackInstruction: RType {
 	bool isPush;
-	PageStackInstruction(bool is_push, VregPtr rs_): RType(rs_, nullptr, nullptr), isPush(is_push) {}
+	PageStackInstruction(bool is_push, const VregPtr &rs_): RType(rs_, nullptr, nullptr), isPush(is_push) {}
 	explicit operator std::vector<std::string>() const override {
 		if (!leftSource)
 			return {std::string(isPush? "[" : "]") + " %page"};

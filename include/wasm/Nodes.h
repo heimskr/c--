@@ -30,7 +30,7 @@ struct WASMBaseNode: ASTNode {
 struct WASMInstructionNode: WASMBaseNode {
 	using WASMBaseNode::WASMBaseNode;
 
-	std::shared_ptr<VirtualRegister> convertVariable(Function &, VarMap &, const std::string *);
+	static std::shared_ptr<VirtualRegister> convertVariable(Function &, VarMap &, const std::string *);
 	virtual std::unique_ptr<WhyInstruction> convert(Function &, VarMap &) { return nullptr; }
 };
 

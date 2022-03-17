@@ -64,7 +64,7 @@ static Immediate getImmediate(ASTNode *node) {
 		const std::string middle = node->text->substr(1, node->text->size() - 2);
 		if (middle.size() == 1)
 			return middle.front();
-		size_t pos = middle.find_first_not_of("\\");
+		size_t pos = middle.find_first_not_of('\\');
 		if (pos == std::string::npos)
 			return '\\';
 		switch (middle[pos]) {
@@ -89,11 +89,9 @@ WASMBaseNode::WASMBaseNode(int sym): ASTNode(wasmParser, sym) {}
 VregPtr WASMInstructionNode::convertVariable(Function &function, VarMap &map, const std::string *name) {
 	if (registerMap.count(*name) != 0)
 		return function.precolored(registerMap.at(*name), true);
-	if (map.count(*name) == 0) {
+	if (map.count(*name) == 0)
 		throw std::out_of_range("Placeholder not in map: " + *name);
-	} else {
-		return map.at(*name);
-	}
+	return map.at(*name);
 }
 
 WASMImmediateNode::WASMImmediateNode(ASTNode *node): WASMBaseNode(WASM_IMMEDIATE), imm(getImmediate(node)) {
@@ -126,14 +124,13 @@ std::unique_ptr<WhyInstruction> WASMLabelNode::convert(Function &, VarMap &) {
 
 RNode::RNode(ASTNode *rs_, ASTNode *oper_, ASTNode *rt_, ASTNode *rd_, ASTNode *unsigned_):
 WASMInstructionNode(WASM_RNODE), rs(rs_->text), oper(oper_->text), rt(rt_->text), rd(rd_->text),
-operToken(oper_->symbol), isUnsigned(!!unsigned_) {
+operToken(oper_->symbol), isUnsigned(unsigned_ != nullptr) {
 	delete rs_;
 	delete oper_;
 	if (oper_ != rt_)
 		delete rt_;
 	delete rd_;
-	if (unsigned_)
-		delete unsigned_;
+	delete unsigned_;
 }
 
 std::string RNode::debugExtra() const {
@@ -213,13 +210,12 @@ std::unique_ptr<WhyInstruction> RNode::convert(Function &function, VarMap &map) 
 
 INode::INode(ASTNode *rs_, ASTNode *oper_, ASTNode *imm_, ASTNode *rd_, ASTNode *unsigned_):
 WASMInstructionNode(WASM_INODE), rs(rs_->text), oper(oper_->text), rd(rd_->text),
-operToken(oper_->symbol), imm(getImmediate(imm_)), isUnsigned(!!unsigned_) {
+operToken(oper_->symbol), imm(getImmediate(imm_)), isUnsigned(unsigned_ != nullptr) {
 	delete rs_;
 	delete oper_;
 	delete imm_;
 	delete rd_;
-	if (unsigned_)
-		delete unsigned_;
+	delete unsigned_;
 }
 
 std::string INode::debugExtra() const {
@@ -293,11 +289,10 @@ std::unique_ptr<WhyInstruction> INode::convert(Function &function, VarMap &map) 
 }
 
 WASMMemoryNode::WASMMemoryNode(int sym, ASTNode *rs_, ASTNode *rd_, ASTNode *byte_):
-WASMInstructionNode(sym), rs(rs_->text), rd(rd_->text), isByte(!!byte_) {
+WASMInstructionNode(sym), rs(rs_->text), rd(rd_->text), isByte(byte_ != nullptr) {
 	delete rs_;
 	delete rd_;
-	if (byte_)
-		delete byte_;
+	delete byte_;
 }
 
 WASMCopyNode::WASMCopyNode(ASTNode *rs_, ASTNode *rd_, ASTNode *byte_):
@@ -367,11 +362,10 @@ std::unique_ptr<WhyInstruction> WASMSetNode::convert(Function &function, VarMap 
 }
 
 WASMLiNode::WASMLiNode(ASTNode *imm_, ASTNode *rd_, ASTNode *byte_):
-WASMInstructionNode(WASM_LINODE), rd(rd_->text), imm(getImmediate(imm_)), isByte(!!byte_) {
+WASMInstructionNode(WASM_LINODE), rd(rd_->text), imm(getImmediate(imm_)), isByte(byte_ != nullptr) {
 	delete imm_;
 	delete rd_;
-	if (byte_)
-		delete byte_;
+	delete byte_;
 }
 
 std::string WASMLiNode::debugExtra() const {
@@ -387,11 +381,10 @@ std::unique_ptr<WhyInstruction> WASMLiNode::convert(Function &function, VarMap &
 }
 
 WASMSiNode::WASMSiNode(ASTNode *rs_, ASTNode *imm_, ASTNode *byte_):
-WASMInstructionNode(WASM_SINODE), rs(rs_->text), imm(getImmediate(imm_)), isByte(!!byte_) {
+WASMInstructionNode(WASM_SINODE), rs(rs_->text), imm(getImmediate(imm_)), isByte(byte_ != nullptr) {
 	delete rs_;
 	delete imm_;
-	if (byte_)
-		delete byte_;
+	delete byte_;
 }
 
 std::string WASMSiNode::debugExtra() const {
@@ -580,7 +573,7 @@ WASMInstructionNode(WASM_SELNODE), rs(rs_->text), rt(rt_->text), rd(rd_->text) {
 }
 
 std::string WASMSelNode::debugExtra() const {
-	const char *oper_;
+	const char *oper_ = nullptr;
 	switch (condition) {
 		case Condition::Zero:     oper_ = "=";  break;
 		case Condition::Negative: oper_ = "<";  break;
@@ -594,7 +587,7 @@ std::string WASMSelNode::debugExtra() const {
 }
 
 WASMSelNode::operator std::string() const {
-	const char *oper_;
+	const char *oper_ = nullptr;
 	switch (condition) {
 		case Condition::Zero:     oper_ = "=";  break;
 		case Condition::Negative: oper_ = "<";  break;
@@ -616,7 +609,7 @@ WASMJNode::WASMJNode(ASTNode *cond, ASTNode *colons, ASTNode *addr_):
 WASMInstructionNode(WASM_JNODE), addr(getImmediate(addr_)), link(!colons->empty()) {
 	delete addr_;
 	delete colons;
-	if (!cond) {
+	if (cond == nullptr) {
 		condition = Condition::None;
 	} else {
 		condition = getCondition(*cond->text);
@@ -637,8 +630,8 @@ std::unique_ptr<WhyInstruction> WASMJNode::convert(Function &, VarMap &) {
 }
 
 WASMJcNode::WASMJcNode(WASMJNode *j, ASTNode *rs_):
-WASMInstructionNode(WASM_JCNODE), link(j? j->link : false), addr(j? j->addr : 0), rs(rs_->text) {
-	if (!j) {
+WASMInstructionNode(WASM_JCNODE), link(j != nullptr? j->link : false), addr(j != nullptr? j->addr : 0), rs(rs_->text) {
+	if (j == nullptr) {
 		wasmerror("No WASMCJNode found in jc instruction");
 	} else {
 		if (j->condition != Condition::None)
@@ -664,7 +657,7 @@ WASMJrNode::WASMJrNode(ASTNode *cond, ASTNode *colons, ASTNode *rd_):
 WASMInstructionNode(WASM_JRNODE), link(!colons->empty()), rd(rd_->text) {
 	delete colons;
 	delete rd_;
-	if (!cond) {
+	if (cond == nullptr) {
 		condition = Condition::None;
 	} else {
 		condition = getCondition(*cond->text);
@@ -685,8 +678,9 @@ std::unique_ptr<WhyInstruction> WASMJrNode::convert(Function &function, VarMap &
 }
 
 WASMJrcNode::WASMJrcNode(WASMJrNode *jr, ASTNode *rs_):
-WASMInstructionNode(WASM_JRCNODE), link(jr? jr->link : false), rs(rs_->text), rd(jr? jr->rd : nullptr) {
-	if (!jr) {
+WASMInstructionNode(WASM_JRCNODE), link(jr != nullptr? jr->link : false), rs(rs_->text),
+rd(jr != nullptr? jr->rd : nullptr) {
+	if (jr == nullptr) {
 		wasmerror("No WASMCJrNode found in jr(l)c instruction");
 	} else {
 		if (jr->condition != Condition::None)
@@ -731,11 +725,10 @@ std::unique_ptr<WhyInstruction> WASMSizedStackNode::convert(Function &function, 
 }
 
 WASMMultRNode::WASMMultRNode(ASTNode *rs_, ASTNode *rt_, ASTNode *unsigned_):
-WASMInstructionNode(WASM_MULTRNODE), rs(rs_->text), rt(rt_->text), isUnsigned(!!unsigned_) {
+WASMInstructionNode(WASM_MULTRNODE), rs(rs_->text), rt(rt_->text), isUnsigned(unsigned_ != nullptr) {
 	delete rs_;
 	delete rt_;
-	if (unsigned_)
-		delete unsigned_;
+	delete unsigned_;
 }
 
 std::string WASMMultRNode::debugExtra() const {
@@ -752,11 +745,10 @@ std::unique_ptr<WhyInstruction> WASMMultRNode::convert(Function &function, VarMa
 }
 
 WASMMultINode::WASMMultINode(ASTNode *rs_, ASTNode *imm_, ASTNode *unsigned_):
-WASMInstructionNode(WASM_MULTINODE), rs(rs_->text), imm(getImmediate(imm_)), isUnsigned(!!unsigned_) {
+WASMInstructionNode(WASM_MULTINODE), rs(rs_->text), imm(getImmediate(imm_)), isUnsigned(unsigned_ != nullptr) {
 	delete rs_;
 	delete imm_;
-	if (unsigned_)
-		delete unsigned_;
+	delete unsigned_;
 }
 
 std::string WASMMultINode::debugExtra() const {
@@ -773,12 +765,11 @@ std::unique_ptr<WhyInstruction> WASMMultINode::convert(Function &function, VarMa
 
 WASMDiviINode::WASMDiviINode(ASTNode *imm_, ASTNode *rs_, ASTNode *rd_, ASTNode *unsigned_):
 WASMInstructionNode(WASM_DIVIINODE), rs(rs_->text), rd(rd_->text), imm(getImmediate(imm_)),
-isUnsigned(!!unsigned_) {
+isUnsigned(unsigned_ != nullptr) {
 	delete rs_;
 	delete rd_;
 	delete imm_;
-	if (unsigned_)
-		delete unsigned_;
+	delete unsigned_;
 }
 
 std::string WASMDiviINode::debugExtra() const {
@@ -1083,26 +1074,26 @@ std::unique_ptr<WhyInstruction> WASMSetptINode::convert(Function &, VarMap &) {
 }
 
 WASMSetptRNode::WASMSetptRNode(ASTNode *rs_, ASTNode *rt_):
-WASMInstructionNode(WASM_SETPTRNODE), rs(rs_->text), rt(rt_? rt_->text : nullptr) {
+WASMInstructionNode(WASM_SETPTRNODE), rs(rs_->text), rt(rt_ != nullptr? rt_->text : nullptr) {
 	delete rs_;
 	delete rt_;
 }
 
 std::string WASMSetptRNode::debugExtra() const {
-	if (!rt)
+	if (rt == nullptr)
 		return blue("%setpt") + " " + cyan(*rs);
 	return dim(":") + " " + blue("%setpt") + " " + cyan(*rs) + " " + cyan(*rt);
 }
 
 WASMSetptRNode::operator std::string() const {
-	if (!rt)
+	if (rt == nullptr)
 		return "%setpt " + *rs;
 	return ": %setpt " + *rs + " " + *rt;
 }
 
 std::unique_ptr<WhyInstruction> WASMSetptRNode::convert(Function &function, VarMap &map) {
 	return std::make_unique<SetptRInstruction>(convertVariable(function, map, rs),
-	                                           rt? convertVariable(function, map, rt) : nullptr);
+	                                           rt != nullptr? convertVariable(function, map, rt) : nullptr);
 }
 
 WASMMvNode::WASMMvNode(ASTNode *rs_, ASTNode *rd_):
@@ -1168,15 +1159,15 @@ WASMPseudoPrintNode::WASMPseudoPrintNode(const std::string *text_):
 	WASMInstructionNode(WASM_PSEUDOPRINTNODE), imm(0), text(text_) {}
 
 std::string WASMPseudoPrintNode::debugExtra() const {
-	return "<" + blue("p") + " " + (text? *text : stringify(imm, true)) + ">";
+	return "<" + blue("p") + " " + (text != nullptr? *text : stringify(imm, true)) + ">";
 }
 
 WASMPseudoPrintNode::operator std::string() const {
-	return "<p " + (text? *text : stringify(imm)) + ">";
+	return "<p " + (text != nullptr? *text : stringify(imm)) + ">";
 }
 
 std::unique_ptr<WhyInstruction> WASMPseudoPrintNode::convert(Function &, VarMap &) {
-	if (text)
+	if (text != nullptr)
 		return std::make_unique<PrintPseudoinstruction>(*text);
 	return std::make_unique<PrintPseudoinstruction>(imm);
 }
@@ -1198,11 +1189,11 @@ std::unique_ptr<WhyInstruction> WASMRestNode::convert(Function &, VarMap &) {
 WASMIONode::WASMIONode(const std::string *ident_): WASMInstructionNode(WASM_IONODE), ident(ident_) {}
 
 std::string WASMIONode::debugExtra() const {
-	return ident? "<" + blue("io") + " " + *ident + ">" : "<" + blue("io") + ">";
+	return ident != nullptr? "<" + blue("io") + " " + *ident + ">" : "<" + blue("io") + ">";
 }
 
 WASMIONode::operator std::string() const {
-	return ident? "<io " + *ident + ">" : "<io>";
+	return ident != nullptr? "<io " + *ident + ">" : "<io>";
 }
 
 std::unique_ptr<WhyInstruction> WASMIONode::convert(Function &, VarMap &) {
@@ -1279,8 +1270,8 @@ WASMSextNode::operator std::string() const {
 }
 
 std::unique_ptr<WhyInstruction> WASMSextNode::convert(Function &function, VarMap &map) {
-	auto rs_ = convertVariable(function, map, rs),
-	     rd_ = convertVariable(function, map, rd);
+	auto rs_ = convertVariable(function, map, rs);
+	auto rd_ = convertVariable(function, map, rd);
 
 	switch (size) {
 		case 32: return std::make_unique<SextInstruction>(rs_, rd_, SextInstruction::SextType::Sext32);
@@ -1306,8 +1297,8 @@ WASMTransNode::operator std::string() const {
 }
 
 std::unique_ptr<WhyInstruction> WASMTransNode::convert(Function &function, VarMap &map) {
-	auto rs_ = convertVariable(function, map, rs),
-	     rd_ = convertVariable(function, map, rd);
+	auto rs_ = convertVariable(function, map, rs);
+	auto rd_ = convertVariable(function, map, rd);
 	return std::make_unique<TranslateAddressRInstruction>(rs_, rd_);
 }
 
@@ -1320,17 +1311,17 @@ WASMPageStackNode::WASMPageStackNode(bool is_push, const std::string *rs_):
 	WASMInstructionNode(WASM_PAGESTACKNODE), isPush(is_push), rs(rs_) {}
 
 std::string WASMPageStackNode::debugExtra() const {
-	if (!rs)
+	if (rs == nullptr)
 		return dim(isPush? "[" : "]") + " " + blue("%page");
 	return dim(isPush? ": [" : ": ]") + " " + blue("%page") + " " + cyan(*rs);
 }
 
 WASMPageStackNode::operator std::string() const {
-	if (!rs)
+	if (rs == nullptr)
 		return std::string(isPush? "[" : "]") + " %page";
 	return ": " + std::string(isPush? "[" : "]") + " %page " + *rs;
 }
 
 std::unique_ptr<WhyInstruction> WASMPageStackNode::convert(Function &function, VarMap &map) {
-	return std::make_unique<PageStackInstruction>(isPush, rs? convertVariable(function, map, rs) : nullptr);
+	return std::make_unique<PageStackInstruction>(isPush, rs != nullptr? convertVariable(function, map, rs) : nullptr);
 }

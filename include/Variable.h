@@ -34,7 +34,7 @@ struct VirtualRegister: Checkable, std::enable_shared_from_this<VirtualRegister>
 		VirtualRegister(VirtualRegister &&) = delete;
 		VirtualRegister & operator=(const VirtualRegister &) = delete;
 		VirtualRegister & operator=(VirtualRegister &&) = delete;
-		virtual ~VirtualRegister() = default;
+		~VirtualRegister() override = default;
 
 		std::string regOrID(bool colored = false) const;
 		bool special() const;
