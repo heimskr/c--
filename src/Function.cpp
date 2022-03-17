@@ -808,7 +808,7 @@ bool Function::spill(const VregPtr &vreg) {
 	bool out = false;
 	const size_t location = getSpill(vreg, true);
 
-	for (std::weak_ptr<WhyInstruction> weak_definition: vreg->writers) {
+	for (const auto &weak_definition: vreg->writers) {
 		WhyPtr definition = weak_definition.lock();
 		auto store = std::make_shared<StackStoreInstruction>(vreg, location);
 		auto next = after(definition);

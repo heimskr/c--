@@ -2,10 +2,10 @@
 
 #include <functional>
 #include <list>
-#include <vector>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include "DFSResult.h"
 #include "Node.h"
@@ -31,21 +31,21 @@ class Graph {
 		std::vector<std::string> colors = {"red", "orange", "yellow", "green", "blue", "purple"};
 
 		/** Constructs a graph with no nodes. */
-		Graph();
+		Graph() = default;
 
 		Graph(const Graph &);
 
-		Graph(Graph &&);
+		Graph(Graph &&) noexcept;
 
 		Graph & operator=(const Graph &);
 
-		Graph & operator=(Graph &&);
+		Graph & operator=(Graph &&) noexcept;
 
 		/** Constructs a graph with a name and no nodes. */
-		Graph(const std::string &name_);
+		explicit Graph(const std::string &name_);
 
 		/** Constructs a graph with a number n of nodes with labels 0, 1, ..., n. */
-		Graph(size_t);
+		explicit Graph(size_t);
 
 		/** Constructs a graph with nodes with given labels. */
 		Graph(std::initializer_list<Label>);
@@ -122,7 +122,7 @@ class Graph {
 		void reset();
 
 		/** Attempts to find the first node matching a predicate function. */
-		Node * find(std::function<bool(Node &)>);
+		Node * find(const std::function<bool(Node &)> &);
 
 		/** Runs a depth-first search at a given start node. */
 		DFSResult DFS(Node *) const;
@@ -163,11 +163,11 @@ class Graph {
 		std::vector<std::pair<Node *, Node *>> allEdges() const;
 
 		/** Returns a representation of the graph in graphviz dot syntax. */
-		virtual std::string toDot(const std::string &direction = "TB");
+		virtual std::string toDot(const std::string &direction);
 
 		/** Renders a representation (PNG by default; changeable by changing the file extension) of the graph to an
 		 *  output file. */
-		void renderTo(std::string png_path, const std::string &direction = "TB");
+		void renderTo(std::string out_path, const std::string &direction);
 
 		decltype(labelMap)::iterator begin();
 		decltype(labelMap)::iterator end();

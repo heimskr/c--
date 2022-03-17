@@ -8,11 +8,9 @@
 
 #include <unistd.h>
 
-#include "Graph.h"
 #include "Errors.h"
+#include "Graph.h"
 #include "Util.h"
-
-Graph::Graph() {}
 
 Graph::Graph(const Graph &other) {
 	for (const auto &[label, node]: other)
@@ -25,16 +23,16 @@ Graph::Graph(const Graph &other) {
 	}
 }
 
-Graph::Graph(Graph &&other) {
-	nodes_ = std::move(other.nodes_);
-	labelMap = std::move(other.labelMap);
-	name = std::move(other.name);
-	colors = std::move(other.colors);
+Graph::Graph(Graph &&other) noexcept: nodes_(std::move(other.nodes_)), labelMap(std::move(other.labelMap)),
+name(std::move(other.name)), colors(std::move(other.colors)) {
 	for (Node *node: nodes_)
 		node->owner = this;
 }
 
 Graph & Graph::operator=(const Graph &other) {
+	if (this == &other)
+		return *this;
+
 	clear();
 	for (const auto &[label, node]: other)
 		addNode(label);
@@ -47,7 +45,7 @@ Graph & Graph::operator=(const Graph &other) {
 	return *this;
 }
 
-Graph & Graph::operator=(Graph &&other) {
+Graph & Graph::operator=(Graph &&other) noexcept {
 	clear();
 	nodes_ = std::move(other.nodes_);
 	labelMap = std::move(other.labelMap);
@@ -103,8 +101,8 @@ const std::list<Node *> & Graph::nodes() const {
 Node & Graph::operator[](size_t index) const {
 	if (nodes_.size() <= index)
 		throw std::out_of_range("Invalid node index: " + std::to_string(index));
-	Node *node = *std::next(nodes_.begin(), index);
-	if (!node)
+	Node *node = *std::next(nodes_.begin(), ssize_t(index));
+	if (node == nullptr)
 		throw std::runtime_error("Node at index " + std::to_string(index) + " is null");
 	return *node;
 }
@@ -113,7 +111,7 @@ Node & Graph::operator[](const std::string &label) const {
 	auto iter = labelMap.find(label);
 	if (iter == labelMap.end()) {
 		std::cerr << name << "\n";
-		const_cast<Graph *>(this)->renderTo("graph_error.png");
+		const_cast<Graph *>(this)->renderTo("graph_error.png", "TB");
 		throw std::out_of_range("No node with label \"" + label + "\" found");
 	}
 	return *iter->second;
@@ -183,7 +181,7 @@ Node & Graph::rename(Node &node, const std::string &new_label) {
 }
 
 Node & Graph::rename(Node *node, const std::string &new_label) {
-	if (!node)
+	if (node == nullptr)
 		throw std::invalid_argument("Can't rename a null node");
 	if (node->label() == new_label)
 		return *node;
@@ -221,12 +219,13 @@ void Graph::cloneTo(Graph &out, std::unordered_map<Node *, Node *> *rename_map) 
 	}
 
 	for (auto &pair: node_map) {
-		Node *old_node = pair.first, *new_node = pair.second;
+		Node *old_node = pair.first;
+		Node *new_node = pair.second;
 		for (Node *old_link: old_node->out_)
 			new_node->link(node_map.at(old_link), false);
 	}
 
-	if (rename_map)
+	if (rename_map != nullptr)
 		*rename_map = node_map;
 }
 
@@ -237,10 +236,11 @@ Graph Graph::clone(std::unordered_map<Node *, Node *> *rename_map) {
 }
 
 void Graph::addEdges(const std::string &pairs) {
-	size_t last = 0, space;
+	size_t last  = 0;
+	size_t space = 0;
 	while (last != std::string::npos) {
 		space = pairs.find(' ', last + 1);
-		const std::string sub = pairs.substr(last? last + 1 : 0, space - (last + (last? 1 : 0)));
+		const std::string sub = pairs.substr(last != 0? last + 1 : 0, space - (last + (last != 0? 1 : 0)));
 		const size_t colon = sub.find(':');
 		const std::string from = sub.substr(0, colon);
 		const std::string to = sub.substr(colon + 1);
@@ -254,7 +254,7 @@ void Graph::reset() {
 		*this -= nodes_.front();
 }
 
-Node * Graph::find(std::function<bool(Node &)> predicate) {
+Node * Graph::find(const std::function<bool(Node &)> &predicate) {
 	for (Node *node: nodes_)
 		if (predicate(*node))
 			return node;
@@ -263,7 +263,8 @@ Node * Graph::find(std::function<bool(Node &)> predicate) {
 
 DFSResult Graph::DFS(Node *start) const {
 	DFSResult::ParentMap parents;
-	DFSResult::TimeMap discovered, finished;
+	DFSResult::TimeMap discovered;
+	DFSResult::TimeMap finished;
 	int time = 0;
 
 	std::function<void(Node *)> visit = [&](Node *node) {
@@ -445,7 +446,7 @@ std::vector<std::pair<Node *, Node *>> Graph::allEdges() const {
 	std::vector<std::pair<Node *, Node *>> out;
 	for (Node *node: nodes_)
 		for (Node *successor: *node)
-			out.push_back({node, successor});
+			out.emplace_back(node, successor);
 	return out;
 }
 
@@ -496,7 +497,7 @@ void Graph::renderTo(std::string out_path, const std::string &direction) {
 	std::ofstream out;
 	std::string path = "/tmp/ll2w_graph_";
 	for (const char ch: out_path)
-		if (std::isdigit(ch) || std::isalpha(ch) || ch == '_')
+		if (std::isdigit(ch) != 0 || std::isalpha(ch) != 0 || ch == '_')
 			path += ch;
 	path += ".dot";
 	out.open(path);
@@ -507,11 +508,11 @@ void Graph::renderTo(std::string out_path, const std::string &direction) {
 		out_path = (std::filesystem::current_path() / out_path.substr(2)).string();
 
 	std::string type = "png";
-	const size_t pos = out_path.find_last_of(".");
+	const size_t pos = out_path.find_last_of('.');
 	if (pos != std::string::npos && pos != out_path.size() - 1) {
 		type = out_path.substr(pos + 1);
 		for (const char ch: type)
-			if (!std::isalpha(ch)) {
+			if (std::isalpha(ch) == 0) {
 				type = "png";
 				break;
 			}
