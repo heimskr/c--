@@ -4,8 +4,8 @@
 #include <set>
 
 #include "Allocator.h"
-#include "Variable.h"
 #include "Graph.h"
+#include "Variable.h"
 
 /** Assigns registers using a graph coloring algorithm. */
 class ColoringAllocator: public Allocator {

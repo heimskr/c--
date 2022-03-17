@@ -1,17 +1,16 @@
 #pragma once
 
+#include <cstdio>
 #include <unordered_map>
 #include <vector>
-
-#include <stdio.h>
 
 #include "ASTNode.h"
 
 #define CPMSTYPE_IS_DECLARED
-typedef ASTNode * CPMSTYPE;
+using CPMSTYPE = ASTNode *;
 
 #define WASMSTYPE_IS_DECLARED
-typedef ASTNode * WASMSTYPE;
+using WASMSTYPE = ASTNode *;
 
 #ifndef NO_YYPARSE
 #include "bison.h"

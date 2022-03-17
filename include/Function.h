@@ -195,12 +195,12 @@ class Function: public Makeable<Function> {
 		Function & setStatic(bool);
 
 		void openScope(const std::string &name_ = "");
-		void closeScope(ScopePtr);
+		void closeScope(const ScopePtr &);
 		void closeScope();
-		void closeScopes(const std::string &until, ScopePtr);
+		void closeScopes(const std::string &until, const ScopePtr &);
 		void closeScopes(const std::string &until);
 
-		void setStructParent(std::shared_ptr<StructType>, bool is_static);
+		void setStructParent(const std::shared_ptr<StructType> &, bool is_static);
 
 		void extractAttributes(const ASTNode &);
 

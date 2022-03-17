@@ -16,7 +16,7 @@ struct DebugData {
 	DebugData(const ASTLocation &, const Function &);
 	bool operator<(const DebugData &) const;
 	explicit operator bool() const;
-} __attribute__((aligned(64)));
+};
 
 namespace std {
 	template <>

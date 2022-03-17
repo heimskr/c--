@@ -1343,15 +1343,15 @@ void Function::openScope(const std::string &name_) {
 	scopeStack.push_back(scope);
 }
 
-void Function::closeScope(ScopePtr scope) {
+void Function::closeScope(const ScopePtr &scope) {
 	std::vector<VariablePtr> *order = nullptr;
 
 	if (auto *block_scope = scope->cast<BlockScope>())
 		order = &block_scope->variableOrder;
-	else if (scope->cast<FunctionScope>())
+	else if (scope->cast<FunctionScope>() != nullptr)
 		order = &variableOrder;
 
-	if (!order)
+	if (order == nullptr)
 		throw std::runtime_error("Can't close scope " + scope->partialStringify() + ": order not found");
 
 	for (auto iter = order->rbegin(), end = order->rend(); iter != end; ++iter) {
@@ -1374,7 +1374,7 @@ void Function::closeScope() {
 	scopeStack.pop_back();
 }
 
-void Function::closeScopes(const std::string &until, ScopePtr scope) {
+void Function::closeScopes(const std::string &until, const ScopePtr &scope) {
 	bool found = false;
 	ScopePtr subscope = scope;
 	size_t scopes_found = 0;
@@ -1409,7 +1409,7 @@ void Function::closeScopes(const std::string &until) {
 	closeScopes(until, currentContext().scope);
 }
 
-void Function::setStructParent(std::shared_ptr<StructType> new_struct_parent, bool is_static) {
+void Function::setStructParent(const std::shared_ptr<StructType> &new_struct_parent, bool is_static) {
 	structParent = new_struct_parent;
 	isStatic = is_static;
 	if (!is_static && !thisAdded) {

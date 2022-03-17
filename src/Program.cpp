@@ -46,7 +46,7 @@ Program compileRoot(const ASTNode &root, const std::string &filename) {
 					function->setStructParent(out.structs.at(struct_name), size == 6);
 					if (function->name == "$d") {
 						if (auto destructor = function->structParent->destructor.lock())
-							if (destructor->source)
+							if (destructor->source != nullptr)
 								throw GenericError(node->location, "Struct " + struct_name + " cannot have multiple "
 									"destructors");
 						function->structParent->destructor = function;
@@ -284,15 +284,15 @@ void Program::compile() {
 		if (expr) {
 			auto value = expr->evaluate(Context(*this, init->selfScope));
 			if (value && size == 1) {
-				lines.push_back("\t%1b " + std::to_string(*value));
+				lines.emplace_back("\t%1b " + std::to_string(*value));
 			} else if (value && size == 2) {
-				lines.push_back("\t%2b " + std::to_string(*value));
+				lines.emplace_back("\t%2b " + std::to_string(*value));
 			} else if (value && size == 4) {
-				lines.push_back("\t%4b " + std::to_string(*value));
+				lines.emplace_back("\t%4b " + std::to_string(*value));
 			} else if (value && size == 8) {
-				lines.push_back("\t%8b " + std::to_string(*value));
+				lines.emplace_back("\t%8b " + std::to_string(*value));
 			} else {
-				lines.push_back("\t%fill " + std::to_string(size) + " 0");
+				lines.emplace_back("\t%fill " + std::to_string(size) + " 0");
 				TypePtr expr_type = expr->getType(Context(*this, init->selfScope));
 				VregPtr vreg = init->newVar();
 				if (auto *initializer = expr->cast<InitializerExpr>()) {
@@ -306,15 +306,15 @@ void Program::compile() {
 				}
 			}
 		} else if (size == 1) {
-			lines.push_back("\t%1b 0");
+			lines.emplace_back("\t%1b 0");
 		} else if (size == 2) {
-			lines.push_back("\t%2b 0");
+			lines.emplace_back("\t%2b 0");
 		} else if (size == 4) {
-			lines.push_back("\t%4b 0");
+			lines.emplace_back("\t%4b 0");
 		} else if (size == 8) {
-			lines.push_back("\t%8b 0");
+			lines.emplace_back("\t%8b 0");
 		} else {
-			lines.push_back("\t%fill " + std::to_string(size) + " 0");
+			lines.emplace_back("\t%fill " + std::to_string(size) + " 0");
 		}
 	}
 
@@ -322,17 +322,17 @@ void Program::compile() {
 		function->compile();
 
 	for (const auto &[str, id]: stringIDs) {
-		lines.push_back("");
-		lines.push_back("@.str" + std::to_string(id));
-		lines.push_back("\t%stringz \"" + Util::escape(str) + "\"");
+		lines.emplace_back("");
+		lines.emplace_back("@.str" + std::to_string(id));
+		lines.emplace_back("\t%stringz \"" + Util::escape(str) + "\"");
 	}
 
-	lines.push_back("");
-	lines.push_back("%code");
-	lines.push_back("");
-	lines.push_back(":: .init");
-	lines.push_back(":: main");
-	lines.push_back("<halt>");
+	lines.emplace_back("");
+	lines.emplace_back("%code");
+	lines.emplace_back("");
+	lines.emplace_back(":: .init");
+	lines.emplace_back(":: main");
+	lines.emplace_back("<halt>");
 
 	for (const std::string &line:
 		Util::split("|@`c|\t<prc $a0>|\t: $rt||@`ptr|\t<prc '0'>|\t<prc 'x'>|\t<prx $a0>|\t: $rt||@`s|\t[$a0] -> $mf /b"
@@ -340,7 +340,7 @@ void Program::compile() {
 		"\t<prd $a0>|\t: $rt||@`s32|\tsext32 $a0 -> $a0|\t<prd $a0>|\t: $rt||@`s64|\t<prd $a0>|\t: $rt||@`s8|\tsext8 $a"
 		"0 -> $a0|\t<prd $a0>|\t: $rt||@`u16|\t<prd $a0>|\t: $rt||@`u32|\t<prd $a0>|\t: $rt||@`u64|\t<prd $a0>|\t: $rt|"
 		"|@`u8|\t<prd $a0>|\t: $rt||@`bool|\t!$a0 -> $a0|\t!$a0 -> $a0|\t<prd $a0>|\t: $rt", "|", false))
-		lines.push_back(line);
+		lines.emplace_back(line);
 
 	std::map<DebugData, size_t> debug_map;
 	std::map<size_t, DebugData *> inverse_debug_map;
@@ -358,26 +358,26 @@ void Program::compile() {
 
 	for (auto &[name, function]: functions)
 		if (name == ".init" || !function->isBuiltin()) {
-			lines.push_back("");
-			lines.push_back("@" + function->mangle());
+			lines.emplace_back("");
+			lines.emplace_back("@" + function->mangle());
 			for (const std::string &line: function->stringify(debug_map))
-				lines.push_back("\t" + line);
+				lines.emplace_back("\t" + line);
 		}
 
-	lines.push_back("");
-	lines.push_back("#debug");
-	lines.push_back("");
-	lines.push_back("1 \"" + Util::escape(filename) + "\"");
+	lines.emplace_back("");
+	lines.emplace_back("#debug");
+	lines.emplace_back("");
+	lines.emplace_back("1 \"" + Util::escape(filename) + "\"");
 	std::map<std::string, size_t> function_indices;
 	for (auto &[name, function]: functions) {
 		const std::string mangled = function->mangle();
 		function_indices.emplace(mangled, function_indices.size() + 1);
-		lines.push_back("2 \"" + Util::escape(mangled) + "\"");
+		lines.emplace_back("2 \"" + Util::escape(mangled) + "\"");
 	}
 
 	for (const auto &[index, debug]: inverse_debug_map)
-		lines.push_back("3 0 " + std::to_string(debug->location.line + 1) + " " + std::to_string(debug->location.column)
-			+ " " + std::to_string(function_indices.at(debug->mangledFunction)));
+		lines.emplace_back("3 0 " + std::to_string(debug->location.line + 1) + " " +
+			std::to_string(debug->location.column) + " " + std::to_string(function_indices.at(debug->mangledFunction)));
 }
 
 size_t Program::getStringID(const std::string &str) {
