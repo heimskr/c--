@@ -35,7 +35,6 @@ void compileCall(VregPtr destination, Function &function, const Context &context
 		if (std::holds_alternative<Expr *>(argument)) {
 			auto expr = std::get<Expr *>(argument);
 			auto argument_type = expr->getType(context);
-			// auto expr_type = expr->getType(context);
 			if (fn_arg_type.isReference()) {
 				function.addComment("compileCall: compiling address into reference argument");
 				if (!expr->compileAddress(argument_register, function, context))
@@ -949,9 +948,6 @@ void AddressOfExpr::compile(VregPtr destination, Function &function, const Conte
 
 	if (!subexpr->compileAddress(destination, function, context))
 		throw LvalueError(*subexpr);
-
-	// if (subexpr->getType(context)->isReference())
-	// 	function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
 }
 
 std::unique_ptr<Type> AddressOfExpr::getType(const Context &context) const {
@@ -1018,7 +1014,6 @@ std::string StringExpr::getID(Program &program) const {
 
 void DerefExpr::compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) {
 	if (auto fnptr = getOperator(context)) {
-		// auto addrof = std::make_unique<AddressOfExpr>(subexpr->copy());
 		compileCall(destination, function, context, fnptr, {subexpr.get()}, getLocation(), multiplier);
 	} else {
 		checkType(context);
@@ -1036,7 +1031,6 @@ std::unique_ptr<Type> DerefExpr::getType(const Context &context) const {
 	if (auto fnptr = getOperator(context))
 		return std::unique_ptr<Type>(fnptr->returnType->copy()->setLvalue(true));
 	auto type = checkType(context);
-	// auto out = std::unique_ptr<Type>(dynamic_cast<PointerType &>(*type).subtype->copy());
 	auto out = std::make_unique<ReferenceType>(dynamic_cast<PointerType &>(*type).subtype->copy());
 	out->subtype->setConst(type->isConst);
 	out->setLvalue(true);
@@ -1243,7 +1237,6 @@ bool CallExpr::compileAddress(VregPtr destination, Function &function, const Con
 	if (isLvalue(context)) {
 		function.addComment("Starting Call::compileAddress");
 		compile(destination, function, context, 1);
-		// function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
 		function.addComment("Finished Call::compileAddress");
 		return true;
 	}
@@ -1426,8 +1419,7 @@ std::unique_ptr<Type> CastExpr::getType(const Context &) const {
 void AccessExpr::compile(VregPtr destination, Function &function, const Context &context, ssize_t multiplier) {
 	if (auto fnptr = getOperator(context)) {
 		// TODO: verify both pointers and arrays
-		compileCall(destination, function, context, fnptr, {array.get(), subscript.get()}, getLocation(),
-			multiplier);
+		compileCall(destination, function, context, fnptr, {array.get(), subscript.get()}, getLocation(), multiplier);
 	} else {
 		TypePtr array_type = array->getType(context);
 		if (auto casted = array_type->ptrcast<ArrayType>())
@@ -1545,9 +1537,6 @@ void DotExpr::compile(VregPtr destination, Function &function, const Context &co
 	auto left_type = left->getType(context);
 	if (!left->compileAddress(destination, function, context))
 		throw LvalueError(*left);
-	// function.add<PrintRInstruction>(destination, PrintType::Full);
-	// if (left_type->isReference())
-	// 	function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
 	if (field_offset != 0) {
 		function.addComment("Add dot field offset of " + struct_type->name + "::" + ident);
 		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
