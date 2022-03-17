@@ -1473,18 +1473,12 @@ void Function::replacePlaceholders() {
 				}
 
 				auto subiter = iter;
-				for (++subiter; subiter != block->instructions.end(); ++subiter) {
+				for (++subiter; subiter != block->instructions.end(); ++subiter)
 					for (const auto &vreg: (*subiter)->getRead()) {
 						const int reg = vreg->getReg();
 						if (Why::isGeneralPurpose(reg))
 							regs.insert(reg);
 					}
-					for (const auto &vreg: (*subiter)->getWritten()) {
-						const int reg = vreg->getReg();
-						if (Why::isGeneralPurpose(reg))
-							regs.insert(reg);
-					}
-				}
 
 				if (push_placeholder) {
 					for (const int reg: regs) {
