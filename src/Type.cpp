@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <sstream>
 
 #include "ASTNode.h"
@@ -25,7 +26,7 @@ bool SignedType::similar(const Type &other, bool ignore_const) const {
 		return true;
 	if (other.isBool())
 		return true;
-	if (auto *other_signed = other.cast<SignedType>())
+	if (const auto *other_signed = other.cast<SignedType>())
 		return other_signed->width == width;
 	return false;
 }
@@ -33,7 +34,7 @@ bool SignedType::similar(const Type &other, bool ignore_const) const {
 bool SignedType::equal(const Type &other, bool ignore_const) const {
 	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
-	if (auto *other_signed = other.cast<SignedType>())
+	if (const auto *other_signed = other.cast<SignedType>())
 		return other_signed->width == width;
 	return false;
 }
@@ -41,9 +42,9 @@ bool SignedType::equal(const Type &other, bool ignore_const) const {
 bool UnsignedType::similar(const Type &other, bool ignore_const) const {
 	if (other.isReferenceOf(*this, ignore_const))
 		return true;
-	if (other.cast<BoolType>())
+	if (other.cast<BoolType>() != nullptr)
 		return true;
-	if (auto *other_unsigned = other.cast<UnsignedType>())
+	if (const auto *other_unsigned = other.cast<UnsignedType>())
 		return other_unsigned->width == width;
 	return false;
 }
@@ -51,7 +52,7 @@ bool UnsignedType::similar(const Type &other, bool ignore_const) const {
 bool UnsignedType::equal(const Type &other, bool ignore_const) const {
 	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
-	if (auto *other_unsigned = other.cast<UnsignedType>())
+	if (const auto *other_unsigned = other.cast<UnsignedType>())
 		return other_unsigned->width == width;
 	return false;
 }
@@ -61,7 +62,7 @@ bool PointerType::similar(const Type &other, bool ignore_const) const {
 		return isLvalue;
 	if (other.isBool())
 		return true;
-	if (auto *other_pointer = other.cast<PointerType>()) {
+	if (const auto *other_pointer = other.cast<PointerType>()) {
 		if (subtype->isVoid() || other_pointer->subtype->isVoid() || (*subtype && *other_pointer->subtype))
 			return true;
 		if (auto *subtype_array = subtype->cast<ArrayType>())
@@ -73,7 +74,7 @@ bool PointerType::similar(const Type &other, bool ignore_const) const {
 bool PointerType::equal(const Type &other, bool ignore_const) const {
 	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
-	if (auto *other_ptr = other.cast<PointerType>())
+	if (const auto *other_ptr = other.cast<PointerType>())
 		return *other_ptr->subtype == *subtype;
 	return false;
 }
@@ -81,7 +82,7 @@ bool PointerType::equal(const Type &other, bool ignore_const) const {
 int PointerType::affinity(const Type &other, bool ignore_const) const {
 	if (other.isBool())
 		return 1;
-	if (auto *other_pointer = other.cast<PointerType>()) {
+	if (const auto *other_pointer = other.cast<PointerType>()) {
 		if (!ignore_const && subtype->isConst && !other_pointer->subtype->isConst)
 			return 0;
 		if (subtype->isVoid())
@@ -101,7 +102,7 @@ bool ReferenceType::similar(const Type &other, bool ignore_const) const {
 		info() << "this[" << *this << "], other[" << other << "], isLvalue[" << isLvalue << "]\n";
 		return isLvalue;
 	}
-	if (auto *other_reference = other.cast<ReferenceType>()) {
+	if (const auto *other_reference = other.cast<ReferenceType>()) {
 		if (subtype->isVoid() || other_reference->subtype->isVoid() || (*subtype && *other_reference->subtype))
 			return true;
 		if (auto *subtype_array = subtype->cast<ArrayType>())
@@ -111,13 +112,13 @@ bool ReferenceType::similar(const Type &other, bool ignore_const) const {
 }
 
 bool ReferenceType::equal(const Type &other, bool ignore_const) const {
-	if (auto *other_ptr = other.cast<ReferenceType>())
+	if (const auto *other_ptr = other.cast<ReferenceType>())
 		return other_ptr->subtype->equal(*subtype, ignore_const);
 	return false;
 }
 
 int ReferenceType::affinity(const Type &other, bool ignore_const) const {
-	if (auto *other_reference = other.cast<ReferenceType>()) {
+	if (const auto *other_reference = other.cast<ReferenceType>()) {
 		if (!ignore_const && subtype->isConst && !other_reference->subtype->isConst)
 			return 0;
 		if (subtype->isVoid())
@@ -139,12 +140,12 @@ bool ReferenceType::isReferenceOf(const Type &other, bool ignore_const) const {
 bool ArrayType::similar(const Type &other, bool ignore_const) const {
 	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
-	if (auto *other_array = other.cast<ArrayType>()) {
+	if (const auto *other_array = other.cast<ArrayType>()) {
 		if (!ignore_const && subtype->isConst && !other_array->subtype->isConst)
 			return false;
 		return subtype->similar(*other_array->subtype, ignore_const) && count == other_array->count;
 	}
-	if (auto *pointer = other.cast<PointerType>()) {
+	if (const auto *pointer = other.cast<PointerType>()) {
 		if (!ignore_const && subtype->isConst && !pointer->subtype->isConst)
 			return false;
 		return subtype->similar(*pointer->subtype, ignore_const);
@@ -155,7 +156,7 @@ bool ArrayType::similar(const Type &other, bool ignore_const) const {
 bool ArrayType::equal(const Type &other, bool ignore_const) const {
 	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
-	if (auto *other_array = other.cast<ArrayType>())
+	if (const auto *other_array = other.cast<ArrayType>())
 		return subtype->equal(*other_array->subtype, ignore_const) && count == other_array->count;
 	return false;
 }
@@ -250,7 +251,7 @@ Type * Type::get(const char * &mangled, Program &program) {
 		case 's':
 		case 'u': {
 			const char start = mangled[0];
-			size_t width = 8 * (*++mangled - '0');
+			size_t width = size_t(8) * (*++mangled - '0');
 			++mangled;
 			if (start == 's')
 				return new SignedType(width);
@@ -260,7 +261,7 @@ Type * Type::get(const char * &mangled, Program &program) {
 			return new PointerType(get(++mangled, program));
 		case 'a': {
 			size_t count = 0;
-			for (++mangled; std::isdigit(mangled[0]); ++mangled)
+			for (++mangled; std::isdigit(mangled[0]) != 0; ++mangled)
 				count = count * 10 + (mangled[0] - '0');
 			return new ArrayType(Type::get(mangled, program), count);
 		}
@@ -268,7 +269,7 @@ Type * Type::get(const char * &mangled, Program &program) {
 			Type *return_type = Type::get(++mangled, program);
 			std::vector<Type *> argument_types;
 			size_t argument_count = 0;
-			for (; std::isdigit(mangled[0]); ++mangled)
+			for (; std::isdigit(mangled[0]) != 0; ++mangled)
 				argument_count = argument_count * 10 + (mangled[0] - '0');
 			for (size_t i = 0; i < argument_count; ++i)
 				argument_types.push_back(Type::get(mangled, program));
@@ -276,7 +277,7 @@ Type * Type::get(const char * &mangled, Program &program) {
 		}
 		case 'S': {
 			size_t width = 0;
-			for (++mangled; std::isdigit(mangled[0]); ++mangled)
+			for (++mangled; std::isdigit(mangled[0]) != 0; ++mangled)
 				width = width * 10 + (mangled[0] - '0');
 			const std::string struct_name(mangled, width);
 			mangled += width;
@@ -334,7 +335,7 @@ std::string FunctionPointerType::stringify() const {
 bool FunctionPointerType::similar(const Type &other, bool ignore_const) const {
 	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
-	if (auto *ptr = other.cast<PointerType>())
+	if (const auto *ptr = other.cast<PointerType>())
 		return ptr->subtype->isVoid();
 	return *this == other;
 }
@@ -342,10 +343,8 @@ bool FunctionPointerType::similar(const Type &other, bool ignore_const) const {
 bool FunctionPointerType::equal(const Type &other, bool ignore_const) const {
 	if (other.isReferenceOf(*this, ignore_const))
 		return isLvalue;
-	if (auto *other_fnptr = other.cast<FunctionPointerType>()) {
-		if (*returnType != *other_fnptr->returnType)
-			return false;
-		if (argumentTypes.size() != other_fnptr->argumentTypes.size())
+	if (const auto *other_fnptr = other.cast<FunctionPointerType>()) {
+		if (*returnType != *other_fnptr->returnType || argumentTypes.size() != other_fnptr->argumentTypes.size())
 			return false;
 		for (size_t i = 0, max = argumentTypes.size(); i < max; ++i)
 			if (*argumentTypes[i] != *other_fnptr->argumentTypes[i])
@@ -489,7 +488,9 @@ bool InitializerType::similar(const Type &other, bool) const {
 			if (!(*children[i] && *other_init->children[i]))
 				return false;
 		return true;
-	} else if (const auto *other_struct = other.cast<StructType>()) {
+	}
+
+	if (const auto *other_struct = other.cast<StructType>()) {
 		const auto &fields = other_struct->getOrder();
 		const size_t max = children.size();
 		if (fields.size() != max)
@@ -498,14 +499,12 @@ bool InitializerType::similar(const Type &other, bool) const {
 			if (*children[i] != *fields[i].second)
 				return false;
 		return true;
-	} else if (const auto *other_array = other.cast<ArrayType>()) {
-		if (other_array->count != children.size())
-			return false;
-		for (const auto &child: children)
-			if (*child != *other_array->subtype)
-				return false;
-		return true;
 	}
+
+	if (const auto *other_array = other.cast<ArrayType>())
+		return other_array->count == children.size() && std::ranges::all_of(children, [&](const auto &child) {
+			return *child == *other_array->subtype;
+		});
 
 	return false;
 }

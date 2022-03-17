@@ -26,8 +26,8 @@ struct VirtualRegister: Checkable, std::enable_shared_from_this<VirtualRegister>
 		int id;
 		bool precolored = false;
 
-		explicit VirtualRegister(Function &, std::shared_ptr<Type> = nullptr);
-		explicit VirtualRegister(int id_, std::shared_ptr<Type> = nullptr);
+		explicit VirtualRegister(Function &, const std::shared_ptr<Type> & = nullptr);
+		explicit VirtualRegister(int id_, const std::shared_ptr<Type> & = nullptr);
 		std::shared_ptr<VirtualRegister> init();
 
 		VirtualRegister(const VirtualRegister &) = delete;
@@ -54,8 +54,8 @@ struct VirtualRegister: Checkable, std::enable_shared_from_this<VirtualRegister>
 struct Variable: VirtualRegister, Makeable<Variable> {
 	std::string name;
 
-	Variable(const std::string &name_, std::shared_ptr<Type>, Function &);
-	Variable(const std::string &name_, std::shared_ptr<Type>);
+	Variable(const std::string &name_, const std::shared_ptr<Type> &, Function &);
+	Variable(const std::string &name_, const std::shared_ptr<Type> &);
 
 	explicit operator std::string() const override;
 

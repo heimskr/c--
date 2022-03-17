@@ -1,7 +1,7 @@
 #include <tuple>
 
-#include "Why.h"
 #include "Util.h"
+#include "Why.h"
 
 std::set<int> Why::makeRegisterPool() {
 	std::set<int> out;
@@ -34,6 +34,7 @@ std::string Why::registerName(int reg) {
 		case                loOffset: return "lo";
 		case                hiOffset: return "hi";
 		case            statusOffset: return "st";
+		default: break;
 	}
 
 	static std::initializer_list<std::tuple<const int, const int, char>> list {
@@ -65,6 +66,7 @@ std::string Why::coloredRegister(int reg) {
 		case                loOffset: return "\e[31m$lo\e[39m";
 		case                hiOffset: return "\e[31m$hi\e[39m";
 		case            statusOffset: return "$st";
+		default: break;
 	}
 
 	static std::initializer_list<std::tuple<const int, const int, const char *>> list {

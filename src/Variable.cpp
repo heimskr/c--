@@ -1,18 +1,17 @@
-#include <iostream>
 #include "Function.h"
 #include "Type.h"
 #include "Variable.h"
 #include "Why.h"
 
-VirtualRegister::VirtualRegister(Function &function_, std::shared_ptr<Type> type_):
+VirtualRegister::VirtualRegister(Function &function_, const std::shared_ptr<Type> &type_):
 	type(type_), function(&function_), id(function_.nextVariable++) {}
 
-VirtualRegister::VirtualRegister(int id_, std::shared_ptr<Type> type_):
+VirtualRegister::VirtualRegister(int id_, const std::shared_ptr<Type> &type_):
 	type(type_), id(id_) {}
 
 std::shared_ptr<VirtualRegister> VirtualRegister::init() {
-	const auto ptr = shared_from_this();
-	if (function)
+	auto ptr = shared_from_this();
+	if (function != nullptr)
 		function->virtualRegisters.insert(ptr);
 	return ptr;
 }
@@ -43,10 +42,10 @@ VirtualRegister * VirtualRegister::setType(const Type &type_) {
 	return this;
 }
 
-Variable::Variable(const std::string &name_, std::shared_ptr<Type> type_, Function &function_):
+Variable::Variable(const std::string &name_, const std::shared_ptr<Type> &type_, Function &function_):
 	VirtualRegister(function_, type_), name(name_) {}
 
-Variable::Variable(const std::string &name_, std::shared_ptr<Type> type_):
+Variable::Variable(const std::string &name_, const std::shared_ptr<Type> &type_):
 	VirtualRegister(-1, type_), name(name_) {}
 
 Variable::operator std::string() const {

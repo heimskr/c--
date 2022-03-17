@@ -4,7 +4,7 @@
 #include "Graph.h"
 #include "Node.h"
 
-Node::Node(Graph *owner_, const std::string &label__): owner(owner_), label_(label__) {}
+Node::Node(Graph *owner_, const std::string &label_param): owner(owner_), label_(label_param) {}
 
 Node & Node::setColorsNeeded(int count) {
 	colorsNeeded = count;
