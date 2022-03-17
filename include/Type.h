@@ -20,22 +20,26 @@ struct Scope;
 
 struct Type: Checkable, std::enable_shared_from_this<Type> {
 	bool isConst = false, isLvalue = false;
-	virtual ~Type() {}
+	Type(const Type &) = delete;
+	Type(Type &&) = delete;
+	Type & operator=(const Type &) = delete;
+	Type & operator=(Type &&) = delete;
+	~Type() override = default;
 	virtual Type * copy() const = 0;
-	operator std::string() const;
+	explicit operator std::string() const;
 	virtual std::string mangle() const = 0;
-	virtual bool isNumber(size_t = 0) const { return false; }
-	virtual bool isSigned(size_t = 0) const { return false; }
-	virtual bool isUnsigned(size_t = 0) const { return false; }
+	virtual bool isNumber(size_t) const { return false; }
+	virtual bool isSigned(size_t) const { return false; }
+	virtual bool isUnsigned(size_t) const { return false; }
 	virtual size_t getSize() const = 0; // in bytes
 	/** Returns whether this type can be implicitly converted to the given type. Order matters! */
 	bool operator&&(const Type &other) const { return similar(other, false); }
-	virtual bool similar(const Type &, bool ignore_const = false) const = 0;
+	virtual bool similar(const Type &, bool ignore_const) const = 0;
 	/** Returns how favorable a conversion from this type to the given type is. Returns 0 if && would return false. */
 	virtual int affinity(const Type &other, bool ignore_const) const { return similar(other, ignore_const)? 2 : 0; }
 	/** Returns whether this type is identical to the given type. Order shouldn't matter. */
 	bool operator==(const Type &other) const { return equal(other, false); }
-	virtual bool equal(const Type &, bool ignore_const = false) const = 0;
+	virtual bool equal(const Type &, bool ignore_const) const = 0;
 	virtual bool operator!=(const Type &other) const { return !(*this == other); }
 	virtual bool isInt()  const { return false; }
 	virtual bool isVoid() const { return false; }
@@ -66,6 +70,7 @@ struct Type: Checkable, std::enable_shared_from_this<Type> {
 	}
 
 	protected:
+		Type() = default;
 		virtual std::string stringify() const = 0;
 };
 
@@ -80,11 +85,11 @@ struct IntType: Type {
 	bool isInt() const override { return true; }
 
 	protected:
-		IntType(size_t width_): width(width_) {}
+		explicit IntType(size_t width_): width(width_) {}
 };
 
 struct SignedType: IntType, Makeable<SignedType> {
-	SignedType(size_t width_): IntType(width_) {}
+	explicit SignedType(size_t width_): IntType(width_) {}
 	Type * copy() const override { return (new SignedType(width))->steal(*this); }
 	bool isSigned(size_t width_) const override { return isNumber(width_); }
 	bool similar(const Type &, bool) const override;
@@ -95,7 +100,7 @@ struct SignedType: IntType, Makeable<SignedType> {
 };
 
 struct UnsignedType: IntType, Makeable<UnsignedType> {
-	UnsignedType(size_t width_): IntType(width_) {}
+	explicit UnsignedType(size_t width_): IntType(width_) {}
 	Type * copy() const override { return (new UnsignedType(width))->steal(*this); }
 	bool isUnsigned(size_t width_) const override { return isNumber(width_); }
 	bool similar(const Type &, bool) const override;
@@ -130,14 +135,21 @@ struct BoolType: Type, Makeable<BoolType> {
 
 struct SuperType: Type {
 	Type *subtype;
+	SuperType() = delete;
+	SuperType(const SuperType &) = delete;
+	SuperType(SuperType &&) = delete;
+	SuperType & operator=(const SuperType &) = delete;
+	SuperType & operator=(SuperType &&) = delete;
 	/** Takes ownership of the subtype pointer! */
-	SuperType(Type *subtype_): subtype(subtype_) {}
-	~SuperType() { if (subtype) delete subtype; }
+	explicit SuperType(Type *subtype_): subtype(subtype_) {}
+	~SuperType() override { delete subtype; }
 };
 
 struct PointerType: SuperType, Makeable<PointerType> {
 	using SuperType::SuperType;
-	Type * copy() const override { return (new PointerType(subtype? subtype->copy() : nullptr))->steal(*this); }
+	Type * copy() const override {
+		return (new PointerType(subtype != nullptr? subtype->copy() : nullptr))->steal(*this);
+	}
 	std::string mangle() const override { return "p" + subtype->mangle(); }
 	size_t getSize() const override { return 8; }
 	bool similar(const Type &, bool) const override;
@@ -145,37 +157,43 @@ struct PointerType: SuperType, Makeable<PointerType> {
 	bool isPointer() const override { return true; }
 	int affinity(const Type &, bool ignore_const) const override;
 	protected:
-		std::string stringify() const override { return subtype? std::string(*subtype) + "*" : "???*"; }
+		std::string stringify() const override { return subtype != nullptr? std::string(*subtype) + "*" : "???*"; }
 };
 
 struct ReferenceType: SuperType, Makeable<ReferenceType> {
-	ReferenceType(Type *subtype_): SuperType(subtype_) { isLvalue = true; }
-	Type * copy() const override { return (new ReferenceType(subtype? subtype->copy() : nullptr))->setConst(isConst); }
-	std::string mangle() const override { return "r" + subtype->mangle(); }
-	size_t getSize() const override { return subtype->getSize(); }
-	bool similar(const Type &, bool) const override;
-	bool equal(const Type &, bool ignore_const) const override;
-	bool isReference() const override { return true; }
-	bool isReferenceOf(const Type &, bool ignore_const) const override;
-	int affinity(const Type &, bool ignore_const) const override;
+	public:
+		explicit ReferenceType(Type *subtype_): SuperType(subtype_) { isLvalue = true; }
+		Type * copy() const override {
+			return (new ReferenceType(subtype != nullptr? subtype->copy() : nullptr))->setConst(isConst);
+		}
+		std::string mangle() const override { return "r" + subtype->mangle(); }
+		size_t getSize() const override { return subtype->getSize(); }
+		bool similar(const Type &, bool) const override;
+		bool equal(const Type &, bool ignore_const) const override;
+		bool isReference() const override { return true; }
+		bool isReferenceOf(const Type &, bool ignore_const) const override;
+		int affinity(const Type &, bool ignore_const) const override;
+
 	protected:
-		std::string stringify() const override { return subtype? std::string(*subtype) + "&" : "???&"; }
+		std::string stringify() const override { return subtype != nullptr? std::string(*subtype) + "&" : "???&"; }
 };
 
 struct ArrayType: SuperType {
-	size_t count;
-	ArrayType(Type *subtype_, size_t count_): SuperType(subtype_), count(count_) {}
-	Type * copy() const override {
-		return (new ArrayType(subtype? subtype->copy() : nullptr, count))->steal(*this);
-	}
-	std::string mangle() const override { return "a" + std::to_string(count) + subtype->mangle(); }
-	size_t getSize() const override { return subtype? subtype->getSize() * count : 0; }
-	bool similar(const Type &, bool) const override;
-	bool equal(const Type &, bool ignore_const) const override;
-	bool isArray() const override { return true; }
+	public:
+		size_t count;
+		ArrayType(Type *subtype_, size_t count_): SuperType(subtype_), count(count_) {}
+		Type * copy() const override {
+			return (new ArrayType(subtype != nullptr? subtype->copy() : nullptr, count))->steal(*this);
+		}
+		std::string mangle() const override { return "a" + std::to_string(count) + subtype->mangle(); }
+		size_t getSize() const override { return subtype != nullptr? subtype->getSize() * count : 0; }
+		bool similar(const Type &, bool) const override;
+		bool equal(const Type &, bool ignore_const) const override;
+		bool isArray() const override { return true; }
+
 	protected:
 		std::string stringify() const override {
-			return (subtype? std::string(*subtype) : "???") + "[" + std::to_string(count) + "]";
+			return (subtype != nullptr? std::string(*subtype) : "???") + "[" + std::to_string(count) + "]";
 		}
 };
 

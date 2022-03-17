@@ -40,7 +40,7 @@ void compileCall(const VregPtr &destination, Function &function, const Context &
 			if (fn_arg_type.isReference()) {
 				function.addComment("compileCall: compiling address into reference argument");
 				if (!expr->compileAddress(argument_register, function, context))
-					throw LvalueError(*argument_type, expr->getLocation());
+					throw LvalueError(std::string(*argument_type), expr->getLocation());
 			} else if (argument_type->isStruct()) {
 				throw GenericError(expr->getLocation(),
 					"Structs cannot be directly passed to functions; use a pointer");
@@ -541,7 +541,7 @@ void ShiftRightExpr::compile(VregPtr destination, Function &function, const Cont
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, context, multiplier);
 		right->compile(destination, function, context, 1);
-		if (left->getType(context)->isUnsigned())
+		if (left->getType(context)->isUnsigned(0))
 			function.add<ShiftRightLogicalRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		else
 			function.add<ShiftRightArithmeticRInstruction>(temp_var, destination, destination)->setDebug(*this);
@@ -556,7 +556,7 @@ std::optional<ssize_t> ShiftRightExpr::evaluate(const Context &context) const {
 	auto left_value  = left?  left->evaluate(context)  : std::nullopt,
 	     right_value = right? right->evaluate(context) : std::nullopt;
 	if (left_value && right_value) {
-		if (left->getType(context)->isUnsigned())
+		if (left->getType(context)->isUnsigned(0))
 			return size_t(*left_value) << *right_value;
 		return *left_value << *right_value;
 	}
@@ -714,7 +714,7 @@ void DivExpr::compile(VregPtr destination, Function &function, const Context &co
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, context, multiplier);
 		right->compile(destination, function, context, 1);
-		if (left->getType(context)->isUnsigned())
+		if (left->getType(context)->isUnsigned(0))
 			function.add<DivuRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		else
 			function.add<DivRInstruction>(temp_var, destination, destination)->setDebug(*this);
@@ -729,7 +729,7 @@ std::optional<ssize_t> DivExpr::evaluate(const Context &context) const {
 	auto left_value  = left?  left->evaluate(context)  : std::nullopt,
 	     right_value = right? right->evaluate(context) : std::nullopt;
 	if (left_value && right_value) {
-		if (left->getType(context)->isUnsigned())
+		if (left->getType(context)->isUnsigned(0))
 			return size_t(*left_value) / size_t(*right_value);
 		return *left_value / *right_value;
 	}
@@ -744,7 +744,7 @@ void ModExpr::compile(VregPtr destination, Function &function, const Context &co
 		VregPtr temp_var = function.newVar();
 		left->compile(temp_var, function, context, multiplier);
 		right->compile(destination, function, context, 1);
-		if (left->getType(context)->isUnsigned())
+		if (left->getType(context)->isUnsigned(0))
 			function.add<ModuRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		else
 			function.add<ModRInstruction>(temp_var, destination, destination)->setDebug(*this);
@@ -759,7 +759,7 @@ std::optional<ssize_t> ModExpr::evaluate(const Context &context) const {
 	auto left_value  = left?  left->evaluate(context)  : std::nullopt,
 	     right_value = right? right->evaluate(context) : std::nullopt;
 	if (left_value && right_value) {
-		if (left->getType(context)->isUnsigned())
+		if (left->getType(context)->isUnsigned(0))
 			return size_t(*left_value) % size_t(*right_value);
 		return *left_value % *right_value;
 	}
@@ -1141,7 +1141,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 			fn.addComment("Setting \"this\" from struct of type " + std::string(*struct_expr_type) + ".");
 			this_var->setType(PointerType(struct_expr_type->copy()));
 			if (!structExpr->compileAddress(this_var, fn, context))
-				throw LvalueError(*struct_expr_type, structExpr->getLocation());
+				throw LvalueError(std::string(*struct_expr_type), structExpr->getLocation());
 		}
 		this_done:
 		fn.addComment("Done setting \"this\".");
@@ -1161,7 +1161,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 		const bool special = found->name == "$c" || found->name == "$d";
 		if (!special && struct_expr_type && struct_expr_type->isConst && !found->isConst())
 			throw ConstError("Can't call non-const method " + subcontext.structName + "::" + found->name,
-				*struct_expr_type, getLocation());
+				std::string(*struct_expr_type), getLocation());
 
 		function_found = true;
 		found_return_type = found->returnType;
@@ -1174,7 +1174,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 	if (!function_found) {
 		fnptr_type = subexpr->getType(subcontext);
 		if (!fnptr_type->isFunctionPointer())
-			throw FunctionPointerError(*fnptr_type);
+			throw FunctionPointerError(std::string(*fnptr_type));
 		const auto *subfn = fnptr_type->cast<FunctionPointerType>();
 		found_return_type = TypePtr(subfn->returnType->copy());
 		get_arg_type = [subfn](size_t i) -> const Type & { return *subfn->argumentTypes.at(i); };
@@ -1188,13 +1188,13 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 	size_t i = 0;
 
 	for (const auto &argument: arguments) {
-		auto argument_register = fn.precolored(argument_offset + i);
+		auto argument_register = fn.precolored(argument_offset + int(i));
 		auto argument_type = argument->getType(subcontext);
 		const Type &function_argument_type = get_arg_type(i);
 		if (function_argument_type.isReference()) {
 			fn.addComment("CallExpr::compile: compiling address into reference argument");
 			if (!argument->compileAddress(argument_register, fn, context))
-				throw LvalueError(*argument_type, argument->getLocation());
+				throw LvalueError(std::string(*argument_type), argument->getLocation());
 		} else if (argument_type->isStruct()) {
 			throw GenericError(argument->getLocation(),
 				"Structs cannot be directly passed to functions; use a pointer");
@@ -1238,7 +1238,7 @@ TypePtr CallExpr::getReturnType(const Context &context) const {
 
 	auto fnptr_type = subexpr->getType(subcontext);
 	if (!fnptr_type->isFunctionPointer())
-		throw FunctionPointerError(*fnptr_type);
+		throw FunctionPointerError(std::string(*fnptr_type));
 	const auto *subfn = fnptr_type->cast<FunctionPointerType>();
 	return TypePtr(subfn->returnType->copy());
 }
@@ -1293,14 +1293,14 @@ std::unique_ptr<Type> CallExpr::getType(const Context &context) const {
 		if (auto var = subcontext.scope->lookup(var_expr->name)) {
 			if (auto *fnptr = var->getType()->cast<FunctionPointerType>())
 				return std::unique_ptr<Type>(fnptr->returnType->copy());
-			throw FunctionPointerError(*var->getType());
+			throw FunctionPointerError(std::string(*var->getType()));
 		}
 		throw ResolutionError(var_expr->name, subcontext, getLocation());
 	}
 	auto type = subexpr->getType(subcontext);
 	if (const auto *fnptr = type->cast<FunctionPointerType>())
 		return std::unique_ptr<Type>(fnptr->returnType->copy());
-	throw FunctionPointerError(*type);
+	throw FunctionPointerError(std::string(*type));
 }
 
 FunctionPtr HasArguments::findFunction(const std::string &name, const Context &context) const {
@@ -1352,7 +1352,7 @@ FunctionPtr CallExpr::getOperator(const Context &context) const {
 void AssignExpr::compile(VregPtr destination, Function &function, const Context &context, size_t multiplier) {
 	TypePtr left_type = left->getType(context), right_type = right->getType(context);
 	if (left_type->isConst)
-		throw ConstError("Can't assign", *left_type, getLocation());
+		throw ConstError("Can't assign", std::string(*left_type), getLocation());
 	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CPMTOK_ASSIGN, getLocation())) {
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
@@ -1361,7 +1361,7 @@ void AssignExpr::compile(VregPtr destination, Function &function, const Context 
 			destination = function.newVar();
 		TypePtr right_type = right->getType(context);
 		if (!left->compileAddress(addr_var, function, context))
-			throw LvalueError(*left->getType(context));
+			throw LvalueError(std::string(*left->getType(context)));
 		if (right_type->isInitializer()) {
 			auto *initializer_expr = right->cast<InitializerExpr>();
 			if (initializer_expr->isConstructor) {
@@ -1782,7 +1782,7 @@ void ConstructorExpr::compile(VregPtr destination, Function &function, const Con
 		const Type &function_argument_type = *found->getArgumentType(i);
 		if (function_argument_type.isReference()) {
 			if (!argument->compileAddress(argument_register, function, context))
-				throw LvalueError(*argument_type, argument->getLocation());
+				throw LvalueError(std::string(*argument_type), argument->getLocation());
 		} else if (argument_type->isStruct()) {
 			throw GenericError(argument->getLocation(),
 				"Structs cannot be directly passed to functions; use a pointer");
@@ -1931,7 +1931,7 @@ void NewExpr::compile(VregPtr destination, Function &function, const Context &co
 			const Type &function_argument_type = *found->getArgumentType(i);
 			if (function_argument_type.isReference()) {
 				if (!argument->compileAddress(argument_register, function, context))
-					throw LvalueError(*argument_type, argument->getLocation());
+					throw LvalueError(std::string(*argument_type), argument->getLocation());
 			} else if (argument_type->isStruct()) {
 				throw GenericError(argument->getLocation(),
 					"Structs cannot be directly passed to functions; use a pointer");

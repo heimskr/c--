@@ -54,7 +54,7 @@ struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 		// return compileAddress(destination, function, context);
 	// }
 	[[nodiscard]] virtual bool isLvalue(const Context &) const { return false; }
-	[[nodiscard]] bool isUnsigned(const Context &context) const { return getType(context)->isUnsigned(); }
+	[[nodiscard]] bool isUnsigned(const Context &context) const { return getType(context)->isUnsigned(0); }
 	Expr * setLocation(const ASTLocation &location_) { debug.location = location_; return this; }
 	[[nodiscard]] const ASTLocation & getLocation() const { return debug.location; }
 	Expr * setFunction(const Function &);
@@ -156,7 +156,7 @@ struct CompExpr: BinaryExpr<O> {
 			VregPtr temp_var = function.newVar();
 			this->left->compile(destination, function, context, 1);
 			this->right->compile(temp_var, function, context, multiplier);
-			if (this->left->getType(context)->isUnsigned())
+			if (this->left->getType(context)->isUnsigned(0))
 				function.add<RU>(destination, temp_var, destination)->setDebug(*this);
 			else
 				function.add<RS>(destination, temp_var, destination)->setDebug(*this);
@@ -490,7 +490,7 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 	void compile(VregPtr destination, Function &function, const Context &context, size_t multiplier) override {
 		TypePtr left_type = this->left->getType(context);
 		if (left_type->isConst)
-			throw ConstError("Can't assign", *left_type, this->getLocation());
+			throw ConstError("Can't assign", std::string(*left_type), this->getLocation());
 		auto right_type = this->right->getType(context);
 		if (auto fnptr = this->getOperator(context)) {
 			compileCall(destination, function, context, fnptr, {this->left.get(), this->right.get()},
@@ -501,7 +501,7 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 				destination = function.newVar();
 			this->left->compile(destination, function, context, 1);
 			this->right->compile(temp_var, function, context, 1);
-			if (this->left->getType(context)->isUnsigned())
+			if (this->left->getType(context)->isUnsigned(0))
 				function.add<RU>(destination, temp_var, destination)->setDebug(*this);
 			else
 				function.add<RS>(destination, temp_var, destination)->setDebug(*this);
@@ -509,7 +509,7 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 			if (!tryCast(*right_type, *left_type, destination, function, this->getLocation()))
 				throw ImplicitConversionError(right_type, left_type, this->getLocation());
 			if (!this->left->compileAddress(temp_var, function, context))
-				throw LvalueError(*this->left->getType(context), this->getLocation());
+				throw LvalueError(std::string(*this->left->getType(context)), this->getLocation());
 			function.add<StoreRInstruction>(destination, temp_var, getSize(context))->setDebug(*this);
 			if (multiplier != 1)
 				function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -524,7 +524,7 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 		auto left_value  = this->left?  this->left->evaluate(context)  : std::nullopt;
 		auto right_value = this->right? this->right->evaluate(context) : std::nullopt;
 		if (left_value && right_value) {
-			if (this->left->getType(context)->isUnsigned())
+			if (this->left->getType(context)->isUnsigned(0))
 				return FnU()(*left_value, *right_value);
 			return FnS()(*left_value, *right_value);
 		}
@@ -592,7 +592,7 @@ struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {
 	void compile(VregPtr destination, Function &function, const Context &context, size_t multiplier) override {
 		TypePtr left_type = this->left->getType(context);
 		if (left_type->isConst)
-			throw ConstError("Can't assign", *left_type, this->getLocation());
+			throw ConstError("Can't assign", std::string(*left_type), this->getLocation());
 		TypePtr right_type = this->right->getType(context);
 		if (auto fnptr = this->getOperator(context)) {
 			compileCall(destination, function, context, fnptr, {this->left.get(), this->right.get()},
@@ -605,7 +605,7 @@ struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {
 				context, this->getLocation());
 			function.add<R>(destination, temp_var, destination)->setDebug(*this);
 			if (!this->left->compileAddress(temp_var, function, context))
-				throw LvalueError(*this->left->getType(context), this->getLocation());
+				throw LvalueError(std::string(*this->left->getType(context)), this->getLocation());
 			function.add<StoreRInstruction>(destination, temp_var, this->getSize(context))->setDebug(*this);
 			if (multiplier != 1)
 				function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -684,7 +684,7 @@ struct PrefixExpr: Expr {
 		} else {
 			TypePtr subtype = subexpr->getType(context);
 			if (subtype->isConst)
-				throw ConstError("Can't modify", *subtype, getLocation());
+				throw ConstError("Can't modify", std::string(*subtype), getLocation());
 			size_t to_add = 1;
 			if (!subtype->isInt()) {
 				if (subtype->isPointer())
@@ -698,7 +698,7 @@ struct PrefixExpr: Expr {
 			const auto size = subexpr->getSize(context);
 			subexpr->compile(function.newVar(), function, context, multiplier);
 			if (!subexpr->compileAddress(addr_variable, function, context))
-				throw LvalueError(*subexpr->getType(context));
+				throw LvalueError(std::string(*subexpr->getType(context)));
 			function.addComment("Prefix operator" + std::string(O));
 			function.add<LoadRInstruction>(addr_variable, destination, size)->setDebug(*this);
 			function.add<I>(destination, destination, to_add)->setDebug(*this);
@@ -741,7 +741,7 @@ struct PostfixExpr: Expr {
 		} else {
 			TypePtr subtype = subexpr->getType(context);
 			if (subtype->isConst)
-				throw ConstError("Can't modify", *subtype, getLocation());
+				throw ConstError("Can't modify", std::string(*subtype), getLocation());
 			size_t to_add = 1;
 			if (!subtype->isInt()) {
 				if (subtype->isPointer())
@@ -756,7 +756,7 @@ struct PostfixExpr: Expr {
 			const auto size = subexpr->getSize(context);
 			subexpr->compile(function.newVar(), function, context, multiplier);
 			if (!subexpr->compileAddress(addr_var, function, context))
-				throw LvalueError(*subexpr->getType(context));
+				throw LvalueError(std::string(*subexpr->getType(context)));
 			function.addComment("Postfix operator" + std::string(O));
 			function.add<LoadRInstruction>(addr_var, destination, size)->setDebug(*this);
 			function.add<I>(destination, temp_var, to_add)->setDebug(*this);

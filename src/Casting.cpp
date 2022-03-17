@@ -21,7 +21,7 @@ bool tryCast(const Type &right_type, const Type &left_type, const VregPtr &vreg,
 			const auto *right_int = right_subtype->cast<IntType>();
 			const auto *left_int  = left_subtype->cast<IntType>();
 			if (vreg) {
-				if (right_subtype->isSigned() && left_subtype->isSigned()) {
+				if (right_subtype->isSigned(0) && left_subtype->isSigned(0)) {
 					if (right_int->width < left_int->width)
 						function.add<SextInstruction>(vreg, vreg, right_int->width)->setDebug({location, function});
 					if (left_int->width != 64)

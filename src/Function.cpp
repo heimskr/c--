@@ -322,7 +322,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				addComment("Defining reference");
 
 				if (!expr->compileAddress(variable, *this, context))
-					throw LvalueError(*expr->getType(context), node.location);
+					throw LvalueError(std::string(*expr->getType(context)), node.location);
 
 				// if (expr_type->isReference()) {
 				// 	addComment("Some hack.");
@@ -390,7 +390,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				if (returnType->isReference()) {
 					addComment("Returning reference pointer");
 					if (!expr->compileAddress(r0, *this, currentContext()))
-						throw LvalueError(*expr->getType(currentContext()), expr->getLocation());
+						throw LvalueError(std::string(*expr->getType(currentContext())), expr->getLocation());
 				} else {
 					addComment("Returning value");
 					expr->compile(r0, *this, currentContext(), 1);
