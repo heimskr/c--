@@ -5,7 +5,7 @@
 
 #include "ASTNode.h"
 
-typedef struct yy_buffer_state * YY_BUFFER_STATE;
+using YY_BUFFER_STATE = struct yy_buffer_state *;
 
 class Parser {
 	private:
@@ -20,7 +20,7 @@ class Parser {
 		int errorCount = 0;
 		Type type;
 
-		Parser(Type type_): type(type_) {}
+		explicit Parser(Type type_): type(type_) {}
 		void open(const std::string &filename);
 		void in(const std::string &text);
 		void debug(bool flex, bool bison);
@@ -30,7 +30,7 @@ class Parser {
 		const char * getNameCPM(int symbol);
 		const char * getNameWASM(int symbol);
 		const char * getName(int symbol);
-		std::string getBuffer() const;
+		[[nodiscard]] std::string getBuffer() const;
 };
 
 extern Parser cpmParser, wasmParser;

@@ -8,17 +8,18 @@
 #include "Util.h"
 
 struct Score {
-	int exact;
-	int affinity;
+	int exact = 0;
+	int affinity = 0;
 	FunctionPtr function;
-	bool match(const Score &other) const { return exact == other.exact && affinity == other.affinity; }
+	[[nodiscard]] bool match(const Score &other) const { return exact == other.exact && affinity == other.affinity; }
 };
 
 static Functions filterResults(const Functions &results, const Types &arg_types) {
 	if (results.empty())
 		return {};
 
-	const size_t fn_count = results.size(), arg_count = arg_types.size();
+	const size_t fn_count  = results.size();
+	const size_t arg_count = arg_types.size();
 	std::vector<Score> scores(fn_count); // Pair: (exact matches, affinity sum)
 
 	for (size_t i = 0; i < fn_count; ++i) {
@@ -55,7 +56,7 @@ static Functions filterResults(const Functions &results, const Types &arg_types)
 	return out;
 }
 
-FunctionPtr Scope::lookupFunction(const std::string &function_name, TypePtr return_type, const Types &arg_types,
+FunctionPtr Scope::lookupFunction(const std::string &function_name, const TypePtr &return_type, const Types &arg_types,
                                   const std::string &struct_name, const ASTLocation &location) const {
 	Functions filtered = filterResults(lookupFunctions(function_name, return_type, arg_types, struct_name), arg_types);
 
@@ -109,7 +110,7 @@ FunctionPtr Scope::lookupFunction(const std::string &function_name, const ASTLoc
 	return results.empty()? nullptr : results.front();
 }
 
-FunctionScope::FunctionScope(Function &function_, std::shared_ptr<GlobalScope> parent_):
+FunctionScope::FunctionScope(Function &function_, const std::shared_ptr<GlobalScope> &parent_):
 	Scope(&function_.program), function(function_), parent(parent_) {}
 
 VariablePtr FunctionScope::lookup(const std::string &name) const {
@@ -118,8 +119,8 @@ VariablePtr FunctionScope::lookup(const std::string &name) const {
 	return function.variables.at(name);
 }
 
-Functions FunctionScope::lookupFunctions(const std::string &function_name, TypePtr return_type, const Types &arg_types,
-                                         const std::string &struct_name) const {
+Functions FunctionScope::lookupFunctions(const std::string &function_name, const TypePtr &return_type,
+                                         const Types &arg_types, const std::string &struct_name) const {
 	return parent->lookupFunctions(function_name, return_type, arg_types, struct_name);
 }
 
@@ -159,8 +160,8 @@ VariablePtr GlobalScope::lookup(const std::string &name) const {
 	return program.globals.at(name);
 }
 
-Functions GlobalScope::lookupFunctions(const std::string &function_name, TypePtr return_type, const Types &arg_types,
-                                       const std::string &struct_name) const {
+Functions GlobalScope::lookupFunctions(const std::string &function_name, const TypePtr &return_type,
+                                       const Types &arg_types, const std::string &struct_name) const {
 	Functions out;
 	std::set<std::string> found_manglings;
 
@@ -267,8 +268,8 @@ VariablePtr BlockScope::lookup(const std::string &name) const {
 	return parent->lookup(name);
 }
 
-Functions BlockScope::lookupFunctions(const std::string &function_name, TypePtr return_type, const Types &arg_types,
-                                      const std::string &struct_name) const {
+Functions BlockScope::lookupFunctions(const std::string &function_name, const TypePtr &return_type,
+                                      const Types &arg_types, const std::string &struct_name) const {
 	return parent->lookupFunctions(function_name, return_type, arg_types, struct_name);
 }
 

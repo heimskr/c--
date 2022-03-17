@@ -12,13 +12,13 @@ namespace Util {
 		return "$o" + operator_map.at(oper);
 	}
 
-	std::string mangleStaticField(const std::string &struct_name, TypePtr type, const std::string &field) {
+	std::string mangleStaticField(const std::string &struct_name, const TypePtr &type, const std::string &field) {
 		std::stringstream out;
 		out << ".f" << struct_name.size() << struct_name << type->mangle() << field.size() << field;
 		return out.str();
 	}
 
-	std::string getSignature(std::shared_ptr<Type> ret, const std::vector<std::shared_ptr<Type>> &args) {
+	std::string getSignature(const std::shared_ptr<Type> &ret, const std::vector<std::shared_ptr<Type>> &args) {
 		std::stringstream out;
 		if (ret)
 			out << *ret;
@@ -62,11 +62,11 @@ namespace Util {
 		return out;
 	}
 
-	long parseLong(const std::string &str, int base) {
+	int64_t parseLong(const std::string &str, int base) {
 		const char *c_str = str.c_str();
-		char *end;
-		long parsed;
-		size_t length;
+		char *end = nullptr;
+		int64_t parsed = 0;
+		size_t length = 0;
 		if (3 <= str.size() && str[0] == '0' && str[1] == 'x') {
 			length = str.size() - 2;
 			c_str += 2;
@@ -80,11 +80,11 @@ namespace Util {
 		return parsed;
 	}
 
-	long parseLong(const std::string *str, int base) {
+	int64_t parseLong(const std::string *str, int base) {
 		return parseLong(*str, base);
 	}
 
-	long parseLong(const char *str, int base) {
+	int64_t parseLong(const char *str, int base) {
 		return parseLong(std::string(str), base);
 	}
 
@@ -152,8 +152,9 @@ namespace Util {
 					case 'x': {
 						if (size <= i + 2)
 							throw std::runtime_error("Hexadecimal escape is too close to end of string");
-						const char first = str[++i], second = str[++i];
-						if (!isxdigit(first) || !isxdigit(second))
+						const char first  = str[++i];
+						const char second = str[++i];
+						if (isxdigit(first) == 0 || isxdigit(second) == 0)
 							throw std::runtime_error(std::string("Invalid hexadecimal escape: \\x") + first + second);
 						out << char(strtol((std::string(1, first) + second).c_str(), nullptr, 16));
 						break;

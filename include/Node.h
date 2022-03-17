@@ -42,6 +42,7 @@ class Node {
 		Node(const Node &) = delete;
 		Node & operator=(Node &&) = delete;
 		Node & operator=(const Node &) = delete;
+		~Node() = default;
 
 		/** Creates a node with a parent graph and a given label. */
 		Node(Graph *, const std::string &);

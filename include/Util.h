@@ -12,12 +12,13 @@ struct Type;
 
 namespace Util {
 	std::string getOperator(int);
-	std::string mangleStaticField(const std::string &struct_name, std::shared_ptr<Type>, const std::string &field);
-	std::string getSignature(std::shared_ptr<Type>, const std::vector<std::shared_ptr<Type>> &);
+	std::string mangleStaticField(const std::string &struct_name, const std::shared_ptr<Type> &,
+	                              const std::string &field);
+	std::string getSignature(const std::shared_ptr<Type> &, const std::vector<std::shared_ptr<Type>> &);
 	std::vector<std::string> split(const std::string &str, const std::string &delimiter, bool condense = true);
-	long parseLong(const std::string &, int base = 10);
-	long parseLong(const std::string *, int base = 10);
-	long parseLong(const char *, int base = 10);
+	int64_t parseLong(const std::string &, int base = 10);
+	int64_t parseLong(const std::string *, int base = 10);
+	int64_t parseLong(const char *, int base = 10);
 	std::string read(const std::string &path);
 	std::string escape(const std::string &);
 	bool inRange(ssize_t);

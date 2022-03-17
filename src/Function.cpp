@@ -1111,7 +1111,7 @@ void Function::debug() const {
 		}
 		std::cerr << "\e[0m (" << block->countVariables() << ")\n";
 		for (const auto &instruction: block->instructions)
-			std::cerr << '\t' << instruction->joined() << '\n';
+			std::cerr << '\t' << instruction->joined(true, "\n\t") << '\n';
 		std::cerr << "\e[36mLive-in: \e[1m";
 		std::set<int> in;
 		std::set<int> out;

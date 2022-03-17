@@ -20,52 +20,61 @@ using Functions = std::vector<FunctionPtr>;
 using Types = std::vector<TypePtr>;
 
 struct Scope: Checkable, std::enable_shared_from_this<Scope> {
-	Program *program = nullptr;
-	Scope(Program *program_ = nullptr): program(program_) {}
-	virtual ~Scope() {}
-	virtual VariablePtr lookup(const std::string &) const = 0;
+	public:
+		Program *program = nullptr;	
 
-	virtual Functions lookupFunctions(const std::string &function_name, TypePtr, const Types &,
-		const std::string &struct_name) const { (void) function_name; (void) struct_name; return {}; }
-	FunctionPtr lookupFunction(const std::string &function_name, TypePtr, const Types &, const std::string &struct_name,
-		const ASTLocation & = {}) const;
+		Scope(const Scope &) = delete;
+		Scope(Scope &&) = delete;
+		Scope & operator=(const Scope &) = delete;
+		Scope & operator=(Scope &&) = delete;
+		~Scope() override = default;
 
-	virtual Functions lookupFunctions(const std::string &function_name, const Types &,
-		const std::string &struct_name) const { (void) function_name; (void) struct_name; return {}; }
-	FunctionPtr lookupFunction(const std::string &function_name, const Types &, const std::string &struct_name,
-		const ASTLocation & = {}) const;
+		virtual VariablePtr lookup(const std::string &) const = 0;
 
-	virtual Functions lookupFunctions(const std::string &) const { return {}; }
-	FunctionPtr lookupFunction(const std::string &, const ASTLocation & = {}) const;
+		virtual Functions lookupFunctions(const std::string &function_name, const TypePtr &, const Types &,
+			const std::string &struct_name) const { (void) function_name; (void) struct_name; return {}; }
+		FunctionPtr lookupFunction(const std::string &function_name, const TypePtr &, const Types &,
+			const std::string &struct_name, const ASTLocation & = {}) const;
 
-	virtual TypePtr lookupType(const std::string &) const { return nullptr; }
-	virtual bool doesConflict(const std::string &) const = 0;
-	/** Returns whether the insertion was successful. Insertion can fail due to conflicts. */
-	virtual bool insert(VariablePtr) = 0;
-	Scope & setProgram(Program &program_) { program = &program_; return *this; }
-	virtual Program & getProgram() const {
-		if (program == nullptr)
-			throw std::runtime_error(std::string(typeid(*this).name()) +
-				" instance isn't connected to a program instance");
-		return *program;
-	}
+		virtual Functions lookupFunctions(const std::string &function_name, const Types &,
+			const std::string &struct_name) const { (void) function_name; (void) struct_name; return {}; }
+		FunctionPtr lookupFunction(const std::string &function_name, const Types &, const std::string &struct_name,
+			const ASTLocation & = {}) const;
 
-	virtual Function & getFunction() const { throw std::runtime_error("Scope can't return a function"); }
+		virtual Functions lookupFunctions(const std::string &) const { return {}; }
+		FunctionPtr lookupFunction(const std::string &, const ASTLocation & = {}) const;
 
-	virtual std::string getName() const { return ""; }
+		virtual TypePtr lookupType(const std::string &) const { return nullptr; }
+		virtual bool doesConflict(const std::string &) const = 0;
+		/** Returns whether the insertion was successful. Insertion can fail due to conflicts. */
+		virtual bool insert(VariablePtr) = 0;
+		Scope & setProgram(Program &program_) { program = &program_; return *this; }
+		virtual Program & getProgram() const {
+			if (program == nullptr)
+				throw std::runtime_error(std::string(typeid(*this).name()) +
+					" instance isn't connected to a program instance");
+			return *program;
+		}
 
-	virtual std::string partialStringify() const = 0;
-	virtual explicit operator std::string() const { return partialStringify(); }
+		virtual Function & getFunction() const { throw std::runtime_error("Scope can't return a function"); }
 
-	template <typename T>
-	std::shared_ptr<T> ptrcast() {
-		return std::dynamic_pointer_cast<T>(shared_from_this());
-	}
+		virtual std::string getName() const { return ""; }
 
-	template <typename T>
-	std::shared_ptr<const T> ptrcast() const {
-		return std::dynamic_pointer_cast<const T>(shared_from_this());
-	}
+		virtual std::string partialStringify() const = 0;
+		virtual explicit operator std::string() const { return partialStringify(); }
+
+		template <typename T>
+		std::shared_ptr<T> ptrcast() {
+			return std::dynamic_pointer_cast<T>(shared_from_this());
+		}
+
+		template <typename T>
+		std::shared_ptr<const T> ptrcast() const {
+			return std::dynamic_pointer_cast<const T>(shared_from_this());
+		}
+
+	protected:
+		explicit Scope(Program *program_ = nullptr): program(program_) {}
 } __attribute__((packed));
 
 using ScopePtr = std::shared_ptr<Scope>;
@@ -74,7 +83,7 @@ struct GlobalScope: Scope, Makeable<GlobalScope> {
 	Program &program;
 	explicit GlobalScope(Program &program_): program(program_) {}
 	VariablePtr lookup(const std::string &) const override;
-	Functions lookupFunctions(const std::string &, TypePtr, const Types &, const std::string &) const override;
+	Functions lookupFunctions(const std::string &, const TypePtr &, const Types &, const std::string &) const override;
 	Functions lookupFunctions(const std::string &, const Types &, const std::string &) const override;
 	Functions lookupFunctions(const std::string &) const override;
 	TypePtr lookupType(const std::string &) const override;
@@ -86,9 +95,9 @@ struct GlobalScope: Scope, Makeable<GlobalScope> {
 struct FunctionScope: Scope, Makeable<FunctionScope> {
 	Function &function;
 	std::shared_ptr<GlobalScope> parent;
-	FunctionScope(Function &function_, std::shared_ptr<GlobalScope> parent_);
+	explicit FunctionScope(Function &function_, const std::shared_ptr<GlobalScope> &parent_);
 	VariablePtr lookup(const std::string &) const override;
-	Functions lookupFunctions(const std::string &, TypePtr, const Types &, const std::string &) const override;
+	Functions lookupFunctions(const std::string &, const TypePtr &, const Types &, const std::string &) const override;
 	Functions lookupFunctions(const std::string &, const Types &, const std::string &) const override;
 	Functions lookupFunctions(const std::string &) const override;
 	TypePtr lookupType(const std::string &) const override;
@@ -104,9 +113,9 @@ struct BlockScope: Scope, Makeable<BlockScope> {
 	std::vector<VariablePtr> variableOrder;
 	ScopePtr parent;
 	std::string name;
-	BlockScope(ScopePtr parent_, const std::string &name_ = ""): parent(parent_), name(name_) {}
+	explicit BlockScope(const ScopePtr &parent_, const std::string &name_ = ""): parent(parent_), name(name_) {}
 	VariablePtr lookup(const std::string &) const override;
-	Functions lookupFunctions(const std::string &, TypePtr, const Types &, const std::string &) const override;
+	Functions lookupFunctions(const std::string &, const TypePtr &, const Types &, const std::string &) const override;
 	Functions lookupFunctions(const std::string &, const Types &, const std::string &) const override;
 	Functions lookupFunctions(const std::string &) const override;
 	TypePtr lookupType(const std::string &) const override;
@@ -116,5 +125,5 @@ struct BlockScope: Scope, Makeable<BlockScope> {
 	Function & getFunction() const override { return parent->getFunction(); }
 	std::string partialStringify() const override { return parent->partialStringify() + " -> block"; }
 	std::string getName() const override { return name; }
-	operator std::string() const override;
+	explicit operator std::string() const override;
 };

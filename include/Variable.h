@@ -26,11 +26,15 @@ struct VirtualRegister: Checkable, std::enable_shared_from_this<VirtualRegister>
 		int id;
 		bool precolored = false;
 
-		VirtualRegister(Function &, std::shared_ptr<Type> = nullptr);
-		VirtualRegister(int id_, std::shared_ptr<Type> = nullptr);
+		explicit VirtualRegister(Function &, std::shared_ptr<Type> = nullptr);
+		explicit VirtualRegister(int id_, std::shared_ptr<Type> = nullptr);
 		std::shared_ptr<VirtualRegister> init();
 
-		virtual ~VirtualRegister() {}
+		VirtualRegister(const VirtualRegister &) = delete;
+		VirtualRegister(VirtualRegister &&) = delete;
+		VirtualRegister & operator=(const VirtualRegister &) = delete;
+		VirtualRegister & operator=(VirtualRegister &&) = delete;
+		virtual ~VirtualRegister() = default;
 
 		std::string regOrID(bool colored = false) const;
 		bool special() const;
@@ -39,7 +43,7 @@ struct VirtualRegister: Checkable, std::enable_shared_from_this<VirtualRegister>
 		WeakSet<WhyInstruction> readers, writers;
 
 		size_t getSize() const;
-		virtual operator std::string() const { return regOrID(true); }
+		virtual explicit operator std::string() const { return regOrID(true); }
 		VirtualRegister & setReg(int, bool bypass = false);
 		int getReg() const { return reg; }
 		std::shared_ptr<Type> getType() { return type; }
@@ -53,7 +57,7 @@ struct Variable: VirtualRegister, Makeable<Variable> {
 	Variable(const std::string &name_, std::shared_ptr<Type>, Function &);
 	Variable(const std::string &name_, std::shared_ptr<Type>);
 
-	operator std::string() const override;
+	explicit operator std::string() const override;
 
 	VirtualRegister * setType(const Type &type_) override;
 };
