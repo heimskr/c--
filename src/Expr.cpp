@@ -1039,8 +1039,12 @@ std::unique_ptr<Type> DerefExpr::getType(const Context &context) const {
 
 std::unique_ptr<Type> DerefExpr::checkType(const Context &context) const {
 	auto type = subexpr->getType(context);
-	if (!type->isPointer())
+	if (!type->isPointer()) {
+		if (auto *ref_type = type->cast<ReferenceType>())
+			if (ref_type->subtype->isPointer())
+				return std::unique_ptr<Type>(ref_type->subtype->copy());
 		throw NotPointerError(TypePtr(type->copy()), getLocation());
+	}
 	return type;
 }
 
