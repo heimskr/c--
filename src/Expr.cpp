@@ -400,7 +400,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				std::string(cpmParser.getName(node.symbol)));
 	}
 
-	if (function)
+	if (function != nullptr)
 		out->setFunction(*function);
 	return out->setLocation(node.location);
 }
@@ -413,8 +413,10 @@ void PlusExpr::compile(VregPtr destination, Function &function, const Context &c
 	if (auto fnptr = getOperator(context)) {
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
-		auto left_type = left->getType(context), right_type = right->getType(context);
-		VregPtr left_var = function.newVar(), right_var = function.newVar();
+		auto left_type  = left->getType(context);
+		auto right_type = right->getType(context);
+		VregPtr left_var  = function.newVar();
+		VregPtr right_var = function.newVar();
 		if (left_type->isPointer() && right_type->isInt()) {
 			if (multiplier != 1)
 				throw GenericError(getLocation(), "Cannot multiply in pointer arithmetic PlusExpr");
@@ -439,8 +441,8 @@ void PlusExpr::compile(VregPtr destination, Function &function, const Context &c
 }
 
 std::optional<ssize_t> PlusExpr::evaluate(const Context &context) const {
-	auto left_value  = left?  left->evaluate(context)  : std::nullopt,
-	     right_value = right? right->evaluate(context) : std::nullopt;
+	auto left_value  = left?  left->evaluate(context)  : std::nullopt;
+	auto right_value = right? right->evaluate(context) : std::nullopt;
 	if (left_value && right_value)
 		return *left_value + *right_value;
 	return std::nullopt;
@@ -449,7 +451,8 @@ std::optional<ssize_t> PlusExpr::evaluate(const Context &context) const {
 std::unique_ptr<Type> PlusExpr::getType(const Context &context) const {
 	if (auto fnptr = getOperator(context))
 		return std::unique_ptr<Type>(fnptr->returnType->copy());
-	auto left_type = left->getType(context), right_type = right->getType(context);
+	auto left_type  = left->getType(context);
+	auto right_type = right->getType(context);
 	if (left_type->isPointer() && right_type->isInt())
 		return left_type;
 	if (left_type->isInt() && right_type->isPointer())
@@ -460,11 +463,13 @@ std::unique_ptr<Type> PlusExpr::getType(const Context &context) const {
 }
 
 void MinusExpr::compile(VregPtr destination, Function &function, const Context &context, size_t multiplier) {
-	auto left_type = left->getType(context), right_type = right->getType(context);
+	auto left_type  = left->getType(context);
+	auto right_type = right->getType(context);
 	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CPMTOK_MINUS, getLocation())) {
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
-		VregPtr left_var = function.newVar(), right_var = function.newVar();
+		VregPtr left_var  = function.newVar();
+		VregPtr right_var = function.newVar();
 		if (left_type->isPointer() && right_type->isInt()) {
 			if (multiplier != 1)
 				throw GenericError(getLocation(), "Cannot multiply in pointer arithmetic MinusExpr");
@@ -488,7 +493,8 @@ void MinusExpr::compile(VregPtr destination, Function &function, const Context &
 std::unique_ptr<Type> MinusExpr::getType(const Context &context) const {
 	if (auto fnptr = getOperator(context))
 		return std::unique_ptr<Type>(fnptr->returnType->copy());
-	auto left_type = left->getType(context), right_type = right->getType(context);
+	auto left_type  = left->getType(context);
+	auto right_type = right->getType(context);
 	if (left_type->isPointer() && right_type->isInt())
 		return left_type;
 	if (left_type->isPointer() && right_type->isPointer())
@@ -499,11 +505,13 @@ std::unique_ptr<Type> MinusExpr::getType(const Context &context) const {
 }
 
 void MultExpr::compile(VregPtr destination, Function &function, const Context &context, size_t multiplier) {
-	auto left_type = left->getType(context), right_type = right->getType(context);
+	auto left_type  = left->getType(context);
+	auto right_type = right->getType(context);
 	if (auto fnptr = getOperator(context)) {
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
-		VregPtr left_var = function.newVar(), right_var = function.newVar();
+		VregPtr left_var  = function.newVar();
+		VregPtr right_var = function.newVar();
 		left->compile(left_var, function, context, 1);
 		right->compile(right_var, function, context, multiplier); // TODO: verify
 		function.add<MultRInstruction>(left_var, right_var, destination)->setDebug(*this);
@@ -511,7 +519,8 @@ void MultExpr::compile(VregPtr destination, Function &function, const Context &c
 }
 
 void ShiftLeftExpr::compile(VregPtr destination, Function &function, const Context &context, size_t multiplier) {
-	auto left_type = left->getType(context), right_type = right->getType(context);
+	auto left_type  = left->getType(context);
+	auto right_type = right->getType(context);
 	if (auto fnptr = getOperator(context)) {
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
@@ -527,8 +536,8 @@ size_t ShiftLeftExpr::getSize(const Context &context) const {
 }
 
 std::optional<ssize_t> ShiftLeftExpr::evaluate(const Context &context) const {
-	auto left_value  = left?  left->evaluate(context)  : std::nullopt,
-	     right_value = right? right->evaluate(context) : std::nullopt;
+	auto left_value  = left?  left->evaluate(context)  : std::nullopt;
+	auto right_value = right? right->evaluate(context) : std::nullopt;
 	if (left_value && right_value)
 		return *left_value << *right_value;
 	return std::nullopt;
@@ -553,11 +562,11 @@ size_t ShiftRightExpr::getSize(const Context &context) const {
 }
 
 std::optional<ssize_t> ShiftRightExpr::evaluate(const Context &context) const {
-	auto left_value  = left?  left->evaluate(context)  : std::nullopt,
-	     right_value = right? right->evaluate(context) : std::nullopt;
+	auto left_value  = left?  left->evaluate(context)  : std::nullopt;
+	auto right_value = right? right->evaluate(context) : std::nullopt;
 	if (left_value && right_value) {
 		if (left->getType(context)->isUnsigned(0))
-			return size_t(*left_value) << *right_value;
+			return size_t(*left_value) << size_t(*right_value);
 		return *left_value << *right_value;
 	}
 	return std::nullopt;
@@ -581,8 +590,8 @@ size_t AndExpr::getSize(const Context &context) const {
 }
 
 std::optional<ssize_t> AndExpr::evaluate(const Context &context) const {
-	auto left_value  = left?  left->evaluate(context)  : std::nullopt,
-	     right_value = right? right->evaluate(context) : std::nullopt;
+	auto left_value  = left?  left->evaluate(context)  : std::nullopt;
+	auto right_value = right? right->evaluate(context) : std::nullopt;
 	if (left_value && right_value)
 		return *left_value & *right_value;
 	return std::nullopt;
@@ -606,8 +615,8 @@ size_t OrExpr::getSize(const Context &context) const {
 }
 
 std::optional<ssize_t> OrExpr::evaluate(const Context &context) const {
-	auto left_value  = left?  left->evaluate(context)  : std::nullopt,
-	     right_value = right? right->evaluate(context) : std::nullopt;
+	auto left_value  = left?  left->evaluate(context)  : std::nullopt;
+	auto right_value = right? right->evaluate(context) : std::nullopt;
 	if (left_value && right_value)
 		return *left_value | *right_value;
 	return std::nullopt;
@@ -631,8 +640,8 @@ size_t XorExpr::getSize(const Context &context) const {
 }
 
 std::optional<ssize_t> XorExpr::evaluate(const Context &context) const {
-	auto left_value  = left?  left->evaluate(context)  : std::nullopt,
-	     right_value = right? right->evaluate(context) : std::nullopt;
+	auto left_value  = left?  left->evaluate(context)  : std::nullopt;
+	auto right_value = right? right->evaluate(context) : std::nullopt;
 	if (left_value && right_value)
 		return *left_value ^ *right_value;
 	return std::nullopt;
@@ -642,8 +651,9 @@ void LandExpr::compile(VregPtr destination, Function &function, const Context &c
 	if (auto fnptr = getOperator(context)) {
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
-		const std::string base = "." + function.mangle() + "." + std::to_string(function.getNextBlock());
-		const std::string success = base + "land.s", end = base + "land.e";
+		const std::string base    = "." + function.mangle() + "." + std::to_string(function.getNextBlock());
+		const std::string success = base + "land.s";
+		const std::string end     = base + "land.e";
 		left->compile(destination, function, context, 1);
 		function.add<JumpConditionalInstruction>(success, destination, false)->setDebug(*this);
 		function.add<JumpInstruction>(end)->setDebug(*this);
@@ -657,8 +667,8 @@ void LandExpr::compile(VregPtr destination, Function &function, const Context &c
 }
 
 std::optional<ssize_t> LandExpr::evaluate(const Context &context) const {
-	auto left_value  = left?  left->evaluate(context)  : std::nullopt,
-	     right_value = right? right->evaluate(context) : std::nullopt;
+	auto left_value  = left?  left->evaluate(context)  : std::nullopt;
+	auto right_value = right? right->evaluate(context) : std::nullopt;
 	if (left_value && right_value)
 		return *left_value && *right_value;
 	return std::nullopt;
@@ -679,8 +689,8 @@ void LorExpr::compile(VregPtr destination, Function &function, const Context &co
 }
 
 std::optional<ssize_t> LorExpr::evaluate(const Context &context) const {
-	auto left_value  = left?  left->evaluate(context)  : std::nullopt,
-	     right_value = right? right->evaluate(context) : std::nullopt;
+	auto left_value  = left?  left->evaluate(context)  : std::nullopt;
+	auto right_value = right? right->evaluate(context) : std::nullopt;
 	if (left_value && right_value)
 		return *left_value || *right_value;
 	return std::nullopt;
@@ -700,8 +710,8 @@ void LxorExpr::compile(VregPtr destination, Function &function, const Context &c
 }
 
 std::optional<ssize_t> LxorExpr::evaluate(const Context &context) const {
-	auto left_value  = left?  left->evaluate(context)  : std::nullopt,
-	     right_value = right? right->evaluate(context) : std::nullopt;
+	auto left_value  = left?  left->evaluate(context)  : std::nullopt;
+	auto right_value = right? right->evaluate(context) : std::nullopt;
 	if (left_value && right_value)
 		return *left_value || *right_value;
 	return std::nullopt;
@@ -726,8 +736,8 @@ size_t DivExpr::getSize(const Context &context) const {
 }
 
 std::optional<ssize_t> DivExpr::evaluate(const Context &context) const {
-	auto left_value  = left?  left->evaluate(context)  : std::nullopt,
-	     right_value = right? right->evaluate(context) : std::nullopt;
+	auto left_value  = left?  left->evaluate(context)  : std::nullopt;
+	auto right_value = right? right->evaluate(context) : std::nullopt;
 	if (left_value && right_value) {
 		if (left->getType(context)->isUnsigned(0))
 			return size_t(*left_value) / size_t(*right_value);
@@ -756,8 +766,8 @@ size_t ModExpr::getSize(const Context &context) const {
 }
 
 std::optional<ssize_t> ModExpr::evaluate(const Context &context) const {
-	auto left_value  = left?  left->evaluate(context)  : std::nullopt,
-	     right_value = right? right->evaluate(context) : std::nullopt;
+	auto left_value  = left?  left->evaluate(context)  : std::nullopt;
+	auto right_value = right? right->evaluate(context) : std::nullopt;
 	if (left_value && right_value) {
 		if (left->getType(context)->isUnsigned(0))
 			return size_t(*left_value) % size_t(*right_value);
@@ -772,14 +782,14 @@ ssize_t NumberExpr::getValue() const {
 }
 
 void NumberExpr::compile(VregPtr destination, Function &function, const Context &, size_t multiplier) {
-	const ssize_t multiplied = getValue() * multiplier;
+	const ssize_t multiplied = ssize_t(getValue()) * multiplier;
 	getSize();
 	if (!destination)
 		return;
 	if (Util::inRange(multiplied)) {
 		function.add<SetIInstruction>(destination, int(multiplied))->setDebug(*this);
 	} else {
-		const size_t high = size_t(multiplied) >> 32;
+		const size_t high = size_t(multiplied) >> 32ul;
 		const size_t low  = size_t(multiplied) & 0xff'ff'ff'ff;
 		function.add<SetIInstruction>(destination, int(low))->setDebug(*this);
 		function.add<LuiIInstruction>(destination, int(high))->setDebug(*this);
@@ -1087,7 +1097,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 			std::vector<Argument> call_args;
 			call_args.reserve(1 + arguments.size());
 			for (const auto &expr: call_exprs)
-				call_args.push_back(expr.get());
+				call_args.emplace_back(expr.get());
 			compileCall(destination, fn, subcontext, fnptr, call_args, getLocation(), multiplier);
 			return;
 		}
@@ -1115,7 +1125,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 	fn.add<CallPushPlaceholder>()->setDebug(*this);
 
 	for (size_t i = 0; i < registers_used; ++i)
-		fn.add<StackPushInstruction>(fn.precolored(Why::argumentOffset + i))->setDebug(*this);
+		fn.add<StackPushInstruction>(fn.precolored(Why::argumentOffset + int(i)))->setDebug(*this);
 
 	if (structExpr) {
 		struct_expr_type = structExpr->getType(subcontext);
@@ -1137,12 +1147,12 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 				}
 			}
 			throw NotStructError(TypePtr(struct_expr_type->copy()), structExpr->getLocation());
-		} else {
-			fn.addComment("Setting \"this\" from struct of type " + std::string(*struct_expr_type) + ".");
-			this_var->setType(PointerType(struct_expr_type->copy()));
-			if (!structExpr->compileAddress(this_var, fn, context))
-				throw LvalueError(std::string(*struct_expr_type), structExpr->getLocation());
 		}
+
+		fn.addComment("Setting \"this\" from struct of type " + std::string(*struct_expr_type) + ".");
+		this_var->setType(PointerType(struct_expr_type->copy()));
+		if (!structExpr->compileAddress(this_var, fn, context))
+			throw LvalueError(std::string(*struct_expr_type), structExpr->getLocation());
 		this_done:
 		fn.addComment("Done setting \"this\".");
 	}
@@ -1212,7 +1222,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 	add_jump();
 
 	for (size_t i = registers_used; 0 < i; --i)
-		fn.add<StackPopInstruction>(fn.precolored(Why::argumentOffset + i - 1))->setDebug(*this);
+		fn.add<StackPopInstruction>(fn.precolored(Why::argumentOffset + int(i) - 1))->setDebug(*this);
 
 	fn.add<CallPopPlaceholder>();
 
@@ -1350,7 +1360,8 @@ FunctionPtr CallExpr::getOperator(const Context &context) const {
 }
 
 void AssignExpr::compile(VregPtr destination, Function &function, const Context &context, size_t multiplier) {
-	TypePtr left_type = left->getType(context), right_type = right->getType(context);
+	TypePtr left_type  = left->getType(context);
+	TypePtr right_type = right->getType(context);
 	if (left_type->isConst)
 		throw ConstError("Can't assign", std::string(*left_type), getLocation());
 	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CPMTOK_ASSIGN, getLocation())) {
@@ -1365,7 +1376,7 @@ void AssignExpr::compile(VregPtr destination, Function &function, const Context 
 		if (right_type->isInitializer()) {
 			auto *initializer_expr = right->cast<InitializerExpr>();
 			if (initializer_expr->isConstructor) {
-				StructType *struct_type;
+				StructType *struct_type = nullptr;
 				if (left_type->isStruct()) {
 					struct_type = left_type->cast<StructType>();
 				} else if (left_type->isReference()) {
@@ -1402,7 +1413,8 @@ void AssignExpr::compile(VregPtr destination, Function &function, const Context 
 std::unique_ptr<Type> AssignExpr::getType(const Context &context) const {
 	if (auto fnptr = getOperator(context))
 		return std::unique_ptr<Type>(fnptr->returnType->copy());
-	auto left_type = left->getType(context), right_type = right->getType(context);
+	auto left_type  = left->getType(context);
+	auto right_type = right->getType(context);
 	if (!(*right_type && *left_type))
 			throw ImplicitConversionError(*right_type, *left_type, getLocation());
 	return left_type;
@@ -1447,17 +1459,17 @@ std::unique_ptr<Type> AccessExpr::getType(const Context &context) const {
 	if (auto fnptr = getOperator(context))
 		return std::unique_ptr<Type>(fnptr->returnType->copy());
 	auto array_type = array->getType(context);
-	if (auto *casted = array_type->cast<const ArrayType>())
+	if (const auto *casted = array_type->cast<const ArrayType>())
 		return std::unique_ptr<Type>(casted->subtype->copy());
-	if (auto *casted = array_type->cast<const PointerType>())
+	if (const auto *casted = array_type->cast<const PointerType>())
 		return std::unique_ptr<Type>(casted->subtype->copy());
 	fail();
 	return nullptr;
 }
 
 void AccessExpr::fail() const {
-	throw GenericError(getLocation(), "Can't get array access result type: array expression isn't an array or pointer "
-		"type");
+	throw GenericError(getLocation(),
+		"Can't get array access result type: array expression isn't an array or pointer type");
 }
 
 bool AccessExpr::compileAddress(const VregPtr &destination, Function &function, const Context &context) {
@@ -1483,7 +1495,8 @@ bool AccessExpr::compileAddress(const VregPtr &destination, Function &function, 
 
 std::unique_ptr<Type> AccessExpr::check(const Context &context) {
 	auto type = array->getType(context);
-	const bool is_array = type->isArray(), is_pointer = type->isPointer();
+	const bool is_array = type->isArray();
+	const bool is_pointer = type->isPointer();
 	if (!is_array && !is_pointer)
 		throw NotArrayError(TypePtr(type->copy()));
 	if (!warned && is_array)
@@ -1499,7 +1512,8 @@ std::unique_ptr<Type> AccessExpr::check(const Context &context) {
 }
 
 FunctionPtr AccessExpr::getOperator(const Context &context) const {
-	auto array_type = array->getType(context), subscript_type = subscript->getType(context);
+	auto array_type = array->getType(context);
+	auto subscript_type = subscript->getType(context);
 	return context.program->getOperator({array_type.get(), subscript_type.get()}, CPM_ACCESS, getLocation());
 }
 
@@ -1507,7 +1521,7 @@ void LengthExpr::compile(VregPtr destination, Function &function, const Context 
 	TypePtr type = subexpr->getType(context);
 	if (auto fnptr = function.program.getOperator({type.get()}, CPMTOK_HASH, getLocation())) {
 		compileCall(destination, function, context, fnptr, {subexpr.get()}, getLocation(), multiplier);
-	} else if (auto *array = type->cast<const ArrayType>()) {
+	} else if (const auto *array = type->cast<const ArrayType>()) {
 		function.add<SetIInstruction>(destination, array->count * multiplier)->setDebug(*this);
 	} else
 		throw NotArrayError(type);
@@ -1515,7 +1529,8 @@ void LengthExpr::compile(VregPtr destination, Function &function, const Context 
 
 void TernaryExpr::compile(VregPtr destination, Function &function, const Context &context, size_t multiplier) {
 	const std::string base = "." + function.mangle() + "." + std::to_string(function.getNextBlock());
-	const std::string true_label = base + "t.t", end = base + "t.e";
+	const std::string true_label = base + "t.t";
+	const std::string end = base + "t.e";
 	condition->compile(destination, function, context, 1);
 	function.add<JumpConditionalInstruction>(true_label, destination, false)->setDebug(*this);
 	ifFalse->compile(destination, function, context, multiplier);
@@ -1529,7 +1544,8 @@ std::unique_ptr<Type> TernaryExpr::getType(const Context &context) const {
 	auto condition_type = condition->getType(context);
 	if (!(*condition_type && BoolType()))
 		throw ImplicitConversionError(*condition_type, BoolType(), getLocation());
-	auto true_type = ifTrue->getType(context), false_type = ifFalse->getType(context);
+	auto true_type  = ifTrue->getType(context);
+	auto false_type = ifFalse->getType(context);
 	if (!(*true_type && *false_type) || !(*false_type && *true_type))
 		throw ImplicitConversionError(*false_type, *true_type, getLocation());
 	return true_type;
@@ -1583,7 +1599,7 @@ std::shared_ptr<StructType> DotExpr::checkType(const Context &context) const {
 	auto left_type = left->getType(context);
 	if (!left_type->isStruct()) {
 		auto *left_reference = left_type->cast<ReferenceType>();
-		if (!left_reference || !left_reference->subtype->isStruct())
+		if (left_reference == nullptr || !left_reference->subtype->isStruct())
 			throw NotStructError(std::move(left_type), getLocation());
 		return std::shared_ptr<StructType>(left_reference->subtype->copy()->cast<StructType>());
 	}
@@ -1660,8 +1676,8 @@ void SizeofExpr::compile(VregPtr destination, Function &function, const Context 
 
 std::optional<ssize_t> OffsetofExpr::evaluate(const Context &context) const {
 	auto type = context.scope->lookupType(structName);
-	StructType *struct_type;
-	if (!type || !(struct_type = type->cast<StructType>()))
+	StructType *struct_type = nullptr;
+	if (!type || (struct_type = type->cast<StructType>()) == nullptr)
 		throw GenericError(getLocation(), "Unknown or incomplete struct in offsetof expression: " + structName);
 	ssize_t offset = 0;
 	bool found = false;
@@ -1670,7 +1686,7 @@ std::optional<ssize_t> OffsetofExpr::evaluate(const Context &context) const {
 			found = true;
 			break;
 		}
-		offset += field_type->getSize();
+		offset += ssize_t(field_type->getSize());
 	}
 	if (!found)
 		throw GenericError(getLocation(), "Struct " + structName + " has no field " + fieldName);
@@ -1683,8 +1699,8 @@ void OffsetofExpr::compile(VregPtr destination, Function &function, const Contex
 
 std::optional<ssize_t> SizeofMemberExpr::evaluate(const Context &context) const {
 	auto type = context.scope->lookupType(structName);
-	StructType *struct_type;
-	if (!type || !(struct_type = type->cast<StructType>()))
+	StructType *struct_type = nullptr;
+	if (!type || (struct_type = type->cast<StructType>()) == nullptr)
 		throw GenericError(getLocation(), "Unknown or incomplete struct in sizeof expression: " + structName);
 	const auto &map = struct_type->getMap();
 	if (map.count(fieldName) == 0)
@@ -1711,7 +1727,7 @@ void InitializerExpr::compile(VregPtr, Function &, const Context &, size_t) {
 	throw GenericError(getLocation(), "Can't compile initializers directly");
 }
 
-void InitializerExpr::fullCompile(VregPtr start, Function &function, const Context &context) {
+void InitializerExpr::fullCompile(const VregPtr &start, Function &function, const Context &context) {
 	if (isConstructor)
 		throw GenericError(getLocation(), "Can't compile a constructor initializer as a non-constructor initializer");
 	if (children.empty())
@@ -1753,7 +1769,7 @@ void ConstructorExpr::compile(VregPtr destination, Function &function, const Con
 	function.add<CallPushPlaceholder>();
 
 	for (size_t i = 0; i < registers_used; ++i)
-		function.add<StackPushInstruction>(function.precolored(Why::argumentOffset + i))->setDebug(*this);
+		function.add<StackPushInstruction>(function.precolored(Why::argumentOffset + int(i)))->setDebug(*this);
 
 	auto looked_up = subcontext.scope->lookupType(structName);
 	if (!looked_up)

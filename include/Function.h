@@ -34,7 +34,7 @@ class Function: public Makeable<Function> {
 		bool thisAdded = false;
 
 		void compile(const ASTNode &, const std::string &break_label = "", const std::string &continue_label = "",
-		             ScopePtr parent_scope = nullptr);
+		             const ScopePtr &parent_scope = nullptr);
 		void extractArguments();
 
 	public:
@@ -86,13 +86,13 @@ class Function: public Makeable<Function> {
 
 		std::set<int> usedGPRegisters() const;
 
-		VregPtr newVar(TypePtr = nullptr);
+		VregPtr newVar(const TypePtr & = nullptr);
 
 		std::shared_ptr<BlockScope> newScope(const std::string &name_ = "", int *id_out = nullptr);
 
 		VregPtr precolored(int reg, bool bypass = false);
 
-		size_t addToStack(VariablePtr);
+		size_t addToStack(const VariablePtr &);
 
 		std::list<BasicBlockPtr> & extractBlocks(std::map<std::string, BasicBlockPtr> * = nullptr);
 
@@ -109,40 +109,40 @@ class Function: public Makeable<Function> {
 
 		void computeLiveness();
 
-		void upAndMark(BasicBlockPtr, VregPtr);
+		void upAndMark(const BasicBlockPtr &, const VregPtr &);
 
 		/** Tries to spill a variable. Returns true if any instructions were inserted. */
-		bool spill(VregPtr);
+		bool spill(const VregPtr &);
 
 		/** Finds a spill stack location for a variable. */
-		size_t getSpill(VregPtr, bool create = false, bool *created = nullptr);
+		size_t getSpill(const VregPtr &, bool create = false, bool *created = nullptr);
 
-		void markSpilled(VregPtr);
+		void markSpilled(const VregPtr &);
 
-		bool isSpilled(VregPtr) const;
+		bool isSpilled(const VregPtr &) const;
 
-		bool canSpill(VregPtr);
+		bool canSpill(const VregPtr &);
 
-		std::set<std::shared_ptr<BasicBlock>> getLive(VregPtr,
-			std::function<std::set<VregPtr> &(const std::shared_ptr<BasicBlock> &)>) const;
+		std::set<std::shared_ptr<BasicBlock>> getLive(const VregPtr &,
+			const std::function<std::set<VregPtr> &(const std::shared_ptr<BasicBlock> &)> &) const;
 
 		/** Returns a set of all blocks where a given variable or any of its aliases are live-in. */
-		std::set<std::shared_ptr<BasicBlock>> getLiveIn(VregPtr) const;
+		std::set<std::shared_ptr<BasicBlock>> getLiveIn(const VregPtr &) const;
 
 		/** Returns a set of all blocks where a given variable or any of its aliases are live-out. */
-		std::set<std::shared_ptr<BasicBlock>> getLiveOut(VregPtr) const;
+		std::set<std::shared_ptr<BasicBlock>> getLiveOut(const VregPtr &) const;
 
 		/** Resets the readingBlocks and writingBlocks fields of all virtual registers used in the function. */
 		void updateVregs();
 
 		/** Returns a pointer to the instruction following a given instruction. */
-		WhyPtr after(WhyPtr);
+		WhyPtr after(const WhyPtr &);
 
 		/** Inserts one instruction after another. Returns the inserted instruction. */
-		WhyPtr insertAfter(WhyPtr base, WhyPtr new_instruction, bool reindex = true);
+		WhyPtr insertAfter(const WhyPtr &base, WhyPtr new_instruction, bool reindex = true);
 
 		/** Inserts one instruction before another. Returns the inserted instruction. */
-		WhyPtr insertBefore(WhyPtr base, WhyPtr new_instruction, bool reindex = true, bool linear_warn = true,
+		WhyPtr insertBefore(const WhyPtr &base, WhyPtr new_instruction, bool reindex = true, bool linear_warn = true,
 			bool *should_relinearize_out = nullptr);
 
 		bool isBuiltin() const { return !name.empty() && (name == ".init" || name.front() == '`'); }
@@ -158,11 +158,11 @@ class Function: public Makeable<Function> {
 		}
 
 		void addComment(const std::string &);
-		void addComment(WhyPtr base, const std::string &);
+		void addComment(const WhyPtr &base, const std::string &);
 
-		VregPtr mx(int = 0, BasicBlockPtr writer = nullptr);
-		VregPtr mx(int, std::shared_ptr<Instruction> writer);
-		VregPtr mx(std::shared_ptr<Instruction> writer);
+		VregPtr mx(int = 0, const BasicBlockPtr &writer = nullptr);
+		VregPtr mx(int, const std::shared_ptr<Instruction> &writer);
+		VregPtr mx(const std::shared_ptr<Instruction> &writer);
 
 		int getNextBlock() { return ++nextBlock; }
 
@@ -177,8 +177,9 @@ class Function: public Makeable<Function> {
 
 		ASTLocation getLocation() const { return source != nullptr? source->location : ASTLocation(); }
 
-		void doPointerArithmetic(TypePtr left_type, TypePtr right_type, Expr &left, Expr &right, VregPtr left_var,
-		                         VregPtr right_var, const Context &, const ASTLocation &);
+		void doPointerArithmetic(const TypePtr &left_type, const TypePtr &right_type, Expr &left, Expr &right,
+		                         const VregPtr &left_var, const VregPtr &right_var, const Context &,
+		                         const ASTLocation &);
 
 		static Function * demangle(const std::string &, Program &);
 

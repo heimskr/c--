@@ -18,7 +18,7 @@
 
 Function::Function(Program &program_, const ASTNode *source_):
 program(program_), source(source_), selfScope(FunctionScope::make(*this, GlobalScope::make(program))) {
-	if (source) {
+	if (source != nullptr) {
 		if (source->symbol == CPMTOK_PLUS) { // Constructor
 			attributes.insert(Attribute::Constructor);
 			const std::string &struct_name = *source->at(0)->text;
@@ -104,7 +104,7 @@ std::string Function::mangle() const {
 void Function::extractArguments() {
 	arguments.clear();
 	argumentMap.clear();
-	if (!source)
+	if (source == nullptr)
 		return;
 
 	int index = 0;
@@ -166,7 +166,7 @@ void Function::compile() {
 		if (isBuiltin())
 			return;
 
-		if (!source)
+		if (source == nullptr)
 			throw GenericError(getLocation(), "Can't compile " + name + ": no source node");
 
 		const size_t size = source->size();
@@ -212,7 +212,7 @@ void Function::compile() {
 		makeCFG();
 		computeLiveness();
 		ColoringAllocator allocator(*this);
-		Allocator::Result result;
+		Allocator::Result result = Allocator::Result::NotSpilled;
 		do
 			result = allocator.attempt();
 		while (result != Allocator::Result::Success);
@@ -223,9 +223,9 @@ void Function::compile() {
 		if (!is_init) {
 			const bool is_saved = isSaved();
 			std::set<int> gp_regs = is_saved? usedGPRegisters() : std::set<int>();
-			auto fp = precolored(Why::framePointerOffset),
-			     sp = precolored(Why::stackPointerOffset),
-			     m5 = mx(5);
+			auto fp = precolored(Why::framePointerOffset);
+			auto sp = precolored(Why::stackPointerOffset);
+			auto m5 = mx(5);
 			if (stackUsage != 0)
 				addFront<SubIInstruction>(sp, sp, stackUsage)->setDebug(default_debug);
 			addFront<MoveInstruction>(sp, fp)->setDebug(default_debug);
@@ -267,7 +267,7 @@ std::set<int> Function::usedGPRegisters() const {
 	return out;
 }
 
-VregPtr Function::newVar(TypePtr type) {
+VregPtr Function::newVar(const TypePtr &type) {
 	return std::make_shared<VirtualRegister>(*this, type)->init();
 }
 
@@ -275,7 +275,7 @@ std::shared_ptr<BlockScope> Function::newScope(const std::string &name_, int *id
 	const int new_id = ++nextScope;
 	auto new_scope = std::make_shared<BlockScope>(currentScope(), name_);
 	scopes.try_emplace(new_id, new_scope);
-	if (id_out)
+	if (id_out != nullptr)
 		*id_out = new_id;
 	return new_scope;
 }
@@ -287,7 +287,7 @@ VregPtr Function::precolored(int reg, bool bypass) {
 	return out;
 }
 
-size_t Function::addToStack(VariablePtr variable) {
+size_t Function::addToStack(const VariablePtr &variable) {
 	if (stackOffsets.count(variable) != 0)
 		throw GenericError(getLocation(), "Variable already on the stack in function " + name + ": " + variable->name);
 	stackOffsets.emplace(variable, stackUsage += variable->getType()->getSize());
@@ -295,7 +295,7 @@ size_t Function::addToStack(VariablePtr variable) {
 }
 
 void Function::compile(const ASTNode &node, const std::string &break_label, const std::string &continue_label,
-                       ScopePtr parent_scope) {
+                       const ScopePtr &parent_scope) {
 	switch (node.symbol) {
 		case CPM_DECL: {
 			checkNaked(node);
@@ -307,7 +307,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			currentScope()->insert(variable);
 			size_t offset = addToStack(variable);
 			bool store_back = false;
-			size_t store_size;
+			size_t store_size = 0;
 			VregPtr fp;
 			if (variable->getType()->isReference()) {
 				if (node.size() == 2)
@@ -323,13 +323,6 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 
 				if (!expr->compileAddress(variable, *this, context))
 					throw LvalueError(std::string(*expr->getType(context)), node.location);
-
-				// if (expr_type->isReference()) {
-				// 	addComment("Some hack.");
-				// 	add<LoadRInstruction>(variable, variable, Why::wordSize)->setDebug(*expr); /// ???
-				// }
-
-				// expr->compile(variable, *this, context);
 
 				store_back = true;
 				store_size = Why::wordSize;
@@ -420,7 +413,8 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
 			ScopePtr current_scope = currentScope();
 			const std::string label = "." + mangle() + "." + std::to_string(++nextBlock);
-			const std::string start = label + "w.s", end = label + "w.e";
+			const std::string start = label + "w.s";
+			const std::string end   = label + "w.e";
 			add<Label>(start);
 			auto temp_var = newVar();
 			const TypePtr condition_type = condition->getType(Context(program, currentScope()));
@@ -441,7 +435,9 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 
 			ScopePtr current_scope = currentScope();
 			const std::string label = "." + mangle() + "." + std::to_string(++nextBlock);
-			const std::string start = label + "f.s", end = label + "f.e", next = label + "f.n";
+			const std::string start = label + "f.s";
+			const std::string end   = label + "f.e";
+			const std::string next  = label + "f.n";
 			openScope(start);
 			auto temp_var = newVar();
 
@@ -487,7 +483,8 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			break;
 		case CPMTOK_IF: {
 			checkNaked(node);
-			const std::string base = "." + mangle() + "." + std::to_string(++nextBlock), end_label = base + "if.end";
+			const std::string base      = "." + mangle() + "." + std::to_string(++nextBlock);
+			const std::string end_label = base + "if.end";
 			ExprPtr condition = ExprPtr(Expr::get(*node.front(), this));
 			auto temp_var = newVar();
 			const TypePtr condition_type = condition->getType(Context(program, currentScope()));
@@ -526,10 +523,10 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				std::cerr << "\e[31mWASM parsing failed for ASM node at " << node.location << "\e[39m\n";
 				std::cerr << "\e[31mFull text: [\e[1m" << wasm_source << "\e[22m]\e[39m\n";
 			} else {
-				const ASTNode *input_exprs  = 2 <= node.size()? node.at(1) : nullptr,
-				              *output_exprs = 3 <= node.size()? node.at(2) : nullptr;
-				const size_t  input_count  = input_exprs?  input_exprs->size()  : 0;
-				const size_t  output_count = output_exprs? output_exprs->size() : 0;
+				const ASTNode *input_exprs  = 2 <= node.size()? node.at(1) : nullptr;
+				const ASTNode *output_exprs = 3 <= node.size()? node.at(2) : nullptr;
+				const size_t  input_count  =  input_exprs != nullptr?  input_exprs->size() : 0;
+				const size_t  output_count = output_exprs != nullptr? output_exprs->size() : 0;
 
 				if (isNaked() && (input_count != 0 || output_count != 0))
 					throw GenericError(node.location,
@@ -538,7 +535,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				VarMap map;
 				std::map<std::string, ExprPtr> out_exprs;
 
-				if (output_exprs) {
+				if (output_exprs != nullptr) {
 					size_t output_counter = 0;
 					for (const ASTNode *child: *output_exprs) {
 						auto expr = ExprPtr(Expr::get(*child, this));
@@ -548,7 +545,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 					}
 				}
 
-				if (input_exprs) {
+				if (input_exprs != nullptr) {
 					size_t input_counter = 0;
 					for (const ASTNode *child: *input_exprs) {
 						auto expr = ExprPtr(Expr::get(*child, this));
@@ -671,7 +668,7 @@ std::list<BasicBlockPtr> & Function::extractBlocks(std::map<std::string, BasicBl
 		for (const auto &instruction: block->instructions) {
 			instruction->parent = block;
 			if (const auto *conditional = instruction->cast<JumpConditionalInstruction>()) {
-				const std::string &target_name = std::get<std::string>(conditional->imm);
+				const auto &target_name = std::get<std::string>(conditional->imm);
 				if (map.count(target_name) != 0) {
 					auto &target = map.at(target_name);
 					target->predecessors.insert(block);
@@ -681,7 +678,7 @@ std::list<BasicBlockPtr> & Function::extractBlocks(std::map<std::string, BasicBl
 		}
 	}
 
-	if (map_out)
+	if (map_out != nullptr)
 		*map_out = std::move(map);
 
 	return blocks;
@@ -709,7 +706,7 @@ void Function::reindex() {
 }
 
 int Function::split(std::map<std::string, BasicBlockPtr> *map) {
-	bool changed;
+	bool changed = false;
 	int count = 0;
 	do {
 		changed = false;
@@ -725,7 +722,7 @@ int Function::split(std::map<std::string, BasicBlockPtr> *map) {
 					block->instructions.pop_back();
 				}
 
-				if (map)
+				if (map != nullptr)
 					map->emplace(new_block->label, new_block);
 
 				new_block->successors = block->successors;
@@ -765,12 +762,12 @@ void Function::computeLiveness() {
 
 	for (auto &block: blocks) {
 		block->cacheReadWritten();
-		for (auto vreg: block->readCache)
+		for (const auto &vreg: block->readCache)
 			upAndMark(block, vreg);
 	}
 }
 
-void Function::upAndMark(BasicBlockPtr block, VregPtr vreg) {
+void Function::upAndMark(const BasicBlockPtr &block, const VregPtr &vreg) {
 	for (const auto &instruction: block->instructions)
 		if (instruction->doesWrite(vreg))
 			return;
@@ -796,7 +793,7 @@ void Function::upAndMark(BasicBlockPtr block, VregPtr vreg) {
 	}
 }
 
-bool Function::spill(VregPtr vreg) {
+bool Function::spill(const VregPtr &vreg) {
 	// Right after the definition of the vreg to be spilled, store its value onto the stack in the proper location.
 	// For each use of the original vreg, replace the original vreg with a new vreg, and right before the use insert a
 	// definition for the vreg by loading it from the stack.
@@ -861,13 +858,13 @@ bool Function::spill(VregPtr vreg) {
 	return out;
 }
 
-size_t Function::getSpill(VregPtr variable, bool create, bool *created) {
-	if (created)
+size_t Function::getSpill(const VregPtr &variable, bool create, bool *created) {
+	if (created != nullptr)
 		*created = false;
 	if (spillLocations.count(variable) != 0)
 		return spillLocations.at(variable);
 	if (create) {
-		if (created)
+		if (created != nullptr)
 			*created = true;
 		spilledVregs.insert(variable);
 		// TODO: verify (see ff5e26da04a0d8846f026ba6c4e31370f3511110)
@@ -876,15 +873,15 @@ size_t Function::getSpill(VregPtr variable, bool create, bool *created) {
 	throw GenericError(getLocation(), "Couldn't find a spill location for " + variable->regOrID());
 }
 
-void Function::markSpilled(VregPtr vreg) {
+void Function::markSpilled(const VregPtr &vreg) {
 	spilledVregs.insert(vreg);
 }
 
-bool Function::isSpilled(VregPtr vreg) const {
+bool Function::isSpilled(const VregPtr &vreg) const {
 	return spilledVregs.count(vreg) != 0;
 }
 
-bool Function::canSpill(VregPtr vreg) {
+bool Function::canSpill(const VregPtr &vreg) {
 	if (vreg->writers.empty() || isSpilled(vreg))
 		return false;
 
@@ -896,16 +893,16 @@ bool Function::canSpill(VregPtr vreg) {
 			throw GenericError(getLocation(), "Can't lock single writer of instruction");
 		}
 		auto *store = dynamic_cast<StackStoreInstruction *>(single_def.get());
-		if (store && store->leftSource == vreg) {
+		if (store != nullptr && store->leftSource == vreg) {
 			std::cerr << "Can't spill " << *vreg << ": only definer is a stack store\n";
 			return false;
 		}
 	}
 
-	for (auto weak_definition: vreg->writers) {
+	for (const auto &weak_definition: vreg->writers) {
 		auto definition = weak_definition.lock();
 
-		bool created;
+		bool created = false;
 		const size_t location = getSpill(vreg, true, &created);
 		auto store = std::make_shared<StackStoreInstruction>(vreg, location);
 		auto next = after(definition);
@@ -941,8 +938,8 @@ bool Function::canSpill(VregPtr vreg) {
 	return false;
 }
 
-std::set<std::shared_ptr<BasicBlock>> Function::getLive(VregPtr var,
-std::function<std::set<VregPtr> &(const std::shared_ptr<BasicBlock> &)> getter) const {
+std::set<std::shared_ptr<BasicBlock>> Function::getLive(const VregPtr &var,
+const std::function<std::set<VregPtr> &(const std::shared_ptr<BasicBlock> &)> &getter) const {
 	std::set<std::shared_ptr<BasicBlock>> out;
 	for (const auto &block: blocks)
 		if (getter(block).count(var) != 0)
@@ -950,20 +947,20 @@ std::function<std::set<VregPtr> &(const std::shared_ptr<BasicBlock> &)> getter) 
 	return out;
 }
 
-std::set<std::shared_ptr<BasicBlock>> Function::getLiveIn(VregPtr var) const {
+std::set<std::shared_ptr<BasicBlock>> Function::getLiveIn(const VregPtr &var) const {
 	return getLive(var, [&](const auto &block) -> auto & {
 		return block->liveIn;
 	});
 }
 
-std::set<std::shared_ptr<BasicBlock>> Function::getLiveOut(VregPtr var) const {
+std::set<std::shared_ptr<BasicBlock>> Function::getLiveOut(const VregPtr &var) const {
 	return getLive(var, [&](const auto &block) -> auto & {
 		return block->liveOut;
 	});
 }
 
 void Function::updateVregs() {
-	for (auto &var: virtualRegisters) {
+	for (const auto &var: virtualRegisters) {
 		var->readingBlocks.clear();
 		var->writingBlocks.clear();
 		var->readers.clear();
@@ -983,12 +980,12 @@ void Function::updateVregs() {
 		}
 }
 
-WhyPtr Function::after(WhyPtr instruction) {
+WhyPtr Function::after(const WhyPtr &instruction) {
 	auto iter = std::find(instructions.begin(), instructions.end(), instruction);
 	return ++iter == instructions.end()? nullptr : *iter;
 }
 
-WhyPtr Function::insertAfter(WhyPtr base, WhyPtr new_instruction, bool reindex) {
+WhyPtr Function::insertAfter(const WhyPtr &base, WhyPtr new_instruction, bool reindex) {
 	BasicBlockPtr block = base->parent.lock();
 	if (!block) {
 		std::cerr << "\e[31;1m!\e[0m " << base->joined(true, "; ") << '\n';
@@ -1025,7 +1022,7 @@ WhyPtr Function::insertAfter(WhyPtr base, WhyPtr new_instruction, bool reindex) 
 	return new_instruction;
 }
 
-WhyPtr Function::insertBefore(WhyPtr base, WhyPtr new_instruction, bool reindex, bool linear_warn,
+WhyPtr Function::insertBefore(const WhyPtr &base, WhyPtr new_instruction, bool reindex, bool linear_warn,
                               bool *should_relinearize_out) {
 	BasicBlockPtr block = base->parent.lock();
 	if (!block) {
@@ -1060,9 +1057,9 @@ WhyPtr Function::insertBefore(WhyPtr base, WhyPtr new_instruction, bool reindex,
 	const bool can_insert_linear = instructionIter != instructions.end();
 	if (can_insert_linear) {
 		instructions.insert(instructionIter, new_instruction);
-		if (should_relinearize_out)
+		if (should_relinearize_out != nullptr)
 			*should_relinearize_out = false;
-	} else if (should_relinearize_out)
+	} else if (should_relinearize_out != nullptr)
 		*should_relinearize_out = true;
 
 	block->instructions.insert(blockIter, new_instruction);
@@ -1080,22 +1077,22 @@ void Function::addComment(const std::string &comment) {
 	add<Comment>(comment);
 }
 
-void Function::addComment(WhyPtr base, const std::string &comment) {
+void Function::addComment(const WhyPtr &base, const std::string &comment) {
 	insertBefore(base, Comment::make(comment));
 }
 
-VregPtr Function::mx(int n, BasicBlockPtr writer) {
+VregPtr Function::mx(int n, const BasicBlockPtr &writer) {
 	auto out = precolored(Why::assemblerOffset + n);
 	if (writer)
 		out->writingBlocks.insert(writer);
 	return out;
 }
 
-VregPtr Function::mx(int n, InstructionPtr writer) {
+VregPtr Function::mx(int n, const InstructionPtr &writer) {
 	return mx(n, writer->parent.lock());
 }
 
-VregPtr Function::mx(InstructionPtr writer) {
+VregPtr Function::mx(const InstructionPtr &writer) {
 	return mx(0, writer->parent.lock());
 }
 
@@ -1116,7 +1113,8 @@ void Function::debug() const {
 		for (const auto &instruction: block->instructions)
 			std::cerr << '\t' << instruction->joined() << '\n';
 		std::cerr << "\e[36mLive-in: \e[1m";
-		std::set<int> in, out;
+		std::set<int> in;
+		std::set<int> out;
 		for (const auto &var: block->liveIn) in.insert(var->id);
 		for (int id: in) std::cerr << ' ' << id;
 		std::cerr << "\e[22m\nLive-out:\e[1m";
@@ -1202,8 +1200,9 @@ void Function::checkNaked(const ASTNode &node) const {
 	}
 }
 
-void Function::doPointerArithmetic(TypePtr left_type, TypePtr right_type, Expr &left, Expr &right, VregPtr left_var,
-                                   VregPtr right_var, const Context &context, const ASTLocation &location) {
+void Function::doPointerArithmetic(const TypePtr &left_type, const TypePtr &right_type, Expr &left, Expr &right,
+                                   const VregPtr &left_var, const VregPtr &right_var, const Context &context,
+                                   const ASTLocation &location) {
 	if (left_type->isPointer() && right_type->isInt()) {
 		auto *left_subtype = dynamic_cast<PointerType &>(*left_type).subtype;
 		left.compile(left_var, *this, context, 1);
@@ -1237,20 +1236,20 @@ Function * Function::demangle(const std::string &mangled, Program &program) {
 			is_static = true;
 			++c_str;
 		}
-		for (; std::isdigit(*c_str); ++c_str)
+		for (; std::isdigit(*c_str) != 0; ++c_str)
 			struct_name_size = struct_name_size * 10 + (*c_str - '0');
 		struct_name = std::string(c_str, struct_name_size);
 	} else
 		++c_str;
 
 	size_t name_size = 0;
-	for (; std::isdigit(*c_str); ++c_str)
+	for (; std::isdigit(*c_str) != 0; ++c_str)
 		name_size = name_size * 10 + (*c_str - '0');
 	const std::string name(c_str, name_size);
 	c_str += name_size;
 	size_t argument_count = 0;
 	auto return_type = TypePtr(Type::get(c_str, program));
-	for (; std::isdigit(*c_str); ++c_str)
+	for (; std::isdigit(*c_str) != 0; ++c_str)
 		argument_count = argument_count * 10 + (*c_str - '0');
 	std::vector<TypePtr> argument_types;
 	std::vector<std::string> argument_names;

@@ -891,7 +891,7 @@ struct InitializerExpr: Expr {
 	Expr * copy() const override;
 	std::unique_ptr<Type> getType(const Context &) const override;
 	void compile(VregPtr, Function &, const Context &, size_t) override;
-	void fullCompile(VregPtr start, Function &function, const Context &context);
+	void fullCompile(const VregPtr &start, Function &function, const Context &context);
 };
 
 struct ConstructorExpr: HasArguments {
