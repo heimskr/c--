@@ -890,9 +890,11 @@ void VariableExpr::compile(VregPtr destination, Function &function, const Contex
 			function.addComment("Load variable " + name);
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset)
 				->setDebug(*this);
-			auto destination_type = destination->getType();
-			if (!destination_type || !destination_type->isReference())
+			// auto destination_type = destination->getType();
+			// if (!destination_type || !destination_type->isReference())
 				function.add<LoadRInstruction>(destination, destination, var->getSize())->setDebug(*this);
+			// else
+				// warn() << "{" << *this << "}: destination type: " << *destination_type << "\n";
 		}
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -1558,11 +1560,11 @@ void DotExpr::compile(VregPtr destination, Function &function, const Context &co
 	// if (left_type->isReference())
 	// 	function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
 	if (field_offset != 0) {
-		function.addComment("Add field offset of " + struct_type->name + "::" + ident);
+		function.addComment("Add dot field offset of " + struct_type->name + "::" + ident);
 		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
 	} else
-		function.addComment("Field offset of " + struct_type->name + "::" + ident + " is 0");
-	function.addComment("Load field " + struct_type->name + "::" + ident);
+		function.addComment("Dot field offset of " + struct_type->name + "::" + ident + " is 0");
+	function.addComment("Load dot field " + struct_type->name + "::" + ident);
 	function.add<LoadRInstruction>(destination, destination, field_size)->setDebug(*this);
 	if (multiplier != 1)
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -1611,13 +1613,14 @@ void ArrowExpr::compile(VregPtr destination, Function &function, const Context &
 	const size_t field_size = struct_type->getFieldSize(ident);
 	const size_t field_offset = struct_type->getFieldOffset(ident);
 	Util::validateSize(field_size);
+	info() << "{" << *this << "}: left = {" << *left << "}\n";
 	left->compile(destination, function, context, 1);
 	if (field_offset != 0) {
-		function.addComment("Add field offset of " + struct_type->name + "::" + ident);
+		function.addComment("Add arrow field offset of " + struct_type->name + "::" + ident);
 		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
 	} else
-		function.addComment("Field offset of " + struct_type->name + "::" + ident + " is 0");
-	function.addComment("Load field " + struct_type->name + "::" + ident);
+		function.addComment("Arrow field offset of " + struct_type->name + "::" + ident + " is 0");
+	function.addComment("Load arrow field " + struct_type->name + "::" + ident);
 	function.add<LoadRInstruction>(destination, destination, field_size)->setDebug(*this);
 	if (multiplier != 1)
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -1648,6 +1651,8 @@ bool ArrowExpr::compileAddress(VregPtr destination, Function &function, const Co
 
 std::shared_ptr<StructType> ArrowExpr::checkType(const Context &context) const {
 	auto left_type = left->getType(context);
+	if (left_type->isReference())
+		left_type = std::unique_ptr<Type>(left_type->cast<ReferenceType>()->subtype->copy());
 	if (!left_type->isPointer())
 		throw NotPointerError(std::move(left_type), getLocation());
 	auto *left_pointer = left_type->cast<PointerType>();
