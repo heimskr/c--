@@ -1192,3 +1192,15 @@ struct SetptRInstruction: RType {
 		return {"\e[2m:\e[22m \e[36m%setpt\e[39m " + leftSource->regOrID(true) + " " + rightSource->regOrID(true)};
 	}
 };
+
+struct CallPushPlaceholder: WhyInstruction {
+	bool enableDebug() const override { return false; }
+	operator std::vector<std::string>() const override { return {"//! Untranslated CallPushPlaceholder"}; }
+	std::vector<std::string>  colored() const override { return {"\e[31m//! Untranslated CallPushPlaceholder\e[39m"}; }
+};
+
+struct CallPopPlaceholder: WhyInstruction {
+	bool enableDebug() const override { return false; }
+	operator std::vector<std::string>() const override { return {"//! Untranslated CallPopPlaceholder"}; }
+	std::vector<std::string>  colored() const override { return {"\e[31m//! Untranslated CallPopPlaceholder\e[39m"}; }
+};

@@ -24,6 +24,8 @@ void compileCall(VregPtr destination, Function &function, const Context &context
 
 	const DebugData debug(location, function);
 
+	function.add<CallPushPlaceholder>();
+
 	for (size_t i = 0; i < arguments.size(); ++i)
 		function.add<StackPushInstruction>(function.precolored(Why::argumentOffset + i))->setDebug(debug);
 
@@ -69,6 +71,8 @@ void compileCall(VregPtr destination, Function &function, const Context &context
 
 	for (size_t i = arguments.size(); 0 < i; --i)
 		function.add<StackPopInstruction>(function.precolored(Why::argumentOffset + i - 1))->setDebug(debug);
+
+	function.add<CallPopPlaceholder>();
 
 	if (!fnptr->returnType->isVoid() && destination) {
 		auto r0 = function.precolored(Why::returnValueOffset);
@@ -1100,7 +1104,6 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 
 	TypePtr found_return_type = nullptr;
 
-
 	bool function_found = false;
 	int argument_offset = Why::argumentOffset;
 
@@ -1109,6 +1112,8 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 	const size_t registers_used = (structExpr? 1 : 0) + arguments.size();
 	if (Why::argumentCount < registers_used)
 		throw std::runtime_error("Functions with more than 16 arguments aren't currently supported.");
+
+	fn.add<CallPushPlaceholder>()->setDebug(*this);
 
 	for (size_t i = 0; i < registers_used; ++i)
 		fn.add<StackPushInstruction>(fn.precolored(Why::argumentOffset + i))->setDebug(*this);
@@ -1209,6 +1214,8 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 
 	for (size_t i = registers_used; 0 < i; --i)
 		fn.add<StackPopInstruction>(fn.precolored(Why::argumentOffset + i - 1))->setDebug(*this);
+
+	fn.add<CallPopPlaceholder>();
 
 	if (!found_return_type->isVoid() && destination) {
 		if (multiplier == 1)
@@ -1744,6 +1751,8 @@ void ConstructorExpr::compile(VregPtr destination, Function &function, const Con
 	if (Why::argumentCount < registers_used)
 		throw std::runtime_error("Functions with more than 16 arguments aren't currently supported.");
 
+	function.add<CallPushPlaceholder>();
+
 	for (size_t i = 0; i < registers_used; ++i)
 		function.add<StackPushInstruction>(function.precolored(Why::argumentOffset + i))->setDebug(*this);
 
@@ -1793,6 +1802,8 @@ void ConstructorExpr::compile(VregPtr destination, Function &function, const Con
 
 	for (size_t i = registers_used; 0 < i; --i)
 		function.add<StackPopInstruction>(function.precolored(Why::argumentOffset + i - 1))->setDebug(*this);
+
+	function.add<CallPopPlaceholder>();
 
 	if (!found->returnType->isVoid() && destination)
 		function.add<MoveInstruction>(function.precolored(Why::returnValueOffset), destination)->setDebug(*this);
@@ -1900,6 +1911,8 @@ void NewExpr::compile(VregPtr destination, Function &function, const Context &co
 		if (Why::argumentCount < registers_used)
 			throw std::runtime_error("Constructors with more than 15 arguments aren't currently supported.");
 
+		function.add<CallPushPlaceholder>();
+
 		for (size_t i = 0; i < registers_used; ++i)
 			function.add<StackPushInstruction>(function.precolored(Why::argumentOffset + i))->setDebug(*this);
 
@@ -1939,6 +1952,8 @@ void NewExpr::compile(VregPtr destination, Function &function, const Context &co
 
 		for (size_t i = registers_used; 0 < i; --i)
 			function.add<StackPopInstruction>(function.precolored(Why::argumentOffset + i - 1))->setDebug(*this);
+
+		function.add<CallPopPlaceholder>();
 
 		function.add<MoveInstruction>(function.precolored(Why::returnValueOffset), destination)->setDebug(*this);
 	}
