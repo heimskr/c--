@@ -523,10 +523,14 @@ bool String::eq(u8 *other) #const {
 }
 
 bool String::eq(%String *other) #const {
+	if (this == other)
+		return true;
 	if (this->size != other->size)
 		return false;
-	if (this->data == other->data)
-		return true; // Shouldn't happen.
+	if (!this->data && !other->data)
+		return true;
+	if (this->data && this->data == other->data)
+		panic("Multiple different strings have the same non-null data pointer!");
 	for (u64 i = 0; i < this->size; ++i)
 		if (this->data[i] != other->data[i])
 			return false;
