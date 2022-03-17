@@ -11,6 +11,7 @@
 #include "Context.h"
 #include "Makeable.h"
 #include "WeakSet.h"
+#include "Why.h"
 
 class ASTNode;
 class Function;
@@ -154,7 +155,8 @@ struct ReferenceType: SuperType, Makeable<ReferenceType> {
 		return (new ReferenceType(TypePtr(subtype? subtype->copy() : nullptr)))->steal(*this);
 	}
 	std::string mangle() const override { return "r" + subtype->mangle(); }
-	size_t getSize() const override { return subtype->getSize(); }
+	// size_t getSize() const override { return subtype->getSize(); }
+	size_t getSize() const override { return Why::wordSize; }
 	bool similar(const Type &, bool) const override;
 	bool equal(const Type &, bool ignore_const) const override;
 	bool isReference() const override { return true; }

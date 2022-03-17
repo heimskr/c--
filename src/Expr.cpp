@@ -1751,8 +1751,9 @@ void InitializerExpr::fullCompile(VregPtr address, Function &function, const Con
 		if (child_type->isInitializer()) {
 			child->cast<InitializerExpr>()->fullCompile(address, function, context);
 		} else {
-			child->compile(temp_var, function, context);
-			const size_t size = child->getSize(context);
+			GetValueExpr child_value(child);
+			child_value.compile(temp_var, function, context);
+			const size_t size = child_value.getSize(context);
 			function.addComment("InitializerExpr: store and increment");
 			function.add<StoreRInstruction>(temp_var, address, size)->setDebug(*this);
 			function.add<AddIInstruction>(address, address, size)->setDebug(*this);
@@ -1808,13 +1809,15 @@ void ConstructorExpr::compile(VregPtr destination, Function &function, const Con
 		auto argument_type = argument->getType(subcontext);
 		const Type &function_argument_type = *found->getArgumentType(i);
 		if (function_argument_type.isReference()) {
-			if (!argument->compileAddress(argument_register, function, context))
-				throw LvalueError(*argument_type, argument->getLocation());
+			// TODO: try compileAddress instead of compile
+			argument->compile(argument_register, function, context, 1);
+			// if (!argument->compileAddress(argument_register, function, context))
+			// 	throw LvalueError(*argument_type, argument->getLocation());
 		} else if (argument_type->isStruct()) {
 			throw GenericError(argument->getLocation(),
 				"Structs cannot be directly passed to functions; use a pointer");
 		} else
-			argument->compile(argument_register, function, context);
+			GetValueExpr(argument).compile(argument_register, function, context);
 		try {
 			typeCheck(*argument_type, *found->getArgumentType(i), argument_register, function, argument->getLocation());
 		} catch (std::out_of_range &err) {
@@ -1953,8 +1956,10 @@ void NewExpr::compile(VregPtr destination, Function &function, const Context &co
 			auto argument_type = argument->getType(subcontext);
 			const Type &function_argument_type = *found->getArgumentType(i);
 			if (function_argument_type.isReference()) {
-				if (!argument->compileAddress(argument_register, function, context))
-					throw LvalueError(*argument_type, argument->getLocation());
+				// TODO: try compileAddress instead of compile
+				argument->compile(argument_register, function, context, 1);
+				// if (!argument->compileAddress(argument_register, function, context))
+				// 	throw LvalueError(*argument_type, argument->getLocation());
 			} else if (argument_type->isStruct()) {
 				throw GenericError(argument->getLocation(),
 					"Structs cannot be directly passed to functions; use a pointer");
