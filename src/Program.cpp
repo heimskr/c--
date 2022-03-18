@@ -388,7 +388,8 @@ void Program::compile() {
 size_t Program::getStringID(const std::string &str) {
 	if (stringIDs.count(str) != 0)
 		return stringIDs.at(str);
-	return stringIDs[str] = stringIDs.size();
+	const size_t old_size = stringIDs.size();
+	return stringIDs[str] = old_size;
 }
 
 FunctionPtr Program::getOperator(const std::vector<Type *> &types, int oper, const ASTLocation &location) const {
