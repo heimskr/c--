@@ -8,6 +8,9 @@
 #include "ASTNode.h"
 #include "Parser.h"
 
+// Disable PVS-Studio warnings about branches that do the same thing.
+//-V::1037
+
 template <typename ...Args>
 void D(Args && ...args) {
 	(void) std::initializer_list<int> {

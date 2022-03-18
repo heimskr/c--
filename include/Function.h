@@ -149,12 +149,14 @@ class Function: public Makeable<Function> {
 
 		template <typename T, typename... Args>
 		std::shared_ptr<T> add(Args &&...args) {
-			return std::dynamic_pointer_cast<T>(instructions.emplace_back(new T(std::forward<Args>(args)...)));
+			return std::dynamic_pointer_cast<T>(instructions.emplace_back(
+				std::make_shared<T>(std::forward<Args>(args)...)));
 		}
 
 		template <typename T, typename... Args>
 		std::shared_ptr<T> addFront(Args &&...args) {
-			return std::dynamic_pointer_cast<T>(instructions.emplace_front(new T(std::forward<Args>(args)...)));
+			return std::dynamic_pointer_cast<T>(instructions.emplace_front(
+				std::make_shared<T>(std::forward<Args>(args)...)));
 		}
 
 		void addComment(const std::string &);

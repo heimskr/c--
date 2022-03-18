@@ -229,7 +229,7 @@ struct WASMCmpiNode: WASMInstructionNode {
 
 struct WASMSelNode: WASMInstructionNode {
 	const std::string *rs, *rt, *rd;
-	Condition condition;
+	Condition condition = Condition::Zero;
 
 	WASMSelNode(ASTNode *rs_, ASTNode *oper_, ASTNode *rt_, ASTNode *rd_);
 	WASMNodeType nodeType() const override { return WASMNodeType::Sel; }
@@ -538,10 +538,10 @@ struct WASMQueryNode: WASMInstructionNode {
 
 struct WASMPseudoPrintNode: WASMInstructionNode {
 	Immediate imm;
-	const std::string *text = nullptr;
+	const std::string *printText = nullptr;
 
 	explicit WASMPseudoPrintNode(ASTNode *imm_);
-	explicit WASMPseudoPrintNode(const std::string *text_);
+	explicit WASMPseudoPrintNode(const std::string *print_text);
 	WASMNodeType nodeType() const override { return WASMNodeType::PseudoPrint; }
 	std::string debugExtra() const override;
 	explicit operator std::string() const override;

@@ -57,7 +57,7 @@ static const char * conditionString(Condition condition) {
 
 static Immediate getImmediate(ASTNode *node) {
 	if (node->symbol == WASM_IMMEDIATE)
-		return dynamic_cast<WASMImmediateNode *>(node)->imm;
+		return dynamic_cast<WASMImmediateNode &>(*node).imm;
 	if (node->symbol == WASMTOK_NUMBER)
 		return static_cast<int>(node->atoi());
 	if (node->symbol == WASMTOK_CHAR) {
@@ -1155,20 +1155,20 @@ WASMInstructionNode(WASM_PSEUDOPRINTNODE), imm(getImmediate(imm_)) {
 	delete imm_;
 }
 
-WASMPseudoPrintNode::WASMPseudoPrintNode(const std::string *text_):
-	WASMInstructionNode(WASM_PSEUDOPRINTNODE), imm(0), text(text_) {}
+WASMPseudoPrintNode::WASMPseudoPrintNode(const std::string *print_text):
+	WASMInstructionNode(WASM_PSEUDOPRINTNODE), imm(0), printText(print_text) {}
 
 std::string WASMPseudoPrintNode::debugExtra() const {
-	return "<" + blue("p") + " " + (text != nullptr? *text : stringify(imm, true)) + ">";
+	return "<" + blue("p") + " " + (printText != nullptr? *printText : stringify(imm, true)) + ">";
 }
 
 WASMPseudoPrintNode::operator std::string() const {
-	return "<p " + (text != nullptr? *text : stringify(imm)) + ">";
+	return "<p " + (printText != nullptr? *printText : stringify(imm)) + ">";
 }
 
 std::unique_ptr<WhyInstruction> WASMPseudoPrintNode::convert(Function &, VarMap &) {
-	if (text != nullptr)
-		return std::make_unique<PrintPseudoinstruction>(*text);
+	if (printText != nullptr)
+		return std::make_unique<PrintPseudoinstruction>(*printText);
 	return std::make_unique<PrintPseudoinstruction>(imm);
 }
 

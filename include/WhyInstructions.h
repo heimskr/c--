@@ -1186,12 +1186,12 @@ struct PageStackInstruction: RType {
 struct SetptRInstruction: RType {
 	SetptRInstruction(const VregPtr &rs_, const VregPtr &rt_): RType(rs_, rt_, nullptr) {}
 	explicit operator std::vector<std::string>() const override {
-		if (!leftSource)
+		if (!rightSource)
 			return {"%setpt " + leftSource->regOrID()};
 		return {": %setpt " + leftSource->regOrID() + " " + rightSource->regOrID()};
 	}
 	std::vector<std::string> colored() const override {
-		if (!leftSource)
+		if (!rightSource)
 			return {"\e[36m%setpt\e[39m " + leftSource->regOrID(true)};
 		return {"\e[2m:\e[22m \e[36m%setpt\e[39m " + leftSource->regOrID(true) + " " + rightSource->regOrID(true)};
 	}

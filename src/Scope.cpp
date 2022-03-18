@@ -26,11 +26,11 @@ static Functions filterResults(const Functions &results, const Types &arg_types)
 		FunctionPtr fn = results[i];
 		scores[i].function = fn;
 		for (size_t j = 0; j < arg_count; ++j) {
-			Type &fn_type = *fn->getArgumentType(j);
+			TypePtr fn_type = fn->getArgumentType(j);
 			Type &arg_type = *arg_types[j];
-			if (arg_type == fn_type)
+			if (arg_type == *fn_type)
 				++scores[i].exact;
-			scores[i].affinity += arg_type.affinity(fn_type, false);
+			scores[i].affinity += arg_type.affinity(*fn_type, false);
 		}
 	}
 

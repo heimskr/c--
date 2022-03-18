@@ -5,6 +5,9 @@
 #endif
 #define YY_USER_ACTION { cpmLexer.advance(cpmtext); }
 #define RTOKEN(x) return cpmLexer.token(cpmtext, CPMTOK_##x);
+
+// Disable PVS-Studio warnings about branches that do the same thing.
+//-V::1037
 %}
 
 %option 8bit

@@ -33,11 +33,11 @@ void compileCall(const VregPtr &destination, Function &function, const Context &
 
 	for (const auto &argument: arguments) {
 		auto argument_register = function.precolored(Why::argumentOffset + int(i));
-		auto &fn_arg_type = *fnptr->getArgumentType(i);
+		auto fn_arg_type = fnptr->getArgumentType(i);
 		if (std::holds_alternative<Expr *>(argument)) {
 			auto *expr = std::get<Expr *>(argument);
 			auto argument_type = expr->getType(context);
-			if (fn_arg_type.isReference()) {
+			if (fn_arg_type->isReference()) {
 				function.addComment("compileCall: compiling address into reference argument");
 				if (!expr->compileAddress(argument_register, function, context))
 					throw LvalueError(std::string(*argument_type), expr->getLocation());
@@ -47,7 +47,7 @@ void compileCall(const VregPtr &destination, Function &function, const Context &
 			} else
 				expr->compile(argument_register, function, context, 1);
 			try {
-				typeCheck(*argument_type, fn_arg_type, argument_register, function, expr->getLocation());
+				typeCheck(*argument_type, *fn_arg_type, argument_register, function, expr->getLocation());
 			} catch (std::out_of_range &err) {
 				error() << "\e[31mBad function argument at " << expr->getLocation() << "\e[39m\n";
 				throw;
@@ -57,7 +57,7 @@ void compileCall(const VregPtr &destination, Function &function, const Context &
 			function.add<MoveInstruction>(vreg, argument_register)->setDebug(debug);
 			if (auto vreg_type = vreg->getType())
 				try {
-					typeCheck(*vreg_type, fn_arg_type, argument_register, function, location);
+					typeCheck(*vreg_type, *fn_arg_type, argument_register, function, location);
 				} catch (std::out_of_range &err) {
 					error() << "\e[31mBad function argument at position " + std::to_string(i + 1) << " at "
 					        << location << "\e[39m\n";
@@ -213,7 +213,8 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				const size_t stack_offset = function->stackUsage += struct_type->getSize();
 
 				auto *constructor = new ConstructorExpr(stack_offset, struct_name, std::move(arguments));
-				out = constructor->addToScope(Context(function->program, function->currentScope()));
+				constructor->addToScope(Context(function->program, function->currentScope()));
+				out = constructor;
 			} else {
 				auto *front_expr = Expr::get(*node.front(), function);
 				auto *call = new CallExpr(front_expr, arguments);
@@ -1797,8 +1798,7 @@ void ConstructorExpr::compile(VregPtr destination, Function &function, const Con
 	for (const auto &argument: arguments) {
 		auto argument_register = function.precolored(argument_offset + int(i));
 		auto argument_type = argument->getType(subcontext);
-		const Type &function_argument_type = *found->getArgumentType(i);
-		if (function_argument_type.isReference()) {
+		if (found->getArgumentType(i)->isReference()) {
 			if (!argument->compileAddress(argument_register, function, context))
 				throw LvalueError(std::string(*argument_type), argument->getLocation());
 		} else if (argument_type->isStruct()) {
@@ -1946,8 +1946,7 @@ void NewExpr::compile(VregPtr destination, Function &function, const Context &co
 		for (const auto &argument: arguments) {
 			auto argument_register = function.precolored(argument_offset + int(i));
 			auto argument_type = argument->getType(subcontext);
-			const Type &function_argument_type = *found->getArgumentType(i);
-			if (function_argument_type.isReference()) {
+			if (found->getArgumentType(i)->isReference()) {
 				if (!argument->compileAddress(argument_register, function, context))
 					throw LvalueError(std::string(*argument_type), argument->getLocation());
 			} else if (argument_type->isStruct()) {

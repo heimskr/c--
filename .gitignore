@@ -11,3 +11,6 @@ src/wasmflex.cpp
 src/wasmbison.cpp
 .dep
 *.png
+pvs.log
+pvs.tasks
+strace_out
