@@ -190,7 +190,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 			out = new OffsetofExpr(*node.front()->text, *node.at(1)->text);
 			break;
 		case CPMTOK_IDENT:
-			if (!function)
+			if (function == nullptr)
 				throw GenericError(node.location, "Variable expression encountered in functionless context");
 			out = new VariableExpr(*node.text);
 			break;
@@ -201,7 +201,7 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				arguments.emplace_back(Expr::get(*child, function));
 
 			if (node.front()->symbol == CPMTOK_MOD) {
-				if (!function)
+				if (function == nullptr)
 					throw GenericError(node.location, "Cannot find struct in functionless context");
 
 				const std::string &struct_name = *node.front()->front()->text;
@@ -215,8 +215,8 @@ Expr * Expr::get(const ASTNode &node, Function *function) {
 				auto *constructor = new ConstructorExpr(stack_offset, struct_name, std::move(arguments));
 				out = constructor->addToScope(Context(function->program, function->currentScope()));
 			} else {
-				auto front_expr = Expr::get(*node.front(), function);
-				CallExpr *call = new CallExpr(front_expr, arguments);
+				auto *front_expr = Expr::get(*node.front(), function);
+				auto *call = new CallExpr(front_expr, arguments);
 				call->setDebug(front_expr->debug);
 
 				if (node.size() == 3) {
@@ -670,7 +670,7 @@ std::optional<ssize_t> LandExpr::evaluate(const Context &context) const {
 	auto left_value  = left?  left->evaluate(context)  : std::nullopt;
 	auto right_value = right? right->evaluate(context) : std::nullopt;
 	if (left_value && right_value)
-		return *left_value && *right_value;
+		return bool(*left_value) && bool(*right_value);
 	return std::nullopt;
 }
 
@@ -692,7 +692,7 @@ std::optional<ssize_t> LorExpr::evaluate(const Context &context) const {
 	auto left_value  = left?  left->evaluate(context)  : std::nullopt;
 	auto right_value = right? right->evaluate(context) : std::nullopt;
 	if (left_value && right_value)
-		return *left_value || *right_value;
+		return bool(*left_value) || bool(*right_value);
 	return std::nullopt;
 }
 
@@ -713,7 +713,7 @@ std::optional<ssize_t> LxorExpr::evaluate(const Context &context) const {
 	auto left_value  = left?  left->evaluate(context)  : std::nullopt;
 	auto right_value = right? right->evaluate(context) : std::nullopt;
 	if (left_value && right_value)
-		return *left_value || *right_value;
+		return bool(*left_value) ^ bool(*right_value);
 	return std::nullopt;
 }
 
@@ -747,7 +747,8 @@ std::optional<ssize_t> DivExpr::evaluate(const Context &context) const {
 }
 
 void ModExpr::compile(VregPtr destination, Function &function, const Context &context, size_t multiplier) {
-	auto left_type = left->getType(context), right_type = right->getType(context);
+	auto left_type  = left->getType(context);
+	auto right_type = right->getType(context);
 	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CPMTOK_MOD, getLocation())) {
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
@@ -782,7 +783,7 @@ ssize_t NumberExpr::getValue() const {
 }
 
 void NumberExpr::compile(VregPtr destination, Function &function, const Context &, size_t multiplier) {
-	const ssize_t multiplied = ssize_t(getValue()) * multiplier;
+	const ssize_t multiplied = getValue() * ssize_t(multiplier);
 	getSize();
 	if (!destination)
 		return;
@@ -1349,6 +1350,7 @@ FunctionPtr CallExpr::getOperator(const Context &context) const {
 		for (const auto &argument: arguments)
 			unique_types.push_back(argument->getType(context));
 		std::vector<Type *> types;
+		types.reserve(unique_types.size());
 		for (auto &unique_type: unique_types)
 			types.push_back(unique_type.get());
 		return context.program->getOperator(types, CPMTOK_LPAREN, getLocation());
