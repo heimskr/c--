@@ -23,8 +23,8 @@ class Parser {
 		explicit Parser(Type type_): type(type_) {}
 		void open(const std::string &filename);
 		void in(const std::string &text);
-		void debug(bool flex, bool bison);
-		void parse();
+		void debug(bool flex, bool bison) const;
+		void parse() const;
 		void done();
 
 		const char * getNameCPM(int symbol);

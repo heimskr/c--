@@ -15,8 +15,11 @@ void Lexer::advance(const char *text) {
 	location.column += lastYylength;
 	lastYylength = *leng;
 
-	size_t newline_count = 0, i = 0, col = location.column;
+	size_t newline_count = 0;
+	size_t i = 0;
+	size_t col = location.column;
 	char ch = text[0];
+
 	while (ch != '\0') {
 		if (ch == '\n') {
 			++newline_count;
@@ -26,7 +29,7 @@ void Lexer::advance(const char *text) {
 	}
 
 	if (1 < newline_count) {
-		lastYylength = col;
+		lastYylength = int(col);
 		line.clear();
 		location.line += newline_count;
 	}
@@ -42,12 +45,12 @@ void Lexer::newline() {
 void Lexer::badchar(unsigned char ch) {
 	failed = true;
 	std::cerr << "\e[31mBad character at \e[1m" << location << "\e[22m:\e[39m ";
-	if (isgraph(ch)) {
+	if (isgraph(ch) != 0) {
 		std::cerr << "'" << ch << "'\n";
 	} else {
-		char buffer[10];
-		sprintf(buffer, "'\\%03o'", ch);
-		std::cerr << buffer << "\n";
+		std::array<char, 10> buffer {};
+		sprintf(buffer.data(), "'\\%03o'", ch);
+		std::cerr << buffer.data() << "\n";
 	}
 }
 
@@ -64,7 +67,7 @@ void cpmerror(const std::string &message, const ASTLocation &location) {
 	std::cerr << Util::split(cpmParser.getBuffer(), "\n", false).at(location.line) << "\n";
 	std::cerr << "\e[31mParsing error at \e[1m" << location << "\e[22m: " << message << "\e[0m\n";
 	++cpmParser.errorCount;
-	cpmLexer.errors.push_back({message, location});
+	cpmLexer.errors.emplace_back(message, location);
 }
 
 void wasmerror(const char *message) {
@@ -81,5 +84,5 @@ void wasmerror(const std::string &message, const ASTLocation &location) {
 		std::cerr << lines.at(location.line) << "\n";
 	std::cerr << "\e[31mWASM error at \e[1m" << location << "\e[22m: " << message << "\e[0m\n";
 	++wasmParser.errorCount;
-	wasmLexer.errors.push_back({message, location});
+	wasmLexer.errors.emplace_back(message, location);
 }

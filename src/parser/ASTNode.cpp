@@ -3,9 +3,9 @@
 
 #include "ASTNode.h"
 #include "Errors.h"
-#include "StringSet.h"
-#include "Parser.h"
 #include "Lexer.h"
+#include "Parser.h"
+#include "StringSet.h"
 #include "Util.h"
 
 ASTLocation::operator std::string() const {
@@ -21,12 +21,8 @@ std::ostream & operator<<(std::ostream &os, const ASTLocation &location) {
 	return os;
 }
 
-ASTNode::ASTNode(Parser &parser_, int sym, const ASTLocation &loc, const char *info) {
-	parser = &parser_;
-	symbol = sym;
-	location = loc;
-	text = StringSet::intern(info);
-}
+ASTNode::ASTNode(Parser &parser_, int sym, const ASTLocation &loc, const char *info):
+	parser(&parser_), symbol(sym), location(loc), text(StringSet::intern(info)) {}
 
 ASTNode::ASTNode(Parser &parser_, int sym, const ASTLocation &loc, const std::string *info):
 	parser(&parser_), symbol(sym), location(loc), text(info) {}
@@ -34,12 +30,8 @@ ASTNode::ASTNode(Parser &parser_, int sym, const ASTLocation &loc, const std::st
 ASTNode::ASTNode(Parser &parser_, int sym, const std::string *info):
 	parser(&parser_), symbol(sym), location(cpmLexer.location), text(info) {}
 
-ASTNode::ASTNode(Parser &parser_, int sym, const char *info) {
-	parser = &parser_;
-	symbol = sym;
-	location = cpmLexer.location;
-	text = StringSet::intern(info);
-}
+ASTNode::ASTNode(Parser &parser_, int sym, const char *info):
+	parser(&parser_), symbol(sym), location(cpmLexer.location), text(StringSet::intern(info)) {}
 
 ASTNode::ASTNode(Parser &parser_, int sym, const ASTLocation &loc): ASTNode(parser_, sym, loc, "") {}
 
@@ -65,7 +57,7 @@ ASTNode * ASTNode::operator[](size_t index) const {
 }
 
 ASTNode * ASTNode::at(size_t index) const {
-	return *std::next(children.begin(), index);
+	return *std::next(children.begin(), ssize_t(index));
 }
 
 size_t ASTNode::size() const {
@@ -77,7 +69,7 @@ bool ASTNode::empty() const {
 }
 
 ASTNode * ASTNode::adopt(ASTNode *child, bool do_locate) {
-	if (child) {
+	if (child != nullptr) {
 		if (do_locate)
 			locate(child);
 		children.push_back(child);
@@ -94,7 +86,7 @@ ASTNode * ASTNode::adopt(std::initializer_list<ASTNode *> to_add) {
 }
 
 ASTNode * ASTNode::absorb(ASTNode *to_absorb) {
-	if (!to_absorb)
+	if (to_absorb == nullptr)
 		return this;
 
 	locate(to_absorb);
@@ -122,7 +114,7 @@ ASTNode * ASTNode::clear() {
 }
 
 ASTNode * ASTNode::copy() const {
-	ASTNode *out = new ASTNode();
+	auto *out = new ASTNode();
 	out->symbol = symbol;
 	out->location = location;
 	out->text = text;
@@ -137,14 +129,14 @@ ASTNode * ASTNode::copy() const {
 }
 
 ASTNode * ASTNode::locate(const ASTNode *source) {
-	if (source)
+	if (source != nullptr)
 		location = source->location;
 	return this;
 }
 
 ASTNode * ASTNode::locate(std::initializer_list<const ASTNode *> sources) {
 	for (const ASTNode *source: sources) {
-		if (source) {
+		if (source != nullptr) {
 			location = source->location;
 			return this;
 		}
@@ -157,13 +149,13 @@ ASTNode * ASTNode::locate(const ASTLocation &loc) {
 	return this;
 }
 
-long ASTNode::atoi() const {
+int64_t ASTNode::atoi() const {
 	if (text->substr(0, 2) == "0x")
 		return Util::parseLong(text->substr(2), 16);
 	return Util::parseLong(*text);
 }
 
-long ASTNode::atoi(int offset) const {
+int64_t ASTNode::atoi(int offset) const {
 	return Util::parseLong(text->substr(offset));
 }
 
@@ -195,8 +187,9 @@ char ASTNode::getChar() const {
 			case 'x': {
 				if (out.size() <= 3)
 					throw std::runtime_error("Hexadecimal escape is too close to end of string");
-				const char first = out[2], second = out[3];
-				if (!isxdigit(first) || !isxdigit(second))
+				const char first  = out[2];
+				const char second = out[3];
+				if (isxdigit(first) == 0 || isxdigit(second) == 0)
 					throw std::runtime_error(std::string("Invalid hexadecimal escape: \\x") + first + second);
 				return char(strtol((std::string(1, first) + second).c_str(), nullptr, 16));
 			}
@@ -250,10 +243,8 @@ const std::string * ASTNode::extracted() const {
 }
 
 void ASTNode::destroy(std::initializer_list<ASTNode *> to_destroy) {
-	for (ASTNode *node: to_destroy) {
-		if (node)
-			delete node;
-	}
+	for (ASTNode *node: to_destroy)
+		delete node;
 }
 
 ASTNode * ASTNode::front() const {

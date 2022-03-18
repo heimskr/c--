@@ -2,8 +2,8 @@
 #include <fstream>
 #include <sstream>
 
-#include "Parser.h"
 #include "Lexer.h"
+#include "Parser.h"
 #include "StringSet.h"
 
 int cpmwrap() { return 1; }
@@ -18,9 +18,9 @@ void Parser::open(const std::string &filename_) {
 	errorCount = 0;
 	filename = filename_;
 	if (type == Type::Cpm)
-		cpmin = fopen(filename.c_str(), "r");
+		cpmin = fopen(filename.c_str(), "re");
 	else
-		wasmin = fopen(filename.c_str(), "r");
+		wasmin = fopen(filename.c_str(), "re");
 }
 
 void Parser::in(const std::string &text) {
@@ -34,17 +34,17 @@ void Parser::in(const std::string &text) {
 		bufferState = wasm_scan_buffer(buffer, text.size() + 2);
 }
 
-void Parser::debug(bool flex, bool bison) {
+void Parser::debug(bool flex, bool bison) const {
 	if (type == Type::Cpm) {
-		cpm_flex_debug = flex;
-		cpmdebug = bison;
+		cpm_flex_debug = int(flex);
+		cpmdebug = int(bison);
 	} else {
-		wasm_flex_debug = flex;
-		wasmdebug = bison;
+		wasm_flex_debug = int(flex);
+		wasmdebug = int(bison);
 	}
 }
 
-void Parser::parse() {
+void Parser::parse() const {
 	if (type == Type::Cpm)
 		cpmparse();
 	else
@@ -56,16 +56,10 @@ void Parser::done() {
 		cpmlex_destroy();
 	else
 		wasmlex_destroy();
-
-	if (root) {
-		delete root;
-		root = nullptr;
-	}
-
-	if (buffer) {
-		delete buffer;
-		buffer = nullptr;
-	}
+	delete root;
+	delete buffer;
+	root = nullptr;
+	buffer = nullptr;
 }
 
 const char * Parser::getName(int symbol) {
@@ -77,7 +71,7 @@ const char * Parser::getName(int symbol) {
 }
 
 std::string Parser::getBuffer() const {
-	return buffer? buffer : "";
+	return buffer != nullptr? buffer : "";
 }
 
 Parser cpmParser(Parser::Type::Cpm), wasmParser(Parser::Type::Wasm);
