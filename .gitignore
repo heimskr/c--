@@ -14,3 +14,4 @@ src/wasmbison.cpp
 pvs.log
 pvs.tasks
 strace_out
+*.bc

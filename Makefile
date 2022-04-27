@@ -3,6 +3,7 @@ OPTIMIZATION    ?= -O0 -g
 STANDARD        ?= c++20
 WARNINGS        ?= -Wall -Wextra
 CFLAGS          := -std=$(STANDARD) $(OPTIMIZATION) $(WARNINGS) -Iinclude
+BCFLAGS         := -std=$(STANDARD) $(WARNINGS) -Iinclude
 OUTPUT          ?= c+-
 
 LEXERCPP        := src/flex.cpp
@@ -22,12 +23,15 @@ BISONFLAGS      := --color=always
 
 SOURCES         := $(shell find src/**/*.cpp src/*.cpp) $(LEXERCPP) $(PARSERCPP) $(WASMLEXERCPP) $(WASMPARSERCPP)
 OBJECTS         := $(SOURCES:.cpp=.o)
+BITCODE         := $(SOURCES:.cpp=.bc)
 
 CLOC_OPTIONS    := --exclude-dir=.vscode,fixed_string --not-match-f='^((wasm)?flex|(wasm)?bison|fixed_string)'
 
 .PHONY: all test clean
 
 all: $(OUTPUT)
+
+bc: $(BITCODE)
 
 $(OUTPUT): $(OBJECTS)
 	$(COMPILER) -o $@ $^ $(LDFLAGS)
@@ -37,6 +41,9 @@ test: $(OUTPUT)
 
 %.o: %.cpp $(PARSERHDR) $(WASMPARSERHDR)
 	$(COMPILER) $(CFLAGS) -c $< -o $@
+
+%.bc: %.cpp $(PARSERHDR) $(WASMPARSERHDR)
+	$(COMPILER) $(BCFLAGS) -emit-llvm -c -g -O0 -Xclang -disable-O0-optnone $< -o $@
 
 $(LEXERCPP): $(LEXERSRC) $(PARSERHDR)
 	flex --prefix=cpm --outfile=$(LEXERCPP) $(LEXERSRC)
