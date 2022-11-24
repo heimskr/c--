@@ -17,9 +17,14 @@ std::shared_ptr<VirtualRegister> VirtualRegister::init() {
 }
 
 std::string VirtualRegister::regOrID(bool colored) const {
+	std::string reg_string;
 	if (colored)
-		return reg == -1? "\e[1m%" + std::to_string(id) + "\e[22m" : Why::coloredRegister(reg);
-	return reg == -1? "%" + std::to_string(id) : "$" + Why::registerName(reg);
+		reg_string = reg == -1? "\e[1m%" + std::to_string(id) + "\e[22m" : Why::coloredRegister(reg);
+	else
+		reg_string = reg == -1? "%" + std::to_string(id) : "$" + Why::registerName(reg);
+	if (type == nullptr)
+		return reg_string;
+	return reg_string + std::string(OperandType(*type));
 }
 
 bool VirtualRegister::special() const {

@@ -1,5 +1,5 @@
 COMPILER        ?= clang++
-OPTIMIZATION    ?= -O0 -g
+OPTIMIZATION    ?= -O0 -ggdb3
 STANDARD        ?= c++20
 WARNINGS        ?= -Wall -Wextra
 CFLAGS          := -std=$(STANDARD) $(OPTIMIZATION) $(WARNINGS) -Iinclude

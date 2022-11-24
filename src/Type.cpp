@@ -39,6 +39,10 @@ bool SignedType::equal(const Type &other, bool ignore_const) const {
 	return false;
 }
 
+SignedType::operator OperandType() const {
+	return OperandType(true, OperandType::getPrimitiveFromBitWidth(width), 0);
+}
+
 bool UnsignedType::similar(const Type &other, bool ignore_const) const {
 	if (other.isReferenceOf(*this, ignore_const))
 		return true;
@@ -55,6 +59,26 @@ bool UnsignedType::equal(const Type &other, bool ignore_const) const {
 	if (const auto *other_unsigned = other.cast<UnsignedType>())
 		return other_unsigned->width == width;
 	return false;
+}
+
+UnsignedType::operator OperandType() const {
+	return OperandType(false, OperandType::getPrimitiveFromBitWidth(width), 0);
+}
+
+VoidType::operator OperandType() const {
+	return OperandType(false, Primitive::Void, 0);
+}
+
+BoolType::operator OperandType() const {
+	return OperandType(false, Primitive::Char, 0);
+}
+
+SuperType::operator OperandType() const {
+	if (subtype == nullptr)
+		throw std::runtime_error("subtype is null in SuperType::operator OperandType()");
+	auto out = OperandType(*subtype);
+	++out.pointerLevel;
+	return out;
 }
 
 bool PointerType::similar(const Type &other, bool ignore_const) const {

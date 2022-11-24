@@ -11,6 +11,7 @@
 #include "Context.h"
 #include "Makeable.h"
 #include "WeakSet.h"
+#include "Why.h"
 
 class ASTNode;
 class Function;
@@ -55,6 +56,10 @@ struct Type: Checkable, std::enable_shared_from_this<Type> {
 	Type * setLvalue(bool is_lvalue) { isLvalue = is_lvalue; return this; }
 	Type * steal(const Type &other) { return setConst(other.isConst)->setLvalue(other.isLvalue); }
 
+	virtual explicit operator OperandType() const {
+		throw std::runtime_error("OperandType operator undefined for " + std::string(typeid(*this).name()));
+	}
+
 	static Type * get(const ASTNode &, Program &, bool allow_forward = false);
 	static Type * get(const std::string &, Program &);
 	static Type * get(const char * &, Program &);
@@ -95,6 +100,7 @@ struct SignedType: IntType, Makeable<SignedType> {
 	bool similar(const Type &, bool) const override;
 	bool equal(const Type &, bool ignore_const) const override;
 	std::string mangle() const override { return "s" + std::to_string(width / 8); }
+	explicit operator OperandType() const override;
 	protected:
 		std::string stringify() const override { return "s" + std::to_string(width); }
 };
@@ -106,6 +112,7 @@ struct UnsignedType: IntType, Makeable<UnsignedType> {
 	bool similar(const Type &, bool) const override;
 	bool equal(const Type &, bool ignore_const) const override;
 	std::string mangle() const override { return "u" + std::to_string(width / 8); }
+	explicit operator OperandType() const override;
 	protected:
 		std::string stringify() const override { return "u" + std::to_string(width); }
 };
@@ -118,6 +125,7 @@ struct VoidType: Type, Makeable<VoidType> {
 	bool similar(const Type &other, bool) const override { return other.isVoid(); }
 	bool equal(const Type &other, bool) const override { return other.isVoid(); }
 	bool isVoid() const override { return true; }
+	explicit operator OperandType() const override;
 	protected:
 		std::string stringify() const override { return "void"; }
 };
@@ -129,6 +137,7 @@ struct BoolType: Type, Makeable<BoolType> {
 	bool similar(const Type &other, bool) const override { return other.isBool(); }
 	bool equal(const Type &other, bool) const override { return other.isBool(); }
 	bool isBool() const override { return true; }
+	explicit operator OperandType() const override;
 	protected:
 		std::string stringify() const override { return "bool"; }
 };
@@ -143,24 +152,27 @@ struct SuperType: Type {
 	/** Takes ownership of the subtype pointer! */
 	explicit SuperType(Type *subtype_): subtype(subtype_) {}
 	~SuperType() override { delete subtype; }
+	explicit operator OperandType() const override;
 };
 
-struct PointerType: SuperType, Makeable<PointerType> {
-	using SuperType::SuperType;
-	Type * copy() const override {
-		return (new PointerType(subtype != nullptr? subtype->copy() : nullptr))->steal(*this);
-	}
-	std::string mangle() const override { return "p" + subtype->mangle(); }
-	size_t getSize() const override { return 8; }
-	bool similar(const Type &, bool) const override;
-	bool equal(const Type &, bool ignore_const) const override;
-	bool isPointer() const override { return true; }
-	int affinity(const Type &, bool ignore_const) const override;
+class PointerType: public SuperType, public Makeable<PointerType> {
+	public:
+		using SuperType::SuperType;
+		Type * copy() const override {
+			return (new PointerType(subtype != nullptr? subtype->copy() : nullptr))->steal(*this);
+		}
+		std::string mangle() const override { return "p" + subtype->mangle(); }
+		size_t getSize() const override { return 8; }
+		bool similar(const Type &, bool) const override;
+		bool equal(const Type &, bool ignore_const) const override;
+		bool isPointer() const override { return true; }
+		int affinity(const Type &, bool ignore_const) const override;
+
 	protected:
 		std::string stringify() const override { return subtype != nullptr? std::string(*subtype) + "*" : "???*"; }
 };
 
-struct ReferenceType: SuperType, Makeable<ReferenceType> {
+class ReferenceType: public SuperType, public Makeable<ReferenceType> {
 	public:
 		explicit ReferenceType(Type *subtype_): SuperType(subtype_) { isLvalue = true; }
 		Type * copy() const override {
@@ -214,6 +226,8 @@ struct FunctionPointerType: Type {
 	bool similar(const Type &, bool) const override;
 	bool equal(const Type &, bool ignore_const) const override;
 	bool isFunctionPointer() const override { return true; }
+	explicit operator OperandType() const override { return OperandType::VOID_PTR; }
+
 	protected:
 		std::string stringify() const override;
 };
@@ -247,6 +261,7 @@ class StructType: public Type, public Makeable<StructType> {
 		const decltype(map) & getMap() const;
 		const decltype(statics) & getStatics() const;
 		std::shared_ptr<Function> getDestructor() const;
+		explicit operator OperandType() const override { return OperandType(false, Primitive::Void, 0); }
 
 	protected:
 		std::string stringify() const override;

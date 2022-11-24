@@ -90,3 +90,6 @@ std::string Why::coloredRegister(int reg) {
 
 	return "$[" + std::to_string(reg) + "?]";
 }
+
+OperandType OperandType::VOID_PTR = OperandType(false, Primitive::Void, 1);
+OperandType OperandType::ULONG    = OperandType(false, Primitive::Long, 0);
