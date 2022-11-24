@@ -31,6 +31,12 @@ struct WhyInstruction;
 
 using ScopePtr = std::shared_ptr<Scope>;
 
+struct LeftTyper {
+	TypePtr operator()(TypePtr left, TypePtr right) const {
+		return left;
+	}
+};
+
 struct Expr: Checkable, std::enable_shared_from_this<Expr> {
 	DebugData debug;
 	explicit Expr(const ASTLocation &location_ = {}): debug(location_) {}
@@ -153,7 +159,7 @@ struct CompExpr: BinaryExpr<O> {
 			compileCall(destination, function, context, fnptr, {this->left.get(), this->right.get()},
 				this->getLocation(), multiplier);
 		} else {
-			VregPtr temp_var = function.newVar();
+			VregPtr temp_var = function.newVar(BoolType::make());
 			this->left->compile(destination, function, context, 1);
 			this->right->compile(temp_var, function, context, multiplier);
 			if (this->left->getType(context)->isUnsigned(0))
@@ -468,12 +474,12 @@ struct AssignExpr: BinaryExpr<"="> {
 	bool isLvalue(const Context &) const override { return true; }
 };
 
-template <fixstr::fixed_string O, typename RS, typename FnS, typename RU = RS, typename FnU = FnS>
+template <fixstr::fixed_string O, typename R, typename FnS, typename FnU = FnS, typename Typer = LeftTyper>
 struct CompoundAssignExpr: BinaryExpr<O> {
 	using BinaryExpr<O>::BinaryExpr;
 
 	[[nodiscard]] Expr * copy() const override {
-		return (new CompoundAssignExpr<O, RS, FnS, RU, FnU>(this->left->copy(), this->right->copy()))
+		return (new CompoundAssignExpr<O, R, FnS, FnU, Typer>(this->left->copy(), this->right->copy()))
 			->setDebug(this->debug);
 	}
 
@@ -483,7 +489,7 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 		auto left_type  = this->left->getType(context);
 		auto right_type = this->right->getType(context);
 		if (!(*right_type && *left_type))
-				throw ImplicitConversionError(*right_type, *left_type, this->getLocation());
+			throw ImplicitConversionError(*right_type, *left_type, this->getLocation());
 		return left_type;
 	}
 
@@ -496,16 +502,14 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 			compileCall(destination, function, context, fnptr, {this->left.get(), this->right.get()},
 				this->getLocation(), multiplier);
 		} else {
-			auto temp_var = function.newVar();
+			Typer typer;
+			TypePtr new_type = typer(left_type, right_type);
+			auto temp_var = function.newVar(new_type);
 			if (!destination)
-				destination = function.newVar();
+				destination = function.newVar(new_type);
 			this->left->compile(destination, function, context, 1);
 			this->right->compile(temp_var, function, context, 1);
-			if (this->left->getType(context)->isUnsigned(0))
-				function.add<RU>(destination, temp_var, destination)->setDebug(*this);
-			else
-				function.add<RS>(destination, temp_var, destination)->setDebug(*this);
-			TypePtr right_type = this->right->getType(context);
+			function.add<R>(destination, temp_var, destination)->setDebug(*this);
 			if (!tryCast(*right_type, *left_type, destination, function, this->getLocation()))
 				throw ImplicitConversionError(right_type, left_type, this->getLocation());
 			if (!this->left->compileAddress(temp_var, function, context))
@@ -557,10 +561,10 @@ struct Xor  { ssize_t operator()(ssize_t left, ssize_t right) const { return ssi
 struct MultAssignExpr: CompoundAssignExpr<"*=", MultRInstruction, Mult> {
 	using CompoundAssignExpr::CompoundAssignExpr;
 };
-struct DivAssignExpr: CompoundAssignExpr<"/=", DivRInstruction, Div, DivuRInstruction, DivU> {
+struct DivAssignExpr: CompoundAssignExpr<"/=", DivRInstruction, Div, DivU> {
 	using CompoundAssignExpr::CompoundAssignExpr;
 };
-struct ModAssignExpr: CompoundAssignExpr<"%=", ModRInstruction, Mod, ModuRInstruction, ModU> {
+struct ModAssignExpr: CompoundAssignExpr<"%=", ModRInstruction, Mod, ModU> {
 	using CompoundAssignExpr::CompoundAssignExpr;
 };
 struct AndAssignExpr: CompoundAssignExpr<"&=", AndRInstruction, And> {
@@ -576,7 +580,7 @@ struct ShiftLeftAssignExpr: CompoundAssignExpr<"<<=", ShiftLeftLogicalRInstructi
 	using CompoundAssignExpr::CompoundAssignExpr;
 };
 struct ShiftRightAssignExpr:
-CompoundAssignExpr<">>=", ShiftRightArithmeticRInstruction, ShR, ShiftRightLogicalRInstruction, ShRU> {
+CompoundAssignExpr<">>=", ShiftRightArithmeticRInstruction, ShR, ShRU> {
 	using CompoundAssignExpr::CompoundAssignExpr;
 };
 
