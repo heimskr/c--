@@ -2,7 +2,7 @@ COMPILER        ?= clang++
 OPTIMIZATION    ?= -O0 -ggdb3
 STANDARD        ?= c++20
 WARNINGS        ?= -Wall -Wextra
-CFLAGS          := -std=$(STANDARD) $(OPTIMIZATION) $(WARNINGS) -Iinclude
+CFLAGS          := -std=$(STANDARD) $(OPTIMIZATION) $(WARNINGS) -Iinclude -DDEFAULT_TO_VOID
 BCFLAGS         := -std=$(STANDARD) $(WARNINGS) -Iinclude
 OUTPUT          ?= c+-
 
@@ -37,7 +37,7 @@ $(OUTPUT): $(OBJECTS)
 	$(COMPILER) -o $@ $^ $(LDFLAGS)
 
 test: $(OUTPUT)
-	./$(OUTPUT) examples/why.c+- -d >/dev/null
+	./$(OUTPUT) examples/why.c+- -d
 
 %.o: %.cpp $(PARSERHDR) $(WASMPARSERHDR)
 	$(COMPILER) $(CFLAGS) -c $< -o $@

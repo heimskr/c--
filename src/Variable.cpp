@@ -22,8 +22,13 @@ std::string VirtualRegister::regOrID(bool colored) const {
 		reg_string = reg == -1? "\e[1m%" + std::to_string(id) + "\e[22m" : Why::coloredRegister(reg);
 	else
 		reg_string = reg == -1? "%" + std::to_string(id) : "$" + Why::registerName(reg);
+#ifdef DEFAULT_TO_VOID
+	if (type == nullptr)
+		return reg_string + "{v}";
+#else
 	if (type == nullptr)
 		return reg_string;
+#endif
 	return reg_string + std::string(OperandType(*type));
 }
 

@@ -128,6 +128,7 @@ struct OperandType {
 
 	static OperandType VOID_PTR;
 	static OperandType ULONG;
+	static OperandType VOID;
 };
 
 struct Register {

@@ -32,8 +32,8 @@ struct WhyInstruction;
 using ScopePtr = std::shared_ptr<Scope>;
 
 struct LeftTyper {
-	TypePtr operator()(TypePtr left, TypePtr right) const {
-		return left;
+	TypePtr operator()(const Type &left, const Type &) const {
+		return TypePtr(left.copy());
 	}
 };
 
@@ -497,13 +497,12 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 		TypePtr left_type = this->left->getType(context);
 		if (left_type->isConst)
 			throw ConstError("Can't assign", std::string(*left_type), this->getLocation());
-		auto right_type = this->right->getType(context);
+		TypePtr right_type = this->right->getType(context);
 		if (auto fnptr = this->getOperator(context)) {
 			compileCall(destination, function, context, fnptr, {this->left.get(), this->right.get()},
 				this->getLocation(), multiplier);
 		} else {
-			Typer typer;
-			TypePtr new_type = typer(left_type, right_type);
+			TypePtr new_type = Typer()(*left_type, *right_type);
 			auto temp_var = function.newVar(new_type);
 			if (!destination)
 				destination = function.newVar(new_type);
@@ -584,7 +583,7 @@ CompoundAssignExpr<">>=", ShiftRightArithmeticRInstruction, ShR, ShRU> {
 	using CompoundAssignExpr::CompoundAssignExpr;
 };
 
-template <fixstr::fixed_string O, typename R, typename Fn>
+template <fixstr::fixed_string O, typename R, typename Fn, typename Typer = LeftTyper>
 struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {
 	using CompoundAssignExpr<O, R, Fn>::CompoundAssignExpr;
 
@@ -602,9 +601,10 @@ struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {
 			compileCall(destination, function, context, fnptr, {this->left.get(), this->right.get()},
 			            this->getLocation(), multiplier);
 		} else {
-			auto temp_var = function.newVar();
+			TypePtr new_type = Typer()(*left_type, *right_type);
+			auto temp_var = function.newVar(new_type);
 			if (!destination)
-				destination = function.newVar();
+				destination = function.newVar(new_type);
 			function.doPointerArithmetic(left_type, right_type, *this->left, *this->right, destination, temp_var,
 				context, this->getLocation());
 			function.add<R>(destination, temp_var, destination)->setDebug(*this);
@@ -696,11 +696,12 @@ struct PrefixExpr: Expr {
 				else
 					throw GenericError(getLocation(), "Cannot prefix increment/decrement " + std::string(*subtype));
 			}
+			// TODO: verify types
 			if (!destination)
-				destination = function.newVar();
-			auto addr_variable = function.newVar();
+				destination = function.newVar(subtype);
+			auto addr_variable = function.newVar(PointerType::make(subtype->copy()));
 			const auto size = subexpr->getSize(context);
-			subexpr->compile(function.newVar(), function, context, multiplier);
+			subexpr->compile(function.newVar(subtype), function, context, multiplier);
 			if (!subexpr->compileAddress(addr_variable, function, context))
 				throw LvalueError(std::string(*subexpr->getType(context)));
 			function.addComment("Prefix operator" + std::string(O));
@@ -754,11 +755,11 @@ struct PostfixExpr: Expr {
 					throw GenericError(getLocation(), "Cannot postfix increment/decrement " + std::string(*subtype));
 			}
 			if (!destination)
-				destination = function.newVar();
-			auto temp_var = function.newVar();
-			auto addr_var = function.newVar();
+				destination = function.newVar(subtype);
+			auto temp_var = function.newVar(subtype);
+			auto addr_var = function.newVar(PointerType::make(subtype->copy()));
 			const auto size = subexpr->getSize(context);
-			subexpr->compile(function.newVar(), function, context, multiplier);
+			subexpr->compile(function.newVar(subtype), function, context, multiplier);
 			if (!subexpr->compileAddress(addr_var, function, context))
 				throw LvalueError(std::string(*subexpr->getType(context)));
 			function.addComment("Postfix operator" + std::string(O));
