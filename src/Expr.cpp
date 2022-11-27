@@ -1471,7 +1471,16 @@ void AccessExpr::compile(VregPtr destination, Function &function, const Context 
 			array_type = PointerType::make(casted->subtype->copy());
 		else if (!array_type->is<PointerType>())
 			fail();
+
+		Type *subtype = nullptr;
+		if (auto super = array_type->ptrcast<SuperType>())
+			subtype = super->subtype;
+		else
+			fail();
+
 		compileAddress(destination, function, context);
+		destination->setType(*subtype);
+
 		function.add<LoadRInstruction>(destination, destination, getSize(context))->setDebug(*this);
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
@@ -1484,8 +1493,11 @@ std::unique_ptr<Type> AccessExpr::getType(const Context &context) const {
 	auto array_type = array->getType(context);
 	if (const auto *casted = array_type->cast<const ArrayType>())
 		return std::unique_ptr<Type>(casted->subtype->copy());
-	if (const auto *casted = array_type->cast<const PointerType>())
+	if (const auto *casted = array_type->cast<const PointerType>()) {
+		if (const auto *subarray = casted->subtype->cast<const ArrayType>())
+			return std::unique_ptr<Type>(subarray->subtype->copy());
 		return std::unique_ptr<Type>(casted->subtype->copy());
+	}
 	fail();
 	return nullptr;
 }
