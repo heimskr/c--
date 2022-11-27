@@ -257,6 +257,7 @@ class StructType: public Type, public Makeable<StructType> {
 		bool isStruct() const override { return true; }
 		size_t getFieldOffset(const std::string &) const;
 		size_t getFieldSize(const std::string &) const;
+		TypePtr getFieldType(const std::string &) const;
 		const decltype(order) & getOrder() const;
 		const decltype(map) & getMap() const;
 		const decltype(statics) & getStatics() const;

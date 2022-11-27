@@ -1449,6 +1449,7 @@ void CastExpr::compile(VregPtr destination, Function &function, const Context &c
 	// TODO: operator overloading
 	subexpr->compile(destination, function, context, multiplier);
 	tryCast(*subexpr->getType(context), *targetType, destination, function, getLocation());
+	destination->setType(*targetType);
 }
 
 std::unique_ptr<Type> CastExpr::getType(const Context &) const {
@@ -1575,7 +1576,8 @@ size_t TernaryExpr::getSize(const Context &context) const {
 
 void DotExpr::compile(VregPtr destination, Function &function, const Context &context, size_t multiplier) {
 	auto struct_type = checkType(context);
-	const size_t field_size = struct_type->getFieldSize(ident);
+	TypePtr field_type = struct_type->getFieldType(ident);
+	const size_t field_size = field_type->getSize();
 	const size_t field_offset = struct_type->getFieldOffset(ident);
 	Util::validateSize(field_size);
 	auto left_type = left->getType(context);
@@ -1590,6 +1592,7 @@ void DotExpr::compile(VregPtr destination, Function &function, const Context &co
 	function.add<LoadRInstruction>(destination, destination, field_size)->setDebug(*this);
 	if (multiplier != 1)
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+	destination->setType(*field_type);
 }
 
 std::unique_ptr<Type> DotExpr::getType(const Context &context) const {

@@ -451,6 +451,12 @@ size_t StructType::getFieldSize(const std::string &field_name) const {
 	return getMap().at(field_name)->getSize();
 }
 
+TypePtr StructType::getFieldType(const std::string &field_name) const {
+	if (getMap().count(field_name) == 0)
+		throw ResolutionError(field_name, nullptr);
+	return getMap().at(field_name);
+}
+
 const decltype(StructType::order) & StructType::getOrder() const {
 	if (isForwardDeclaration) {
 		if (program.structs.count(name) == 0)
