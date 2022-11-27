@@ -931,7 +931,8 @@ bool VariableExpr::compileAddress(const VregPtr &destination, Function &function
 		function.add<SetIInstruction>(destination, fn->mangle())->setDebug(*this);
 	} else
 		throw ResolutionError(name, context.scope, getLocation());
-	destination->setType(PointerType(getType(context).release()));
+	if (destination)
+		destination->setType(PointerType(getType(context).release()));
 	return true;
 }
 
@@ -1065,7 +1066,8 @@ std::unique_ptr<Type> DerefExpr::checkType(const Context &context) const {
 bool DerefExpr::compileAddress(const VregPtr &destination, Function &function, const Context &context) {
 	checkType(context);
 	subexpr->compile(destination, function, context, 1);
-	destination->setType(PointerType(getType(context).release()));
+	if (destination)
+		destination->setType(PointerType(getType(context).release()));
 	return true;
 }
 
@@ -1267,7 +1269,8 @@ bool CallExpr::compileAddress(const VregPtr &destination, Function &function, co
 	if (isLvalue(context)) {
 		function.addComment("Starting Call::compileAddress");
 		compile(destination, function, context, 1);
-		destination->setType(PointerType(getType(context).release()));
+		if (destination)
+			destination->setType(PointerType(getType(context).release()));
 		function.addComment("Finished Call::compileAddress");
 		return true;
 	}
@@ -1389,7 +1392,8 @@ void AssignExpr::compile(VregPtr destination, Function &function, const Context 
 		TypePtr right_type = right->getType(context);
 		if (!left->compileAddress(addr_var, function, context))
 			throw LvalueError(std::string(*left->getType(context)));
-		destination->setType(*addr_var->getType());
+		if (destination)
+			destination->setType(*addr_var->getType());
 		if (right_type->isInitializer()) {
 			auto *initializer_expr = right->cast<InitializerExpr>();
 			if (initializer_expr->isConstructor) {
@@ -1449,7 +1453,8 @@ void CastExpr::compile(VregPtr destination, Function &function, const Context &c
 	// TODO: operator overloading
 	subexpr->compile(destination, function, context, multiplier);
 	tryCast(*subexpr->getType(context), *targetType, destination, function, getLocation());
-	destination->setType(*targetType);
+	if (destination)
+		destination->setType(*targetType);
 }
 
 std::unique_ptr<Type> CastExpr::getType(const Context &) const {
@@ -1508,7 +1513,8 @@ bool AccessExpr::compileAddress(const VregPtr &destination, Function &function, 
 			function.add<MultIInstruction>(subscript_variable, subscript_variable, element_size)->setDebug(*this);
 		function.add<AddRInstruction>(destination, subscript_variable, destination)->setDebug(*this);
 	}
-	destination->setType(*array->getType(context));
+	if (destination)
+		destination->setType(*array->getType(context));
 	return true;
 }
 
@@ -1592,7 +1598,8 @@ void DotExpr::compile(VregPtr destination, Function &function, const Context &co
 	function.add<LoadRInstruction>(destination, destination, field_size)->setDebug(*this);
 	if (multiplier != 1)
 		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
-	destination->setType(*field_type);
+	if (destination)
+		destination->setType(*field_type);
 }
 
 std::unique_ptr<Type> DotExpr::getType(const Context &context) const {
@@ -1613,7 +1620,8 @@ bool DotExpr::compileAddress(const VregPtr &destination, Function &function, con
 		throw LvalueError(std::string(*left));
 	if (field_offset != 0)
 		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
-	destination->setType(PointerType(struct_type->getMap().at(ident)->copy()));
+	if (destination)
+		destination->setType(PointerType(struct_type->getMap().at(ident)->copy()));
 	return true;
 }
 
@@ -1671,7 +1679,8 @@ bool ArrowExpr::compileAddress(const VregPtr &destination, Function &function, c
 		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
 	} else
 		function.addComment("Field offset of " + struct_type->name + "::" + ident + " is 0");
-	destination->setType(PointerType(struct_type->getMap().at(ident)->copy()));
+	if (destination)
+		destination->setType(PointerType(struct_type->getMap().at(ident)->copy()));
 	return true;
 }
 
@@ -2041,7 +2050,8 @@ void StaticFieldExpr::compile(VregPtr destination, Function &function, const Con
 
 bool StaticFieldExpr::compileAddress(const VregPtr &destination, Function &function, const Context &context) {
 	function.add<SetIInstruction>(destination, mangle(context));
-	destination->setType(PointerType(getType(context).release()));
+	if (destination)
+		destination->setType(PointerType(getType(context).release()));
 	return true;
 }
 
