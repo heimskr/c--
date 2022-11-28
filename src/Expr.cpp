@@ -19,15 +19,6 @@ static TypedImmediate makeAddress(const std::string &address) {
 	return {OperandType::VOID_PTR, address};
 }
 
-static OperandType typeFromReg(const VregPtr &vreg) {
-	return static_cast<OperandType>(*vreg->getType());
-}
-
-template <typename T>
-static TypedImmediate immLikeReg(const VregPtr &vreg, T &&immediate) {
-	return TypedImmediate(typeFromReg(vreg), std::forward<T>(immediate));
-}
-
 void compileCall(const VregPtr &destination, Function &function, const Context &context, const FunctionPtr &fnptr,
                  const std::vector<Argument> &arguments, const ASTLocation &location, size_t multiplier) {
 	if (arguments.size() != fnptr->argumentCount())
@@ -921,14 +912,16 @@ void VariableExpr::compile(VregPtr destination, Function &function, const Contex
 		} else {
 			const size_t offset = function.stackOffsets.at(var);
 			function.addComment("Load variable " + name);
-			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset)
-				->setDebug(*this);
-			function.add<LoadRInstruction>(destination, destination, var->getSize())->setDebug(*this);
+			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination,
+				immLikeReg(destination, offset))->setDebug(*this);
+			function.add<LoadRInstruction>(destination, destination)->setDebug(*this);
 		}
 		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+			function.add<MultIInstruction>(destination, destination, immLikeReg(destination, int(multiplier)))
+				->setDebug(*this);
 	} else if (const auto fn = context.scope->lookupFunction(name, getLocation())) {
-		function.add<SetIInstruction>(destination, fn->mangle())->setDebug(*this);
+		function.add<SetIInstruction>(destination, TypedImmediate(OperandType::VOID_PTR, fn->mangle()))
+			->setDebug(*this);
 	} else
 		throw ResolutionError(name, context.scope, getLocation());
 }
@@ -936,21 +929,21 @@ void VariableExpr::compile(VregPtr destination, Function &function, const Contex
 bool VariableExpr::compileAddress(const VregPtr &destination, Function &function, const Context &context) {
 	if (VariablePtr var = context.scope->lookup(name)) {
 		if (auto global = std::dynamic_pointer_cast<Global>(var)) {
-			function.add<SetIInstruction>(destination, global->name)->setDebug(*this);
+			function.add<SetIInstruction>(destination, TypedImmediate(*global))->setDebug(*this);
 		} else if (function.stackOffsets.count(var) == 0) {
 			throw NotOnStackError(var, getLocation());
 		} else {
 			const size_t offset = function.stackOffsets.at(var);
 			function.addComment("Get variable lvalue for " + name);
-			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination, offset)
-				->setDebug(*this);
+			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination,
+				immLikeReg(destination, static_cast<int>(offset)))->setDebug(*this);
 			if (var->getType()->isReference()) {
 				function.addComment("Load reference lvalue for " + name);
-				function.add<LoadRInstruction>(destination, destination, Why::wordSize)->setDebug(*this);
+				function.add<LoadRInstruction>(destination, destination)->setDebug(*this);
 			}
 		}
 	} else if (const auto fn = context.scope->lookupFunction(name, getLocation())) {
-		function.add<SetIInstruction>(destination, fn->mangle())->setDebug(*this);
+		function.add<SetIInstruction>(destination, makeAddress(fn->mangle()))->setDebug(*this);
 	} else
 		throw ResolutionError(name, context.scope, getLocation());
 	if (destination)
@@ -1004,7 +997,8 @@ void NotExpr::compile(VregPtr destination, Function &function, const Context &co
 		subexpr->compile(destination, function, context, 1);
 		function.add<NotRInstruction>(destination, destination)->setDebug(*this);
 		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+			function.add<MultIInstruction>(destination, destination,
+				immLikeReg(destination, static_cast<int>(multiplier)))->setDebug(*this);
 	}
 }
 
@@ -1023,7 +1017,8 @@ void LnotExpr::compile(VregPtr destination, Function &function, const Context &c
 		subexpr->compile(destination, function, context, 1);
 		function.add<LnotRInstruction>(destination, destination)->setDebug(*this);
 		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+			function.add<MultIInstruction>(destination, destination, immLikeReg(destination,
+				static_cast<int>(multiplier)))->setDebug(*this);
 	}
 }
 
@@ -1038,7 +1033,8 @@ void StringExpr::compile(VregPtr destination, Function &function, const Context 
 	if (multiplier != 1)
 		throw GenericError(getLocation(), "Cannot multiply in StringExpr");
 	if (destination)
-		function.add<SetIInstruction>(destination, getID(function.program))->setDebug(*this);
+		function.add<SetIInstruction>(destination, TypedImmediate(OperandType::CHAR_PTR, getID(function.program)))
+			->setDebug(*this);
 }
 
 std::unique_ptr<Type> StringExpr::getType(const Context &) const {
@@ -1055,7 +1051,7 @@ void DerefExpr::compile(VregPtr destination, Function &function, const Context &
 	} else {
 		checkType(context);
 		subexpr->compile(destination, function, context, multiplier);
-		function.add<LoadRInstruction>(destination, destination, getSize(context))->setDebug(*this);
+		function.add<LoadRInstruction>(destination, destination)->setDebug(*this);
 	}
 }
 
@@ -1210,7 +1206,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 		function_found = true;
 		found_return_type = found->returnType;
 		get_arg_type = [found](size_t i) -> const Type & { return *found->getArgumentType(i); };
-		add_jump = [this, found, &fn] { fn.add<JumpInstruction>(found->mangle(), true)->setDebug(*this); };
+		add_jump = [this, found, &fn] { fn.add<JumpInstruction>(makeAddress(found->mangle()), true)->setDebug(*this); };
 	}
 
 	std::unique_ptr<Type> fnptr_type;
@@ -1264,8 +1260,8 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 		if (multiplier == 1)
 			fn.add<MoveInstruction>(fn.precolored(Why::returnValueOffset), destination)->setDebug(*this);
 		else
-			fn.add<MultIInstruction>(fn.precolored(Why::returnValueOffset), destination, size_t(multiplier))
-				->setDebug(*this);
+			fn.add<MultIInstruction>(fn.precolored(Why::returnValueOffset), destination, immLikeReg(destination,
+				static_cast<int>(multiplier)))->setDebug(*this);
 	}
 }
 
@@ -1446,9 +1442,10 @@ void AssignExpr::compile(VregPtr destination, Function &function, const Context 
 			right->compile(destination, function, context, 1);
 			if (!tryCast(*right_type, *left_type, destination, function, getLocation()))
 				throw ImplicitConversionError(right_type, left_type, getLocation());
-			function.add<StoreRInstruction>(destination, addr_var, getSize(context))->setDebug(*this);
+			function.add<StoreRInstruction>(destination, addr_var)->setDebug(*this);
 			if (multiplier != 1)
-				function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+				function.add<MultIInstruction>(destination, destination, immLikeReg(destination,
+					static_cast<int>(multiplier)))->setDebug(*this);
 		}
 	}
 }
@@ -1503,9 +1500,10 @@ void AccessExpr::compile(VregPtr destination, Function &function, const Context 
 		compileAddress(destination, function, context);
 		destination->setType(*subtype);
 
-		function.add<LoadRInstruction>(destination, destination, getSize(context))->setDebug(*this);
+		function.add<LoadRInstruction>(destination, destination)->setDebug(*this);
 		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+			function.add<MultIInstruction>(destination, destination, immLikeReg(destination,
+				static_cast<int>(multiplier)))->setDebug(*this);
 	}
 }
 
@@ -1538,13 +1536,14 @@ bool AccessExpr::compileAddress(const VregPtr &destination, Function &function, 
 	const auto subscript_value = subscript->evaluate(context);
 	if (subscript_value) {
 		if (*subscript_value != 0)
-			function.add<AddIInstruction>(destination, destination, size_t(*subscript_value * element_size))
-				->setDebug(*this);
+			function.add<AddIInstruction>(destination, destination, immLikeReg(destination,
+				static_cast<int>(*subscript_value * element_size)))->setDebug(*this);
 	} else {
 		auto subscript_variable = function.newVar(TypePtr(subscript->getType(context)));
 		subscript->compile(subscript_variable, function, context, 1);
 		if (element_size != 1)
-			function.add<MultIInstruction>(subscript_variable, subscript_variable, element_size)->setDebug(*this);
+			function.add<MultIInstruction>(subscript_variable, subscript_variable, immLikeReg(subscript_variable,
+				static_cast<int>(element_size)))->setDebug(*this);
 		function.add<AddRInstruction>(destination, subscript_variable, destination)->setDebug(*this);
 	}
 	if (destination)
@@ -1581,7 +1580,8 @@ void LengthExpr::compile(VregPtr destination, Function &function, const Context 
 	if (auto fnptr = function.program.getOperator({type.get()}, CPMTOK_HASH, getLocation())) {
 		compileCall(destination, function, context, fnptr, {subexpr.get()}, getLocation(), multiplier);
 	} else if (const auto *array = type->cast<const ArrayType>()) {
-		function.add<SetIInstruction>(destination, array->count * multiplier)->setDebug(*this);
+		function.add<SetIInstruction>(destination, immLikeReg(destination, static_cast<int>(array->count * multiplier)))
+			->setDebug(*this);
 	} else
 		throw NotArrayError(type);
 }
@@ -1591,9 +1591,9 @@ void TernaryExpr::compile(VregPtr destination, Function &function, const Context
 	const std::string true_label = base + "t.t";
 	const std::string end = base + "t.e";
 	condition->compile(destination, function, context, 1);
-	function.add<JumpConditionalInstruction>(true_label, destination, false)->setDebug(*this);
+	function.add<JumpConditionalInstruction>(makeAddress(true_label), destination, false)->setDebug(*this);
 	ifFalse->compile(destination, function, context, multiplier);
-	function.add<JumpInstruction>(end)->setDebug(*this);
+	function.add<JumpInstruction>(makeAddress(end))->setDebug(*this);
 	function.add<Label>(true_label);
 	ifTrue->compile(destination, function, context, multiplier);
 	function.add<Label>(end);
@@ -1625,13 +1625,15 @@ void DotExpr::compile(VregPtr destination, Function &function, const Context &co
 		throw LvalueError(std::string(*left));
 	if (field_offset != 0) {
 		function.addComment("Add dot field offset of " + struct_type->name + "::" + ident);
-		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
+		function.add<AddIInstruction>(destination, destination, immLikeReg(destination, static_cast<int>(field_offset)))
+			->setDebug(*this);
 	} else
 		function.addComment("Dot field offset of " + struct_type->name + "::" + ident + " is 0");
 	function.addComment("Load dot field " + struct_type->name + "::" + ident);
-	function.add<LoadRInstruction>(destination, destination, field_size)->setDebug(*this);
+	function.add<LoadRInstruction>(destination, destination)->setDebug(*this);
 	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+		function.add<MultIInstruction>(destination, destination, immLikeReg(destination, static_cast<int>(multiplier)))
+			->setDebug(*this);
 	if (destination)
 		destination->setType(*field_type);
 }
@@ -1653,7 +1655,8 @@ bool DotExpr::compileAddress(const VregPtr &destination, Function &function, con
 	if (!left->compileAddress(destination, function, context))
 		throw LvalueError(std::string(*left));
 	if (field_offset != 0)
-		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
+		function.add<AddIInstruction>(destination, destination, immLikeReg(destination, static_cast<int>(field_offset)))
+			->setDebug(*this);
 	if (destination)
 		destination->setType(PointerType(struct_type->getMap().at(ident)->copy()));
 	return true;
@@ -1684,13 +1687,14 @@ void ArrowExpr::compile(VregPtr destination, Function &function, const Context &
 	left->compile(destination, function, context, 1);
 	if (field_offset != 0) {
 		function.addComment("Add arrow field offset of " + struct_type->name + "::" + ident);
-		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
+		function.add<AddIInstruction>(destination, destination, immLikeReg(destination, static_cast<int>(field_offset)))
+			->setDebug(*this);
 	} else
 		function.addComment("Arrow field offset of " + struct_type->name + "::" + ident + " is 0");
 	function.addComment("Load arrow field " + struct_type->name + "::" + ident);
-	function.add<LoadRInstruction>(destination, destination, field_size)->setDebug(*this);
+	function.add<LoadRInstruction>(destination, destination)->setDebug(*this);
 	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+		function.add<MultIInstruction>(destination, destination, immLikeReg(destination, multiplier))->setDebug(*this);
 }
 
 std::unique_ptr<Type> ArrowExpr::getType(const Context &context) const {
@@ -1710,7 +1714,7 @@ bool ArrowExpr::compileAddress(const VregPtr &destination, Function &function, c
 	left->compile(destination, function, context, 1);
 	if (field_offset != 0) {
 		function.addComment("Add field offset of " + struct_type->name + "::" + ident);
-		function.add<AddIInstruction>(destination, destination, field_offset)->setDebug(*this);
+		function.add<AddIInstruction>(destination, destination, immLikeReg(destination, field_offset))->setDebug(*this);
 	} else
 		function.addComment("Field offset of " + struct_type->name + "::" + ident + " is 0");
 	if (destination)
@@ -1737,7 +1741,7 @@ size_t ArrowExpr::getSize(const Context &context) const {
 }
 
 void SizeofExpr::compile(VregPtr destination, Function &function, const Context &context, size_t multiplier) {
-	function.add<SetIInstruction>(destination, size_t(*evaluate(context) * multiplier));
+	function.add<SetIInstruction>(destination, immLikeReg(destination, *evaluate(context) * multiplier));
 }
 
 std::optional<ssize_t> OffsetofExpr::evaluate(const Context &context) const {
@@ -1760,7 +1764,8 @@ std::optional<ssize_t> OffsetofExpr::evaluate(const Context &context) const {
 }
 
 void OffsetofExpr::compile(VregPtr destination, Function &function, const Context &context, size_t multiplier) {
-	function.add<SetIInstruction>(destination, size_t(*evaluate(context) * multiplier))->setDebug(*this);
+	function.add<SetIInstruction>(destination, immLikeReg(destination, *evaluate(context) * multiplier))
+		->setDebug(*this);
 }
 
 std::optional<ssize_t> SizeofMemberExpr::evaluate(const Context &context) const {
@@ -1775,7 +1780,8 @@ std::optional<ssize_t> SizeofMemberExpr::evaluate(const Context &context) const 
 }
 
 void SizeofMemberExpr::compile(VregPtr destination, Function &function, const Context &context, size_t multiplier) {
-	function.add<SetIInstruction>(destination, size_t(*evaluate(context) * multiplier))->setDebug(*this);
+	function.add<SetIInstruction>(destination, immLikeReg(destination, *evaluate(context) * multiplier))
+		->setDebug(*this);
 }
 
 Expr * InitializerExpr::copy() const {
@@ -1807,8 +1813,8 @@ void InitializerExpr::fullCompile(const VregPtr &start, Function &function, cons
 			child->compile(temp_var, function, context, 1);
 			const size_t size = child->getSize(context);
 			function.addComment("InitializerExpr: store and increment");
-			function.add<StoreRInstruction>(temp_var, start, size)->setDebug(*this);
-			function.add<AddIInstruction>(start, start, size)->setDebug(*this);
+			function.add<StoreRInstruction>(temp_var, start)->setDebug(*this);
+			function.add<AddIInstruction>(start, start, immLikeReg(start, size))->setDebug(*this);
 		}
 	}
 }
@@ -1844,7 +1850,8 @@ void ConstructorExpr::compile(VregPtr destination, Function &function, const Con
 	auto struct_type = looked_up->ptrcast<StructType>();
 	auto this_var = function.precolored(argument_offset++);
 	function.addComment("Setting \"this\" for constructor.");
-	function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), this_var, stackOffset)->setDebug(*this);
+	function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), this_var, immLikeReg(this_var,
+		stackOffset))->setDebug(*this);
 
 	FunctionPtr found = findFunction(subcontext);
 
@@ -1878,7 +1885,7 @@ void ConstructorExpr::compile(VregPtr destination, Function &function, const Con
 		++i;
 	}
 
-	function.add<JumpInstruction>(found->mangle(), true)->setDebug(*this);
+	function.add<JumpInstruction>(makeAddress(found->mangle()), true)->setDebug(*this);
 
 	for (size_t i = registers_used; 0 < i; --i)
 		function.add<StackPopInstruction>(function.precolored(Why::argumentOffset + int(i) - 1))->setDebug(*this);
@@ -1978,7 +1985,7 @@ void NewExpr::compile(VregPtr destination, Function &function, const Context &co
 		if (arguments.size() == 1) {
 			auto temp_var = function.newVar();
 			arguments.front()->compile(temp_var, function, subcontext, 1);
-			function.add<StoreRInstruction>(temp_var, destination, type->getSize())->setDebug(*this);
+			function.add<StoreRInstruction>(temp_var, destination)->setDebug(*this);
 		}
 	} else {
 		FunctionPtr found = findFunction(subcontext);
@@ -2027,7 +2034,7 @@ void NewExpr::compile(VregPtr destination, Function &function, const Context &co
 			++i;
 		}
 
-		function.add<JumpInstruction>(found->mangle(), true)->setDebug(*this);
+		function.add<JumpInstruction>(makeAddress(found->mangle()), true)->setDebug(*this);
 
 		for (size_t i = registers_used; 0 < i; --i)
 			function.add<StackPopInstruction>(function.precolored(Why::argumentOffset + int(i) - 1))->setDebug(*this);
@@ -2077,13 +2084,14 @@ Expr * StaticFieldExpr::copy() const {
 }
 
 void StaticFieldExpr::compile(VregPtr destination, Function &function, const Context &context, size_t multiplier) {
-	function.add<LoadIInstruction>(destination, mangle(context), getSize(context));
+	function.add<LoadIInstruction>(destination, makeAddress(mangle(context)))->setDebug(*this);
 	if (multiplier != 1)
-		function.add<MultIInstruction>(destination, destination, size_t(multiplier));
+		function.add<MultIInstruction>(destination, destination, immLikeReg(destination, static_cast<int>(multiplier)))
+			->setDebug(*this);
 }
 
 bool StaticFieldExpr::compileAddress(const VregPtr &destination, Function &function, const Context &context) {
-	function.add<SetIInstruction>(destination, mangle(context));
+	function.add<SetIInstruction>(destination, makeAddress(mangle(context)));
 	if (destination)
 		destination->setType(PointerType(getType(context).release()));
 	return true;

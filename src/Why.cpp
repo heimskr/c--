@@ -120,6 +120,7 @@ OperandType::OperandType(const ASTNode *node) {
 OperandType OperandType::VOID_PTR = OperandType(false, Primitive::Void, 1);
 OperandType OperandType::ULONG    = OperandType(false, Primitive::Long, 0);
 OperandType OperandType::VOID     = OperandType(false, Primitive::Void, 0);
+OperandType OperandType::CHAR_PTR = OperandType(false, Primitive::Char, 1);
 
 TypedReg::TypedReg(const ASTNode *node):
 	type(node), reg(node? node->front()->text : nullptr) {}

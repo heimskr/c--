@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -28,6 +29,20 @@ class Function;
 struct Program;
 struct Type;
 struct WhyInstruction;
+
+static inline OperandType typeFromReg(const VregPtr &vreg) {
+	return static_cast<OperandType>(*vreg->getType());
+}
+
+template <typename T>
+static inline TypedImmediate immLikeReg(const VregPtr &vreg, T &&immediate) {
+	return TypedImmediate(typeFromReg(vreg), std::forward<T>(immediate));
+}
+
+static inline TypedImmediate immLikeReg(const VregPtr &vreg, size_t immediate) {
+	assert(immediate <= INT_MAX);
+	return TypedImmediate(typeFromReg(vreg), static_cast<int>(immediate));
+}
 
 using ScopePtr = std::shared_ptr<Scope>;
 
@@ -513,9 +528,10 @@ struct CompoundAssignExpr: BinaryExpr<O> {
 				throw ImplicitConversionError(right_type, left_type, this->getLocation());
 			if (!this->left->compileAddress(temp_var, function, context))
 				throw LvalueError(std::string(*this->left->getType(context)), this->getLocation());
-			function.add<StoreRInstruction>(destination, temp_var, getSize(context))->setDebug(*this);
+			function.add<StoreRInstruction>(destination, temp_var)->setDebug(*this);
 			if (multiplier != 1)
-				function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+				function.add<MultIInstruction>(destination, destination, immLikeReg(destination, multiplier))
+					->setDebug(*this);
 		}
 	}
 
@@ -610,9 +626,10 @@ struct PointerArithmeticAssignExpr: CompoundAssignExpr<O, R, Fn> {
 			function.add<R>(destination, temp_var, destination)->setDebug(*this);
 			if (!this->left->compileAddress(temp_var, function, context))
 				throw LvalueError(std::string(*this->left->getType(context)), this->getLocation());
-			function.add<StoreRInstruction>(destination, temp_var, this->getSize(context))->setDebug(*this);
+			function.add<StoreRInstruction>(destination, temp_var)->setDebug(*this);
 			if (multiplier != 1)
-				function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+				function.add<MultIInstruction>(destination, destination, immLikeReg(destination, multiplier))
+					->setDebug(*this);
 		}
 	}
 };
@@ -700,16 +717,16 @@ struct PrefixExpr: Expr {
 			if (!destination)
 				destination = function.newVar(subtype);
 			auto addr_variable = function.newVar(PointerType::make(subtype->copy()));
-			const auto size = subexpr->getSize(context);
 			subexpr->compile(function.newVar(subtype), function, context, multiplier);
 			if (!subexpr->compileAddress(addr_variable, function, context))
 				throw LvalueError(std::string(*subexpr->getType(context)));
 			function.addComment("Prefix operator" + std::string(O));
-			function.add<LoadRInstruction>(addr_variable, destination, size)->setDebug(*this);
-			function.add<I>(destination, destination, to_add)->setDebug(*this);
-			function.add<StoreRInstruction>(destination, addr_variable, size)->setDebug(*this);
+			function.add<LoadRInstruction>(addr_variable, destination)->setDebug(*this);
+			function.add<I>(destination, destination, immLikeReg(destination, to_add))->setDebug(*this);
+			function.add<StoreRInstruction>(destination, addr_variable)->setDebug(*this);
 			if (multiplier != 1)
-				function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+				function.add<MultIInstruction>(destination, destination, immLikeReg(destination, multiplier))
+					->setDebug(*this);
 		}
 	}
 	FunctionPtr getOperator(const Context &context) const {
@@ -758,16 +775,16 @@ struct PostfixExpr: Expr {
 				destination = function.newVar(subtype);
 			auto temp_var = function.newVar(subtype);
 			auto addr_var = function.newVar(PointerType::make(subtype->copy()));
-			const auto size = subexpr->getSize(context);
 			subexpr->compile(function.newVar(subtype), function, context, multiplier);
 			if (!subexpr->compileAddress(addr_var, function, context))
 				throw LvalueError(std::string(*subexpr->getType(context)));
 			function.addComment("Postfix operator" + std::string(O));
-			function.add<LoadRInstruction>(addr_var, destination, size)->setDebug(*this);
-			function.add<I>(destination, temp_var, to_add)->setDebug(*this);
-			function.add<StoreRInstruction>(temp_var, addr_var, size)->setDebug(*this);
+			function.add<LoadRInstruction>(addr_var, destination)->setDebug(*this);
+			function.add<I>(destination, temp_var, immLikeReg(temp_var, to_add))->setDebug(*this);
+			function.add<StoreRInstruction>(temp_var, addr_var)->setDebug(*this);
 			if (multiplier != 1)
-				function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+				function.add<MultIInstruction>(destination, destination, immLikeReg(destination, multiplier))
+					->setDebug(*this);
 		}
 	}
 	FunctionPtr getOperator(const Context &context) const {

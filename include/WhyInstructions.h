@@ -354,8 +354,8 @@ struct LoadIndirectIInstruction: IType {
 };
 
 struct LoadRInstruction: RType {
-	LoadRInstruction(const VregPtr &source_, const VregPtr &destination_):
-		RType(source_, nullptr, destination_) {}
+	LoadRInstruction(VregPtr source_, VregPtr destination_):
+		RType(std::move(source_), nullptr, std::move(destination_)) {}
 
 	explicit operator std::vector<std::string>() const override {
 		return {"[" + leftSource->regOrID() + "] -> " + destination->regOrID()};

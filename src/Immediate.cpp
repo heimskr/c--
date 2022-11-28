@@ -1,8 +1,12 @@
 #include "Errors.h"
 #include "Function.h"
+#include "Global.h"
 #include "Immediate.h"
 #include "Util.h"
 #include "Variable.h"
+
+TypedImmediate::TypedImmediate(const Global &global):
+	TypedImmediate(static_cast<OperandType>(*global.getType()), global.name) {}
 
 std::string stringify(const TypedImmediate &imm, bool colored, bool ampersand) {
 	if (imm.is<int>()) {

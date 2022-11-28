@@ -8,6 +8,7 @@
 
 class Function;
 struct Variable;
+struct Global;
 
 using Immediate = std::variant<int, std::shared_ptr<Variable>, std::string>;
 
@@ -17,6 +18,8 @@ struct TypedImmediate {
 
 	TypedImmediate(OperandType type_, Immediate value_):
 		type(std::move(type_)), value(std::move(value_)) {}
+
+	explicit TypedImmediate(const Global &);
 
 	template <typename T>
 	TypedImmediate(OperandType type_, T value_):

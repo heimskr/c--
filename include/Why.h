@@ -133,6 +133,7 @@ struct OperandType {
 	static OperandType VOID_PTR;
 	static OperandType ULONG;
 	static OperandType VOID;
+	static OperandType CHAR_PTR;
 };
 
 struct TypedReg {

@@ -283,6 +283,7 @@ std::shared_ptr<BlockScope> Function::newScope(const std::string &name_, int *id
 VregPtr Function::precolored(int reg, bool bypass) {
 	auto out = std::make_shared<VirtualRegister>(*this)->init();
 	out->setReg(reg, bypass);
+	out->setType(VoidType());
 	out->precolored = true;
 	return out;
 }
