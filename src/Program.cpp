@@ -308,8 +308,9 @@ void Program::compile() {
 					expr->compile(vreg, *init, Context(*this, init_scope), 1);
 					if (!tryCast(*expr_type, *type, vreg, *init, expr->getLocation()))
 						throw ImplicitConversionError(expr_type, type, expr->getLocation());
-					init->add<StoreIInstruction>(vreg, TypedImmediate(OperandType(*iter->second->getType()),
-						iter->first))->setDebug(*expr);
+					OperandType op_type(*iter->second->getType());
+					++op_type.pointerLevel;
+					init->add<StoreIInstruction>(vreg, TypedImmediate(op_type, iter->first))->setDebug(*expr);
 				}
 			}
 		} else if (size == 1) {

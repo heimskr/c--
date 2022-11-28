@@ -908,7 +908,9 @@ std::unique_ptr<Type> VregExpr::getType(const Context &) const {
 void VariableExpr::compile(VregPtr destination, Function &function, const Context &context, size_t multiplier) {
 	if (VariablePtr var = context.scope->lookup(name)) {
 		if (auto global = std::dynamic_pointer_cast<Global>(var)) {
-			function.add<LoadIInstruction>(destination, immLikeReg(destination, global->name))->setDebug(*this);
+			auto imm = immLikeReg(destination, global->name);
+			++imm.type.pointerLevel;
+			function.add<LoadIInstruction>(destination, imm)->setDebug(*this);
 		} else if (function.stackOffsets.count(var) == 0) {
 			throw NotOnStackError(var);
 		} else {
