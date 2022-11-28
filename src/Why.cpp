@@ -1,5 +1,6 @@
 #include <tuple>
 
+#include "ASTNode.h"
 #include "Util.h"
 #include "Why.h"
 
@@ -91,6 +92,34 @@ std::string Why::coloredRegister(int reg) {
 	return "$[" + std::to_string(reg) + "?]";
 }
 
+OperandType::OperandType(const ASTNode *node) {
+	if (node == nullptr)
+		return;
+
+	auto inner = std::string_view(*node->text);
+	inner.remove_prefix(1); // Remove initial '{'
+	if (inner.front() == 'v') {
+		primitive = Primitive::Void;
+		inner.remove_prefix(1);
+		isSigned = false;
+	} else {
+		isSigned = inner.front() == 's';
+		inner.remove_prefix(1);
+		switch (inner.front()) {
+			case 'c': primitive = Primitive::Char;  break;
+			case 's': primitive = Primitive::Short; break;
+			case 'i': primitive = Primitive::Int;   break;
+			case 'l': primitive = Primitive::Long;  break;
+		}
+		inner.remove_prefix(1);
+	}
+
+	pointerLevel = static_cast<int>(inner.size()) - 1; // Inner matches /^\**\}$/ at this point.
+}
+
 OperandType OperandType::VOID_PTR = OperandType(false, Primitive::Void, 1);
 OperandType OperandType::ULONG    = OperandType(false, Primitive::Long, 0);
 OperandType OperandType::VOID     = OperandType(false, Primitive::Void, 0);
+
+TypedReg::TypedReg(const ASTNode *node):
+	type(node), reg(node? node->front()->text : nullptr) {}

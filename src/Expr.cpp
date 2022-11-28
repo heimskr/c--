@@ -15,6 +15,19 @@
 #include "Scope.h"
 #include "WhyInstructions.h"
 
+static TypedImmediate makeAddress(const std::string &address) {
+	return {OperandType::VOID_PTR, address};
+}
+
+static OperandType typeFromReg(const VregPtr &vreg) {
+	return static_cast<OperandType>(*vreg->getType());
+}
+
+template <typename T>
+static TypedImmediate immLikeReg(const VregPtr &vreg, T &&immediate) {
+	return TypedImmediate(typeFromReg(vreg), std::forward<T>(immediate));
+}
+
 void compileCall(const VregPtr &destination, Function &function, const Context &context, const FunctionPtr &fnptr,
                  const std::vector<Argument> &arguments, const ASTLocation &location, size_t multiplier) {
 	if (arguments.size() != fnptr->argumentCount())
@@ -67,7 +80,7 @@ void compileCall(const VregPtr &destination, Function &function, const Context &
 		++i;
 	}
 
-	function.add<JumpInstruction>(fnptr->mangle(), true)->setDebug(debug);
+	function.add<JumpInstruction>(TypedImmediate(OperandType::VOID_PTR, fnptr->mangle()), true)->setDebug(debug);
 
 	for (size_t i = arguments.size(); 0 < i; --i)
 		function.add<StackPopInstruction>(function.precolored(Why::argumentOffset + int(i) - 1))->setDebug(debug);
@@ -79,7 +92,8 @@ void compileCall(const VregPtr &destination, Function &function, const Context &
 		if (multiplier == 1)
 			function.add<MoveInstruction>(r0, destination)->setDebug(debug);
 		else
-			function.add<MultIInstruction>(r0, destination, multiplier)->setDebug(debug);
+			function.add<MultIInstruction>(r0, destination, OperandType(*destination->getType()), multiplier)
+				->setDebug(debug);
 	}
 }
 
@@ -586,7 +600,8 @@ void AndExpr::compile(VregPtr destination, Function &function, const Context &co
 		right->compile(destination, function, context, 1);
 		function.add<AndRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+			function.add<MultIInstruction>(destination, destination, OperandType(*destination->getType()),
+				static_cast<size_t>(multiplier))->setDebug(*this);
 	}
 }
 
@@ -611,7 +626,8 @@ void OrExpr::compile(VregPtr destination, Function &function, const Context &con
 		right->compile(destination, function, context, 1);
 		function.add<OrRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+			function.add<MultIInstruction>(destination, destination, OperandType(*destination->getType()),
+				static_cast<size_t>(multiplier))->setDebug(*this);
 	}
 }
 
@@ -636,7 +652,8 @@ void XorExpr::compile(VregPtr destination, Function &function, const Context &co
 		right->compile(destination, function, context, 1);
 		function.add<XorRInstruction>(temp_var, destination, destination)->setDebug(*this);
 		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+			function.add<MultIInstruction>(destination, destination, OperandType(*destination->getType()),
+				static_cast<size_t>(multiplier))->setDebug(*this);
 	}
 }
 
@@ -660,14 +677,15 @@ void LandExpr::compile(VregPtr destination, Function &function, const Context &c
 		const std::string success = base + "land.s";
 		const std::string end     = base + "land.e";
 		left->compile(destination, function, context, 1);
-		function.add<JumpConditionalInstruction>(success, destination, false)->setDebug(*this);
-		function.add<JumpInstruction>(end)->setDebug(*this);
+		function.add<JumpConditionalInstruction>(makeAddress(success), destination, false)->setDebug(*this);
+		function.add<JumpInstruction>(makeAddress(end))->setDebug(*this);
 		function.add<Label>(success);
 		right->compile(destination, function, context, 1);
 		function.add<Label>(end);
 
 		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+			function.add<MultIInstruction>(destination, destination, OperandType(*destination->getType()),
+				static_cast<size_t>(multiplier))->setDebug(*this);
 	}
 }
 
@@ -685,11 +703,12 @@ void LorExpr::compile(VregPtr destination, Function &function, const Context &co
 	} else {
 		const std::string success = "." + function.mangle() + "." + std::to_string(function.getNextBlock()) + "lor.s";
 		left->compile(destination, function, context, 1);
-		function.add<JumpConditionalInstruction>(success, destination, false)->setDebug(*this);
+		function.add<JumpConditionalInstruction>(makeAddress(success), destination, false)->setDebug(*this);
 		right->compile(destination, function, context, 1);
 		function.add<Label>(success);
 		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+			function.add<MultIInstruction>(destination, destination, OperandType(*destination->getType()),
+				static_cast<size_t>(multiplier))->setDebug(*this);
 	}
 }
 
@@ -710,7 +729,8 @@ void LxorExpr::compile(VregPtr destination, Function &function, const Context &c
 		right->compile(temp_var, function, context, 1);
 		function.add<LxorRInstruction>(destination, temp_var, destination)->setDebug(*this);
 		if (multiplier != 1)
-			function.add<MultIInstruction>(destination, destination, size_t(multiplier))->setDebug(*this);
+			function.add<MultIInstruction>(destination, destination, OperandType(*destination->getType()),
+				static_cast<size_t>(multiplier))->setDebug(*this);
 	}
 }
 
@@ -787,12 +807,12 @@ void NumberExpr::compile(VregPtr destination, Function &function, const Context 
 	if (!destination)
 		return;
 	if (Util::inRange(multiplied)) {
-		function.add<SetIInstruction>(destination, int(multiplied))->setDebug(*this);
+		function.add<SetIInstruction>(destination, immLikeReg(destination, int(multiplied)))->setDebug(*this);
 	} else {
 		const size_t high = size_t(multiplied) >> 32ul;
 		const size_t low  = size_t(multiplied) & 0xff'ff'ff'ff;
-		function.add<SetIInstruction>(destination, int(low))->setDebug(*this);
-		function.add<LuiIInstruction>(destination, int(high))->setDebug(*this);
+		function.add<SetIInstruction>(destination, immLikeReg(destination, int(low)))->setDebug(*this);
+		function.add<LuiIInstruction>(destination, immLikeReg(destination, int(high)))->setDebug(*this);
 	}
 }
 
@@ -861,12 +881,13 @@ std::unique_ptr<Type> NumberExpr::getType(const Context &context) const {
 
 void BoolExpr::compile(VregPtr destination, Function &function, const Context &, size_t multiplier) {
 	if (destination)
-		function.add<SetIInstruction>(destination, value? size_t(multiplier) : 0)->setDebug(*this);
+		function.add<SetIInstruction>(destination, immLikeReg(destination, value? int(multiplier) : 0))
+			->setDebug(*this);
 }
 
 void NullExpr::compile(VregPtr destination, Function &function, const Context &, size_t) {
 	if (destination)
-		function.add<SetIInstruction>(destination, 0)->setDebug(*this);
+		function.add<SetIInstruction>(destination, immLikeReg(destination, 0))->setDebug(*this);
 }
 
 void VregExpr::compile(VregPtr destination, Function &function, const Context &, size_t multiplier) {
@@ -874,7 +895,8 @@ void VregExpr::compile(VregPtr destination, Function &function, const Context &,
 		if (multiplier == 1)
 			function.add<MoveInstruction>(virtualRegister, destination)->setDebug(*this);
 		else
-			function.add<MultIInstruction>(virtualRegister, destination, size_t(multiplier))->setDebug(*this);
+			function.add<MultIInstruction>(virtualRegister, destination, immLikeReg(virtualRegister, int(multiplier)))
+				->setDebug(*this);
 	}
 }
 
@@ -893,7 +915,7 @@ std::unique_ptr<Type> VregExpr::getType(const Context &) const {
 void VariableExpr::compile(VregPtr destination, Function &function, const Context &context, size_t multiplier) {
 	if (VariablePtr var = context.scope->lookup(name)) {
 		if (auto global = std::dynamic_pointer_cast<Global>(var)) {
-			function.add<LoadIInstruction>(destination, global->name, global->getSize())->setDebug(*this);
+			function.add<LoadIInstruction>(destination, immLikeReg(destination, global->name))->setDebug(*this);
 		} else if (function.stackOffsets.count(var) == 0) {
 			throw NotOnStackError(var);
 		} else {

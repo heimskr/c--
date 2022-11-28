@@ -4,6 +4,8 @@
 #include <sstream>
 #include <string>
 
+class ASTNode;
+
 // #define REGISTER_PRESSURE 4
 
 /** Contains constants and functions pertaining to the Why architecture. */
@@ -74,13 +76,15 @@ struct OperandType {
 
 	OperandType(): isSigned(true), primitive(Primitive::Void), pointerLevel(-1) {}
 
-	OperandType(uint8_t type):
+	explicit OperandType(uint8_t type):
 		isSigned(((type >> 3) & 1) == 1), primitive(getPrimitive(type)), pointerLevel((type >> 4) & 0b1111) {}
 
 	OperandType(bool is_signed, Primitive primitive_, int pointer_level = 0):
 		isSigned(is_signed), primitive(primitive_), pointerLevel(pointer_level) {}
 
-	operator std::string() const {
+	explicit OperandType(const ASTNode *);
+
+	explicit operator std::string() const {
 		std::ostringstream oss;
 		oss << '{';
 		if (primitive != Primitive::Void)
@@ -131,7 +135,18 @@ struct OperandType {
 	static OperandType VOID;
 };
 
-struct Register {
-	const std::string *name;
+struct TypedReg {
 	OperandType type;
+	const std::string *reg = nullptr;
+	bool valid = true;
+	TypedReg(): valid(false) {}
+	TypedReg(const OperandType &type_, const std::string *reg_):
+		type(type_), reg(reg_) {}
+	TypedReg(const ASTNode *node);
+	operator std::string() const {
+		if (!valid)
+			return "$?";
+		return (reg? *reg : "$?") + std::string(type);
+	}
+	operator bool() const { return valid; }
 };

@@ -71,17 +71,19 @@ struct HasSource {
 
 struct HasTwoSources {
 	VregPtr leftSource, rightSource;
-	HasTwoSources(const VregPtr &left_source, const VregPtr &right_source):
-		leftSource(left_source), rightSource(right_source) {}
+	HasTwoSources(VregPtr left_source, VregPtr right_source):
+		leftSource(std::move(left_source)), rightSource(std::move(right_source)) {}
 };
 
 struct HasImmediate {
-	Immediate imm;
-	explicit HasImmediate(const Immediate &imm_): imm(imm_) {}
+	TypedImmediate imm;
+	explicit HasImmediate(TypedImmediate imm_):
+		imm(std::move(imm_)) {}
 };
 
 struct TwoRegs: WhyInstruction, HasSource, HasDestination {
-	TwoRegs(const VregPtr &source_, const VregPtr &destination_): HasSource(source_), HasDestination(destination_) {}
+	TwoRegs(VregPtr source_, VregPtr destination_):
+		HasSource(std::move(source_)), HasDestination(std::move(destination_)) {}
 
 	bool replaceRead(const VregPtr &from, const VregPtr &to) override {
 		if (source != from)
@@ -115,8 +117,9 @@ struct TwoRegs: WhyInstruction, HasSource, HasDestination {
 };
 
 struct ThreeRegs: WhyInstruction, HasTwoSources, HasDestination {
-	ThreeRegs(const VregPtr &left_source, const VregPtr &right_source, const VregPtr &destination_):
-		HasTwoSources(left_source, right_source), HasDestination(destination_) {}
+	ThreeRegs(VregPtr left_source, VregPtr right_source, VregPtr destination_):
+		HasTwoSources(std::move(left_source), std::move(right_source)),
+		HasDestination(std::move(destination_)) {}
 
 	bool replaceRead(const VregPtr &from, const VregPtr &to) override {
 		if (leftSource != from && rightSource != from)
@@ -170,20 +173,24 @@ struct RType: ThreeRegs {
 };
 
 struct IType: TwoRegs, HasImmediate {
-	IType(const VregPtr &source_, const VregPtr &destination_, const Immediate &imm_):
-		TwoRegs(source_, destination_), HasImmediate(imm_) {}
-	IType(const VregPtr &source_, const VregPtr &destination_, int imm_):
-		TwoRegs(source_, destination_), HasImmediate(imm_) {}
-	IType(const VregPtr &source_, const VregPtr &destination_, size_t imm_):
-		TwoRegs(source_, destination_), HasImmediate(int(imm_)) {
+	IType(VregPtr source_, VregPtr destination_, TypedImmediate imm_):
+		TwoRegs(std::move(source_), std::move(destination_)), HasImmediate(std::move(imm_)) {}
+
+	IType(VregPtr source_, VregPtr destination_, OperandType type_, int imm_):
+		TwoRegs(std::move(source_), std::move(destination_)), HasImmediate({std::move(type_), imm_}) {}
+
+	IType(VregPtr source_, VregPtr destination_, OperandType type_, size_t imm_):
+		TwoRegs(std::move(source_), std::move(destination_)), HasImmediate({std::move(type_), static_cast<int>(imm_)}) {
 		if (UINT32_MAX < imm_)
 			throw std::out_of_range("Immediate value out of range: " + std::to_string(imm_));
 	}
+
 	std::vector<VregPtr> getRead() override {
 		if (source)
 			return {source};
 		return {};
 	}
+
 	std::vector<VregPtr> getWritten() override {
 		if (destination)
 			return {destination};
@@ -193,8 +200,10 @@ struct IType: TwoRegs, HasImmediate {
 
 struct JType: WhyInstruction, HasSource, HasImmediate {
 	bool link;
-	explicit JType(const Immediate &imm_, bool link_ = false, const VregPtr &source_ = nullptr):
-		HasSource(source_), HasImmediate(imm_), link(link_) {}
+
+	explicit JType(TypedImmediate imm_, bool link_ = false, VregPtr source_ = nullptr):
+		HasSource(std::move(source_)), HasImmediate(std::move(imm_)), link(link_) {}
+
 	std::vector<VregPtr> getRead() override {
 		if (source)
 			return {source};
@@ -203,10 +212,13 @@ struct JType: WhyInstruction, HasSource, HasImmediate {
 };
 
 struct MoveInstruction: RType {
-	MoveInstruction(const VregPtr &source_, const VregPtr &destination_): RType(source_, nullptr, destination_) {}
+	MoveInstruction(VregPtr source_, VregPtr destination_):
+		RType(std::move(source_), nullptr, std::move(destination_)) {}
+
 	explicit operator std::vector<std::string>() const override {
 		return {leftSource->regOrID() + " -> " + destination->regOrID()};
 	}
+
 	std::vector<std::string> colored() const override {
 		return {leftSource->regOrID(true) + o("->") + destination->regOrID(true)};
 	}
@@ -214,12 +226,14 @@ struct MoveInstruction: RType {
 
 struct MultRInstruction: RType {
 	using RType::RType;
+
 	explicit operator std::vector<std::string>() const override {
 		return {
 			leftSource->regOrID() + " * " + rightSource->regOrID(),
 			"$lo -> " + destination->regOrID()
 		};
 	}
+
 	std::vector<std::string> colored() const override {
 		return {
 			leftSource->regOrID(true) + o("*") + rightSource->regOrID(true),
@@ -240,146 +254,132 @@ struct BareMultRInstruction: RType {
 
 struct MultIInstruction: IType {
 	using IType::IType;
-	explicit operator std::vector<std::string>() const override {
-		return {
-			source->regOrID() + " * " + stringify(imm),
-			"$lo -> " + destination->regOrID()
-		};
-	}
-	std::vector<std::string> colored() const override {
-		return {
-			source->regOrID(true) + o("*") + stringify(imm, true),
-			Why::coloredRegister(Why::loOffset) + o("->") + destination->regOrID(true)
-		};
-	}
+	explicit operator std::vector<std::string>() const override;
+	std::vector<std::string> colored() const override;
 };
 
 struct BareMultIInstruction: IType {
-	BareMultIInstruction(const VregPtr &rs_, const Immediate &imm_): IType(rs_, nullptr, imm_) {}
+	BareMultIInstruction(VregPtr rs_, TypedImmediate imm_):
+		IType(std::move(rs_), nullptr, std::move(imm_)) {}
+
 	explicit operator std::vector<std::string>() const override {
 		return {source->regOrID() + " * " + stringify(imm)};
 	}
+
 	std::vector<std::string> colored() const override {
 		return {source->regOrID(true) + o("*") + stringify(imm, true)};
 	}
 };
 
-struct SizedInstruction {
-	size_t size;
-	explicit SizedInstruction(size_t size_): size(size_) {
-		switch (size) {
-			case 1: case 2: case 4: case 8: break;
-			default: throw std::out_of_range("Invalid instruction size: " + std::to_string(size));
-		}
-	}
+struct StoreIInstruction: IType {
+	StoreIInstruction(VregPtr source_, TypedImmediate imm_):
+		IType(std::move(source_), nullptr, std::move(imm_)) {}
 
-	protected:
-		[[nodiscard]] std::string suffix(bool colored = false) const {
-			switch (size) {
-				case 1: return colored? " \e[2m/b\e[22m" : " /b";
-				case 2: return colored? " \e[2m/s\e[22m" : " /s";
-				case 4: return colored? " \e[2m/h\e[22m" : " /h";
-				case 8: return "";
-				default:
-					throw std::out_of_range("Invalid instruction size: " + std::to_string(size));
-			}
-		}
-};
-
-struct StoreIInstruction: IType, SizedInstruction {
-	StoreIInstruction(const VregPtr &source_, const Immediate &imm_, size_t size_):
-		IType(source_, nullptr, imm_), SizedInstruction(size_) {}
 	explicit operator std::vector<std::string>() const override {
-		return {source->regOrID() + " -> [" + stringify(imm) + "]" + suffix()};
+		return {source->regOrID() + " -> [" + stringify(imm) + "]"};
 	}
+
 	std::vector<std::string> colored() const override {
-		return {source->regOrID(true) + " \e[2m-> [\e[22m" + stringify(imm, true) + "\e[2m]\e[22m" + suffix(true)};
+		return {source->regOrID(true) + " \e[2m-> [\e[22m" + stringify(imm, true) + "\e[2m]\e[22m"};
 	}
 };
 
-struct StoreRInstruction: RType, SizedInstruction {
-	StoreRInstruction(const VregPtr &source_, const VregPtr &address_, size_t size_):
-		RType(source_, address_, nullptr), SizedInstruction(size_) {}
+struct StoreRInstruction: RType {
+	StoreRInstruction(VregPtr source_, VregPtr address_):
+		RType(std::move(source_), std::move(address_), nullptr) {}
+
 	explicit operator std::vector<std::string>() const override {
-		return {leftSource->regOrID() + " -> [" + rightSource->regOrID() + "]" + suffix()};
+		return {leftSource->regOrID() + " -> [" + rightSource->regOrID() + "]"};
 	}
+
 	std::vector<std::string> colored() const override {
 		return {
-			leftSource->regOrID(true) + " \e[2m-> [\e[22m" + rightSource->regOrID(true) + "\e[2m]\e[22m" + suffix(true)
+			leftSource->regOrID(true) + " \e[2m-> [\e[22m" + rightSource->regOrID(true) + "\e[2m]\e[22m"
 		};
 	}
 };
 
 struct SetIInstruction: IType {
-	SetIInstruction(const VregPtr &destination_, const Immediate &imm_): IType(nullptr, destination_, imm_) {}
-	SetIInstruction(const VregPtr &destination_, int imm_): IType(nullptr, destination_, imm_) {}
-	SetIInstruction(const VregPtr &destination_, size_t imm_): IType(nullptr, destination_, imm_) {}
+	SetIInstruction(VregPtr destination_, TypedImmediate imm_):
+		IType(nullptr, std::move(destination_), std::move(imm_)) {}
+
 	explicit operator std::vector<std::string>() const override {
 		return {stringify(imm) + " -> " + destination->regOrID()};
 	}
+
 	std::vector<std::string> colored() const override {
 		return {stringify(imm, true) + o("->") + destination->regOrID(true)};
 	}
 };
 
 struct LuiIInstruction: IType {
-	LuiIInstruction(const VregPtr &destination_, const Immediate &imm_): IType(nullptr, destination_, imm_) {}
+	LuiIInstruction(VregPtr destination_, TypedImmediate imm_):
+		IType(nullptr, std::move(destination_), std::move(imm_)) {}
+
 	explicit operator std::vector<std::string>() const override {
 		return {"lui: " + stringify(imm) + " -> " + destination->regOrID()};
 	}
+
 	std::vector<std::string> colored() const override {
 		return {"lui: " + stringify(imm, true) + o("->") + destination->regOrID(true)};
 	}
 };
 
-struct LoadIInstruction: IType, SizedInstruction {
-	LoadIInstruction(const VregPtr &destination_, const Immediate &imm_, size_t size_):
-		IType(nullptr, destination_, imm_), SizedInstruction(size_) {}
+struct LoadIInstruction: IType {
+	LoadIInstruction(VregPtr destination_, TypedImmediate imm_):
+		IType(nullptr, std::move(destination_), std::move(imm_)) {}
+
 	explicit operator std::vector<std::string>() const override {
-		return {"[" + stringify(imm) + "] -> " + destination->regOrID() + suffix()};
+		return {"[" + stringify(imm) + "] -> " + destination->regOrID()};
 	}
+
 	std::vector<std::string> colored() const override {
-		return {"\e[2m[\e[22m" + stringify(imm, true) + "\e[2m] ->\e[22m " + destination->regOrID(true) + suffix(true)};
+		return {"\e[2m[\e[22m" + stringify(imm, true) + "\e[2m] ->\e[22m " + destination->regOrID(true)};
 	}
 };
 
-struct LoadIndirectIInstruction: IType, SizedInstruction {
-	LoadIndirectIInstruction(const VregPtr &destination_, const Immediate &imm_, size_t size_):
-		IType(nullptr, destination_, imm_), SizedInstruction(size_) {}
+struct LoadIndirectIInstruction: IType {
+	LoadIndirectIInstruction(VregPtr destination_, TypedImmediate imm_):
+		IType(nullptr, std::move(destination_), std::move(imm_)) {}
+
 	explicit operator std::vector<std::string>() const override {
-		return {"[" + stringify(imm) + "] -> [" + destination->regOrID() + "]" + suffix()};
+		return {"[" + stringify(imm) + "] -> [" + destination->regOrID() + "]"};
 	}
+
 	std::vector<std::string> colored() const override {
 		return {
-			"\e[2m[\e[22m" + stringify(imm, true) + "\e[2m] -> [\e[22m" + destination->regOrID(true) + "\e[2m]\e[22m" +
-				suffix(true)
+			"\e[2m[\e[22m" + stringify(imm, true) + "\e[2m] -> [\e[22m" + destination->regOrID(true) + "\e[2m]\e[22m"
 		};
 	}
 };
 
-struct LoadRInstruction: RType, SizedInstruction {
-	LoadRInstruction(const VregPtr &source_, const VregPtr &destination_, size_t size_):
-		RType(source_, nullptr, destination_), SizedInstruction(size_) {}
+struct LoadRInstruction: RType {
+	LoadRInstruction(const VregPtr &source_, const VregPtr &destination_):
+		RType(source_, nullptr, destination_) {}
+
 	explicit operator std::vector<std::string>() const override {
-		return {"[" + leftSource->regOrID() + "] -> " + destination->regOrID() + suffix()};
+		return {"[" + leftSource->regOrID() + "] -> " + destination->regOrID()};
 	}
+
 	std::vector<std::string> colored() const override {
 		return {
-			"\e[2m[\e[22m" + leftSource->regOrID(true) + "\e[2m] ->\e[22m " + destination->regOrID(true) + suffix(true)
+			"\e[2m[\e[22m" + leftSource->regOrID(true) + "\e[2m] ->\e[22m " + destination->regOrID(true)
 		};
 	}
 };
 
-struct CopyRInstruction: RType, SizedInstruction {
-	explicit CopyRInstruction(const VregPtr &source_, const VregPtr &destination_, size_t size_):
-		RType(source_, nullptr, destination_), SizedInstruction(size_) {}
+struct CopyRInstruction: RType {
+	CopyRInstruction(VregPtr source_, VregPtr destination_):
+		RType(std::move(source_), nullptr, std::move(destination_)) {}
+
 	explicit operator std::vector<std::string>() const override {
-		return {"[" + leftSource->regOrID() + "] -> [" + destination->regOrID() + "]" + suffix()};
+		return {"[" + leftSource->regOrID() + "] -> [" + destination->regOrID() + "]"};
 	}
+
 	std::vector<std::string> colored() const override {
 		return {
 			"\e[2m[\e[22m" + leftSource->regOrID(true) + "\e[2m] -> [\e[22m" + destination->regOrID(true) +
-				"\e[2m]\e[22m" + suffix(true)
+				"\e[2m]\e[22m"
 		};
 	}
 };
@@ -411,10 +411,11 @@ struct StackStoreInstruction: RType {
 		if (offset == 0)
 			return {leftSource->regOrID() + " -> [$fp]"};
 		return {
-			"$fp - " + std::to_string(offset) + " -> $m1",
+			"$fp{v} - " + std::to_string(offset) + "{v} -> $m1",
 			leftSource->regOrID() + " -> [$m1]"
 		};
 	}
+
 	std::vector<std::string> colored() const override {
 		if (offset == 0)
 			return {
@@ -422,15 +423,18 @@ struct StackStoreInstruction: RType {
 					"\e[2m]\e[22m"
 			};
 		return {
-			Why::coloredRegister(Why::framePointerOffset) + o("-") + stringify(offset, true) + o("->") +
+			Why::coloredRegister(Why::framePointerOffset) + "{v}" + o("-") +
+				stringify(TypedImmediate(OperandType::VOID, offset), true) + o("->") +
 				Why::coloredRegister(Why::assemblerOffset + 1),
 			leftSource->regOrID(true) + " \e[2m-> [\e[22m" + Why::coloredRegister(Why::assemblerOffset + 1) +
-				"\e[2m]\e[22m",
+				"\e[2m]\e[22m"
 		};
 	}
+
 	bool operator==(const StackStoreInstruction &other) const {
 		return leftSource == other.leftSource && offset == other.offset;
 	}
+
 	StackStoreInstruction & setSource(const VregPtr &new_source) {
 		leftSource = new_source;
 		return *this;
@@ -456,7 +460,8 @@ struct StackLoadInstruction: RType {
 					destination->regOrID(true)
 			};
 		return {
-			Why::coloredRegister(Why::framePointerOffset) + o("-") + stringify(offset, true) + o("->") +
+			Why::coloredRegister(Why::framePointerOffset) + "{v}" + o("-") +
+				stringify(TypedImmediate(OperandType::VOID, offset), true) + o("->") +
 				Why::coloredRegister(Why::assemblerOffset + 1),
 			"\e[2m[\e[22m" + Why::coloredRegister(Why::assemblerOffset + 1) + "\e[2m] ->\e[22m " +
 				destination->regOrID(true),
@@ -468,7 +473,7 @@ struct StackLoadInstruction: RType {
 };
 
 struct SizedStackPushInstruction: IType {
-	SizedStackPushInstruction(const VregPtr &source_, const Immediate &imm_): IType(source_, nullptr, imm_) {}
+	SizedStackPushInstruction(const VregPtr &source_, const TypedImmediate &imm_): IType(source_, nullptr, imm_) {}
 	explicit operator std::vector<std::string>() const override {
 		return {"[:" + stringify(imm) + " " + source->regOrID()};
 	}
@@ -478,7 +483,7 @@ struct SizedStackPushInstruction: IType {
 };
 
 struct SizedStackPopInstruction: IType {
-	SizedStackPopInstruction(const VregPtr &destination_, const Immediate &imm_): IType(nullptr, destination_, imm_) {}
+	SizedStackPopInstruction(const VregPtr &destination_, const TypedImmediate &imm_): IType(nullptr, destination_, imm_) {}
 	explicit operator std::vector<std::string>() const override {
 		return {"]:" + stringify(imm) + " " + destination->regOrID()};
 	}
@@ -502,12 +507,15 @@ struct Conditional {
 };
 
 struct JumpInstruction: JType, Conditional {
-	explicit JumpInstruction(const Immediate &addr, bool link_ = false, Condition condition_ = Condition::None):
-		JType(addr, link_), Conditional(condition_) {}
+	explicit JumpInstruction(TypedImmediate addr, bool link_ = false, Condition condition_ = Condition::None):
+		JType(std::move(addr), link_), Conditional(condition_) {}
+
 	bool isTerminal() const override { return !link; }
+
 	explicit operator std::vector<std::string>() const override {
 		return {conditionPrefix() + std::string(link? "::" : ":") + " " + stringify(imm)};
 	}
+
 	std::vector<std::string> colored() const override {
 		return {"\e[1;2m" + conditionPrefix() + std::string(link? "::" : ":") + "\e[22m " + stringify(imm, true)};
 	}
@@ -551,11 +559,14 @@ struct JumpRegisterInstruction: RType, Conditional {
 
 struct JumpRegisterConditionalInstruction: RType {
 	bool link;
-	JumpRegisterConditionalInstruction(const VregPtr &target, const VregPtr &condition, bool link_ = false):
-		RType(target, condition, nullptr), link(link_) {}
+
+	JumpRegisterConditionalInstruction(VregPtr target, VregPtr condition, bool link_ = false):
+		RType(std::move(target), std::move(condition), nullptr), link(link_) {}
+
 	explicit operator std::vector<std::string>() const override {
 		return {std::string(link? "::" : ":") + " " + leftSource->regOrID() + " if " + rightSource->regOrID()};
 	}
+
 	std::vector<std::string> colored() const override {
 		return {
 			"\e[2m" + std::string(link? "::" : ":") + "\e[22m " + leftSource->regOrID(true) + " \e[91mif\e[39m " +
@@ -565,8 +576,9 @@ struct JumpRegisterConditionalInstruction: RType {
 };
 
 struct JumpConditionalInstruction: JType {
-	JumpConditionalInstruction(const Immediate &addr, const VregPtr &condition, bool link_ = false):
-		JType(addr, link_, condition) {}
+	JumpConditionalInstruction(TypedImmediate addr, VregPtr condition, bool link_ = false):
+		JType(std::move(addr), link_, std::move(condition)) {}
+
 	explicit operator std::vector<std::string>() const override {
 		return {std::string(link? "::" : ":") + " " + stringify(imm) + " if " + source->regOrID()};
 	}
@@ -818,10 +830,6 @@ struct ComparisonInstruction {
 	[[nodiscard]] std::string oper() const {
 		return comparison_map.at(comparison);
 	}
-
-	[[nodiscard]] std::string suffix(bool colored = false) const {
-		return colored? (isUnsigned? " \e[2m/u\e[22m" : "") : (isUnsigned? " /u" : "");
-	}
 };
 
 /** $rs == (<=, <...) $rt -> $rd (/u) */
@@ -831,31 +839,30 @@ struct ComparisonRInstruction: RType, ComparisonInstruction {
 		RType(rs_, rt_, rd_), ComparisonInstruction(comparison_, is_unsigned) {}
 	explicit operator std::vector<std::string>() const override {
 		return {
-			leftSource->regOrID() + " " + oper() + " " + rightSource->regOrID() + " -> " + destination->regOrID() +
-				suffix()
+			leftSource->regOrID() + " " + oper() + " " + rightSource->regOrID() + " -> " + destination->regOrID()
 		};
 	}
 	std::vector<std::string> colored() const override {
 		return {
 			leftSource->regOrID(true) + o(oper()) + rightSource->regOrID(true) + o("->") +
-				destination->regOrID(true) + suffix(true)
+				destination->regOrID(true)
 		};
 	}
 };
 
 struct ComparisonIInstruction: IType, ComparisonInstruction {
-	ComparisonIInstruction(const VregPtr &rs_, const VregPtr &rd_, const Immediate &imm_, Comparison comparison_,
+	ComparisonIInstruction(const VregPtr &rs_, const VregPtr &rd_, const TypedImmediate &imm_, Comparison comparison_,
 	bool is_unsigned):
 		IType(rs_, rd_, imm_), ComparisonInstruction(comparison_, is_unsigned) {}
 	explicit operator std::vector<std::string>() const override {
 		return {
-			source->regOrID() + " " + oper() + " " + stringify(imm) + " -> " + destination->regOrID() + suffix()
+			source->regOrID() + " " + oper() + " " + stringify(imm) + " -> " + destination->regOrID()
 		};
 	}
 	std::vector<std::string> colored() const override {
 		return {
 			source->regOrID(true) + o(oper()) + stringify(imm, true) + o("->") +
-				destination->regOrID(true) + suffix(true)
+				destination->regOrID(true)
 		};
 	}
 };
@@ -925,7 +932,7 @@ struct CompareRInstruction: RType {
 };
 
 struct CompareIInstruction: IType {
-	CompareIInstruction(const VregPtr &rs_, const Immediate &imm_): IType(rs_, nullptr, imm_) {}
+	CompareIInstruction(const VregPtr &rs_, const TypedImmediate &imm_): IType(rs_, nullptr, imm_) {}
 	explicit operator std::vector<std::string>() const override {
 		return {source->regOrID() + " ~ " + stringify(imm)};
 	}
@@ -1006,7 +1013,7 @@ struct Nop: WhyInstruction {
 
 template <fixstr::fixed_string N>
 struct SimpleIType: IType {
-	explicit SimpleIType(const Immediate &imm_): IType(nullptr, nullptr, imm_) {}
+	explicit SimpleIType(const TypedImmediate &imm_): IType(nullptr, nullptr, imm_) {}
 	explicit operator std::vector<std::string>() const override {
 		return {"%" + std::string(N) + " " + stringify(imm)};
 	}
@@ -1126,8 +1133,13 @@ struct QueryRInstruction: RType {
 struct PrintPseudoinstruction: IType {
 	std::string text;
 	bool useText = false;
-	explicit PrintPseudoinstruction(const Immediate &imm_): IType(nullptr, nullptr, imm_) {}
-	explicit PrintPseudoinstruction(const std::string &text_): IType(nullptr, nullptr, 0), text(text_), useText(true) {}
+
+	explicit PrintPseudoinstruction(TypedImmediate imm_):
+		IType(nullptr, nullptr, std::move(imm_)) {}
+
+	explicit PrintPseudoinstruction(const std::string &text_):
+		IType(nullptr, nullptr, OperandType::ULONG, 0), text(text_), useText(true) {}
+
 	explicit operator std::vector<std::string>() const override {
 		return {(useText? "<p \"" + Util::escape(text) + "\"" : "<prc " + charify(imm)) + ">"};
 	}

@@ -20,18 +20,22 @@
 %option noyywrap
 %option warn
 
-WASM_LETTER				[A-Za-z_]
-WASM_DIGIT				[0-9]
-WASM_DECIMAL			("-"?{WASM_DIGIT}+)
-WASM_HEXADECIMAL		("-"?0x[a-fA-F0-9]+)
-WASM_CHAR				('([^'\\\n]|("\\"[nratb\\']))')
-WASM_NUMBER				({WASM_DECIMAL}|{WASM_HEXADECIMAL})
-WASM_IDENT				([-a-z$`A-Z._][-a-z`$A-Z._0-9]*)
-WASM_STRING				(\"([^\\"\n]|\\([\\'"nt]|[0-9a-fA-F][0-9a-fA-F]))*\")
-WASM_SGCOMMENT			("//"[^\n]*)
-WASM_MLCOMMENT			("/*"([^*]|"*"[^/])*"*/")
-WASM_DOUBLE_REG			("$"([0g]|[fs]"p"|"r"("t"|[0-9a-f])|"lo"|"hi"|[akm][0-9a-f]|[st]([0-9a-f]|"1"[0-6])|"st"|"f"[0-3]|"e"[0-5]))
-WASM_SINGLE_REG			("$"[0-9]+)
+WASM_DECIMAL            ([0-9]+)
+WASM_HEXADECIMAL        (0x[a-fA-F0-9]+)
+WASM_FLOAT              ([\-+]?((([0-9]*"."[0-9]+|[0-9]+"."[0-9]*)([eE][\-+]?[0-9]+)?)|([0-9]+[eE][\-+]?[0-9]+)))
+WASM_CHAR               ('([^'\\\n]|("\\""\\"?[nratbe'])|\$[()]|"\\"x[0-9a-fA-F][0-9a-fA-F])')
+WASM_NUMBER             ({WASM_DECIMAL}|{WASM_HEXADECIMAL})
+WASM_IDENT              ([a-zA-Z._`$][$`a-zA-Z._0-9]*)
+WASM_STRING             (\"([^\\"\n]|\\([\\'"nratbe]|x[0-9a-fA-F][0-9a-fA-F]))*\")
+WASM_SGCOMMENT          ("//"[^\n]*)
+WASM_MLCOMMENT          ("/*"([^*]|"*"[^/])*"*/")
+WASM_REG                ("$"([0g]|[fs]"p"|"r"("t"|[0-9a-f])|"lo"|"hi"|[akm][0-9a-f]|[st]([0-9a-f]|"1"[0-6])|"st"|"f"[0-3]|"e"[0-5]))
+WASM_META_HEADER        ("#meta"|"#m")
+WASM_INCLUDE_HEADER     ("#includes"|"#include")
+WASM_DEBUG_HEADER       ("#debug"|"#dbg")
+WASM_TEXT_HEADER        ("#text"|"#t")
+WASM_INT_TYPE           ("#i"[0-9]+)
+WASM_TYPE               ("{"(v|[us][csil])"*"{0,15}"}")
 
 %%
 
@@ -40,37 +44,54 @@ WASM_SINGLE_REG			("$"[0-9]+)
 [ \t]+						{ }
 \n							{ wasmLexer.newline(); WASMRTOKEN(NEWLINE) }
 
-{WASM_DOUBLE_REG}			{ WASMRTOKEN(REG) }
-{WASM_SINGLE_REG}			{ WASMRTOKEN(REG) }
+{WASM_REG}					{ WASMRTOKEN(REG) }
 {WASM_CHAR}					{ WASMRTOKEN(CHAR) }
 {WASM_STRING}				{ WASMRTOKEN(STRING) }
 
+{WASM_INT_TYPE}				{ WASMRTOKEN(INT_TYPE) }
+{WASM_TYPE}					{ WASMRTOKEN(TYPE) }
+
+{WASM_META_HEADER}			{ WASMRTOKEN(META_HEADER) }
+{WASM_INCLUDE_HEADER}		{ WASMRTOKEN(INCLUDE_HEADER) }
+{WASM_DEBUG_HEADER}			{ WASMRTOKEN(DEBUG_HEADER) }
+{WASM_TEXT_HEADER}			{ WASMRTOKEN(TEXT_HEADER) }
+
+"%type"						{ WASMRTOKEN(DIR_TYPE) }
+"%size"						{ WASMRTOKEN(DIR_SIZE) }
+"%string"					{ WASMRTOKEN(DIR_STRING) }
+"%stringz"					{ WASMRTOKEN(DIR_STRINGZ) }
+"%1b"						{ WASMRTOKEN(DIR_1B) }
+"%2b"						{ WASMRTOKEN(DIR_2B) }
+"%4b"						{ WASMRTOKEN(DIR_4B) }
+"%8b"						{ WASMRTOKEN(DIR_8B) }
+"%align"					{ WASMRTOKEN(DIR_ALIGN) }
+"%fill"						{ WASMRTOKEN(DIR_FILL) }
+"function"					{ WASMRTOKEN(FUNCTION) }
+"object"					{ WASMRTOKEN(OBJECT) }
+"instruction"				{ WASMRTOKEN(INSTRUCTION) }
+"%data"						{ WASMRTOKEN(DATA) }
+"%code"						{ WASMRTOKEN(CODE) }
+"sext"						{ WASMRTOKEN(SEXT) }
+
 "translate"					{ WASMRTOKEN(TRANSLATE) }
+"version"					{ WASMRTOKEN(VERSION) }
 "memset"					{ WASMRTOKEN(MEMSET) }
-"sleep"						{ WASMRTOKEN(SLEEP) }
-"%%setpt"					{ WASMRTOKEN(SETPT) }
+"author"					{ WASMRTOKEN(AUTHOR) }
 "%setpt"					{ WASMRTOKEN(SETPT) }
-"%%di"						{ WASMRTOKEN(DI) }
-"%di"						{ WASMRTOKEN(DI) }
-"%%ei"						{ WASMRTOKEN(EI) }
-"%ei"						{ WASMRTOKEN(EI) }
-"rest"						{ WASMRTOKEN(REST) }
+"orcid"						{ WASMRTOKEN(ORCID) }
 "print"						{ WASMRTOKEN(PRINT) }
-"%%time"					{ WASMRTOKEN(TIME) }
-"%%ring"					{ WASMRTOKEN(RING) }
-"%%page"					{ WASMRTOKEN(PAGE) }
-"sext32"					{ WASMRTOKEN(SEXT32) }
-"sext16"					{ WASMRTOKEN(SEXT16) }
+"sleep"						{ WASMRTOKEN(SLEEP) }
+"rest"						{ WASMRTOKEN(REST) }
+"name"						{ WASMRTOKEN(NAME) }
 "%time"						{ WASMRTOKEN(TIME) }
 "%ring"						{ WASMRTOKEN(RING) }
+"halt"						{ WASMRTOKEN(HALT) }
 "%page"						{ WASMRTOKEN(PAGE) }
-"sext8"						{ WASMRTOKEN(SEXT8) }
-"%%int"						{ WASMRTOKEN(INT) }
-"%%rit"						{ WASMRTOKEN(RIT) }
+"lui"						{ WASMRTOKEN(LUI) }
 "%int"						{ WASMRTOKEN(INT) }
 "%rit"						{ WASMRTOKEN(RIT) }
-"halt"						{ WASMRTOKEN(HALT) }
-"lui"						{ WASMRTOKEN(LUI) }
+"%di"						{ WASMRTOKEN(DI) }
+"%ei"						{ WASMRTOKEN(EI) }
 "prc"						{ WASMRTOKEN(PRC) }
 "prx"						{ WASMRTOKEN(PRX) }
 "prd"						{ WASMRTOKEN(PRD) }
@@ -81,6 +102,7 @@ WASM_SINGLE_REG			("$"[0-9]+)
 "!&&"						{ WASMRTOKEN(LNAND) }
 "!||"						{ WASMRTOKEN(LNOR) }
 "!xx"						{ WASMRTOKEN(LXNOR) }
+"#fn"						{ WASMRTOKEN(FUNCTION_TYPE) }
 "if"						{ WASMRTOKEN(IF) }
 "on"						{ WASMRTOKEN(ON) }
 "->"						{ WASMRTOKEN(INTO) }
@@ -90,18 +112,17 @@ WASM_SINGLE_REG			("$"[0-9]+)
 "~&"						{ WASMRTOKEN(NAND) }
 "~|"						{ WASMRTOKEN(NOR) }
 "~x"						{ WASMRTOKEN(XNOR) }
-"/u"						{ WASMRTOKEN(UNSIGNED) }
 "<="						{ WASMRTOKEN(LEQ) }
 "=="						{ WASMRTOKEN(DEQ) }
 ">="						{ WASMRTOKEN(GEQ) }
-"/b"						{ WASMRTOKEN(BYTE) }
-"/h"						{ WASMRTOKEN(HALF) }
-"/s"						{ WASMRTOKEN(SHORT) }
 "!="						{ WASMRTOKEN(NOTEQUAL) }
 "<>"						{ WASMRTOKEN(NOP) }
 "<<"						{ WASMRTOKEN(LL) }
 ">>"						{ WASMRTOKEN(RA) }
+"++"						{ WASMRTOKEN(INC) }
+"--"						{ WASMRTOKEN(DEC) }
 "io"						{ WASMRTOKEN(IO) }
+"bc"						{ WASMRTOKEN(BC) }
 
 ";"							{ WASMRTOKEN(SEMICOLON) }
 "/"							{ WASMRTOKEN(SLASH) }
@@ -111,9 +132,6 @@ WASM_SINGLE_REG			("$"[0-9]+)
 "!"							{ WASMRTOKEN(BANG) }
 "="							{ WASMRTOKEN(EQUALS) }
 "."							{ WASMRTOKEN(DOT) }
-"{"							{ WASMRTOKEN(LCURLY) }
-"}"							{ WASMRTOKEN(RCURLY) }
-","							{ WASMRTOKEN(COMMA) }
 "%"							{ WASMRTOKEN(PERCENT) }
 "@"							{ WASMRTOKEN(AT) }
 "("							{ WASMRTOKEN(LPAR) }
@@ -124,12 +142,12 @@ WASM_SINGLE_REG			("$"[0-9]+)
 "<"							{ WASMRTOKEN(LANGLE) }
 ">"							{ WASMRTOKEN(RANGLE) }
 "*"							{ WASMRTOKEN(ASTERISK) }
-"#"							{ WASMRTOKEN(HASH) }
 ":"							{ WASMRTOKEN(COLON) }
 "+"							{ WASMRTOKEN(PLUS) }
 "-"							{ WASMRTOKEN(MINUS) }
 "?"							{ WASMRTOKEN(QUESTION) }
 "p"							{ WASMRTOKEN(P) }
+"{"							{ WASMRTOKEN(LCURLY) }
 
 {WASM_NUMBER}				{ WASMRTOKEN(NUMBER) }
 {WASM_IDENT}				{ WASMRTOKEN(IDENT) }

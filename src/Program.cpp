@@ -341,11 +341,11 @@ void Program::compile() {
 
 	for (const std::string &line:
 		Util::split("|@`c|\t<prc $a0{uc}>|\t: $rt{v*}||@`ptr|\t<prc '0'>|\t<prc 'x'>|\t<prx $a0{v}>|\t: $rt{v*}||@`s|\t"
-			"[$a0{uc*}] -> $mf{uc} /b|\t: _strprint_print if $mf{uc}|\t: $rt{v*}|\t@_strprint_print|\t<prc $mf{uc}>|\t$"
-			"a0{uc*}++|\t: `s||@`s16|\t<prd $a0{ss}>|\t: $rt{v*}||@`s32|\t<prd $a0{si}>|\t: $rt{v*}||@`s64|\t<prd $a0{s"
-			"l}>|\t: $rt{v*}||@`s8|\t<prd $a0{sc}>|\t: $rt{v*}||@`u16|\t<prd $a0{us}>|\t: $rt{v*}||@`u32|\t<prd $a0{ui}"
-			">|\t: $rt{v*}||@`u64|\t<prd $a0{ul}>|\t: $rt{v*}||@`u8|\t<prd $a0{uc}>|\t: $rt{v*}||@`bool|\t!$a0{v} -> $a"
-			"0{uc}|\t!$a0{uc} -> $a0{uc}|\t<prd $a0{uc}>|\t: $rt", "|", false))
+			"[$a0{uc*}] -> $mf{uc}|\t: _strprint_print if $mf{uc}|\t: $rt{v*}|\t@_strprint_print|\t<prc $mf{uc}>|\t$a0{"
+			"uc*}++|\t: `s||@`s16|\t<prd $a0{ss}>|\t: $rt{v*}||@`s32|\t<prd $a0{si}>|\t: $rt{v*}||@`s64|\t<prd $a0{sl}>"
+			"|\t: $rt{v*}||@`s8|\t<prd $a0{sc}>|\t: $rt{v*}||@`u16|\t<prd $a0{us}>|\t: $rt{v*}||@`u32|\t<prd $a0{ui}>|"
+			"\t: $rt{v*}||@`u64|\t<prd $a0{ul}>|\t: $rt{v*}||@`u8|\t<prd $a0{uc}>|\t: $rt{v*}||@`bool|\t!$a0{v} -> $a0{"
+			"uc}|\t!$a0{uc} -> $a0{uc}|\t<prd $a0{uc}>|\t: $rt{v*}", "|", false))
 		lines.emplace_back(line);
 
 	std::map<DebugData, size_t> debug_map;

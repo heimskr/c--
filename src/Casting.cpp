@@ -1,3 +1,5 @@
+#include <cassert>
+
 #include "Casting.h"
 #include "Errors.h"
 #include "Expr.h"
@@ -24,12 +26,17 @@ bool tryCast(const Type &right_type, const Type &left_type, const VregPtr &vreg,
 				if (right_subtype->isSigned(0) && left_subtype->isSigned(0)) {
 					if (right_int->width < left_int->width)
 						function.add<SextInstruction>(vreg, vreg, right_int->width)->setDebug({location, function});
-					if (left_int->width != 64)
-						function.add<AndIInstruction>(vreg, vreg, (1ul << left_int->width) - 1)->setDebug({location,
-							function});
-				} else if (left_int->width < right_int->width)
-					function.add<AndIInstruction>(vreg, vreg, (1ul << left_int->width) - 1)->setDebug({location,
-						function});
+					if (left_int->width != 64) {
+						assert(((1ul << left_int->width) - 1) < INT_MAX);
+						function.add<AndIInstruction>(vreg, vreg, TypedImmediate(OperandType(*vreg->getType()),
+							static_cast<int>((1ul << left_int->width) - 1)))->setDebug({location, function});
+					}
+				} else if (left_int->width < right_int->width) {
+					assert(((1ul << left_int->width) - 1) < INT_MAX);
+					function.add<AndIInstruction>(vreg, vreg, 
+						TypedImmediate(OperandType(*vreg->getType()), static_cast<int>((1ul << left_int->width) - 1)))
+						->setDebug({location, function});
+				}
 			}
 			return true;
 		}
