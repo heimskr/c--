@@ -920,12 +920,11 @@ void VariableExpr::compile(VregPtr destination, Function &function, const Contex
 		} else {
 			const size_t offset = function.stackOffsets.at(var);
 			function.addComment("Load variable " + name);
-			PointerType dest_type(getType(context).release());
-			destination->setType(dest_type);
-			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination,
-				immLikeReg(destination, offset))->setDebug(*this);
+			auto temp = function.newVar(PointerType::make(getType(context).release()));
+			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), temp, immLikeReg(temp, offset))
+				->setDebug(*this);
 			destination->setType(*getType(context));
-			function.add<LoadRInstruction>(destination, destination)->setDebug(*this);
+			function.add<LoadRInstruction>(temp, destination)->setDebug(*this);
 		}
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, immLikeReg(destination, int(multiplier)))
