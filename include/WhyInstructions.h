@@ -793,36 +793,11 @@ struct UnsignedBinaryRType: RType {
 	}
 };
 
-struct DivuRInstruction: UnsignedBinaryRType<"/">  { using UnsignedBinaryRType::UnsignedBinaryRType; };
-struct ModuRInstruction: UnsignedBinaryRType<"%">  { using UnsignedBinaryRType::UnsignedBinaryRType; };
-struct SluRInstruction:  UnsignedBinaryRType<"<">  { using UnsignedBinaryRType::UnsignedBinaryRType; };
-struct SleuRInstruction: UnsignedBinaryRType<"<="> { using UnsignedBinaryRType::UnsignedBinaryRType; };
-
-template <fixstr::fixed_string O>
-struct UnsignedBinaryIType: IType {
-	using IType::IType;
-	explicit operator std::vector<std::string>() const override {
-		return {
-			source->regOrID() + " " + std::string(O) + " " + stringify(imm) + " -> " + destination->regOrID() + " /u"
-		};
-	}
-	std::vector<std::string> colored() const override {
-		return {
-			source->regOrID(true) + o(std::string(O)) + stringify(imm, true) + o("->") + destination->regOrID(true)
-				+ " \e[2m/u\e[22m"
-		};
-	}
-};
-
-struct DivuIInstruction: UnsignedBinaryIType<"/"> { using UnsignedBinaryIType::UnsignedBinaryIType; };
-struct ModuIInstruction: UnsignedBinaryIType<"%"> { using UnsignedBinaryIType::UnsignedBinaryIType; };
-
 /** Note that Why currently has no != instruction. */
 struct ComparisonInstruction {
 	Comparison comparison;
-	bool isUnsigned;
 
-	ComparisonInstruction(Comparison comparison_, bool is_unsigned): comparison(comparison_), isUnsigned(is_unsigned) {
+	ComparisonInstruction(Comparison comparison_): comparison(comparison_) {
 		if (comparison_ == Comparison::Neq)
 			throw std::invalid_argument("Comparison::Neq has no corresponding instruction");
 	}
@@ -834,9 +809,8 @@ struct ComparisonInstruction {
 
 /** $rs == (<=, <...) $rt -> $rd (/u) */
 struct ComparisonRInstruction: RType, ComparisonInstruction {
-	ComparisonRInstruction(const VregPtr &rs_, const VregPtr &rt_, const VregPtr &rd_, Comparison comparison_,
-	bool is_unsigned):
-		RType(rs_, rt_, rd_), ComparisonInstruction(comparison_, is_unsigned) {}
+	ComparisonRInstruction(const VregPtr &rs_, const VregPtr &rt_, const VregPtr &rd_, Comparison comparison_):
+		RType(rs_, rt_, rd_), ComparisonInstruction(comparison_) {}
 	explicit operator std::vector<std::string>() const override {
 		return {
 			leftSource->regOrID() + " " + oper() + " " + rightSource->regOrID() + " -> " + destination->regOrID()
@@ -851,9 +825,8 @@ struct ComparisonRInstruction: RType, ComparisonInstruction {
 };
 
 struct ComparisonIInstruction: IType, ComparisonInstruction {
-	ComparisonIInstruction(const VregPtr &rs_, const VregPtr &rd_, const TypedImmediate &imm_, Comparison comparison_,
-	bool is_unsigned):
-		IType(rs_, rd_, imm_), ComparisonInstruction(comparison_, is_unsigned) {}
+	ComparisonIInstruction(const VregPtr &rs_, const VregPtr &rd_, const TypedImmediate &imm_, Comparison comparison_):
+		IType(rs_, rd_, imm_), ComparisonInstruction(comparison_) {}
 	explicit operator std::vector<std::string>() const override {
 		return {
 			source->regOrID() + " " + oper() + " " + stringify(imm) + " -> " + destination->regOrID()

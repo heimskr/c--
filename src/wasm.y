@@ -10,6 +10,7 @@
 #include "Lexer.h"
 #include "ASTNode.h"
 #include "Parser.h"
+#include "StringSet.h"
 #include "wasm/Nodes.h"
 
 // Disable PVS-Studio warnings about branches that do the same thing.
@@ -164,7 +165,7 @@ using AN = ASTNode;
 %define api.value.type {ASTNode *}
 
 %initial-action {
-    wasmParser.root = new ASTNode(wasmParser, WASMTOK_ROOT, {0, 0}, "");
+    wasmParser.root = new ASTNode(wasmParser, WASMTOK_ROOT, ASTLocation(), "");
 }
 
 %%
@@ -184,11 +185,11 @@ typed_reg: reg type { $$ = $2->adopt($1); };
 typed_imm: immediate type { $$ = $2->adopt($1); };
 address: immediate { $$ = (new ASTNode(wasmParser, WASMTOK_TYPE, "{uv*}"))->adopt($1); };
 
-operation: op_r     | op_mult   | op_multi | op_lui  | op_i     | op_c     | op_l    | op_s      | op_set    | op_divii
-         | op_li    | op_si     | op_ms    | op_lni  | op_cmp   | op_cmpi  | op_sel  | op_j      | op_jc     | op_jr
-         | op_jrc   | op_mv     | op_spush | op_spop | op_nop   | op_int   | op_rit  | op_time   | op_timei  | op_ext
-         | op_ringi | op_sspush | op_sspop | op_ring | op_page  | op_setpt | op_svpg | op_qmem   | op_sprint | op_inc
-         | op_dec   | op_di     | op_ei    | op_inv  | op_trans | op_ppush | op_ppop | op_svring | op_svtime;
+operation: op_r     | op_mult | op_multi | op_lui   | op_i     | op_c      | op_l      | op_s    | op_set   | op_divii
+         | op_li    | op_si   | op_ms    | op_lni   | op_cmp   | op_cmpi   | op_sel    | op_j    | op_jc    | op_jr
+         | op_jrc   | op_mv   | op_spush | op_spop  | op_nop   | op_int    | op_rit    | op_time | op_timei | op_ext
+         | op_ringi | op_ring | op_page  | op_setpt | op_svpg  | op_qmem   | op_sprint | op_inc  | op_dec   | op_di
+         | op_ei    | op_inv  | op_trans | op_ppush | op_ppop  | op_svring | op_svtime;
 
 label: "@" ident          { $$ = new WASMLabelNode($2); D($1); }
      | "@" WASMTOK_STRING { $$ = new WASMLabelNode($2->extracted()); D($1); };
@@ -215,13 +216,13 @@ basic_oper_i: shorthandable_i | "<" | "<=" | "==" | ">" | ">=" | "!";
 shorthandable_i: "+" | "-" | "&" | "|" | "x" | "~x" | "~&" | "~|" | "/" | "%" | "<<" | ">>>" | ">>";
 
 op_inv: op_sllii | op_srlii | op_sraii;
-op_sllii: typed_imm "<<"  typed_reg "->" typed_reg { $$ = new WASMInverseNode($1, $3, $5, WASMInverseNode::Type::Sllii); D($2, $4); };
-op_srlii: typed_imm ">>>" typed_reg "->" typed_reg { $$ = new WASMInverseNode($1, $3, $5, WASMInverseNode::Type::Srlii); D($2, $4); };
-op_sraii: typed_imm ">>"  typed_reg "->" typed_reg { $$ = new WASMInverseNode($1, $3, $5, WASMInverseNode::Type::Sraii); D($2, $4); };
+op_sllii: typed_imm "<<"  typed_reg "->" typed_reg { $$ = new WASMInverseShiftNode($3, $2, $1, $5); D($4); };
+op_srlii: typed_imm ">>>" typed_reg "->" typed_reg { $$ = new WASMInverseShiftNode($3, $2, $1, $5); D($4); };
+op_sraii: typed_imm ">>"  typed_reg "->" typed_reg { $$ = new WASMInverseShiftNode($3, $2, $1, $5); D($4); };
 
-op_inc: typed_reg "++" { $$ = new INode($1, StringSet::intern("+"), TypedImmediate(OperandType($1), 1), $1, WASMTOK_PLUS); D($2); };
+op_inc: typed_reg "++" { $$ = new INode($1->text, StringSet::intern("+"), TypedImmediate(OperandType($1), 1), $1->text, WASMTOK_PLUS); D($2); };
 
-op_dec: typed_reg "--" { $$ = new INode($1, StringSet::intern("-"), TypedImmediate(OperandType($1), 1), $1, WASMTOK_MINUS); D($2); };
+op_dec: typed_reg "--" { $$ = new INode($1->text, StringSet::intern("-"), TypedImmediate(OperandType($1), 1), $1->text, WASMTOK_MINUS); D($2); };
 
 op_c: "[" typed_reg "]" "->" "[" typed_reg "]" { $$ = new WASMCopyNode($2, $6); D($1, $3, $4, $5, $7); };
 
@@ -289,10 +290,6 @@ op_di: "%di" { $$ = new WASMInterruptsNode(false); D($1); };
 
 op_ei: "%ei" { $$ = new WASMInterruptsNode(true); D($1); };
 
-op_sspush: "[" ":" number typed_reg { $$ = new WASMSizedStackNode($3, $4, true);  D($1, $2); };
-
-op_sspop:  "]" ":" number typed_reg { $$ = new WASMSizedStackNode($3, $4, false); D($1, $2); };
-
 op_ext: op_print | op_pprint | op_sleep | op_halt | op_rest | op_io;
 
 op_sleep: "<" "sleep" typed_reg ">" { $$ = new WASMSleepRNode($3); D($1, $2, $4); };
@@ -307,7 +304,7 @@ printop: "print" | "prx" | "prd" | "prc" | "prb" | "p";
 op_pprint: "<" "prc" character ">" { $$ = new WASMPseudoPrintNode($3); D($1, $2, $4); }
          | "<" "p"   character ">" { $$ = new WASMPseudoPrintNode($3); D($1, $2, $4); };
 
-op_sprint: "<" "p" string ">" { $$ = new WASMStringPrintNode($3); D($1, $2, $4); };
+op_sprint: "<" "p" string ">" { $$ = new WASMPseudoPrintNode($3->text); D($1, $2, $3, $4); };
 
 op_halt: "<" "halt" ">" { $$ = new WASMHaltNode(); D($1, $2, $3); };
 

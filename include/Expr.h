@@ -163,7 +163,7 @@ struct LogicExpr: BinaryExpr<O> {
 	}
 };
 
-template <fixstr::fixed_string O, template <typename T> typename CompFn, typename RS, typename RU = RS>
+template <fixstr::fixed_string O, template <typename T> typename CompFn, typename R>
 struct CompExpr: BinaryExpr<O> {
 	using BinaryExpr<O>::BinaryExpr;
 
@@ -177,10 +177,7 @@ struct CompExpr: BinaryExpr<O> {
 			VregPtr temp_var = function.newVar(BoolType::make());
 			this->left->compile(destination, function, context, 1);
 			this->right->compile(temp_var, function, context, multiplier);
-			if (this->left->getType(context)->isUnsigned(0))
-				function.add<RU>(destination, temp_var, destination)->setDebug(*this);
-			else
-				function.add<RS>(destination, temp_var, destination)->setDebug(*this);
+			function.add<R>(destination, temp_var, destination)->setDebug(*this);
 		}
 	}
 
@@ -213,10 +210,10 @@ struct SgeRInstruction;
 struct SeqRInstruction;
 struct SneqRInstruction;
 
-struct LtExpr:   CompExpr<"<",  std::less,            SlRInstruction,  SluRInstruction> { using CompExpr::CompExpr; };
-struct LteExpr:  CompExpr<"<=", std::less_equal,     SleRInstruction, SleuRInstruction> { using CompExpr::CompExpr; };
-struct GtExpr:   CompExpr<">",  std::greater,         SgRInstruction,  SguRInstruction> { using CompExpr::CompExpr; };
-struct GteExpr:  CompExpr<">=", std::greater_equal,  SgeRInstruction, SgeuRInstruction> { using CompExpr::CompExpr; };
+struct LtExpr:   CompExpr<"<",  std::less,            SlRInstruction> { using CompExpr::CompExpr; };
+struct LteExpr:  CompExpr<"<=", std::less_equal,     SleRInstruction> { using CompExpr::CompExpr; };
+struct GtExpr:   CompExpr<">",  std::greater,         SgRInstruction> { using CompExpr::CompExpr; };
+struct GteExpr:  CompExpr<">=", std::greater_equal,  SgeRInstruction> { using CompExpr::CompExpr; };
 struct EqExpr:   CompExpr<"==", std::greater_equal,  SeqRInstruction> { using CompExpr::CompExpr; };
 struct NeqExpr:  CompExpr<"!=", std::greater_equal, SneqRInstruction> { using CompExpr::CompExpr; };
 

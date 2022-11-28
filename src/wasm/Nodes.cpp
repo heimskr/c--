@@ -121,25 +121,24 @@ std::unique_ptr<WhyInstruction> WASMLabelNode::convert(Function &, VarMap &) {
 	return std::make_unique<Label>(*label);
 }
 
-RNode::RNode(ASTNode *rs_, ASTNode *oper_, ASTNode *rt_, ASTNode *rd_, ASTNode *unsigned_):
+RNode::RNode(ASTNode *rs_, ASTNode *oper_, ASTNode *rt_, ASTNode *rd_):
 WASMInstructionNode(WASM_RNODE), rs(rs_->text), oper(oper_->text), rt(rt_->text), rd(rd_->text),
-operToken(oper_->symbol), isUnsigned(unsigned_ != nullptr) {
+operToken(oper_->symbol) {
 	delete rs_;
 	delete oper_;
 	if (oper_ != rt_)
 		delete rt_;
 	delete rd_;
-	delete unsigned_;
 }
 
 std::string RNode::debugExtra() const {
-	return cyan(*rs) + " " + dim(*oper) + " " + cyan(*rt) + dim(" -> ") + cyan(*rd) + (isUnsigned? " /u" : "");
+	return cyan(*rs) + " " + dim(*oper) + " " + cyan(*rt) + dim(" -> ") + cyan(*rd);
 }
 
 RNode::operator std::string() const {
 	if (*oper == "!" || *oper == "~")
-		return *oper + *rs + " -> " + *rd + (isUnsigned? " /u" : "");
-	return *rs + " " + *oper + " " + *rt + " -> " + *rd + (isUnsigned? " /u" : "");
+		return *oper + *rs + " -> " + *rd;
+	return *rs + " " + *oper + " " + *rt + " -> " + *rd;
 }
 
 std::unique_ptr<WhyInstruction> RNode::convert(Function &function, VarMap &map) {
@@ -151,15 +150,15 @@ std::unique_ptr<WhyInstruction> RNode::convert(Function &function, VarMap &map) 
 		case WASMTOK_SLASH:
 			return std::make_unique<DivRInstruction>(conv(rs), conv(rt), conv(rd));
 		case WASMTOK_LANGLE:
-			return std::make_unique<ComparisonRInstruction>(conv(rs), conv(rt), conv(rd), Comparison::Lt, isUnsigned);
+			return std::make_unique<ComparisonRInstruction>(conv(rs), conv(rt), conv(rd), Comparison::Lt);
 		case WASMTOK_LEQ:
-			return std::make_unique<ComparisonRInstruction>(conv(rs), conv(rt), conv(rd), Comparison::Lte, isUnsigned);
+			return std::make_unique<ComparisonRInstruction>(conv(rs), conv(rt), conv(rd), Comparison::Lte);
 		case WASMTOK_DEQ:
-			return std::make_unique<ComparisonRInstruction>(conv(rs), conv(rt), conv(rd), Comparison::Eq, isUnsigned);
+			return std::make_unique<ComparisonRInstruction>(conv(rs), conv(rt), conv(rd), Comparison::Eq);
 		case WASMTOK_RANGLE:
-			return std::make_unique<ComparisonRInstruction>(conv(rs), conv(rt), conv(rd), Comparison::Gt, isUnsigned);
+			return std::make_unique<ComparisonRInstruction>(conv(rs), conv(rt), conv(rd), Comparison::Gt);
 		case WASMTOK_GEQ:
-			return std::make_unique<ComparisonRInstruction>(conv(rs), conv(rt), conv(rd), Comparison::Gte, isUnsigned);
+			return std::make_unique<ComparisonRInstruction>(conv(rs), conv(rt), conv(rd), Comparison::Gte);
 		case WASMTOK_AND:
 			return std::make_unique<AndRInstruction>(conv(rs), conv(rt), conv(rd));
 		case WASMTOK_OR:
@@ -203,23 +202,25 @@ std::unique_ptr<WhyInstruction> RNode::convert(Function &function, VarMap &map) 
 	}
 }
 
-INode::INode(ASTNode *rs_, ASTNode *oper_, ASTNode *imm_, ASTNode *rd_, ASTNode *unsigned_):
+INode::INode(ASTNode *rs_, ASTNode *oper_, ASTNode *imm_, ASTNode *rd_):
 WASMInstructionNode(WASM_INODE), rs(rs_->text), oper(oper_->text), rd(rd_->text),
-operToken(oper_->symbol), imm(getImmediate(imm_)), isUnsigned(unsigned_ != nullptr) {
+operToken(oper_->symbol), imm(getImmediate(imm_)) {
 	delete rs_;
 	delete oper_;
 	delete imm_;
 	delete rd_;
-	delete unsigned_;
 }
 
+INode::INode(const std::string *rs_, const std::string *oper_, TypedImmediate imm_, const std::string *rd_,
+             int oper_token):
+	WASMInstructionNode(WASM_INODE), rs(rs_), oper(oper_), rd(rd_), operToken(oper_token), imm(std::move(imm_)) {}
+
 std::string INode::debugExtra() const {
-	return cyan(*rs) + " " + dim(*oper) + " " + stringify(imm, true) + dim(" -> ") + cyan(*rd) +
-		(isUnsigned? " /u" : "");
+	return cyan(*rs) + " " + dim(*oper) + " " + stringify(imm, true) + dim(" -> ") + cyan(*rd);
 }
 
 INode::operator std::string() const {
-	return *rs + " " + *oper + " " + stringify(imm) + " -> " + *rd + (isUnsigned? " /u" : "");
+	return *rs + " " + *oper + " " + stringify(imm) + " -> " + *rd;
 }
 
 std::unique_ptr<WhyInstruction> INode::convert(Function &function, VarMap &map) {
@@ -227,23 +228,19 @@ std::unique_ptr<WhyInstruction> INode::convert(Function &function, VarMap &map) 
 
 	switch (operToken) {
 		case WASMTOK_PERCENT:
-			if (isUnsigned)
-				return std::make_unique<ModuIInstruction>(conv(rs), conv(rd), imm);
 			return std::make_unique<ModIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_SLASH:
-			if (isUnsigned)
-				return std::make_unique<DivuIInstruction>(conv(rs), conv(rd), imm);
 			return std::make_unique<DivIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_LANGLE:
-			return std::make_unique<ComparisonIInstruction>(conv(rs), conv(rd), imm, Comparison::Lt, isUnsigned);
+			return std::make_unique<ComparisonIInstruction>(conv(rs), conv(rd), imm, Comparison::Lt);
 		case WASMTOK_LEQ:
-			return std::make_unique<ComparisonIInstruction>(conv(rs), conv(rd), imm, Comparison::Lte, isUnsigned);
+			return std::make_unique<ComparisonIInstruction>(conv(rs), conv(rd), imm, Comparison::Lte);
 		case WASMTOK_DEQ:
-			return std::make_unique<ComparisonIInstruction>(conv(rs), conv(rd), imm, Comparison::Eq, isUnsigned);
+			return std::make_unique<ComparisonIInstruction>(conv(rs), conv(rd), imm, Comparison::Eq);
 		case WASMTOK_RANGLE:
-			return std::make_unique<ComparisonIInstruction>(conv(rs), conv(rd), imm, Comparison::Gt, isUnsigned);
+			return std::make_unique<ComparisonIInstruction>(conv(rs), conv(rd), imm, Comparison::Gt);
 		case WASMTOK_GEQ:
-			return std::make_unique<ComparisonIInstruction>(conv(rs), conv(rd), imm, Comparison::Gte, isUnsigned);
+			return std::make_unique<ComparisonIInstruction>(conv(rs), conv(rd), imm, Comparison::Gte);
 		case WASMTOK_AND:
 			return std::make_unique<AndIInstruction>(conv(rs), conv(rd), imm);
 		case WASMTOK_OR:
@@ -283,15 +280,14 @@ std::unique_ptr<WhyInstruction> INode::convert(Function &function, VarMap &map) 
 	}
 }
 
-WASMMemoryNode::WASMMemoryNode(int sym, ASTNode *rs_, ASTNode *rd_, ASTNode *byte_):
-WASMInstructionNode(sym), rs(rs_->text), rd(rd_->text), isByte(byte_ != nullptr) {
+WASMMemoryNode::WASMMemoryNode(int sym, ASTNode *rs_, ASTNode *rd_):
+WASMInstructionNode(sym), rs(rs_->text), rd(rd_->text) {
 	delete rs_;
 	delete rd_;
-	delete byte_;
 }
 
-WASMCopyNode::WASMCopyNode(ASTNode *rs_, ASTNode *rd_, ASTNode *byte_):
-	WASMMemoryNode(WASM_COPYNODE, rs_, rd_, byte_) {}
+WASMCopyNode::WASMCopyNode(ASTNode *rs_, ASTNode *rd_):
+	WASMMemoryNode(WASM_COPYNODE, rs_, rd_) {}
 
 std::string WASMCopyNode::debugExtra() const {
 	return dim("[") + cyan(*rs) + dim("] -> [") + cyan(*rd) + dim("]");
@@ -306,8 +302,8 @@ std::unique_ptr<WhyInstruction> WASMCopyNode::convert(Function &function, VarMap
 	return std::make_unique<CopyRInstruction>(conv(rs), conv(rd));
 }
 
-WASMLoadNode::WASMLoadNode(ASTNode *rs_, ASTNode *rd_, ASTNode *byte_):
-	WASMMemoryNode(WASM_LOADNODE, rs_, rd_, byte_) {}
+WASMLoadNode::WASMLoadNode(ASTNode *rs_, ASTNode *rd_):
+	WASMMemoryNode(WASM_LOADNODE, rs_, rd_) {}
 
 std::string WASMLoadNode::debugExtra() const {
 	return dim("[") + cyan(*rs) + dim("] -> ") + cyan(*rd);
@@ -322,8 +318,8 @@ std::unique_ptr<WhyInstruction> WASMLoadNode::convert(Function &function, VarMap
 	return std::make_unique<LoadRInstruction>(conv(rs), conv(rd));
 }
 
-WASMStoreNode::WASMStoreNode(ASTNode *rs_, ASTNode *rd_, ASTNode *byte_):
-	WASMMemoryNode(WASM_STORENODE, rs_, rd_, byte_) {}
+WASMStoreNode::WASMStoreNode(ASTNode *rs_, ASTNode *rd_):
+	WASMMemoryNode(WASM_STORENODE, rs_, rd_) {}
 
 std::string WASMStoreNode::debugExtra() const {
 	return cyan(*rs) + dim(" -> [") + cyan(*rd) + dim("]");
@@ -356,11 +352,10 @@ std::unique_ptr<WhyInstruction> WASMSetNode::convert(Function &function, VarMap 
 	return std::make_unique<SetIInstruction>(convertVariable(function, map, rd), imm);
 }
 
-WASMLiNode::WASMLiNode(ASTNode *imm_, ASTNode *rd_, ASTNode *byte_):
-WASMInstructionNode(WASM_LINODE), rd(rd_->text), imm(getImmediate(imm_)), isByte(byte_ != nullptr) {
+WASMLiNode::WASMLiNode(ASTNode *imm_, ASTNode *rd_):
+WASMInstructionNode(WASM_LINODE), rd(rd_->text), imm(getImmediate(imm_)) {
 	delete imm_;
 	delete rd_;
-	delete byte_;
 }
 
 std::string WASMLiNode::debugExtra() const {
@@ -375,11 +370,10 @@ std::unique_ptr<WhyInstruction> WASMLiNode::convert(Function &function, VarMap &
 	return std::make_unique<LoadIInstruction>(convertVariable(function, map, rd), imm);
 }
 
-WASMSiNode::WASMSiNode(ASTNode *rs_, ASTNode *imm_, ASTNode *byte_):
-WASMInstructionNode(WASM_SINODE), rs(rs_->text), imm(getImmediate(imm_)), isByte(byte_ != nullptr) {
+WASMSiNode::WASMSiNode(ASTNode *rs_, ASTNode *imm_):
+WASMInstructionNode(WASM_SINODE), rs(rs_->text), imm(getImmediate(imm_)) {
 	delete rs_;
 	delete imm_;
-	delete byte_;
 }
 
 std::string WASMSiNode::debugExtra() const {
@@ -394,7 +388,7 @@ std::unique_ptr<WhyInstruction> WASMSiNode::convert(Function &function, VarMap &
 	return std::make_unique<StoreIInstruction>(convertVariable(function, map, rs), imm);
 }
 
-WASMLniNode::WASMLniNode(ASTNode *imm_, ASTNode *rd_, ASTNode *byte_): WASMLiNode(imm_, rd_, byte_) {
+WASMLniNode::WASMLniNode(ASTNode *imm_, ASTNode *rd_): WASMLiNode(imm_, rd_) {
 	symbol = WASM_LNINODE;
 }
 
@@ -605,19 +599,18 @@ std::unique_ptr<WhyInstruction> WASMJrcNode::convert(Function &function, VarMap 
 	return std::make_unique<JumpRegisterConditionalInstruction>(conv(rs), conv(rd), link);
 }
 
-WASMMultRNode::WASMMultRNode(ASTNode *rs_, ASTNode *rt_, ASTNode *unsigned_):
-WASMInstructionNode(WASM_MULTRNODE), rs(rs_->text), rt(rt_->text), isUnsigned(unsigned_ != nullptr) {
+WASMMultRNode::WASMMultRNode(ASTNode *rs_, ASTNode *rt_):
+WASMInstructionNode(WASM_MULTRNODE), rs(rs_->text), rt(rt_->text) {
 	delete rs_;
 	delete rt_;
-	delete unsigned_;
 }
 
 std::string WASMMultRNode::debugExtra() const {
-	return cyan(*rs) + dim(" * ") + cyan(*rt) + (isUnsigned? " /u" : "");
+	return cyan(*rs) + dim(" * ") + cyan(*rt);
 }
 
 WASMMultRNode::operator std::string() const {
-	return *rs + " * " + *rt + (isUnsigned? " /u" : "");
+	return *rs + " * " + *rt;
 }
 
 std::unique_ptr<WhyInstruction> WASMMultRNode::convert(Function &function, VarMap &map) {
@@ -625,40 +618,37 @@ std::unique_ptr<WhyInstruction> WASMMultRNode::convert(Function &function, VarMa
 	return std::make_unique<BareMultRInstruction>(conv(rs), conv(rt));
 }
 
-WASMMultINode::WASMMultINode(ASTNode *rs_, ASTNode *imm_, ASTNode *unsigned_):
-WASMInstructionNode(WASM_MULTINODE), rs(rs_->text), imm(getImmediate(imm_)), isUnsigned(unsigned_ != nullptr) {
+WASMMultINode::WASMMultINode(ASTNode *rs_, ASTNode *imm_):
+WASMInstructionNode(WASM_MULTINODE), rs(rs_->text), imm(getImmediate(imm_)) {
 	delete rs_;
 	delete imm_;
-	delete unsigned_;
 }
 
 std::string WASMMultINode::debugExtra() const {
-	return cyan(*rs) + dim(" * ") + stringify(imm, true) + (isUnsigned? " /u" : "");
+	return cyan(*rs) + dim(" * ") + stringify(imm, true);
 };
 
 WASMMultINode::operator std::string() const {
-	return *rs + " * " + stringify(imm) + (isUnsigned? " /u" : "");
+	return *rs + " * " + stringify(imm);
 }
 
 std::unique_ptr<WhyInstruction> WASMMultINode::convert(Function &function, VarMap &map) {
 	return std::make_unique<BareMultIInstruction>(convertVariable(function, map, rs), imm);
 }
 
-WASMDiviINode::WASMDiviINode(ASTNode *imm_, ASTNode *rs_, ASTNode *rd_, ASTNode *unsigned_):
-WASMInstructionNode(WASM_DIVIINODE), rs(rs_->text), rd(rd_->text), imm(getImmediate(imm_)),
-isUnsigned(unsigned_ != nullptr) {
+WASMDiviINode::WASMDiviINode(ASTNode *imm_, ASTNode *rs_, ASTNode *rd_):
+WASMInstructionNode(WASM_DIVIINODE), rs(rs_->text), rd(rd_->text), imm(getImmediate(imm_)) {
 	delete rs_;
 	delete rd_;
 	delete imm_;
-	delete unsigned_;
 }
 
 std::string WASMDiviINode::debugExtra() const {
-	return stringify(imm, true) + dim(" / ") + cyan(*rs) + dim(" -> ") + cyan(*rd) + (isUnsigned? " /u" : "");
+	return stringify(imm, true) + dim(" / ") + cyan(*rs) + dim(" -> ") + cyan(*rd);
 }
 
 WASMDiviINode::operator std::string() const {
-	return stringify(imm) + " / " + *rs + " -> " + *rd + (isUnsigned? " /u" : "");
+	return stringify(imm) + " / " + *rs + " -> " + *rd;
 }
 
 std::unique_ptr<WhyInstruction> WASMDiviINode::convert(Function &function, VarMap &map) {

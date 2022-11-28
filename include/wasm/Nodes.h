@@ -57,9 +57,8 @@ struct WASMLabelNode: WASMInstructionNode { // Not technically an instruction, b
 struct RNode: WASMInstructionNode {
 	const std::string *rs, *oper, *rt, *rd;
 	int operToken;
-	bool isUnsigned;
 	
-	RNode(ASTNode *rs_, ASTNode *oper_, ASTNode *rt_, ASTNode *rd_, ASTNode *unsigned_);
+	RNode(ASTNode *rs_, ASTNode *oper_, ASTNode *rt_, ASTNode *rd_);
 	WASMNodeType nodeType() const override { return WASMNodeType::RType; }
 	std::string debugExtra() const override;
 	explicit operator std::string() const override;
@@ -70,9 +69,10 @@ struct INode: WASMInstructionNode {
 	const std::string *rs, *oper, *rd;
 	int operToken;
 	TypedImmediate imm;
-	bool isUnsigned;
 
-	INode(ASTNode *rs_, ASTNode *oper_, ASTNode *imm, ASTNode *rd_, ASTNode *unsigned_);
+	INode(ASTNode *rs_, ASTNode *oper_, ASTNode *imm, ASTNode *rd_);
+	INode(const std::string *rs_, const std::string *oper_, TypedImmediate imm_, const std::string *rd_,
+	      int oper_token);
 	WASMNodeType nodeType() const override { return WASMNodeType::IType; }
 	std::string debugExtra() const override;
 	explicit operator std::string() const override;
@@ -80,14 +80,14 @@ struct INode: WASMInstructionNode {
 };
 
 struct WASMMemoryNode: WASMInstructionNode {
-	const std::string *rs, *rd;
-	bool isByte;
+	const std::string *rs;
+	const std::string *rd;
 
-	WASMMemoryNode(int sym, ASTNode *rs_, ASTNode *rd_, ASTNode *byte_);
+	WASMMemoryNode(int sym, ASTNode *rs_, ASTNode *rd_);
 };
 
 struct WASMCopyNode: WASMMemoryNode {
-	WASMCopyNode(ASTNode *rs_, ASTNode *rd_, ASTNode *byte_);
+	WASMCopyNode(ASTNode *rs_, ASTNode *rd_);
 	WASMNodeType nodeType() const override { return WASMNodeType::Copy; }
 	std::string debugExtra() const override;
 	explicit operator std::string() const override;
@@ -95,7 +95,7 @@ struct WASMCopyNode: WASMMemoryNode {
 };
 
 struct WASMLoadNode: WASMMemoryNode {
-	WASMLoadNode(ASTNode *rs_, ASTNode *rd_, ASTNode *byte_);
+	WASMLoadNode(ASTNode *rs_, ASTNode *rd_);
 	WASMNodeType nodeType() const override { return WASMNodeType::Load; }
 	std::string debugExtra() const override;
 	explicit operator std::string() const override;
@@ -103,7 +103,7 @@ struct WASMLoadNode: WASMMemoryNode {
 };
 
 struct WASMStoreNode: WASMMemoryNode {
-	WASMStoreNode(ASTNode *rs_, ASTNode *rd_, ASTNode *byte_);
+	WASMStoreNode(ASTNode *rs_, ASTNode *rd_);
 	WASMNodeType nodeType() const override { return WASMNodeType::Store; }
 	std::string debugExtra() const override;
 	explicit operator std::string() const override;
@@ -124,9 +124,8 @@ struct WASMSetNode: WASMInstructionNode {
 struct WASMLiNode: WASMInstructionNode {
 	const std::string *rd;
 	TypedImmediate imm;
-	bool isByte;
 
-	WASMLiNode(ASTNode *imm_, ASTNode *rd_, ASTNode *byte_);
+	WASMLiNode(ASTNode *imm_, ASTNode *rd_);
 	WASMNodeType nodeType() const override { return WASMNodeType::Li; }
 	std::string debugExtra() const override;
 	explicit operator std::string() const override;
@@ -136,9 +135,8 @@ struct WASMLiNode: WASMInstructionNode {
 struct WASMSiNode: WASMInstructionNode {
 	const std::string *rs;
 	TypedImmediate imm;
-	bool isByte;
 
-	WASMSiNode(ASTNode *rs_, ASTNode *imm_, ASTNode *byte_);
+	WASMSiNode(ASTNode *rs_, ASTNode *imm_);
 	WASMNodeType nodeType() const override { return WASMNodeType::Si; }
 	std::string debugExtra() const override;
 	explicit operator std::string() const override;
@@ -146,7 +144,7 @@ struct WASMSiNode: WASMInstructionNode {
 };
 
 struct WASMLniNode: WASMLiNode {
-	WASMLniNode(ASTNode *imm_, ASTNode *rd_, ASTNode *byte_);
+	WASMLniNode(ASTNode *imm_, ASTNode *rd_);
 	WASMNodeType nodeType() const override { return WASMNodeType::Lni; }
 	std::string debugExtra() const override;
 	explicit operator std::string() const override;
@@ -242,9 +240,8 @@ struct WASMJrcNode: WASMInstructionNode {
 
 struct WASMMultRNode: WASMInstructionNode {
 	const std::string *rs, *rt;
-	bool isUnsigned;
 
-	WASMMultRNode(ASTNode *rs_, ASTNode *rt_, ASTNode *unsigned_ = nullptr);
+	WASMMultRNode(ASTNode *rs_, ASTNode *rt_);
 	WASMNodeType nodeType() const override { return WASMNodeType::MultR; }
 	std::string debugExtra() const override;
 	explicit operator std::string() const override;
@@ -254,9 +251,8 @@ struct WASMMultRNode: WASMInstructionNode {
 struct WASMMultINode: WASMInstructionNode {
 	const std::string *rs;
 	TypedImmediate imm;
-	bool isUnsigned;
 
-	WASMMultINode(ASTNode *rs_, ASTNode *imm_, ASTNode *unsigned_ = nullptr);
+	WASMMultINode(ASTNode *rs_, ASTNode *imm_);
 	WASMNodeType nodeType() const override { return WASMNodeType::MultI; }
 	std::string debugExtra() const override;
 	explicit operator std::string() const override;
@@ -266,9 +262,8 @@ struct WASMMultINode: WASMInstructionNode {
 struct WASMDiviINode: WASMInstructionNode {
 	const std::string *rs, *rd;
 	TypedImmediate imm;
-	bool isUnsigned;
 
-	WASMDiviINode(ASTNode *imm_, ASTNode *rs_, ASTNode *rd_, ASTNode *unsigned_ = nullptr);
+	WASMDiviINode(ASTNode *imm_, ASTNode *rs_, ASTNode *rd_);
 	WASMNodeType nodeType() const override { return WASMNodeType::DiviI; }
 	std::string debugExtra() const override;
 	explicit operator std::string() const override;
