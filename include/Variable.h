@@ -36,7 +36,7 @@ struct VirtualRegister: Checkable, std::enable_shared_from_this<VirtualRegister>
 		VirtualRegister & operator=(VirtualRegister &&) = delete;
 		~VirtualRegister() override = default;
 
-		std::string regOrID(bool colored = false) const;
+		std::string regOrID(bool colored = false, bool with_type = true) const;
 		bool special() const;
 
 		WeakSet<BasicBlock> readingBlocks, writingBlocks;

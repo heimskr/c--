@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <climits>
 
 #include "Checkable.h"
@@ -433,8 +434,10 @@ struct StackStoreInstruction: RType {
 
 struct StackLoadInstruction: RType {
 	int offset;
+
 	StackLoadInstruction(const VregPtr &destination_, int offset_):
 		RType(nullptr, nullptr, destination_), offset(offset_) {}
+
 	explicit operator std::vector<std::string>() const override {
 		if (offset == 0)
 			return {"[$fp] -> " + destination->regOrID()};
@@ -443,6 +446,7 @@ struct StackLoadInstruction: RType {
 			"[$m1] -> " + destination->regOrID()
 		};
 	}
+
 	std::vector<std::string> colored() const override {
 		if (offset == 0)
 			return {
@@ -457,6 +461,7 @@ struct StackLoadInstruction: RType {
 				destination->regOrID(true),
 		};
 	}
+
 	bool operator==(const StackStoreInstruction &other) const {
 		return destination == other.destination && offset == other.offset;
 	}
@@ -503,11 +508,11 @@ struct JumpInstruction: JType, Conditional {
 	bool isTerminal() const override { return !link; }
 
 	explicit operator std::vector<std::string>() const override {
-		return {conditionPrefix() + std::string(link? "::" : ":") + " " + stringify(imm)};
+		return {conditionPrefix() + std::string(link? "::" : ":") + " " + imm.get<std::string>()};
 	}
 
 	std::vector<std::string> colored() const override {
-		return {"\e[1;2m" + conditionPrefix() + std::string(link? "::" : ":") + "\e[22m " + stringify(imm, true)};
+		return {"\e[1;2m" + conditionPrefix() + std::string(link? "::" : ":") + "\e[22m " + imm.get<std::string>()};
 	}
 };
 
@@ -570,11 +575,11 @@ struct JumpConditionalInstruction: JType {
 		JType(std::move(addr), link_, std::move(condition)) {}
 
 	explicit operator std::vector<std::string>() const override {
-		return {std::string(link? "::" : ":") + " " + stringify(imm) + " if " + source->regOrID()};
+		return {std::string(link? "::" : ":") + " " + imm.get<std::string>() + " if " + source->regOrID()};
 	}
 	std::vector<std::string> colored() const override {
 		return {
-			"\e[2m" + std::string(link? "::" : ":") + "\e[22m " + stringify(imm, true) + " \e[91mif\e[39m " +
+			"\e[2m" + std::string(link? "::" : ":") + "\e[22m " + imm.get<std::string>() + " \e[91mif\e[39m " +
 				source->regOrID(true)
 		};
 	}
@@ -582,38 +587,27 @@ struct JumpConditionalInstruction: JType {
 
 struct SextInstruction: RType {
 	public:
-		enum class SextType {Sext8, Sext16, Sext32};
-		SextType type;
-		SextInstruction(const VregPtr &source_, const VregPtr &destination_, SextType type_):
-			RType(source_, nullptr, destination_), type(type_) {}
-		SextInstruction(const VregPtr &source_, const VregPtr &destination_, int width):
-			RType(source_, nullptr, destination_), type(getType(width)) {}
+		OperandType destinationType;
+
+		SextInstruction(VregPtr source_, VregPtr destination_, const OperandType &destination_type):
+			RType(std::move(source_), nullptr, std::move(destination_)), destinationType(std::move(destination_type)) {}
+
+		SextInstruction(VregPtr source_, VregPtr destination_, int width):
+			RType(std::move(source_), nullptr, std::move(destination_)), destinationType(getType(leftSource, width)) {}
+
 		explicit operator std::vector<std::string>() const override {
-			return {getOper() + " " + leftSource->regOrID() + " -> " + destination->regOrID()};
+			return {"sext " + leftSource->regOrID() + " -> " + destination->regOrID(false, false) +
+				std::string(destinationType)};
 		}
+
 		std::vector<std::string> colored() const override {
-			return {"\e[2m" + getOper() + "\e[22m " + leftSource->regOrID(true) + o("->") + destination->regOrID(true)};
+			return {"\e[2msext\e[22m " + leftSource->regOrID(true) + o("->") + destination->regOrID(true, false) +
+				std::string(destinationType)};
 		}
 
 	private:
-		std::string getOper() const {
-			switch (type) {
-				case SextType::Sext8:  return "sext8";
-				case SextType::Sext16: return "sext16";
-				case SextType::Sext32: return "sext32";
-				default: return "sext?";
-			}
-		}
-
-		static SextType getType(int width) {
-			switch (width) {
-				case 8:  return SextType::Sext8;
-				case 16: return SextType::Sext16;
-				case 32: return SextType::Sext32;
-				default:
-					throw std::invalid_argument("No sext instruction exists for bitwidth " + std::to_string(width));
-			}
-		}
+		/** width in bits */
+		static OperandType getType(const VregPtr &source, int width);
 };
 
 template <fixstr::fixed_string O>

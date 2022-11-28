@@ -37,3 +37,16 @@ std::vector<std::string> MultRInstruction::colored() const {
 			destination->regOrID(true)
 	};
 }
+
+OperandType SextInstruction::getType(const VregPtr &source, int width) {
+	OperandType out = OperandType(*source->getType());
+	assert(out.pointerLevel == 0);
+	switch (width) {
+		case 8:  out.primitive = Primitive::Char;  break;
+		case 16: out.primitive = Primitive::Short; break;
+		case 32: out.primitive = Primitive::Int;   break;
+		case 64: out.primitive = Primitive::Long;  break;
+		default: throw std::invalid_argument("Invalid sext width: " + std::to_string(width));
+	}
+	return out;
+}

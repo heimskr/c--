@@ -16,7 +16,7 @@ std::shared_ptr<VirtualRegister> VirtualRegister::init() {
 	return ptr;
 }
 
-std::string VirtualRegister::regOrID(bool colored) const {
+std::string VirtualRegister::regOrID(bool colored, bool with_type) const {
 	std::string reg_string;
 	if (colored)
 		reg_string = reg == -1? "\e[1m%" + std::to_string(id) + "\e[22m" : Why::coloredRegister(reg);
@@ -24,12 +24,12 @@ std::string VirtualRegister::regOrID(bool colored) const {
 		reg_string = reg == -1? "%" + std::to_string(id) : "$" + Why::registerName(reg);
 #ifdef DEFAULT_TO_VOID
 	if (type == nullptr)
-		return reg_string + "{v}";
+		return with_type? reg_string + "{v}" : reg_string;
 #else
 	if (type == nullptr)
 		return reg_string;
 #endif
-	return reg_string + std::string(OperandType(*type));
+	return with_type? reg_string + std::string(OperandType(*type)) : reg_string;
 }
 
 bool VirtualRegister::special() const {
