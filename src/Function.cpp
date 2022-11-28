@@ -192,14 +192,17 @@ void Function::compile() {
 
 		if (!isNaked()) {
 			int i = 0;
-			VregPtr temp_var = arguments.empty()? nullptr : newVar();
-			VregPtr fp = precolored(Why::framePointerOffset);
-			for (const std::string &argument_name: arguments) {
-				VariablePtr argument = argumentMap.at(argument_name);
-				const size_t offset = addToStack(argument);
-				add<MoveInstruction>(precolored(Why::argumentOffset + i++), argument)->setDebug(default_debug);
-				add<SubIInstruction>(fp, temp_var, immLikeReg(temp_var, offset))->setDebug(default_debug);
-				add<StoreRInstruction>(argument, temp_var)->setDebug(default_debug);
+			if (!arguments.empty()) {
+				VregPtr temp_var = newVar();
+				VregPtr fp = precolored(Why::framePointerOffset);
+				temp_var->setType(VoidType());
+				for (const std::string &argument_name: arguments) {
+					VariablePtr argument = argumentMap.at(argument_name);
+					const size_t offset = addToStack(argument);
+					add<MoveInstruction>(precolored(Why::argumentOffset + i++), argument)->setDebug(default_debug);
+					add<SubIInstruction>(fp, temp_var, immLikeReg(temp_var, offset))->setDebug(default_debug);
+					add<StoreRInstruction>(argument, temp_var)->setDebug(default_debug);
+				}
 			}
 		}
 

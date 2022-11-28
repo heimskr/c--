@@ -871,9 +871,11 @@ std::unique_ptr<Type> NumberExpr::getType(const Context &context) const {
 }
 
 void BoolExpr::compile(VregPtr destination, Function &function, const Context &, size_t multiplier) {
-	if (destination)
+	if (destination) {
+		destination->setType(BoolType());
 		function.add<SetIInstruction>(destination, immLikeReg(destination, value? int(multiplier) : 0))
 			->setDebug(*this);
+	}
 }
 
 void NullExpr::compile(VregPtr destination, Function &function, const Context &, size_t) {
@@ -912,8 +914,11 @@ void VariableExpr::compile(VregPtr destination, Function &function, const Contex
 		} else {
 			const size_t offset = function.stackOffsets.at(var);
 			function.addComment("Load variable " + name);
+			PointerType dest_type(getType(context).release());
+			destination->setType(dest_type);
 			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination,
 				immLikeReg(destination, offset))->setDebug(*this);
+			destination->setType(*getType(context));
 			function.add<LoadRInstruction>(destination, destination)->setDebug(*this);
 		}
 		if (multiplier != 1)
@@ -927,6 +932,8 @@ void VariableExpr::compile(VregPtr destination, Function &function, const Contex
 }
 
 bool VariableExpr::compileAddress(const VregPtr &destination, Function &function, const Context &context) {
+	if (destination)
+		destination->setType(PointerType(getType(context).release()));
 	if (VariablePtr var = context.scope->lookup(name)) {
 		if (auto global = std::dynamic_pointer_cast<Global>(var)) {
 			function.add<SetIInstruction>(destination, TypedImmediate(*global))->setDebug(*this);
@@ -946,8 +953,6 @@ bool VariableExpr::compileAddress(const VregPtr &destination, Function &function
 		function.add<SetIInstruction>(destination, makeAddress(fn->mangle()))->setDebug(*this);
 	} else
 		throw ResolutionError(name, context.scope, getLocation());
-	if (destination)
-		destination->setType(PointerType(getType(context).release()));
 	return true;
 }
 
