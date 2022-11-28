@@ -157,7 +157,7 @@ struct SuperType: Type {
 
 class PointerType: public SuperType, public Makeable<PointerType> {
 	public:
-		using SuperType::SuperType;
+		explicit PointerType(Type *);
 		Type * copy() const override {
 			return (new PointerType(subtype != nullptr? subtype->copy() : nullptr))->steal(*this);
 		}
@@ -282,3 +282,6 @@ struct InitializerType: Type, Makeable<InitializerType> {
 	protected:
 		std::string stringify() const override;
 };
+
+/** If the argument is a ReferenceType, then its subtype is returned. Otherwise the argument is returned directly. */
+Type & unwrap(Type &type);

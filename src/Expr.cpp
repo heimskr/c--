@@ -42,6 +42,7 @@ void compileCall(const VregPtr &destination, Function &function, const Context &
 			auto *expr = std::get<Expr *>(argument);
 			auto argument_type = expr->getType(context);
 			argument_register->setType(*argument_type);
+
 			if (fn_arg_type->isReference()) {
 				function.addComment("compileCall: compiling address into reference argument");
 				if (!expr->compileAddress(argument_register, function, context))
@@ -51,6 +52,7 @@ void compileCall(const VregPtr &destination, Function &function, const Context &
 					"Structs cannot be directly passed to functions; use a pointer");
 			} else
 				expr->compile(argument_register, function, context, 1);
+
 			try {
 				typeCheck(*argument_type, *fn_arg_type, argument_register, function, expr->getLocation());
 			} catch (std::out_of_range &err) {
@@ -947,11 +949,15 @@ bool VariableExpr::compileAddress(const VregPtr &destination, Function &function
 		} else {
 			const size_t offset = function.stackOffsets.at(var);
 			function.addComment("Get variable lvalue for " + name);
-			function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination,
-				immLikeReg(destination, static_cast<int>(offset)))->setDebug(*this);
 			if (var->getType()->isReference()) {
+				auto temp = function.newVar(destination->getType());
+				function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), temp,
+					immLikeReg(temp, static_cast<int>(offset)))->setDebug(*this);
 				function.addComment("Load reference lvalue for " + name);
-				function.add<LoadRInstruction>(destination, destination)->setDebug(*this);
+				function.add<LoadRInstruction>(temp, destination)->setDebug(*this);
+			} else {
+				function.add<SubIInstruction>(function.precolored(Why::framePointerOffset), destination,
+					immLikeReg(destination, static_cast<int>(offset)))->setDebug(*this);
 			}
 		}
 	} else if (const auto fn = context.scope->lookupFunction(name, getLocation())) {
@@ -1058,10 +1064,17 @@ std::string StringExpr::getID(Program &program) const {
 void DerefExpr::compile(VregPtr destination, Function &function, const Context &context, size_t multiplier) {
 	if (auto fnptr = getOperator(context)) {
 		compileCall(destination, function, context, fnptr, {subexpr.get()}, getLocation(), multiplier);
-	} else {
+	} else if (destination) {
 		checkType(context);
-		subexpr->compile(destination, function, context, multiplier);
-		function.add<LoadRInstruction>(destination, destination)->setDebug(*this);
+		auto type = TypePtr(getType(context));
+		auto temp = function.newVar(type);
+		subexpr->compile(temp, function, context, multiplier);
+		function.addComment("Loading in DerefExpr::compile");
+		if (auto ref = type->ptrcast<ReferenceType>()) // Pointers to references really shouldn't be a thing..
+			destination->setType(*ref->subtype);
+		else
+			destination->setType(*type);
+		function.add<LoadRInstruction>(temp, destination)->setDebug(*this);
 	}
 }
 
@@ -1419,14 +1432,20 @@ void AssignExpr::compile(VregPtr destination, Function &function, const Context 
 	if (auto fnptr = function.program.getOperator({left_type.get(), right_type.get()}, CPMTOK_ASSIGN, getLocation())) {
 		compileCall(destination, function, context, fnptr, {left.get(), right.get()}, getLocation(), multiplier);
 	} else {
+		function.addComment("Begin assignment");
 		auto addr_var = function.newVar();
 		if (!destination)
 			destination = function.newVar();
 		TypePtr right_type = right->getType(context);
+
 		if (!left->compileAddress(addr_var, function, context))
 			throw LvalueError(std::string(*left->getType(context)));
-		if (destination)
+
+		if (destination) {
+			info() << getLocation() << ": " << *addr_var->getType() << '\n';
 			destination->setType(*addr_var->getType());
+		}
+
 		if (right_type->isInitializer()) {
 			auto *initializer_expr = right->cast<InitializerExpr>();
 			if (initializer_expr->isConstructor) {
@@ -1462,6 +1481,7 @@ void AssignExpr::compile(VregPtr destination, Function &function, const Context 
 				function.add<MultIInstruction>(destination, destination, immLikeReg(destination,
 					static_cast<int>(multiplier)))->setDebug(*this);
 		}
+		function.addComment("End assignment");
 	}
 }
 

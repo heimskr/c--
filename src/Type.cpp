@@ -11,6 +11,12 @@
 #include "Scope.h"
 #include "Type.h"
 
+Type & unwrap(Type &type) {
+	if (auto *ref = type.cast<ReferenceType>())
+		return *ref->subtype;
+	return type;
+}
+
 Type::operator std::string() const {
 	if (isConst)
 		return (isLvalue? "^" : "") + stringify() + " const";
@@ -79,6 +85,16 @@ SuperType::operator OperandType() const {
 	auto out = OperandType(*subtype);
 	++out.pointerLevel;
 	return out;
+}
+
+PointerType::PointerType(Type *subtype_): SuperType(nullptr) {
+	if (auto *ref = subtype_->cast<ReferenceType>()) {
+		subtype = ref->subtype;
+		ref->subtype = nullptr;
+		delete ref;
+	} else {
+		subtype = subtype_;
+	}
 }
 
 bool PointerType::similar(const Type &other, bool ignore_const) const {
