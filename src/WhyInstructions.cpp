@@ -38,6 +38,27 @@ std::vector<std::string> MultRInstruction::colored() const {
 	};
 }
 
+LoadRInstruction::operator std::vector<std::string>() const {
+	// Hack for when the source and destination are the same: increase the source's pointer level by one.
+	if (leftSource != destination)
+		return {"[" + leftSource->regOrID() + "] -> " + destination->regOrID()};
+	TypePtr old_type(leftSource->getType()->copy());
+	leftSource->setType(PointerType(old_type->copy()));
+	const std::string base = "[" + leftSource->regOrID() + "] -> ";
+	leftSource->setType(*old_type);
+	return {base + destination->regOrID()};
+}
+
+std::vector<std::string> LoadRInstruction::colored() const {
+	if (leftSource != destination)
+		return {"\e[2m[\e[22m" + leftSource->regOrID(true) + "\e[2m] ->\e[22m " + destination->regOrID(true)};
+	TypePtr old_type(leftSource->getType()->copy());
+	leftSource->setType(PointerType(old_type->copy()));
+	const std::string base = "\e[2m[\e[22m" + leftSource->regOrID(true) + "\e[2m] ->\e[22m ";
+	leftSource->setType(*old_type);
+	return {base + destination->regOrID(true)};
+}
+
 OperandType SextInstruction::getType(const VregPtr &source, int width) {
 	OperandType out = OperandType(*source->getType());
 	assert(out.pointerLevel == 0);

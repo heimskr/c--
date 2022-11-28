@@ -348,15 +348,9 @@ struct LoadRInstruction: RType {
 	LoadRInstruction(VregPtr source_, VregPtr destination_):
 		RType(std::move(source_), nullptr, std::move(destination_)) {}
 
-	explicit operator std::vector<std::string>() const override {
-		return {"[" + leftSource->regOrID() + "] -> " + destination->regOrID()};
-	}
+	explicit operator std::vector<std::string>() const override;
 
-	std::vector<std::string> colored() const override {
-		return {
-			"\e[2m[\e[22m" + leftSource->regOrID(true) + "\e[2m] ->\e[22m " + destination->regOrID(true)
-		};
-	}
+	std::vector<std::string> colored() const override;
 };
 
 struct CopyRInstruction: RType {

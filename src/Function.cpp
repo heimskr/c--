@@ -229,6 +229,7 @@ void Function::compile() {
 		replacePlaceholders();
 
 		auto rt = precolored(Why::returnAddressOffset);
+		rt->setType(PointerType(new VoidType));
 
 		if (!is_init) {
 			const bool is_saved = isSaved();

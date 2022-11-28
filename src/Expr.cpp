@@ -41,6 +41,7 @@ void compileCall(const VregPtr &destination, Function &function, const Context &
 		if (std::holds_alternative<Expr *>(argument)) {
 			auto *expr = std::get<Expr *>(argument);
 			auto argument_type = expr->getType(context);
+			argument_register->setType(*argument_type);
 			if (fn_arg_type->isReference()) {
 				function.addComment("compileCall: compiling address into reference argument");
 				if (!expr->compileAddress(argument_register, function, context))
@@ -59,7 +60,8 @@ void compileCall(const VregPtr &destination, Function &function, const Context &
 		} else {
 			auto vreg = std::get<VregPtr>(argument);
 			function.add<MoveInstruction>(vreg, argument_register)->setDebug(debug);
-			if (auto vreg_type = vreg->getType())
+			if (auto vreg_type = vreg->getType()) {
+				argument_register->setType(*vreg->getType());
 				try {
 					typeCheck(*vreg_type, *fn_arg_type, argument_register, function, location);
 				} catch (std::out_of_range &err) {
@@ -67,6 +69,7 @@ void compileCall(const VregPtr &destination, Function &function, const Context &
 					        << location << "\e[39m\n";
 					throw;
 				}
+			}
 		}
 		++i;
 	}
@@ -80,6 +83,7 @@ void compileCall(const VregPtr &destination, Function &function, const Context &
 
 	if (!fnptr->returnType->isVoid() && destination) {
 		auto r0 = function.precolored(Why::returnValueOffset);
+		r0->setType(PointerType(new VoidType));
 		if (multiplier == 1)
 			function.add<MoveInstruction>(r0, destination)->setDebug(debug);
 		else
@@ -1222,6 +1226,7 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 		fnptr_type = subexpr->getType(subcontext);
 		if (!fnptr_type->isFunctionPointer())
 			throw FunctionPointerError(std::string(*fnptr_type));
+
 		const auto *subfn = fnptr_type->cast<FunctionPointerType>();
 		found_return_type = TypePtr(subfn->returnType->copy());
 		get_arg_type = [subfn](size_t i) -> const Type & { return *subfn->argumentTypes.at(i); };
@@ -1238,6 +1243,8 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 		auto argument_register = fn.precolored(argument_offset + int(i));
 		auto argument_type = argument->getType(subcontext);
 		const Type &function_argument_type = get_arg_type(i);
+		argument_register->setType(*argument_type); // TODO: should it be function_argument_type?
+
 		if (function_argument_type.isReference()) {
 			fn.addComment("CallExpr::compile: compiling address into reference argument");
 			if (!argument->compileAddress(argument_register, fn, context))
@@ -1247,12 +1254,14 @@ void CallExpr::compile(VregPtr destination, Function &fn, const Context &context
 				"Structs cannot be directly passed to functions; use a pointer");
 		} else
 			argument->compile(argument_register, fn, context, 1);
+
 		try {
 			typeCheck(*argument_type, function_argument_type, argument_register, fn, argument->getLocation());
 		} catch (ImplicitConversionError &) {
 			std::cerr << "\e[31mBad function argument at " << argument->getLocation() << "\e[39m\n";
 			throw;
 		}
+
 		++i;
 	}
 
@@ -1875,6 +1884,8 @@ void ConstructorExpr::compile(VregPtr destination, Function &function, const Con
 	for (const auto &argument: arguments) {
 		auto argument_register = function.precolored(argument_offset + int(i));
 		auto argument_type = argument->getType(subcontext);
+		argument_register->setType(*argument_type);
+
 		if (found->getArgumentType(i)->isReference()) {
 			if (!argument->compileAddress(argument_register, function, context))
 				throw LvalueError(std::string(*argument_type), argument->getLocation());
@@ -1883,12 +1894,14 @@ void ConstructorExpr::compile(VregPtr destination, Function &function, const Con
 				"Structs cannot be directly passed to functions; use a pointer");
 		} else
 			argument->compile(argument_register, function, context, 1);
+
 		try {
 			typeCheck(*argument_type, *found->getArgumentType(i), argument_register, function, argument->getLocation());
 		} catch (std::out_of_range &err) {
 			std::cerr << "\e[31mBad function argument at " << argument->getLocation() << "\e[39m\n";
 			throw;
 		}
+
 		++i;
 	}
 
@@ -2020,9 +2033,12 @@ void NewExpr::compile(VregPtr destination, Function &function, const Context &co
 				" (expected " + std::to_string(found->argumentCount()) + ")");
 
 		size_t i = 0;
+
 		for (const auto &argument: arguments) {
 			auto argument_register = function.precolored(argument_offset + int(i));
 			auto argument_type = argument->getType(subcontext);
+			argument_register->setType(*argument_type);
+
 			if (found->getArgumentType(i)->isReference()) {
 				if (!argument->compileAddress(argument_register, function, context))
 					throw LvalueError(std::string(*argument_type), argument->getLocation());
@@ -2031,6 +2047,7 @@ void NewExpr::compile(VregPtr destination, Function &function, const Context &co
 					"Structs cannot be directly passed to functions; use a pointer");
 			} else
 				argument->compile(argument_register, function, context, 1);
+
 			try {
 				typeCheck(*argument_type, *found->getArgumentType(i), argument_register, function,
 					argument->getLocation());
@@ -2038,6 +2055,7 @@ void NewExpr::compile(VregPtr destination, Function &function, const Context &co
 				error() << "Bad function argument at " << argument->getLocation() << '\n';
 				throw;
 			}
+
 			++i;
 		}
 
