@@ -995,6 +995,14 @@ void AddressOfExpr::compile(VregPtr destination, Function &function, const Conte
 
 	if (!subexpr->compileAddress(destination, function, context))
 		throw LvalueError(std::string(*subexpr));
+
+	// Taking the address of an array should transmute the arrayness at the top to a pointer.
+	auto subtype = subexpr->getType(context);
+	if (auto *array_type = subtype->cast<ArrayType>()) {
+		Type *array_subtype = array_type->subtype;
+		array_type->subtype = nullptr;
+		destination->setType(PointerType(array_subtype));
+	}
 }
 
 std::unique_ptr<Type> AddressOfExpr::getType(const Context &context) const {
@@ -1531,10 +1539,12 @@ void AccessExpr::compile(VregPtr destination, Function &function, const Context 
 		else
 			fail();
 
-		compileAddress(destination, function, context);
+		auto temp = function.newVar(TypePtr(subtype->copy()));
+
+		compileAddress(temp, function, context);
 		destination->setType(*subtype);
 
-		function.add<LoadRInstruction>(destination, destination)->setDebug(*this);
+		function.add<LoadRInstruction>(temp, destination)->setDebug(*this);
 		if (multiplier != 1)
 			function.add<MultIInstruction>(destination, destination, immLikeReg(destination,
 				static_cast<int>(multiplier)))->setDebug(*this);

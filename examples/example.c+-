@@ -53,7 +53,7 @@ void main(u32 argc) {
 	s32 scope_out = scope_test();
 	`s("scope_out() = "); `s32(scope_out); l();
 	`s("Global n = "); `s64(n); l();
-	`s("~100u8 = "); `u8(~(s64)100u8); l();
+	`s("~100u8 = "); `s64(~(s64)100u8); l();
 	`s("6 to the void and back: "); `u32((u32) (void) 6); l();
 	`bool(!!true); l();
 	`s("true? 2 : 3 == "); `s64(true? 2 : 3); l();
@@ -72,12 +72,12 @@ void main(u32 argc) {
 }
 
 s32 scope_test() {
-	s32 n = 42;
+	s32 n = 42s32;
 	`s("Function-scope n = "); `s32(n); l();
 	if (true) {
 		u64 n = (u64) -1s64;
 		`s("Block-scope n = "); `u64(n); l();
-		{{{ n = 64; }}}
+		{{{ n = 64u64; }}}
 		`s("Block-scope n = "); `u64(n); l();
 	}
 	`s("Function-scope n = "); `s32(n); l();
