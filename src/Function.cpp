@@ -16,6 +16,14 @@
 
 #define DEBUG_SPILL
 
+static TypedImmediate makeVoid(int value) {
+	return {OperandType::VOID, value};
+}
+
+static TypedImmediate makeAddress(const std::string &address) {
+	return {OperandType::VOID_PTR, address};
+}
+
 Function::Function(Program &program_, const ASTNode *source_):
 program(program_), source(source_), selfScope(FunctionScope::make(*this, GlobalScope::make(program))) {
 	if (source != nullptr) {
@@ -190,9 +198,8 @@ void Function::compile() {
 				VariablePtr argument = argumentMap.at(argument_name);
 				const size_t offset = addToStack(argument);
 				add<MoveInstruction>(precolored(Why::argumentOffset + i++), argument)->setDebug(default_debug);
-				add<SubIInstruction>(fp, temp_var, offset)->setDebug(default_debug);
-				const size_t argument_size = argument->getType()->isReference()? Why::wordSize : argument->getSize();
-				add<StoreRInstruction>(argument, temp_var, argument_size)->setDebug(default_debug);
+				add<SubIInstruction>(fp, temp_var, immLikeReg(temp_var, offset))->setDebug(default_debug);
+				add<StoreRInstruction>(argument, temp_var)->setDebug(default_debug);
 			}
 		}
 
@@ -227,7 +234,7 @@ void Function::compile() {
 			auto sp = precolored(Why::stackPointerOffset);
 			auto m5 = mx(5);
 			if (stackUsage != 0)
-				addFront<SubIInstruction>(sp, sp, stackUsage)->setDebug(default_debug);
+				addFront<SubIInstruction>(sp, sp, immLikeReg(sp, stackUsage))->setDebug(default_debug);
 			addFront<MoveInstruction>(sp, fp)->setDebug(default_debug);
 			if (is_saved)
 				for (int reg: gp_regs)
@@ -308,7 +315,6 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			currentScope()->insert(variable);
 			size_t offset = addToStack(variable);
 			bool store_back = false;
-			size_t store_size = 0;
 			VregPtr fp;
 			if (variable->getType()->isReference()) {
 				if (node.size() == 2)
@@ -326,7 +332,6 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 					throw LvalueError(std::string(*expr->getType(context)), node.location);
 
 				store_back = true;
-				store_size = Why::wordSize;
 				fp = precolored(Why::framePointerOffset);
 			} else if (node.size() == 3) {
 				auto expr = ExprPtr(Expr::get(*node.at(2), this));
@@ -348,7 +353,8 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 						call->compile(nullptr, *this, currentContext(), 1);
 					} else {
 						auto addr_var = newVar();
-						add<SubIInstruction>(fp, addr_var, offset)->setDebug({node.location, *this});
+						add<SubIInstruction>(fp, addr_var, immLikeReg(addr_var, offset))
+							->setDebug({node.location, *this});
 						initializer->fullCompile(addr_var, *this, currentContext());
 					}
 				} else {
@@ -356,16 +362,15 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 					typeCheck(*expr->getType(currentContext()), *variable->getType(), variable, *this,
 						expr->getLocation());
 					store_back = true;
-					store_size = variable->getSize();
 				}
 			}
 			if (store_back) {
 				if (offset == 0) {
-					add<StoreRInstruction>(variable, fp, store_size)->setDebug({node.location, *this});
+					add<StoreRInstruction>(variable, fp)->setDebug({node.location, *this});
 				} else {
 					VregPtr m0 = mx(0);
-					add<SubIInstruction>(fp, m0, offset)->setDebug({node.location, *this});
-					add<StoreRInstruction>(variable, m0, store_size)->setDebug({node.location, *this});
+					add<SubIInstruction>(fp, m0, makeVoid(offset))->setDebug({node.location, *this});
+					add<StoreRInstruction>(variable, m0)->setDebug({node.location, *this});
 				}
 			}
 			break;
@@ -402,7 +407,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				else
 					break;
 			} while (scope);
-			add<JumpInstruction>("." + mangle() + ".e")->setDebug({node.location, *this});
+			add<JumpInstruction>(makeAddress("." + mangle() + ".e"))->setDebug({node.location, *this});
 			break;
 		}
 		case CPMTOK_LPAREN:
@@ -423,11 +428,11 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				throw ImplicitConversionError(condition_type, BoolType::make(), condition->getLocation());
 			condition->compile(temp_var, *this, currentContext(), 1);
 			add<LnotRInstruction>(temp_var, temp_var)->setDebug({node.location, *this});
-			add<JumpConditionalInstruction>(end, temp_var)->setDebug({node.location, *this});
+			add<JumpConditionalInstruction>(makeAddress(end), temp_var)->setDebug({node.location, *this});
 			openScope(start);
 			compile(*node.at(1), end, start, current_scope);
 			closeScope();
-			add<JumpInstruction>(start)->setDebug({node.location, *this});
+			add<JumpInstruction>(makeAddress(start))->setDebug({node.location, *this});
 			add<Label>(end);
 			break;
 		}
@@ -450,11 +455,11 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 				throw ImplicitConversionError(condition_type, BoolType::make(), condition->getLocation());
 			condition->compile(temp_var, *this, currentContext(), 1);
 			add<LnotRInstruction>(temp_var, temp_var)->setDebug({node.location, *this});
-			add<JumpConditionalInstruction>(end, temp_var)->setDebug({node.location, *this});
+			add<JumpConditionalInstruction>(makeAddress(end), temp_var)->setDebug({node.location, *this});
 			compile(*node.at(3), end, next, current_scope);
 			add<Label>(next);
 			compile(*node.at(2), break_label, continue_label, parent_scope);
-			add<JumpInstruction>(start)->setDebug({node.location, *this});
+			add<JumpInstruction>(makeAddress(start))->setDebug({node.location, *this});
 			add<Label>(end);
 			closeScope();
 			break;
@@ -464,14 +469,14 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			if (continue_label.empty() || !parent_scope)
 				throw GenericError(node.location, "Encountered invalid continue statement");
 			closeScopes(parent_scope->getName());
-			add<JumpInstruction>(continue_label)->setDebug({node.location, *this});
+			add<JumpInstruction>(makeAddress(continue_label))->setDebug({node.location, *this});
 			break;
 		case CPMTOK_BREAK:
 			checkNaked(node);
 			if (break_label.empty() || !parent_scope)
 				throw GenericError(node.location, "Encountered invalid break statement");
 			closeScopes(parent_scope->getName());
-			add<JumpInstruction>(break_label)->setDebug({node.location, *this});
+			add<JumpInstruction>(makeAddress(break_label))->setDebug({node.location, *this});
 			break;
 		case CPM_EMPTY:
 			break;
@@ -495,17 +500,17 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 			add<LnotRInstruction>(temp_var, temp_var)->setDebug({node.location, *this});
 			if (node.size() == 3) {
 				const std::string else_label = base + "if.else";
-				add<JumpConditionalInstruction>(else_label, temp_var)->setDebug({node.location, *this});
+				add<JumpConditionalInstruction>(makeAddress(else_label), temp_var)->setDebug({node.location, *this});
 				openScope();
 				compile(*node.at(1), break_label, continue_label, parent_scope);
 				closeScope();
-				add<JumpInstruction>(end_label)->setDebug({node.location, *this});
+				add<JumpInstruction>(makeAddress(end_label))->setDebug({node.location, *this});
 				add<Label>(else_label);
 				openScope();
 				compile(*node.at(2), break_label, continue_label, parent_scope);
 				closeScope();
 			} else {
-				add<JumpConditionalInstruction>(end_label, temp_var)->setDebug({node.location, *this});
+				add<JumpConditionalInstruction>(makeAddress(end_label), temp_var)->setDebug({node.location, *this});
 				openScope();
 				compile(*node.at(1), break_label, continue_label, parent_scope);
 				closeScope();
@@ -570,8 +575,7 @@ void Function::compile(const ASTNode &node, const std::string &break_label, cons
 					for (const auto &[wasm_vreg, expr]: out_exprs) {
 						if (!expr->compileAddress(addr_var, *this, context))
 							throw LvalueError(std::string(*expr->getType(context)));
-						add<StoreRInstruction>(map.at(wasm_vreg), addr_var, expr->getSize(context))
-							->setDebug({node.location, *this});
+						add<StoreRInstruction>(map.at(wasm_vreg), addr_var)->setDebug({node.location, *this});
 					}
 				}
 			}
@@ -656,8 +660,8 @@ std::list<BasicBlockPtr> & Function::extractBlocks(std::map<std::string, BasicBl
 			continue;
 		const auto last = block->instructions.back();
 		if (auto *jtype = last->cast<JType>()) {
-			if (std::holds_alternative<std::string>(jtype->imm)) {
-				const std::string &target_name = std::get<std::string>(jtype->imm);
+			if (jtype->imm.is<std::string>()) {
+				const std::string &target_name = jtype->imm.get<std::string>();
 				if (map.count(target_name) != 0) {
 					auto &target = map.at(target_name);
 					target->predecessors.insert(block);
@@ -669,7 +673,7 @@ std::list<BasicBlockPtr> & Function::extractBlocks(std::map<std::string, BasicBl
 		for (const auto &instruction: block->instructions) {
 			instruction->parent = block;
 			if (const auto *conditional = instruction->cast<JumpConditionalInstruction>()) {
-				const auto &target_name = std::get<std::string>(conditional->imm);
+				const auto &target_name = conditional->imm.get<std::string>();
 				if (map.count(target_name) != 0) {
 					auto &target = map.at(target_name);
 					target->predecessors.insert(block);
