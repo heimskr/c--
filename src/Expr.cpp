@@ -798,11 +798,12 @@ ssize_t NumberExpr::getValue() const {
 	return Util::parseLong(literal.substr(0, literal.find_first_of("su")));
 }
 
-void NumberExpr::compile(VregPtr destination, Function &function, const Context &, size_t multiplier) {
+void NumberExpr::compile(VregPtr destination, Function &function, const Context &context, size_t multiplier) {
 	const ssize_t multiplied = getValue() * ssize_t(multiplier);
 	getSize();
 	if (!destination)
 		return;
+	destination->setType(*getType(context));
 	if (Util::inRange(multiplied)) {
 		function.add<SetIInstruction>(destination, immLikeReg(destination, int(multiplied)))->setDebug(*this);
 	} else {
@@ -1441,10 +1442,8 @@ void AssignExpr::compile(VregPtr destination, Function &function, const Context 
 		if (!left->compileAddress(addr_var, function, context))
 			throw LvalueError(std::string(*left->getType(context)));
 
-		if (destination) {
-			info() << getLocation() << ": " << *addr_var->getType() << '\n';
+		if (destination)
 			destination->setType(*addr_var->getType());
-		}
 
 		if (right_type->isInitializer()) {
 			auto *initializer_expr = right->cast<InitializerExpr>();
