@@ -11,7 +11,8 @@ TypedImmediate::TypedImmediate(const Global &global):
 std::string stringify(const TypedImmediate &imm, bool colored, bool ampersand) {
 	if (imm.is<int>()) {
 		const std::string str = std::to_string(imm.get<int>());
-		return colored? "\e[36m" + str + "\e[39m" : str;
+		std::string out = colored? "\e[36m" + str + "\e[39m" : str;
+		return out + std::string(imm.type);
 	}
 	if (imm.is<VariablePtr>()) {
 		const auto &var = imm.get<VariablePtr>();
@@ -19,7 +20,7 @@ std::string stringify(const TypedImmediate &imm, bool colored, bool ampersand) {
 			throw std::runtime_error("Variable " + var->name + " has no function");
 		if (var->function->stackOffsets.count(var) == 0)
 			throw NotOnStackError(var);
-		return std::to_string(var->function->stackOffsets.at(var));
+		return std::to_string(var->function->stackOffsets.at(var)) + std::string(imm.type);
 	}
 	const auto &str = imm.get<std::string>();
 	std::string out = colored? "\e[38;5;202m" + (ampersand? "&" + str : str) + "\e[39m" : (ampersand? "&" + str : str);

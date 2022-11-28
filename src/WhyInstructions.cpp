@@ -22,3 +22,18 @@ std::vector<std::string> MultIInstruction::colored() const {
 			destination->regOrID(true)
 	};
 }
+
+MultRInstruction::operator std::vector<std::string>() const {
+	return {
+		leftSource->regOrID() + " * " + rightSource->regOrID(),
+		"$lo" + std::string(OperandType(*leftSource->getType())) + " -> " + destination->regOrID()
+	};
+}
+
+std::vector<std::string> MultRInstruction::colored() const {
+	return {
+		leftSource->regOrID(true) + o("*") + rightSource->regOrID(true),
+		Why::coloredRegister(Why::loOffset) + std::string(OperandType(*leftSource->getType())) + o("->") +
+			destination->regOrID(true)
+	};
+}

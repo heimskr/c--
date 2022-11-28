@@ -227,19 +227,9 @@ struct MoveInstruction: RType {
 struct MultRInstruction: RType {
 	using RType::RType;
 
-	explicit operator std::vector<std::string>() const override {
-		return {
-			leftSource->regOrID() + " * " + rightSource->regOrID(),
-			"$lo -> " + destination->regOrID()
-		};
-	}
+	explicit operator std::vector<std::string>() const override;
 
-	std::vector<std::string> colored() const override {
-		return {
-			leftSource->regOrID(true) + o("*") + rightSource->regOrID(true),
-			Why::coloredRegister(Why::loOffset) + o("->") + destination->regOrID(true)
-		};
-	}
+	std::vector<std::string> colored() const override;
 };
 
 struct BareMultRInstruction: RType {
